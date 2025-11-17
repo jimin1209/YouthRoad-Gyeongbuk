@@ -1,13 +1,14 @@
 apply plugin: 'com.android.library'
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    // Use compileOnly to expose Unity classes for compilation without packaging the jar twice.
+    compileOnly fileTree(dir: 'libs', include: ['*.jar'])
 }
 
 android {
     namespace "com.unity3d.player"
     ndkPath "C:/Program Files/Unity/Hub/Editor/2022.3.62f3/Editor/Data/PlaybackEngines/AndroidPlayer/NDK"
-    compileSdkVersion 36
+    compileSdkVersion 34
     buildToolsVersion '34.0.0'
 
     compileOptions {
@@ -17,8 +18,9 @@ android {
 
     defaultConfig {
         minSdkVersion 24
-        targetSdkVersion 36
+        targetSdkVersion 34
         ndk {
+            // Build only arm64-v8a (current Unity export provides arm64 libs only)
             abiFilters 'arm64-v8a'
         }
         versionCode 1
@@ -98,6 +100,7 @@ def BuildIl2Cpp(String workingDir, String configuration, String architecture, St
 android {
     task BuildIl2CppTask {
         doLast {
+            // ARM64 for real devices
             BuildIl2Cpp(
                 projectDir.toString().replaceAll('\\\\', '/'),
                 'Release',
