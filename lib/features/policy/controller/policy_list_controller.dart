@@ -12,9 +12,9 @@ class PolicyFilter {
   const PolicyFilter({
     this.region,
     this.age,
-    this.categories = const [],
+    List<String> categories = const [],
     this.status,
-  });
+  }) : categories = List.unmodifiable(categories);
 
   PolicyFilter copyWith({
     String? region,
@@ -48,11 +48,15 @@ class PolicyListController extends AutoDisposeAsyncNotifier<List<Policy>> {
   Future<List<Policy>> build() async {
     _repository = ref.watch(policyRepositoryProvider);
     final filter = ref.watch(filterStateProvider);
+    final categories = filter.categories.isEmpty ? null : filter.categories;
+    final status = (filter.status == null || filter.status!.isEmpty)
+        ? null
+        : filter.status;
     final policies = await _repository.getPolicies(
       region: filter.region,
       age: filter.age,
-      categories: filter.categories,
-      status: filter.status,
+      categories: categories,
+      status: status,
     );
     return _sortedByScore(policies, filter.categories);
   }

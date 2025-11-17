@@ -2,23 +2,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/bookmark_local_datasource.dart';
 import '../../policy/data/models/policy.dart';
 
-final bookmarkDataSourceProvider =
-    Provider<BookmarkLocalDataSource>((ref) => BookmarkLocalDataSource());
+final bookmarkControllerProvider = AsyncNotifierProvider<BookmarkController, List<Policy>>(
+  BookmarkController.new,
+);
 
-final bookmarkControllerProvider =
-    NotifierProvider<BookmarkController, List<Policy>>(BookmarkController.new);
-
-class BookmarkController extends Notifier<List<Policy>> {
-  late final BookmarkLocalDataSource _dataSource;
+class BookmarkController extends AsyncNotifier<List<Policy>> {
+  late BookmarkLocalDataSource _dataSource;
 
   @override
-  List<Policy> build() {
-    _dataSource = ref.watch(bookmarkDataSourceProvider);
+  Future<List<Policy>> build() async {
+    _dataSource = await BookmarkLocalDataSource.create();
     return _dataSource.getBookmarks();
   }
 
-  void toggle(Policy policy) {
-    _dataSource.toggleBookmark(policy);
-    state = _dataSource.getBookmarks();
+  Future<void> toggle(Policy policy) async {
+    final updated = await _dataSource.toggleBookmark(policy);
+    state = AsyncValue.data(updated);
+  }
+
+  bool isBookmarked(String policyId) {
+    final cached = state.value;
+    if (cached != null) {
+      return cached.any((policy) => policy.id == policyId);
+    }
+    return _dataSource.isBookmarked(policyId);
   }
 }
