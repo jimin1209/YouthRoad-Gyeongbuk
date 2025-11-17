@@ -1,5 +1,9 @@
 import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_unity_widget/flutter_unity_widget.dart';
+
+import '../../policy/controller/policy_list_controller.dart';
 
 enum UnityMessageType {
   setSelectedRegion('SET_SELECTED_REGION'),
@@ -51,6 +55,17 @@ class UnityController extends Notifier<UnityState> {
     });
   }
 
+  Future<void> sendMessage(
+    UnityWidgetController controller,
+    UnityMessageType type, {
+    Map<String, dynamic> payload = const {},
+    String gameObject = 'MapController',
+    String methodName = 'OnFlutterMessage',
+  }) async {
+    final message = buildMessage(type, payload);
+    controller.postMessage(gameObject, methodName, message);
+  }
+
   void handleMessage(String message) {
     final decoded = jsonDecode(message) as Map<String, dynamic>;
     final type = decoded['type'] as String?;
@@ -68,9 +83,15 @@ class UnityController extends Notifier<UnityState> {
   }
 
   void _onRegionSelected(Map<String, dynamic> payload) {
+    final regionCode = payload['regionCode'] as String?;
+    final regionName = payload['regionName'] as String?;
     state = state.copyWith(
-      selectedRegionCode: payload['regionCode'] as String?,
-      selectedRegionName: payload['regionName'] as String?,
+      selectedRegionCode: regionCode,
+      selectedRegionName: regionName,
     );
+    if (regionCode != null) {
+      final notifier = ref.read(filterStateProvider.notifier);
+      notifier.state = notifier.state.copyWith(region: regionCode);
+    }
   }
 }

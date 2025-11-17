@@ -11,15 +11,19 @@ class BookmarkPage extends ConsumerWidget {
     final bookmarks = ref.watch(bookmarkControllerProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('북마크')),
-      body: bookmarks.isEmpty
-          ? const Center(child: Text('북마크한 정책이 없습니다.'))
-          : ListView.builder(
-              itemCount: bookmarks.length,
-              itemBuilder: (context, index) {
-                final policy = bookmarks[index];
-                return PolicyCard(policy: policy);
-              },
-            ),
+      body: bookmarks.when(
+        data: (items) => items.isEmpty
+            ? const Center(child: Text('북마크한 정책이 없습니다.'))
+            : ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final policy = items[index];
+                  return PolicyCard(policy: policy);
+                },
+              ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text('북마크를 불러오지 못했습니다: $error')),
+      ),
     );
   }
 }

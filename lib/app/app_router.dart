@@ -52,7 +52,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'unity-map',
             name: 'unity_map',
-            builder: (context, state) => const UnityMapPage(),
+            builder: (context, state) {
+              String? regionCode;
+              String? regionName;
+              final extra = state.extra;
+              if (extra is Map<String, dynamic>) {
+                regionCode = extra['regionCode'] as String?;
+                regionName = extra['regionName'] as String?;
+              }
+              return UnityMapPage(
+                initialRegionCode: regionCode,
+                initialRegionName: regionName,
+              );
+            },
           ),
           GoRoute(
             path: 'settings',
