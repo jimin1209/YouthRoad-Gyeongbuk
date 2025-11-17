@@ -42,14 +42,18 @@ web/.dart_tool/
 **/Build/
 **/Builds/
 **/UserSettings/
-**/unityLibrary/.gradle/
 
 # Unity Android Export caches
 unityLibrary/build/
-unityLibrary/libs/
+unityLibrary/libs/       # 👉 Unity 빌드산출물
 unityLibrary/.idea/
 unityLibrary/.gradle/
 unityLibrary/.settings/
+
+# 🔥 Unity 안에서 빌드된 JNI/IL2CPP 결과물 무시
+unityLibrary/src/main/jniLibs/
+unityLibrary/src/main/jniStaticLibs/
+unityLibrary/src/main/Il2CppOutputProject/
 
 # Unity asset pipeline
 **/*.pidb.meta
@@ -65,11 +69,8 @@ unityLibrary/.settings/
 # =========================================================
 # JetBrains Rider
 # =========================================================
-# Rider project settings
 .idea/
 *.sln.iml
-
-# Rider Workspace
 *.iws
 *.ipr
 

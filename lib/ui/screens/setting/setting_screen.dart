@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_strings.dart';
 import '../../widgets/app_appbar.dart';
 
 class SettingScreen extends StatelessWidget {
@@ -9,9 +8,19 @@ class SettingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const AppAppBar(title: AppStrings.settingTitle),
-      body: const Center(
-        child: Text('Setting Screen'),
+      appBar: const AppAppBar(title: '설정'),
+      body: ListView(
+        children: const [
+          SwitchListTile(
+            title: Text('알림 수신'),
+            value: true,
+            onChanged: null, // TODO: implement preferences toggle
+          ),
+          ListTile(
+            title: Text('앱 버전'),
+            subtitle: Text('1.0.0'),
+          ),
+        ],
       ),
     );
   }

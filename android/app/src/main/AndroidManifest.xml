@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="youth_app"
+        android:label="youth_road_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

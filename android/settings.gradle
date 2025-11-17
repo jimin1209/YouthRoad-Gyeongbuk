@@ -22,4 +22,11 @@ plugins {
     id "org.jetbrains.kotlin.android" version "1.7.10" apply false
 }
 
+rootProject.name = "youth_road_app"
+
+// 🔥 Flutter 기본 앱 모듈
 include ":app"
+
+// 🔥 Unity 라이브러리 모듈 등록 (핵심)
+include ":unityLibrary"
+project(":unityLibrary").projectDir = file("unityLibrary")
