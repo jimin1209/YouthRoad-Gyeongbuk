@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_strings.dart';
+
 class BottomNav extends StatelessWidget {
   const BottomNav({
     super.key,
@@ -22,22 +24,22 @@ class BottomNav extends StatelessWidget {
         NavigationDestination(
           icon: Icon(Icons.home_outlined),
           selectedIcon: Icon(Icons.home),
-          label: '홈',
+          label: AppStrings.homeTitle,
         ),
         NavigationDestination(
           icon: Icon(Icons.category_outlined),
           selectedIcon: Icon(Icons.category),
-          label: '카테고리',
+          label: AppStrings.categoryTitle,
         ),
         NavigationDestination(
           icon: Icon(Icons.chat_outlined),
           selectedIcon: Icon(Icons.chat),
-          label: '챗봇',
+          label: AppStrings.chatbotTitle,
         ),
         NavigationDestination(
           icon: Icon(Icons.settings_outlined),
           selectedIcon: Icon(Icons.settings),
-          label: '설정',
+          label: AppStrings.settingTitle,
         ),
       ],
       surfaceTintColor: colorScheme.surfaceTint,

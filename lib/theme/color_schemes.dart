@@ -29,7 +29,7 @@ const ColorScheme lightColorScheme = ColorScheme(
   shadow: Colors.black,
   scrim: Colors.black,
   inverseSurface: Color(0xFF2F3034),
-  inverseOnSurface: Color(0xFFF0F0F5),
+  // inverseOnSurface 삭제됨 (Flutter 3.24)
   inversePrimary: Color(0xFFB1C5FF),
   surfaceTint: Color(0xFF4E8DF5),
 );
@@ -63,7 +63,7 @@ const ColorScheme darkColorScheme = ColorScheme(
   shadow: Colors.black,
   scrim: Colors.black,
   inverseSurface: Color(0xFFE2E2E7),
-  inverseOnSurface: Color(0xFF2F3034),
+  // inverseOnSurface 삭제됨 (Flutter 3.24)
   inversePrimary: Color(0xFF4E8DF5),
   surfaceTint: Color(0xFFB1C5FF),
 );
