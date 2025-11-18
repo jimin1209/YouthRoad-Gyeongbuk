@@ -8,9 +8,6 @@ jobs:
   flutter-tests:
     name: Flutter Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: flutter_app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
