@@ -28,11 +28,13 @@ class PolicyRepository {
     int page = 1,
     int size = 20,
   }) async {
+    final normalizedRegion = (region == null || region == 'ALL') ? null : region;
+    final normalizedCategories = _joinCategories(categories);
     final response = await _api.fetchPolicies(
       PolicyRequestDto(
         apiKey: apiKey,
-        searchRgnSe: region,
-        searchPolicyType: _joinCategories(categories),
+        searchRgnSe: normalizedRegion,
+        searchPolicyType: normalizedCategories,
         searchKeyword: keyword,
         pageIndex: page <= 0 ? 1 : page,
         pageSize: size,
@@ -77,7 +79,14 @@ class PolicyRepository {
     if (categories == null || categories.isEmpty) {
       return null;
     }
-    return categories.join(',');
+    final nonEmpty = categories
+        .map((category) => category.trim())
+        .where((category) => category.isNotEmpty)
+        .toList();
+    if (nonEmpty.isEmpty) {
+      return null;
+    }
+    return nonEmpty.join(',');
   }
 }
 
