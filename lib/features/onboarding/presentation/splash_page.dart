@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class SplashPage extends StatelessWidget {
+import '../controller/onboarding_controller.dart';
+
+class SplashPage extends ConsumerWidget {
   const SplashPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final onboardingState = ref.watch(onboardingStateProvider);
     Future.microtask(() {
-      // TODO: replace with onboarding completion check.
-      context.go('/onboarding');
+      if (!context.mounted) return;
+      final nextRoute = onboardingState.completed ? '/home' : '/onboarding';
+      context.go(nextRoute);
     });
     return const Scaffold(
       body: Center(child: CircularProgressIndicator()),

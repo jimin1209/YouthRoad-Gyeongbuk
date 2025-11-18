@@ -17,3 +17,16 @@ class PolicyDetailController extends AutoDisposeFamilyAsyncNotifier<Policy, Stri
     return _repository.getPolicyDetail(arg);
   }
 }
+
+final relatedPoliciesProvider = FutureProvider.autoDispose.family<List<Policy>, Policy>(
+  (ref, policy) async {
+    final repository = ref.watch(policyRepositoryProvider);
+    final candidates = await repository.getPolicies(
+      region: policy.regionCode,
+      categories: policy.categories.isEmpty ? null : policy.categories,
+      size: 20,
+    );
+    final filtered = candidates.where((item) => item.id != policy.id).toList();
+    return filtered.take(6).toList();
+  },
+);

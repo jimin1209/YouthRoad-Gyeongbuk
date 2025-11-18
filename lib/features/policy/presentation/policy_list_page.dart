@@ -11,7 +11,7 @@ class PolicyListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final policiesAsync = ref.watch(policyListControllerProvider);
-    final filter = ref.watch(filterStateProvider);
+    final filter = ref.watch(policyFilterProvider);
     return RefreshIndicator(
       onRefresh: () => ref.refresh(policyListControllerProvider.future),
       child: CustomScrollView(
@@ -90,7 +90,9 @@ class _FilterSection extends ConsumerWidget {
                 Text('필터', style: Theme.of(context).textTheme.titleMedium),
                 TextButton(
                   onPressed: () {
-                    ref.read(filterStateProvider.notifier).state =
+                    ref.read(policyFilterUseProfileProvider.notifier).state =
+                        true;
+                    ref.read(policyFilterStateProvider.notifier).state =
                         PolicyFilter.initial();
                   },
                   child: const Text('초기화'),
@@ -117,7 +119,9 @@ class _FilterSection extends ConsumerWidget {
                     ),
                   ],
                   onChanged: (value) {
-                    final notifier = ref.read(filterStateProvider.notifier);
+                    ref.read(policyFilterUseProfileProvider.notifier).state =
+                        false;
+                    final notifier = ref.read(policyFilterStateProvider.notifier);
                     notifier.state = notifier.state.copyWith(region: value);
                   },
                 );
@@ -140,7 +144,8 @@ class _FilterSection extends ConsumerWidget {
                 ),
               ],
               onChanged: (value) {
-                final notifier = ref.read(filterStateProvider.notifier);
+                ref.read(policyFilterUseProfileProvider.notifier).state = false;
+                final notifier = ref.read(policyFilterStateProvider.notifier);
                 notifier.state = notifier.state.copyWith(status: value);
               },
             ),
@@ -157,7 +162,10 @@ class _FilterSection extends ConsumerWidget {
                     label: Text(category.name),
                     selected: selected,
                     onSelected: (value) {
-                      final notifier = ref.read(filterStateProvider.notifier);
+                      ref
+                          .read(policyFilterUseProfileProvider.notifier)
+                          .state = false;
+                      final notifier = ref.read(policyFilterStateProvider.notifier);
                       final current = [...notifier.state.categories];
                       if (value) {
                         if (!current.contains(category.code)) {
