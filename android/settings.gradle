@@ -27,6 +27,11 @@ rootProject.name = "youth_road_app"
 // 🔥 Flutter 기본 앱 모듈
 include ":app"
 
-// 🔥 Unity 라이브러리 모듈 등록 (핵심)
-include ":unityLibrary"
-project(":unityLibrary").projectDir = file("unityLibrary")
+// 🔥 Unity 라이브러리 모듈 등록 (Unity export 존재할 때만)
+def hasUnityExport = file("unityLibrary").exists()
+if (hasUnityExport) {
+    include ":unityLibrary"
+    project(":unityLibrary").projectDir = file("unityLibrary")
+} else {
+    logger.lifecycle("[YouthRoad] unityLibrary not found; skipping native Unity linking.")
+}
