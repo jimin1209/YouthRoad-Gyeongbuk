@@ -4,6 +4,8 @@ class PolicyRequestDto {
     this.searchKeyword,
     this.searchPolicyType,
     this.searchRgnSe,
+    this.searchPolicyStatus,
+    this.searchAge,
     this.pageIndex,
     this.pageSize,
   });
@@ -12,6 +14,8 @@ class PolicyRequestDto {
   final String? searchKeyword;
   final String? searchPolicyType;
   final String? searchRgnSe;
+  final String? searchPolicyStatus;
+  final int? searchAge;
   final int? pageIndex;
   final int? pageSize;
 
@@ -33,6 +37,8 @@ class PolicyRequestDto {
     put('searchKeyword', searchKeyword);
     put('searchPolicyType', searchPolicyType);
     put('searchRgnSe', searchRgnSe);
+    put('searchPolicyStatus', searchPolicyStatus);
+    put('searchAge', searchAge);
     put('pageIndex', pageIndex);
     put('pageSize', pageSize);
 
