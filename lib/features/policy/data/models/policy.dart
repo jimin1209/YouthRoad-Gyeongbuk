@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'region.dart';
 import 'category.dart';
 
@@ -98,22 +100,46 @@ class Policy {
 }
 
 /// Helper to compute recommendation score based on user interests and policy metadata.
-double computePolicyScore(Policy policy, List<String> userInterests) {
+double computePolicyScore(
+  Policy policy,
+  List<String> userInterests, {
+  String? preferredRegion,
+  Set<String>? recentPolicyIds,
+  Set<String>? bookmarkedIds,
+  Map<String, int>? clickCounts,
+}) {
   double score = policy.priority.toDouble();
   final overlap = policy.categories.where(userInterests.contains).length;
-  score += overlap * 10;
+  score += overlap * 12;
+
+  if (preferredRegion != null && policy.regionCode == preferredRegion) {
+    score += 18;
+  }
 
   if (policy.endDate != null) {
     final daysLeft = policy.endDate!.difference(DateTime.now()).inDays;
     if (daysLeft >= 0 && daysLeft <= 7) {
-      score += 20;
+      score += 25;
     } else if (daysLeft <= 30) {
-      score += 10;
+      score += 12;
     }
   }
 
   if (policy.isNew) {
     score += 15;
+  }
+
+  if (recentPolicyIds?.contains(policy.id) ?? false) {
+    score += 8;
+  }
+
+  if (bookmarkedIds?.contains(policy.id) ?? false) {
+    score += 30;
+  }
+
+  if (clickCounts != null && clickCounts.containsKey(policy.id)) {
+    final clicks = clickCounts[policy.id] ?? 0;
+    score += min(clicks, 5) * 3;
   }
 
   return score;
