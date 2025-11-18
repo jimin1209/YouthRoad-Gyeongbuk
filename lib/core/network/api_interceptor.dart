@@ -2,6 +2,8 @@ import 'dart:developer';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import '../logging/app_logger.dart';
+import '../logging/network_event.dart';
 
 typedef TokenProvider = String? Function();
 
@@ -24,45 +26,67 @@ class ApiInterceptor extends Interceptor {
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
-    log('➡️ ${options.method} ${options.uri}', name: 'ApiInterceptor');
+    options.extra['startedAt'] = DateTime.now();
+    AppLogger.recordNetworkEvent(
+      NetworkLogEvent(
+        method: options.method,
+        uri: options.uri,
+        requestBody: options.data,
+        extra: {'query': options.queryParameters},
+      ),
+    );
     super.onRequest(options, handler);
   }
 
-  @override
-  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
-    final code = err.response?.statusCode;
-    log('❌ ${code ?? 'ERR'} ${err.requestOptions.uri}: ${err.message}',
-        name: 'ApiInterceptor');
+@override
+Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+  // 네트워크 이벤트 로깅 (AppLogger)
+  AppLogger.recordNetworkEvent(NetworkLogEvent.fromError(err));
 
-    final retryCount = (err.requestOptions.extra['retry_count'] as int?) ?? 0;
-    if (_shouldRetry(err, retryCount) && _dio != null) {
-      final nextCount = retryCount + 1;
-      final delay = _calculateBackoff(nextCount);
-      log(
-        '🔁 Retrying request ($nextCount/$maxRetries) after '
-        '${delay.inMilliseconds}ms',
-        name: 'ApiInterceptor',
-      );
-      await Future<void>.delayed(delay);
-      final response = await _dio!.fetch<dynamic>(
-        err.requestOptions.copyWith(
-          extra: <String, dynamic>{
-            ...err.requestOptions.extra,
-            'retry_count': nextCount,
-          },
-        ),
-      );
-      handler.resolve(response);
-      return;
-    }
+  final code = err.response?.statusCode;
 
-    handler.next(_mapStatusToError(err));
+  // 콘솔 로그
+  log(
+    '❌ ${code ?? 'ERR'} ${err.requestOptions.uri}: ${err.message}',
+    name: 'ApiInterceptor',
+  );
+
+  // 재시도 카운트
+  final retryCount = (err.requestOptions.extra['retry_count'] as int?) ?? 0;
+
+  // 재시도 조건 & 백오프
+  if (_shouldRetry(err, retryCount) && _dio != null) {
+    final nextCount = retryCount + 1;
+    final delay = _calculateBackoff(nextCount);
+
+    log(
+      '🔁 Retrying request ($nextCount/$maxRetries) after '
+      '${delay.inMilliseconds}ms',
+      name: 'ApiInterceptor',
+    );
+
+    await Future<void>.delayed(delay);
+
+    final response = await _dio!.fetch<dynamic>(
+      err.requestOptions.copyWith(
+        extra: <String, dynamic>{
+          ...err.requestOptions.extra,
+          'retry_count': nextCount,
+        },
+      ),
+    );
+
+    handler.resolve(response);
+    return;
   }
+
+  // 재시도 불가 → 상태코드 매핑 후 넘기기
+  handler.next(_mapStatusToError(err));
+}
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    log('✅ ${response.statusCode} ${response.requestOptions.uri}',
-        name: 'ApiInterceptor');
+    AppLogger.recordNetworkEvent(NetworkLogEvent.fromResponse(response));
     super.onResponse(response, handler);
   }
 
