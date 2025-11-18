@@ -28,6 +28,9 @@ jobs:
   unity-editmode-tests:
     name: Unity EditMode Tests
     runs-on: ubuntu-latest
+    if: ${{ secrets.UNITY_LICENSE != '' }}
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,6 +39,7 @@ jobs:
         uses: game-ci/unity-test-runner@v4
         env:
           YOUTHROAD_API_KEY: ${{ secrets.YOUTHROAD_API_KEY }}
+          UNITY_LICENSE: ${{ env.UNITY_LICENSE }}
         with:
           projectPath: unity_project
           testMode: editmode
