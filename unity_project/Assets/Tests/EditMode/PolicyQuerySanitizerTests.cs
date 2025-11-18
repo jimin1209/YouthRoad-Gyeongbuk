@@ -39,5 +39,27 @@ namespace YouthRoadTests
             Assert.AreEqual(1, PolicyQuerySanitizer.NormalizePage(-5));
             Assert.AreEqual(3, PolicyQuerySanitizer.NormalizePage(3));
         }
+
+        [Test]
+        public void NormalizeAge_FiltersNonPositive()
+        {
+            Assert.IsNull(PolicyQuerySanitizer.NormalizeAge(null));
+            Assert.IsNull(PolicyQuerySanitizer.NormalizeAge(0));
+            Assert.AreEqual(29, PolicyQuerySanitizer.NormalizeAge(29));
+        }
+
+        [Test]
+        public void NormalizeStatus_TrimAndNullChecks()
+        {
+            Assert.IsNull(PolicyQuerySanitizer.NormalizeStatus("   "));
+            Assert.AreEqual("APPLYING", PolicyQuerySanitizer.NormalizeStatus(" APPLYING "));
+        }
+
+        [Test]
+        public void NormalizeKeyword_TrimAndNullChecks()
+        {
+            Assert.IsNull(PolicyQuerySanitizer.NormalizeKeyword(""));
+            Assert.AreEqual("주거", PolicyQuerySanitizer.NormalizeKeyword("  주거 "));
+        }
     }
 }

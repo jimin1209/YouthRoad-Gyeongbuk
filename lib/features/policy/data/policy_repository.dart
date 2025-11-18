@@ -30,12 +30,17 @@ class PolicyRepository {
   }) async {
     final normalizedRegion = (region == null || region == 'ALL') ? null : region;
     final normalizedCategories = _joinCategories(categories);
+    final normalizedStatus = status?.trim().isEmpty ?? true ? null : status?.trim();
+    final normalizedAge = age == null || age <= 0 ? null : age;
+    final normalizedKeyword = keyword?.trim().isEmpty ?? true ? null : keyword?.trim();
     final response = await _api.fetchPolicies(
       PolicyRequestDto(
         apiKey: apiKey,
         searchRgnSe: normalizedRegion,
         searchPolicyType: normalizedCategories,
-        searchKeyword: keyword,
+        searchPolicyStatus: normalizedStatus,
+        searchAge: normalizedAge,
+        searchKeyword: normalizedKeyword,
         pageIndex: page <= 0 ? 1 : page,
         pageSize: size,
       ),

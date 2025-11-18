@@ -49,6 +49,9 @@ void main() {
 
       await repository.getPolicies(
         region: 'ALL',
+        status: '  APPLYING ',
+        age: 0,
+        keyword: '  청년 ',
         categories: [' EDUCATION ', '', 'HOUSING'],
         page: 0,
         size: 10,
@@ -58,6 +61,9 @@ void main() {
       expect(query, isNotNull);
       expect(query!['searchRgnSe'], isNull);
       expect(query['searchPolicyType'], 'EDUCATION,HOUSING');
+      expect(query['searchPolicyStatus'], 'APPLYING');
+      expect(query['searchAge'], isNull);
+      expect(query['searchKeyword'], '청년');
       expect(query['pageIndex'], '1');
       expect(query['pageSize'], '10');
     });
@@ -73,6 +79,19 @@ void main() {
       final query = api.lastQuery?.toQuery();
       expect(query, isNotNull);
       expect(query!['searchPolicyType'], isNull);
+    });
+
+    test('keeps positive age filters', () async {
+      final api = _FakeYouthApiService(const []);
+      final repository = PolicyRepository(api);
+
+      await repository.getPolicies(
+        age: 29,
+      );
+
+      final query = api.lastQuery?.toQuery();
+      expect(query, isNotNull);
+      expect(query!['searchAge'], '29');
     });
   });
 }

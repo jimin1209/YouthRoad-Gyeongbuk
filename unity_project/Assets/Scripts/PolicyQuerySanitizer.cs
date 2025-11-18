@@ -42,5 +42,35 @@ namespace YouthRoad
         {
             return page <= 0 ? 1 : page;
         }
+
+        public static int? NormalizeAge(int? age)
+        {
+            if (age == null || age <= 0)
+            {
+                return null;
+            }
+
+            return age;
+        }
+
+        public static string NormalizeStatus(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                return null;
+            }
+
+            return status.Trim();
+        }
+
+        public static string NormalizeKeyword(string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return null;
+            }
+
+            return keyword.Trim();
+        }
     }
 }
