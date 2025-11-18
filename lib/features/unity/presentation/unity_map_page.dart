@@ -36,6 +36,10 @@ class _UnityMapPageState extends ConsumerState<UnityMapPage> {
       return;
     }
     final unityCtrl = ref.read(unityControllerProvider.notifier);
+    final state = ref.read(unityControllerProvider);
+    if (!state.isReady) {
+      return;
+    }
     unityCtrl.sendMessage(
       controller,
       UnityMessageType.highlightRegion,
@@ -53,7 +57,7 @@ class _UnityMapPageState extends ConsumerState<UnityMapPage> {
     final availabilityAsync = ref.watch(unityRuntimeAvailabilityProvider);
     final unityCtrl = ref.read(unityControllerProvider.notifier);
 
-    if (unityState.isReady) {
+    if (unityState.isReady && !_initialRegionDispatched) {
       _dispatchInitialRegion();
     }
 

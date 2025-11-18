@@ -1,6 +1,6 @@
-import 'dart:developer';
-
 import 'package:dio/dio.dart';
+import '../logging/app_logger.dart';
+import '../logging/network_event.dart';
 
 typedef TokenProvider = String? Function();
 
@@ -15,22 +15,28 @@ class ApiInterceptor extends Interceptor {
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
-    log('➡️ ${options.method} ${options.uri}', name: 'ApiInterceptor');
+    options.extra['startedAt'] = DateTime.now();
+    AppLogger.recordNetworkEvent(
+      NetworkLogEvent(
+        method: options.method,
+        uri: options.uri,
+        requestBody: options.data,
+        extra: {'query': options.queryParameters},
+      ),
+    );
     super.onRequest(options, handler);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     final code = err.response?.statusCode;
-    log('❌ ${code ?? 'ERR'} ${err.requestOptions.uri}: ${err.message}',
-        name: 'ApiInterceptor');
+    AppLogger.recordNetworkEvent(NetworkLogEvent.fromError(err));
     super.onError(err, handler);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    log('✅ ${response.statusCode} ${response.requestOptions.uri}',
-        name: 'ApiInterceptor');
+    AppLogger.recordNetworkEvent(NetworkLogEvent.fromResponse(response));
     super.onResponse(response, handler);
   }
 }

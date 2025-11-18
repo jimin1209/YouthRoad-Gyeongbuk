@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:youth_road_app/core/api/dto/policy_request_dto.dart';
 import 'package:youth_road_app/core/api/youth_api_service.dart';
+import 'package:youth_road_app/core/network/network_error.dart';
 
 const String _apiKey = String.fromEnvironment('YOUTHROAD_API_KEY');
 
@@ -50,6 +51,54 @@ void main() {
       expect(lastStatus, equals(200));
       expect(response.success, isTrue);
       expect(response.resultList, isNotNull);
+    });
+
+    test('invalid endpoint surfaces as server error', () async {
+      final failingApi = YouthApiService(
+        Dio(
+          BaseOptions(
+            connectTimeout: const Duration(seconds: 5),
+            receiveTimeout: const Duration(seconds: 5),
+            baseUrl: '$baseUrl/invalid',
+          ),
+        ),
+        baseUrl: '$baseUrl/invalid',
+      );
+
+      expect(
+        () => failingApi.fetchPolicies(
+          PolicyRequestDto(apiKey: _apiKey, pageIndex: 1, pageSize: 1),
+        ),
+        throwsA(isA<DioException>().having(
+          (err) => YouthRoadErrorMapper.fromDio(err).category,
+          'category',
+          YouthRoadErrorCategory.server,
+        )),
+      );
+    });
+
+    test('connect timeout maps to network category', () async {
+      final slowApi = YouthApiService(
+        Dio(
+          BaseOptions(
+            baseUrl: 'https://10.255.255.1',
+            connectTimeout: const Duration(milliseconds: 500),
+            receiveTimeout: const Duration(seconds: 2),
+          ),
+        ),
+        baseUrl: 'https://10.255.255.1',
+      );
+
+      expect(
+        () => slowApi.fetchPolicies(
+          PolicyRequestDto(apiKey: _apiKey, pageIndex: 1, pageSize: 1),
+        ),
+        throwsA(isA<DioException>().having(
+          (err) => YouthRoadErrorMapper.fromDio(err).category,
+          'category',
+          YouthRoadErrorCategory.network,
+        )),
+      );
     });
 
     test('institutions endpoint returns data and departments resolve', () async {

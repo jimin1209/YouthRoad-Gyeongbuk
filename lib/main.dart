@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/logging/app_logger.dart';
 import 'app/app_router.dart';
 import 'app/app_startup.dart';
 import 'app/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: YouthRoadApp()));
+  await AppLogger.bootstrap(
+    () => runApp(const ProviderScope(child: YouthRoadApp())),
+  );
 }
 
 class YouthRoadApp extends ConsumerWidget {

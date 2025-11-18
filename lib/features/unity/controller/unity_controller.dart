@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_unity_widget/flutter_unity_widget.dart';
 
 import '../../policy/controller/policy_list_controller.dart';
+import 'unity_bridge_logger.dart';
+import 'unity_region_mapper.dart';
 
 enum UnityMessageType {
   setSelectedRegion('SET_SELECTED_REGION'),
@@ -45,6 +47,13 @@ class UnityState {
 }
 
 class UnityController extends Notifier<UnityState> {
+  UnityController({UnityRegionMapper? regionMapper, UnityBridgeLogger? logger})
+      : _regionMapper = regionMapper ?? const UnityRegionMapper(),
+        _logger = logger ?? const UnityBridgeLogger();
+
+  final UnityRegionMapper _regionMapper;
+  final UnityBridgeLogger _logger;
+
   @override
   UnityState build() => const UnityState();
 
@@ -63,6 +72,11 @@ class UnityController extends Notifier<UnityState> {
     String methodName = 'OnFlutterMessage',
   }) async {
     final message = buildMessage(type, payload);
+    _logger.logEvent(
+      direction: 'flutter->unity',
+      event: type.value,
+      payload: payload,
+    );
     controller.postMessage(gameObject, methodName, message);
   }
 
@@ -72,9 +86,19 @@ class UnityController extends Notifier<UnityState> {
     final payload = decoded['payload'] as Map<String, dynamic>? ?? {};
     switch (type) {
       case 'REGION_SELECTED':
+        _logger.logEvent(
+          direction: 'unity->flutter',
+          event: type!,
+          payload: payload,
+        );
         _onRegionSelected(payload);
         break;
       case 'MAP_READY':
+        _logger.logEvent(
+          direction: 'unity->flutter',
+          event: type!,
+          payload: payload,
+        );
         state = state.copyWith(isReady: true);
         break;
       default:
@@ -85,14 +109,16 @@ class UnityController extends Notifier<UnityState> {
   void _onRegionSelected(Map<String, dynamic> payload) {
     final regionCode = payload['regionCode'] as String?;
     final regionName = payload['regionName'] as String?;
+    final youthRoadCode =
+        regionCode != null ? _regionMapper.toYouthRoadCode(regionCode) : null;
     state = state.copyWith(
-      selectedRegionCode: regionCode,
+      selectedRegionCode: youthRoadCode ?? regionCode,
       selectedRegionName: regionName,
     );
-    if (regionCode != null) {
+    if (youthRoadCode != null) {
       ref.read(policyFilterUseProfileProvider.notifier).state = false;
       final notifier = ref.read(policyFilterStateProvider.notifier);
-      notifier.state = notifier.state.copyWith(region: regionCode);
+      notifier.state = notifier.state.copyWith(region: youthRoadCode);
     }
   }
 }
