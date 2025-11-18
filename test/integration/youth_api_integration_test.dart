@@ -1,13 +1,29 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:youth_road_app/core/api/dto/policy_request_dto.dart';
 import 'package:youth_road_app/core/api/youth_api_service.dart';
+import 'package:youth_road_app/core/network/api_interceptor.dart';
 
-const String _apiKey = String.fromEnvironment('YOUTHROAD_API_KEY');
+final String _apiKey = _loadApiKey();
+
+String _loadApiKey() {
+  const fromDefine = String.fromEnvironment('YOUTHROAD_API_KEY');
+  if (fromDefine.isNotEmpty) {
+    return fromDefine;
+  }
+  return Platform.environment['YOUTHROAD_API_KEY'] ?? '';
+}
 
 void main() {
   group('YouthRoad live API', () {
     if (_apiKey.isEmpty) {
+      // ignore: avoid_print
+      print(
+        '⚠️  Skipping YouthRoad live API tests: set YOUTHROAD_API_KEY via '
+        '--dart-define or environment variable to enable.',
+      );
       test(
         'skipped because YOUTHROAD_API_KEY is not provided',
         () {},
@@ -24,9 +40,10 @@ void main() {
       final dio = Dio(
         BaseOptions(
           connectTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 5),
         ),
       );
+      dio.interceptors.add(ApiInterceptor(dio: dio));
       dio.interceptors.add(
         InterceptorsWrapper(
           onResponse: (response, handler) {
