@@ -38,8 +38,6 @@ class PolicyRepository {
     final normalizedStatus = status?.trim().isEmpty ?? true ? null : status?.trim();
     final normalizedAge = age == null || age <= 0 ? null : age;
     final normalizedKeyword = keyword?.trim().isEmpty ?? true ? null : keyword?.trim();
-    final normalizedPage = _normalizePage(page);
-    final normalizedSize = _normalizeSize(size);
     final response = await _api.fetchPolicies(
       PolicyRequestDto(
         apiKey: apiKey,
@@ -48,8 +46,8 @@ class PolicyRepository {
         searchPolicyStatus: normalizedStatus,
         searchAge: normalizedAge,
         searchKeyword: normalizedKeyword,
-        pageIndex: normalizedPage,
-        pageSize: normalizedSize,
+        pageIndex: page <= 0 ? 1 : page,
+        pageSize: size,
       ),
     );
     final policies = (response.resultList ?? const <remote.Policy>[]) 
@@ -114,17 +112,6 @@ class PolicyRepository {
       return null;
     }
     return nonEmpty.join(',');
-  }
-
-  StateError _mapDioException(DioException error, String context) {
-    final statusCode = error.response?.statusCode;
-    if (statusCode == 429) {
-      return StateError('$context: rate limited (429). Please try again.');
-    }
-    if (statusCode != null && statusCode >= 500) {
-      return StateError('$context: server unavailable (HTTP $statusCode).');
-    }
-    return StateError('$context: ${error.message}');
   }
 }
 

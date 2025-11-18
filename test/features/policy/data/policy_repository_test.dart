@@ -93,39 +93,5 @@ void main() {
       expect(query, isNotNull);
       expect(query!['searchAge'], '29');
     });
-
-    test('clamps page and size while dropping invalid values', () async {
-      final api = _FakeYouthApiService(const []);
-      final repository = PolicyRepository(api);
-
-      await repository.getPolicies(
-        page: -5,
-        size: 0,
-        age: -3,
-        keyword: '   ',
-      );
-
-      final query = api.lastQuery?.toQuery();
-      expect(query, isNotNull);
-      expect(query!['pageIndex'], '1');
-      expect(query['pageSize'], '1');
-      expect(query['searchAge'], isNull);
-      expect(query['searchKeyword'], isNull);
-    });
-
-    test('caps page size at the configured maximum', () async {
-      final api = _FakeYouthApiService(const []);
-      final repository = PolicyRepository(api);
-
-      await repository.getPolicies(
-        size: 500,
-        page: 2,
-      );
-
-      final query = api.lastQuery?.toQuery();
-      expect(query, isNotNull);
-      expect(query!['pageIndex'], '2');
-      expect(query['pageSize'], '100');
-    });
   });
 }

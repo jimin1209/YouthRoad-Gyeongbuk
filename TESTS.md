@@ -11,10 +11,6 @@
 - GitHub Actions runs Flutter tests in the repository root (see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
 - Unity EditMode tests run via `game-ci/unity-test-runner` and are skipped automatically if `UNITY_LICENSE` is not provided.
 
-Before triggering CI, configure the following GitHub Secrets so tests can execute without being skipped:
-- `YOUTHROAD_API_KEY` for API-driven Flutter and Unity tests
-- `UNITY_LICENSE` for Unity EditMode test execution
-
 ## Recommended next steps
 1. **Secrets wiring:** Ensure `YOUTHROAD_API_KEY` is present in repository secrets so live integration tests execute instead of skipping.
 2. **Unity license (optional):** Add `UNITY_LICENSE` to run EditMode tests; otherwise they will skip by design.

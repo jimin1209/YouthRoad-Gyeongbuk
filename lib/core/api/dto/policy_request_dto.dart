@@ -72,13 +72,13 @@ class PolicyRequestDto {
       query[key] = stringValue;
     }
 
-    put('searchKeyword', sanitizeString(searchKeyword));
-    put('searchPolicyType', sanitizeString(searchPolicyType));
-    put('searchRgnSe', sanitizeString(searchRgnSe));
-    put('searchPolicyStatus', sanitizeString(searchPolicyStatus));
-    put('searchAge', normalizeAge(searchAge));
-    put('pageIndex', normalizePageIndex(pageIndex));
-    put('pageSize', normalizePageSize(pageSize));
+    put('searchKeyword', searchKeyword);
+    put('searchPolicyType', searchPolicyType);
+    put('searchRgnSe', searchRgnSe);
+    put('searchPolicyStatus', searchPolicyStatus);
+    put('searchAge', searchAge);
+    put('pageIndex', pageIndex);
+    put('pageSize', pageSize);
 
     return query;
   }
