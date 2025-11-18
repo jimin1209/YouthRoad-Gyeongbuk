@@ -106,7 +106,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: ElevatedButton(
-            onPressed: (_step == 1 && _selectedRegion == null) ? null : _next,
+            onPressed:
+                (_step == 1 && _selectedRegion == null) ? null : _next,
             child: Text(_step < 2 ? '다음' : '완료'),
           ),
         ),

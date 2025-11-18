@@ -1,6 +1,8 @@
 import 'dart:math';
 
 import '../../../../core/api/models/policy.dart' as remote;
+import 'region.dart';
+import 'category.dart';
 
 class Policy {
   Policy({

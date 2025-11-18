@@ -229,6 +229,87 @@ class _LoadingHeader extends StatelessWidget {
       ),
     );
   }
+
+  static List<Policy> _regionLatest(List<Policy> policies, String region) {
+    final filtered = policies.where((policy) => policy.regionCode == region).toList();
+    filtered.sort((a, b) {
+      final aDate = a.startDate ?? a.endDate ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.startDate ?? b.endDate ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
+    return filtered.take(5).toList();
+  }
+
+  static List<Policy> _closingSoon(List<Policy> policies) {
+    final now = DateTime.now();
+    final closings = policies
+        .where((policy) => policy.endDate != null && policy.endDate!.isAfter(now))
+        .toList();
+    closings.sort((a, b) => a.endDate!.compareTo(b.endDate!));
+    return closings.take(5).toList();
+  }
+
+  static List<Policy> _interestPolicies(
+    List<Policy> policies,
+    List<String> interests,
+  ) {
+    return policies
+        .where((policy) => policy.categories.any(interests.contains))
+        .take(5)
+        .toList();
+  }
+}
+
+class _PolicySection extends StatelessWidget {
+  const _PolicySection({
+    required this.title,
+    required this.description,
+    required this.policies,
+  });
+
+  final String title;
+  final String description;
+  final List<Policy> policies;
+
+  @override
+  Widget build(BuildContext context) {
+    if (policies.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 4),
+                Text(description, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 260,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemBuilder: (context, index) => SizedBox(
+                width: 320,
+                child: PolicyCard(policy: policies[index]),
+              ),
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemCount: policies.length,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _HomeErrorView extends StatelessWidget {

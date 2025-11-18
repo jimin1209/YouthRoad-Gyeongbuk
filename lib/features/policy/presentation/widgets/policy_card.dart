@@ -304,4 +304,47 @@ class _Badge extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _handleBookmarkTap(
+    BuildContext context,
+    WidgetRef ref,
+    bool isBookmarked,
+  ) async {
+    final controller = ref.read(bookmarkControllerProvider.notifier);
+    if (isBookmarked) {
+      await controller.toggle(policy);
+      _showSnack(context, '북마크에서 제거했습니다.');
+      return;
+    }
+    final folder = await _pickFolder(context) ?? BookmarkFolder.favorite;
+    await controller.toggle(policy, folder: folder);
+    _showSnack(context, '${folder.label} 폴더에 저장했습니다.');
+  }
+
+  Future<BookmarkFolder?> _pickFolder(BuildContext context) {
+    return showModalBottomSheet<BookmarkFolder>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: BookmarkFolder.values
+                .map(
+                  (folder) => ListTile(
+                    title: Text(folder.label),
+                    onTap: () => Navigator.of(context).pop(folder),
+                  ),
+                )
+                .toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSnack(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
 }
