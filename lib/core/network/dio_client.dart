@@ -9,6 +9,6 @@ Dio createDioClient() {
       receiveTimeout: const Duration(seconds: 10),
     ),
   );
-  dio.interceptors.add(ApiInterceptor());
+  dio.interceptors.add(ApiInterceptor(dio: dio));
   return dio;
 }
