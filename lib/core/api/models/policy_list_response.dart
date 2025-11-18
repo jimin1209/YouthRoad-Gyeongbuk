@@ -16,7 +16,7 @@ class PolicyListResponse {
 
   factory PolicyListResponse.fromJson(Map<String, dynamic> json) {
     return PolicyListResponse(
-      success: json['success'] as bool? ?? false,
+      success: _asBool(json['success']),
       msg: json['msg'] as String?,
       resultList: (json['resultList'] as List<dynamic>?)
           ?.map((item) => Policy.fromJson(item as Map<String, dynamic>))
@@ -37,4 +37,15 @@ class PolicyListResponse {
       'paginationInfo': paginationInfo?.toJson(),
     };
   }
+}
+
+bool _asBool(dynamic value) {
+  if (value == null) {
+    return false;
+  }
+  if (value is bool) {
+    return value;
+  }
+  final lowered = value.toString().toLowerCase();
+  return lowered == 'true' || lowered == 'y';
 }
