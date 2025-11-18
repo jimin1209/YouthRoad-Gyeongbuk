@@ -22,6 +22,7 @@ dependencies:
   dio: ^5.7.0
   shared_preferences: 2.1.1
   url_launcher: ^6.3.0
+  device_info_plus: ^11.1.0
 
   # Unity 연동
   flutter_unity_widget: 2022.2.0
@@ -35,7 +36,7 @@ dev_dependencies:
 
   build_runner: ^2.4.13
   freezed: ^2.5.7
-  retrofit_generator: ^8.2.1
+  retrofit_generator: ~8.1.0
   json_serializable: ^6.9.0
   flutter_lints: ^5.0.0
 

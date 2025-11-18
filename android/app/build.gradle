@@ -9,6 +9,15 @@ android {
     compileSdk = 34
     buildToolsVersion = "34.0.0"
 
+    def unityAbis = (rootProject.findProperty("unity.abis") ?: "arm64-v8a")
+            .toString()
+            .split(',')
+            .collect { it.trim() }
+            .findAll { !it.isEmpty() }
+    if (unityAbis.isEmpty()) {
+        unityAbis = ["arm64-v8a"]
+    }
+
     defaultConfig {
         applicationId = "com.example.youth_road_app"
         minSdk = 24
@@ -17,6 +26,10 @@ android {
         versionName = "1.0"
 
         multiDexEnabled true
+
+        ndk {
+            abiFilters unityAbis
+        }
     }
 
     buildTypes {
@@ -37,6 +50,9 @@ android {
     packagingOptions {
         jniLibs {
             useLegacyPackaging true
+        }
+        unityAbis.each { abi ->
+            doNotStrip "*/${abi}/*.so"
         }
     }
 }
