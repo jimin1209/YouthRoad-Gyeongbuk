@@ -17,6 +17,24 @@ jobs:
         with:
           channel: stable
 
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -28,9 +46,9 @@ jobs:
   unity-editmode-tests:
     name: Unity EditMode Tests
     runs-on: ubuntu-latest
-    if: ${{ secrets.UNITY_LICENSE != '' }}
     env:
       UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+    if: ${{ env.UNITY_LICENSE != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,3 +63,13 @@ jobs:
           testMode: editmode
           unityVersion: 2021.3.30f1
           githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  unity-editmode-tests-skip:
+    name: Unity EditMode Tests (skipped)
+    runs-on: ubuntu-latest
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+    if: ${{ env.UNITY_LICENSE == '' }}
+    steps:
+      - name: Skip Unity tests
+        run: echo "Skipping Unity EditMode tests because UNITY_LICENSE is not set."

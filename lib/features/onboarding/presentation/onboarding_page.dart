@@ -9,6 +9,7 @@ import '../../policy/controller/policy_list_controller.dart';
 import '../../policy/data/models/region.dart';
 import '../../policy/data/models/category.dart';
 import '../controller/onboarding_controller.dart';
+import '../../../core/state/app_store.dart';
 
 class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key});
@@ -46,9 +47,14 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     ref.read(policyFilterUseProfileProvider.notifier).state = true;
     ref.read(policyFilterStateProvider.notifier).state =
         PolicyFilter.initial();
+    ref.read(appStoreProvider.notifier).completeOnboarding(
+          region: region,
+          interests: interests,
+        );
     final onboardingNotifier = ref.read(onboardingStateProvider.notifier);
     onboardingNotifier.state =
         onboardingNotifier.state.copyWith(completed: true);
+    ref.invalidate(policyListControllerProvider);
     if (!mounted) {
       return;
     }

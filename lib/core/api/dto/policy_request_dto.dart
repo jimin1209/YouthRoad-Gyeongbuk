@@ -10,6 +10,9 @@ class PolicyRequestDto {
     this.pageSize,
   });
 
+  static const int minPageSize = 1;
+  static const int maxPageSize = 100;
+
   final String apiKey;
   final String? searchKeyword;
   final String? searchPolicyType;
@@ -23,6 +26,41 @@ class PolicyRequestDto {
 
   Map<String, dynamic> toQuery() {
     final Map<String, String> query = {'apiKey': apiKey};
+    String? sanitizeString(String? value) {
+      final trimmed = value?.trim();
+      if (trimmed == null || trimmed.isEmpty) {
+        return null;
+      }
+      return trimmed;
+    }
+
+    int? normalizePageIndex(int? value) {
+      if (value == null) {
+        return null;
+      }
+      return value < 1 ? 1 : value;
+    }
+
+    int? normalizePageSize(int? value) {
+      if (value == null) {
+        return null;
+      }
+      if (value < minPageSize) {
+        return minPageSize;
+      }
+      if (value > maxPageSize) {
+        return maxPageSize;
+      }
+      return value;
+    }
+
+    int? normalizeAge(int? value) {
+      if (value == null || value <= 0) {
+        return null;
+      }
+      return value;
+    }
+
     void put(String key, Object? value) {
       if (value == null) {
         return;
@@ -34,13 +72,13 @@ class PolicyRequestDto {
       query[key] = stringValue;
     }
 
-    put('searchKeyword', searchKeyword);
-    put('searchPolicyType', searchPolicyType);
-    put('searchRgnSe', searchRgnSe);
-    put('searchPolicyStatus', searchPolicyStatus);
-    put('searchAge', searchAge);
-    put('pageIndex', pageIndex);
-    put('pageSize', pageSize);
+    put('searchKeyword', sanitizeString(searchKeyword));
+    put('searchPolicyType', sanitizeString(searchPolicyType));
+    put('searchRgnSe', sanitizeString(searchRgnSe));
+    put('searchPolicyStatus', sanitizeString(searchPolicyStatus));
+    put('searchAge', normalizeAge(searchAge));
+    put('pageIndex', normalizePageIndex(pageIndex));
+    put('pageSize', normalizePageSize(pageSize));
 
     return query;
   }

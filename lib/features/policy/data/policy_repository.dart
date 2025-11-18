@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../../../core/api/dto/policy_request_dto.dart';
 import '../../../core/api/models/policy.dart' as remote;
 import '../../../core/api/youth_api_service.dart';
@@ -7,6 +9,9 @@ import 'models/region.dart';
 
 class PolicyRepository {
   PolicyRepository(YouthApiService api) : _api = api;
+
+  static const int _minPageSize = 1;
+  static const int _maxPageSize = 100;
 
   final YouthApiService _api;
   final Map<String, Policy> _policyCache = {};
@@ -33,6 +38,8 @@ class PolicyRepository {
     final normalizedStatus = status?.trim().isEmpty ?? true ? null : status?.trim();
     final normalizedAge = age == null || age <= 0 ? null : age;
     final normalizedKeyword = keyword?.trim().isEmpty ?? true ? null : keyword?.trim();
+    final normalizedPage = _normalizePage(page);
+    final normalizedSize = _normalizeSize(size);
     final response = await _api.fetchPolicies(
       PolicyRequestDto(
         apiKey: apiKey,
@@ -41,8 +48,8 @@ class PolicyRepository {
         searchPolicyStatus: normalizedStatus,
         searchAge: normalizedAge,
         searchKeyword: normalizedKeyword,
-        pageIndex: page <= 0 ? 1 : page,
-        pageSize: size,
+        pageIndex: normalizedPage,
+        pageSize: normalizedSize,
       ),
     );
     final policies = (response.resultList ?? const <remote.Policy>[]) 
@@ -51,7 +58,6 @@ class PolicyRepository {
     for (final policy in policies) {
       _policyCache[policy.id] = policy;
     }
-    return policies;
   }
 
   Future<Policy> getPolicyDetail(String id) async {
@@ -59,25 +65,41 @@ class PolicyRepository {
     if (cached != null) {
       return cached;
     }
-    final response = await _api.fetchPolicies(
-      PolicyRequestDto(
-        apiKey: apiKey,
-        searchKeyword: id,
-        pageIndex: 1,
-        pageSize: 5,
-      ),
-    );
-    final candidates = response.resultList ?? const <remote.Policy>[];
-    if (candidates.isEmpty) {
-      throw StateError('Policy not found');
+    try {
+      final response = await _api.fetchPolicies(
+        PolicyRequestDto(
+          apiKey: apiKey,
+          searchKeyword: id,
+          pageIndex: 1,
+          pageSize: 5,
+        ),
+      );
+      final candidates = response.resultList ?? const <remote.Policy>[];
+      if (candidates.isEmpty) {
+        throw StateError('Policy not found');
+      }
+      final remotePolicy = candidates.firstWhere(
+        (item) => item.id == id || item.policyName == id,
+        orElse: () => candidates.first,
+      );
+      final policy = Policy.fromRemote(remotePolicy);
+      _policyCache[policy.id] = policy;
+      return policy;
+    } on DioException catch (error) {
+      throw _mapDioException(error, 'Failed to load policy detail');
     }
-    final remotePolicy = candidates.firstWhere(
-      (item) => item.id == id || item.policyName == id,
-      orElse: () => candidates.first,
-    );
-    final policy = Policy.fromRemote(remotePolicy);
-    _policyCache[policy.id] = policy;
-    return policy;
+  }
+
+  int _normalizePage(int page) => page < 1 ? 1 : page;
+
+  int _normalizeSize(int size) {
+    if (size < _minPageSize) {
+      return _minPageSize;
+    }
+    if (size > _maxPageSize) {
+      return _maxPageSize;
+    }
+    return size;
   }
 
   String? _joinCategories(List<String>? categories) {
@@ -92,6 +114,17 @@ class PolicyRepository {
       return null;
     }
     return nonEmpty.join(',');
+  }
+
+  StateError _mapDioException(DioException error, String context) {
+    final statusCode = error.response?.statusCode;
+    if (statusCode == 429) {
+      return StateError('$context: rate limited (429). Please try again.');
+    }
+    if (statusCode != null && statusCode >= 500) {
+      return StateError('$context: server unavailable (HTTP $statusCode).');
+    }
+    return StateError('$context: ${error.message}');
   }
 }
 
