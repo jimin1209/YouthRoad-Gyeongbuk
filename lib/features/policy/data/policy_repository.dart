@@ -10,6 +10,9 @@ import 'models/region.dart';
 class PolicyRepository {
   PolicyRepository(YouthApiService api) : _api = api;
 
+  static const int _minPageSize = 1;
+  static const int _maxPageSize = 100;
+
   final YouthApiService _api;
   final Map<String, Policy> _policyCache = {};
 
@@ -35,28 +38,25 @@ class PolicyRepository {
     final normalizedStatus = status?.trim().isEmpty ?? true ? null : status?.trim();
     final normalizedAge = age == null || age <= 0 ? null : age;
     final normalizedKeyword = keyword?.trim().isEmpty ?? true ? null : keyword?.trim();
-    try {
-      final response = await _api.fetchPolicies(
-        PolicyRequestDto(
-          apiKey: apiKey,
-          searchRgnSe: normalizedRegion,
-          searchPolicyType: normalizedCategories,
-          searchPolicyStatus: normalizedStatus,
-          searchAge: normalizedAge,
-          searchKeyword: normalizedKeyword,
-          pageIndex: page <= 0 ? 1 : page,
-          pageSize: size,
-        ),
-      );
-      final policies = (response.resultList ?? const <remote.Policy>[])
-          .map(Policy.fromRemote)
-          .toList(growable: false);
-      for (final policy in policies) {
-        _policyCache[policy.id] = policy;
-      }
-      return policies;
-    } on DioException catch (error) {
-      throw _mapDioException(error, 'Failed to load policy list');
+    final normalizedPage = _normalizePage(page);
+    final normalizedSize = _normalizeSize(size);
+    final response = await _api.fetchPolicies(
+      PolicyRequestDto(
+        apiKey: apiKey,
+        searchRgnSe: normalizedRegion,
+        searchPolicyType: normalizedCategories,
+        searchPolicyStatus: normalizedStatus,
+        searchAge: normalizedAge,
+        searchKeyword: normalizedKeyword,
+        pageIndex: normalizedPage,
+        pageSize: normalizedSize,
+      ),
+    );
+    final policies = (response.resultList ?? const <remote.Policy>[]) 
+        .map(Policy.fromRemote)
+        .toList(growable: false);
+    for (final policy in policies) {
+      _policyCache[policy.id] = policy;
     }
   }
 
@@ -88,6 +88,18 @@ class PolicyRepository {
     } on DioException catch (error) {
       throw _mapDioException(error, 'Failed to load policy detail');
     }
+  }
+
+  int _normalizePage(int page) => page < 1 ? 1 : page;
+
+  int _normalizeSize(int size) {
+    if (size < _minPageSize) {
+      return _minPageSize;
+    }
+    if (size > _maxPageSize) {
+      return _maxPageSize;
+    }
+    return size;
   }
 
   String? _joinCategories(List<String>? categories) {
