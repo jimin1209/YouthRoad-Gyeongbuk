@@ -1,5 +1,24 @@
 apply plugin: 'com.android.library'
 
+def unityAbis = (rootProject.findProperty("unity.abis") ?: "arm64-v8a")
+        .toString()
+        .split(',')
+        .collect { it.trim() }
+        .findAll { !it.isEmpty() }
+if (unityAbis.isEmpty()) {
+    unityAbis = ["arm64-v8a"]
+}
+
+def missingUnityExports = unityAbis.findAll { abi ->
+    def jniDir = file("${projectDir}/src/main/jniLibs/${abi}")
+    def staticDir = file("${projectDir}/src/main/jniStaticLibs/${abi}")
+    !jniDir.exists() || !staticDir.exists()
+}
+
+if (!missingUnityExports.isEmpty()) {
+    throw new GradleException("unity.abis=${unityAbis} 이지만 Unity export에 ${missingUnityExports} ABI가 없습니다. Unity > Export > Android Library에서 Target Architecture를 맞춰 재빌드하세요.")
+}
+
 dependencies {
     // Use compileOnly to expose Unity classes for compilation without packaging the jar twice.
     compileOnly fileTree(dir: 'libs', include: ['*.jar'])
@@ -20,8 +39,7 @@ android {
         minSdkVersion 24
         targetSdkVersion 34
         ndk {
-            // Build only arm64-v8a (current Unity export provides arm64 libs only)
-            abiFilters 'arm64-v8a'
+            abiFilters unityAbis
         }
         versionCode 1
         versionName '0.1'
@@ -39,7 +57,9 @@ android {
     }
 
     packagingOptions {
-        doNotStrip '*/arm64-v8a/*.so'
+        unityAbis.each { abi ->
+            doNotStrip "*/${abi}/*.so"
+        }
         jniLibs {
             useLegacyPackaging true
         }
@@ -100,14 +120,16 @@ def BuildIl2Cpp(String workingDir, String configuration, String architecture, St
 android {
     task BuildIl2CppTask {
         doLast {
-            // ARM64 for real devices
-            BuildIl2Cpp(
-                projectDir.toString().replaceAll('\\\\', '/'),
-                'Release',
-                'arm64',
-                'arm64-v8a',
-                [] as String[]
-            )
+            unityAbis.each { abi ->
+                def architecture = abi == 'x86_64' ? 'x64' : 'arm64'
+                BuildIl2Cpp(
+                    projectDir.toString().replaceAll('\\\\', '/'),
+                    'Release',
+                    architecture,
+                    abi,
+                    [] as String[]
+                )
+            }
         }
     }
 
