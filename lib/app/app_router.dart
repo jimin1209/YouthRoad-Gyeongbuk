@@ -11,9 +11,10 @@ import '../features/unity/presentation/unity_map_page.dart';
 import '../features/onboarding/presentation/splash_page.dart';
 import '../features/home/home_page.dart';
 import '../features/settings/settings_page.dart';
+import '../core/state/app_store.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
     routes: [
       GoRoute(
@@ -29,6 +30,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/home',
         name: 'home',
+        redirect: (context, state) {
+          final onboardingCompleted = ref
+              .read(appStoreProvider.select((state) => state.onboardingCompleted));
+          if (!onboardingCompleted) {
+            return '/onboarding';
+          }
+          return null;
+        },
         builder: (context, state) => const HomePage(),
         routes: [
           GoRoute(
@@ -75,4 +84,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.listen<AppState>(appStoreProvider, (_, __) => router.refresh());
+  return router;
 });
