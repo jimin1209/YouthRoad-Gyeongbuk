@@ -2,7 +2,7 @@ class Region {
   final String code;
   final String name;
 
-  Region({required this.code, required this.name});
+  const Region({required this.code, required this.name});
 
   factory Region.fromJson(Map<String, dynamic> json) {
     return Region(

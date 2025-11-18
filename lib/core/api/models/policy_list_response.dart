@@ -1,19 +1,40 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
-
 import 'policy.dart';
+import 'pagination_info.dart';
 
-part 'policy_list_response.freezed.dart';
-part 'policy_list_response.g.dart';
+class PolicyListResponse {
+  const PolicyListResponse({
+    required this.success,
+    this.msg,
+    this.resultList,
+    this.paginationInfo,
+  });
 
-@freezed
-class PolicyListResponse with _$PolicyListResponse {
-  const factory PolicyListResponse({
-    required bool success,
-    String? msg,
-    List<Policy>? resultList,
-    Map<String, dynamic>? paginationInfo,
-  }) = _PolicyListResponse;
+  final bool success;
+  final String? msg;
+  final List<Policy>? resultList;
+  final PaginationInfo? paginationInfo;
 
-  factory PolicyListResponse.fromJson(Map<String, dynamic> json) =>
-      _$PolicyListResponseFromJson(json);
+  factory PolicyListResponse.fromJson(Map<String, dynamic> json) {
+    return PolicyListResponse(
+      success: json['success'] as bool? ?? false,
+      msg: json['msg'] as String?,
+      resultList: (json['resultList'] as List<dynamic>?)
+          ?.map((item) => Policy.fromJson(item as Map<String, dynamic>))
+          .toList(),
+      paginationInfo: json['paginationInfo'] == null
+          ? null
+          : PaginationInfo.fromJson(
+              json['paginationInfo'] as Map<String, dynamic>,
+            ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'success': success,
+      'msg': msg,
+      'resultList': resultList?.map((policy) => policy.toJson()).toList(),
+      'paginationInfo': paginationInfo?.toJson(),
+    };
+  }
 }

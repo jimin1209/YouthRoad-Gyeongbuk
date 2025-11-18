@@ -11,7 +11,7 @@ class PolicyListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final policiesAsync = ref.watch(policyListControllerProvider);
-    final filter = ref.watch(filterStateProvider);
+    final filter = ref.watch(policyFilterProvider);
     return RefreshIndicator(
       onRefresh: () => ref.refresh(policyListControllerProvider.future),
       child: CustomScrollView(
@@ -23,10 +23,10 @@ class PolicyListPage extends ConsumerWidget {
           ...policiesAsync.when(
             data: (policies) {
               if (policies.isEmpty) {
-                return [
-                  const SliverFillRemaining(
+                return const [
+                  SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: Text('조건에 맞는 정책이 없습니다.')),
+                    child: _EmptyPoliciesView(),
                   ),
                 ];
               }
@@ -40,15 +40,17 @@ class PolicyListPage extends ConsumerWidget {
               ];
             },
             loading: () => [
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => const PolicyCardSkeleton(),
+                  childCount: 4,
+                ),
               ),
             ],
             error: (e, _) => [
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(child: Text('불러오지 못했습니다: $e')),
+                child: _ErrorView(message: '불러오지 못했습니다: $e'),
               ),
             ],
           ),
@@ -78,26 +80,32 @@ class _FilterSection extends ConsumerWidget {
             : null;
 
     return Card(
-      margin: const EdgeInsets.all(12),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('필터', style: Theme.of(context).textTheme.titleMedium),
+                Icon(Icons.tune, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '정책 필터',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
                 TextButton(
                   onPressed: () {
-                    ref.read(filterStateProvider.notifier).state =
-                        PolicyFilter.initial();
+                    ref.read(policyFilterUseProfileProvider.notifier).state = true;
+                    ref.read(policyFilterStateProvider.notifier).state = PolicyFilter.initial();
                   },
                   child: const Text('초기화'),
-                )
+                ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             regions.when(
               data: (items) {
                 final selectedRegion = items.any((region) => region.code == filter.region)
@@ -117,7 +125,9 @@ class _FilterSection extends ConsumerWidget {
                     ),
                   ],
                   onChanged: (value) {
-                    final notifier = ref.read(filterStateProvider.notifier);
+                    ref.read(policyFilterUseProfileProvider.notifier).state =
+                        false;
+                    final notifier = ref.read(policyFilterStateProvider.notifier);
                     notifier.state = notifier.state.copyWith(region: value);
                   },
                 );
@@ -140,7 +150,8 @@ class _FilterSection extends ConsumerWidget {
                 ),
               ],
               onChanged: (value) {
-                final notifier = ref.read(filterStateProvider.notifier);
+                ref.read(policyFilterUseProfileProvider.notifier).state = false;
+                final notifier = ref.read(policyFilterStateProvider.notifier);
                 notifier.state = notifier.state.copyWith(status: value);
               },
             ),
@@ -157,7 +168,10 @@ class _FilterSection extends ConsumerWidget {
                     label: Text(category.name),
                     selected: selected,
                     onSelected: (value) {
-                      final notifier = ref.read(filterStateProvider.notifier);
+                      ref
+                          .read(policyFilterUseProfileProvider.notifier)
+                          .state = false;
+                      final notifier = ref.read(policyFilterStateProvider.notifier);
                       final current = [...notifier.state.categories];
                       if (value) {
                         if (!current.contains(category.code)) {
@@ -176,6 +190,54 @@ class _FilterSection extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _EmptyPoliciesView extends StatelessWidget {
+  const _EmptyPoliciesView();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inbox_outlined, size: 56, color: theme.colorScheme.outline),
+          const SizedBox(height: 12),
+          Text('조건에 맞는 정책이 없습니다.', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            '필터를 조정하거나 다른 키워드로 다시 검색해보세요.',
+            style: theme.textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 56, color: theme.colorScheme.error),
+          const SizedBox(height: 12),
+          Text(message, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
+        ],
       ),
     );
   }

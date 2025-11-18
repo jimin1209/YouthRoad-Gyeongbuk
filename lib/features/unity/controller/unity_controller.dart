@@ -90,7 +90,8 @@ class UnityController extends Notifier<UnityState> {
       selectedRegionName: regionName,
     );
     if (regionCode != null) {
-      final notifier = ref.read(filterStateProvider.notifier);
+      ref.read(policyFilterUseProfileProvider.notifier).state = false;
+      final notifier = ref.read(policyFilterStateProvider.notifier);
       notifier.state = notifier.state.copyWith(region: regionCode);
     }
   }

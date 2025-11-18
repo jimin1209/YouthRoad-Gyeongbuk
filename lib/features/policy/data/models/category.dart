@@ -2,7 +2,7 @@ class Category {
   final String code;
   final String name;
 
-  Category({required this.code, required this.name});
+  const Category({required this.code, required this.name});
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
