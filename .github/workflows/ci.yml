@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  flutter-tests:
+    name: Flutter Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run flutter tests
+        env:
+          YOUTHROAD_API_KEY: ${{ secrets.YOUTHROAD_API_KEY }}
+        run: flutter test --reporter expanded --dart-define=YOUTHROAD_API_KEY=${YOUTHROAD_API_KEY}
+
+  unity-editmode-tests:
+    name: Unity EditMode Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Unity EditMode tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          YOUTHROAD_API_KEY: ${{ secrets.YOUTHROAD_API_KEY }}
+        with:
+          projectPath: unity_project
+          testMode: editmode
+          unityVersion: 2021.3.30f1
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
