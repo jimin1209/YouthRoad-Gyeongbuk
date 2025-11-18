@@ -65,8 +65,12 @@ cd youth_app
 flutter pub get
 ```
 
+### 🔐 CI Secrets
+- **YOUTHROAD_API_KEY**: YouthRoad API 연동 테스트 실행용 API Key (없으면 관련 테스트가 스킵됩니다).
+- **UNITY_LICENSE**: Unity EditMode 테스트 실행용 라이선스 텍스트 (없으면 CI에서 Unity 테스트가 스킵됩니다).
+
 ### 3. Build & Run
-- **APK 빌드 (arm64 전용 / 실제 기기 권장)**  
+- **APK 빌드 (arm64 전용 / 실제 기기 권장)**
   ```bash
   cd android
   ./gradlew.bat app:assembleDebug
