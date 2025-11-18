@@ -1,34 +1,112 @@
-import 'package:dio/dio.dart';
-import 'policy_api.dart';
+import '../../../core/api/dto/policy_request_dto.dart';
+import '../../../core/api/models/policy.dart' as remote;
+import '../../../core/api/youth_api_service.dart';
+import 'models/category.dart';
 import 'models/policy.dart';
 import 'models/region.dart';
-import 'models/category.dart';
 
 class PolicyRepository {
-  PolicyRepository(Dio dio) : _api = PolicyApi(dio);
+  PolicyRepository(YouthApiService api) : _api = api;
 
-  final PolicyApi _api;
+  final YouthApiService _api;
+  final Map<String, Policy> _policyCache = {};
 
-  Future<List<Region>> getRegions() => _api.fetchRegions();
+  Future<List<Region>> getRegions() async {
+    return List<Region>.unmodifiable(_regionPresets);
+  }
 
-  Future<List<Category>> getCategories() => _api.fetchCategories();
+  Future<List<Category>> getCategories() async {
+    return List<Category>.unmodifiable(_categoryPresets);
+  }
 
   Future<List<Policy>> getPolicies({
     String? region,
     int? age,
     List<String>? categories,
     String? status,
-    int page = 0,
+    String? keyword,
+    int page = 1,
     int size = 20,
-  }) =>
-      _api.fetchPolicies(
-        region: region,
-        age: age,
-        categories: categories,
-        status: status,
-        page: page,
-        size: size,
-      );
+  }) async {
+    final response = await _api.fetchPolicies(
+      PolicyRequestDto(
+        apiKey: apiKey,
+        searchRgnSe: region,
+        searchPolicyType: _joinCategories(categories),
+        searchKeyword: keyword,
+        pageIndex: page <= 0 ? 1 : page,
+        pageSize: size,
+      ),
+    );
+    final policies = (response.resultList ?? const <remote.Policy>[]) 
+        .map(Policy.fromRemote)
+        .toList(growable: false);
+    for (final policy in policies) {
+      _policyCache[policy.id] = policy;
+    }
+    return policies;
+  }
 
-  Future<Policy> getPolicyDetail(String id) => _api.fetchPolicyDetail(id);
+  Future<Policy> getPolicyDetail(String id) async {
+    final cached = _policyCache[id];
+    if (cached != null) {
+      return cached;
+    }
+    final response = await _api.fetchPolicies(
+      PolicyRequestDto(
+        apiKey: apiKey,
+        searchKeyword: id,
+        pageIndex: 1,
+        pageSize: 5,
+      ),
+    );
+    final candidates = response.resultList ?? const <remote.Policy>[];
+    if (candidates.isEmpty) {
+      throw StateError('Policy not found');
+    }
+    final remotePolicy = candidates.firstWhere(
+      (item) => item.id == id || item.policyName == id,
+      orElse: () => candidates.first,
+    );
+    final policy = Policy.fromRemote(remotePolicy);
+    _policyCache[policy.id] = policy;
+    return policy;
+  }
+
+  String? _joinCategories(List<String>? categories) {
+    if (categories == null || categories.isEmpty) {
+      return null;
+    }
+    return categories.join(',');
+  }
 }
+
+const List<Region> _regionPresets = <Region>[
+  Region(code: 'ALL', name: '전국'),
+  Region(code: '11', name: '서울특별시'),
+  Region(code: '26', name: '부산광역시'),
+  Region(code: '27', name: '대구광역시'),
+  Region(code: '28', name: '인천광역시'),
+  Region(code: '29', name: '광주광역시'),
+  Region(code: '30', name: '대전광역시'),
+  Region(code: '31', name: '울산광역시'),
+  Region(code: '36', name: '세종특별자치시'),
+  Region(code: '41', name: '경기도'),
+  Region(code: '42', name: '강원특별자치도'),
+  Region(code: '43', name: '충청북도'),
+  Region(code: '44', name: '충청남도'),
+  Region(code: '45', name: '전북특별자치도'),
+  Region(code: '46', name: '전라남도'),
+  Region(code: '47', name: '경상북도'),
+  Region(code: '48', name: '경상남도'),
+  Region(code: '49', name: '제주특별자치도'),
+];
+
+const List<Category> _categoryPresets = <Category>[
+  Category(code: 'EMPLOYMENT', name: '취업·일자리'),
+  Category(code: 'ENTREPRENEUR', name: '창업·비즈니스'),
+  Category(code: 'EDUCATION', name: '교육·역량'),
+  Category(code: 'HOUSING', name: '주거·금융'),
+  Category(code: 'WELFARE', name: '생활·복지'),
+  Category(code: 'CULTURE', name: '문화·활동'),
+];

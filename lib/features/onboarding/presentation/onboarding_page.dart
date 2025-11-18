@@ -60,32 +60,46 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     final regions = ref.watch(regionListProvider);
     final categories = ref.watch(categoryListProvider);
     return Scaffold(
-      appBar: AppBar(title: Text('온보딩 ${_step + 1}/3')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: IndexedStack(
-          index: _step,
-          children: [
-            _IntroStep(onNext: _next),
-            _RegionStep(
-              regions: regions,
-              selected: _selectedRegion,
-              onSelected: (value) => setState(() => _selectedRegion = value),
-            ),
-            _InterestStep(
-              categories: categories,
-              interests: _interests,
-              onToggle: (value) {
-                setState(() {
-                  if (_interests.contains(value)) {
-                    _interests.remove(value);
-                  } else {
-                    _interests.add(value);
-                  }
-                });
-              },
-            ),
-          ],
+      appBar: AppBar(title: const Text('나만의 추천 준비')),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              LinearProgressIndicator(value: (_step + 1) / 3),
+              const SizedBox(height: 16),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: IndexedStack(
+                    key: ValueKey(_step),
+                    index: _step,
+                    children: [
+                      _IntroStep(onNext: _next),
+                      _RegionStep(
+                        regions: regions,
+                        selected: _selectedRegion,
+                        onSelected: (value) => setState(() => _selectedRegion = value),
+                      ),
+                      _InterestStep(
+                        categories: categories,
+                        interests: _interests,
+                        onToggle: (value) {
+                          setState(() {
+                            if (_interests.contains(value)) {
+                              _interests.remove(value);
+                            } else {
+                              _interests.add(value);
+                            }
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -108,18 +122,23 @@ class _IntroStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('경북 청년 정책 추천', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        const Text('지역과 관심사를 기반으로 맞춤형 정책을 추천해드려요.'),
-        const Spacer(),
-        Align(
-          alignment: Alignment.bottomRight,
-          child: TextButton(onPressed: onNext, child: const Text('시작하기')),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('경북 청년 정책 추천', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text('지역과 관심사를 기반으로 맞춤형 정책을 추천해드려요.'),
+            const Spacer(),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: FilledButton(onPressed: onNext, child: const Text('시작하기')),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -137,36 +156,41 @@ class _RegionStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('지역을 선택하세요 (Unity 연동 예정)',
-            style: TextStyle(fontSize: 20)),
-        const SizedBox(height: 16),
-        regions.when(
-          data: (items) {
-            if (items.isEmpty) {
-              return const Text('선택 가능한 지역 정보가 없습니다.');
-            }
-            return Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              children: items.map((region) {
-                final isSelected = region.code == selected;
-                return ChoiceChip(
-                  label: Text(region.name),
-                  selected: isSelected,
-                  onSelected: (_) => onSelected(region.code),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('1. 살고 있는 지역을 알려주세요', style: TextStyle(fontSize: 20)),
+            const SizedBox(height: 12),
+            regions.when(
+              data: (items) {
+                if (items.isEmpty) {
+                  return const Text('선택 가능한 지역 정보가 없습니다.');
+                }
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: items.map((region) {
+                    final isSelected = region.code == selected;
+                    return FilterChip(
+                      label: Text(region.name),
+                      selected: isSelected,
+                      onSelected: (_) => onSelected(region.code),
+                    );
+                  }).toList(),
                 );
-              }).toList(),
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Text('지역 정보를 불러오지 못했습니다: $error'),
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Text('지역 정보를 불러오지 못했습니다: $error'),
+            ),
+            const SizedBox(height: 12),
+            const Text('Unity 지도와 연동되어 자동으로 지역을 불러올 수 있어요.',
+                style: TextStyle(color: Colors.grey)),
+          ],
         ),
-        const Spacer(),
-        const Text('Unity 지도에서 REGION_SELECTED 메시지를 수신해 연동합니다.'),
-      ],
+      ),
     );
   }
 }
@@ -184,33 +208,41 @@ class _InterestStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('관심 분야를 선택하세요', style: TextStyle(fontSize: 20)),
-        const SizedBox(height: 16),
-        categories.when(
-          data: (items) {
-            if (items.isEmpty) {
-              return const Text('선택 가능한 관심 분야가 없습니다.');
-            }
-            return Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              children: items.map((category) {
-                final selected = interests.contains(category.code);
-                return FilterChip(
-                  label: Text(category.name),
-                  selected: selected,
-                  onSelected: (_) => onToggle(category.code),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('2. 관심 분야를 골라주세요', style: TextStyle(fontSize: 20)),
+            const SizedBox(height: 12),
+            categories.when(
+              data: (items) {
+                if (items.isEmpty) {
+                  return const Text('선택 가능한 관심 분야가 없습니다.');
+                }
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: items.map((category) {
+                    final selected = interests.contains(category.code);
+                    return FilterChip(
+                      label: Text(category.name),
+                      selected: selected,
+                      onSelected: (_) => onToggle(category.code),
+                    );
+                  }).toList(),
                 );
-              }).toList(),
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Text('관심 분야 정보를 불러오지 못했습니다: $error'),
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Text('관심 분야 정보를 불러오지 못했습니다: $error'),
+            ),
+            const SizedBox(height: 8),
+            Text('최소 3개 이상 선택하면 더 정확한 추천을 받습니다.',
+                style: Theme.of(context).textTheme.bodySmall),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

@@ -30,119 +30,154 @@ class PolicyDetailPage extends ConsumerWidget {
                 orElse: () => false,
               );
           final related = ref.watch(relatedPoliciesProvider(policy));
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: ListView(
-              children: [
-                Text(policy.title, style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 8),
-                Text(policy.summary),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    Chip(label: Text(policy.regionName)),
-                    ...policy.categories.map((category) => Chip(label: Text(category))),
-                  ],
-                ),
-                const Divider(),
-                Text('지원 대상: ${policy.minAge}~${policy.maxAge}세'),
-                if (policy.targetGroups.isNotEmpty)
-                  Text('대상 그룹: ${policy.targetGroups.join(', ')}'),
-                const SizedBox(height: 12),
-                Text('지원 내용', style: Theme.of(context).textTheme.titleMedium),
-                Text(policy.supportDetail),
-                const SizedBox(height: 12),
-                Text('지원 형태: ${policy.supportType}'),
-                const SizedBox(height: 12),
-                Text('신청 방법: ${policy.applicationMethod}'),
-                TextButton(
-                  onPressed: policy.applicationUrl.isEmpty
-                      ? null
-                      : () => launchUrlString(policy.applicationUrl, mode: LaunchMode.externalApplication),
-                  child: const Text('신청 페이지 열기'),
-                ),
-                TextButton.icon(
-                  onPressed: policy.applicationUrl.isEmpty
-                      ? null
-                      : () => _sharePolicy(context, policy.applicationUrl),
-                  icon: const Icon(Icons.share),
-                  label: const Text('링크 공유'),
-                ),
-                const SizedBox(height: 12),
-                Text('문의처: ${policy.contact}'),
-                if (policy.endDate != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text('마감일: ${policy.endDate!.toLocal().toString().split(' ').first}'),
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+            children: [
+              Text(
+                policy.title,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Chip(label: Text(policy.regionName)),
+                  ...policy.categories.map((category) => Chip(label: Text(category))),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _ActionButton(
+                    icon: Icons.map_outlined,
+                    label: '지도에서 보기',
+                    onTap: () {
+                      ref.read(policyFilterUseProfileProvider.notifier).state = false;
+                      ref.read(policyFilterStateProvider.notifier).state =
+                          ref.read(policyFilterStateProvider.notifier).state.copyWith(
+                                region: policy.regionCode,
+                              );
+                      context.push(
+                        '/home/unity-map',
+                        extra: {
+                          'regionCode': policy.regionCode,
+                          'regionName': policy.regionName,
+                        },
+                      );
+                    },
                   ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    if (isBookmarked) {
-                      await bookmarkController.toggle(policy);
-                      _showSnack(context, '북마크에서 제거되었습니다.');
-                    } else {
-                      final folder = await _pickFolder(context) ?? BookmarkFolder.favorite;
-                      await bookmarkController.toggle(policy, folder: folder);
-                      _showSnack(context, '${folder.label} 폴더에 추가되었습니다.');
-                    }
-                  },
-                  icon: Icon(isBookmarked ? Icons.bookmark : Icons.bookmark_border),
-                  label: Text(isBookmarked ? '북마크 해제' : '북마크 추가'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    ref
-                        .read(policyFilterUseProfileProvider.notifier)
-                        .state = false;
-                    ref.read(policyFilterStateProvider.notifier).state =
-                        ref
-                            .read(policyFilterStateProvider.notifier)
-                            .state
-                            .copyWith(region: policy.regionCode);
-                    context.push(
-                      '/home/unity-map',
-                      extra: {
-                        'regionCode': policy.regionCode,
-                        'regionName': policy.regionName,
-                      },
-                    );
-                  },
-                  icon: const Icon(Icons.map),
-                  label: const Text('지도에서 위치 보기'),
-                ),
-                const SizedBox(height: 24),
-                Text('연관 정책 추천', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 250,
-                  child: related.when(
-                    data: (items) => items.isEmpty
-                        ? const Center(child: Text('연관 정책이 없습니다.'))
-                        : ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemBuilder: (context, index) => SizedBox(
-                              width: 320,
-                              child: PolicyCard(policy: items[index]),
-                            ),
-                            separatorBuilder: (_, __) => const SizedBox(width: 12),
-                            itemCount: items.length,
+                  _ActionButton(
+                    icon: Icons.share_outlined,
+                    label: '링크 공유',
+                    onTap: policy.applicationUrl.isEmpty
+                        ? null
+                        : () => _sharePolicy(context, policy.applicationUrl),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _DetailSectionCard(
+                title: '요약',
+                children: [
+                  Text(policy.summary, style: Theme.of(context).textTheme.bodyLarge),
+                  const SizedBox(height: 12),
+                  _InfoRow(label: '주관 기관', value: policy.institutionName ?? '-'),
+                  if (policy.contact.isNotEmpty)
+                    _InfoRow(label: '문의처', value: policy.contact),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _DetailSectionCard(
+                title: '지원 조건',
+                children: [
+                  _InfoRow(label: '연령', value: '${policy.minAge} ~ ${policy.maxAge}세'),
+                  if (policy.targetGroups.isNotEmpty)
+                    _InfoRow(label: '대상', value: policy.targetGroups.join(', ')),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _DetailSectionCard(
+                title: '지원 혜택',
+                children: [
+                  _InfoRow(label: '형태', value: policy.supportType),
+                  const SizedBox(height: 8),
+                  Text(policy.supportDetail, style: Theme.of(context).textTheme.bodyMedium),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _DetailSectionCard(
+                title: '신청 및 일정',
+                children: [
+                  _InfoRow(
+                    label: '신청 기간',
+                    value: _buildScheduleText(policy.startDate, policy.endDate),
+                  ),
+                  _InfoRow(label: '방법', value: policy.applicationMethod),
+                  if (policy.applicationUrl.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: FilledButton.tonalIcon(
+                        onPressed: () =>
+                            launchUrlString(policy.applicationUrl, mode: LaunchMode.externalApplication),
+                        icon: const Icon(Icons.open_in_new),
+                        label: const Text('신청 페이지 열기'),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: () async {
+                  if (isBookmarked) {
+                    await bookmarkController.toggle(policy);
+                    _showSnack(context, '북마크에서 제거했습니다.');
+                  } else {
+                    final folder = await _pickFolder(context) ?? BookmarkFolder.favorite;
+                    await bookmarkController.toggle(policy, folder: folder);
+                    _showSnack(context, '${folder.label} 폴더에 추가되었습니다.');
+                  }
+                },
+                icon: Icon(isBookmarked ? Icons.bookmark : Icons.bookmark_border),
+                label: Text(isBookmarked ? '북마크 해제' : '북마크 저장'),
+              ),
+              const SizedBox(height: 28),
+              Text('연관 정책 추천', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 260,
+                child: related.when(
+                  data: (items) => items.isEmpty
+                      ? const Center(child: Text('연관 정책이 없습니다.'))
+                      : ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          itemBuilder: (context, index) => SizedBox(
+                            width: 320,
+                            child: PolicyCard(policy: items[index]),
                           ),
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Center(child: Text('연관 정책을 불러오지 못했습니다: $e')),
-                  ),
+                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          itemCount: items.length,
+                        ),
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('연관 정책을 불러오지 못했습니다: $e')),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _DetailSkeleton(),
         error: (e, _) => Center(child: Text('불러오지 못했습니다: $e')),
       ),
     );
+  }
+
+  String _buildScheduleText(DateTime? start, DateTime? end) {
+    final startText = start != null ? start.toLocal().toString().split(' ').first : '상시';
+    final endText = end != null ? end.toLocal().toString().split(' ').first : '미정';
+    return '$startText ~ $endText';
   }
 
   Future<BookmarkFolder?> _pickFolder(BuildContext context) {
@@ -174,6 +209,105 @@ class PolicyDetailPage extends ConsumerWidget {
   void _showSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+}
+
+class _DetailSectionCard extends StatelessWidget {
+  const _DetailSectionCard({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 180,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon),
+        label: Text(label),
+      ),
+    );
+  }
+}
+
+class _DetailSkeleton extends StatelessWidget {
+  const _DetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceVariant;
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 4,
+      itemBuilder: (_, index) => Container(
+        height: index == 0 ? 120 : 150,
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

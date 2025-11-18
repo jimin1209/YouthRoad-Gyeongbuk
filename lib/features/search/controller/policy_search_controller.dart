@@ -50,10 +50,12 @@ class PolicySearchController extends AutoDisposeAsyncNotifier<List<Policy>> {
     final effectiveCategories = overrides.toSet()..addAll(tagMatches);
     final status = _params.status ?? globalFilter.status;
 
+    final keyword = _params.query?.trim();
     final results = await _repository.getPolicies(
       region: region,
       categories: effectiveCategories.isEmpty ? null : effectiveCategories.toList(),
       status: (status == null || status.isEmpty) ? null : status,
+      keyword: (keyword == null || keyword.isEmpty) ? null : keyword,
     );
     final filtered = _applyTextQuery(results, _params.query, tagMatches);
     final engagementState = engagement.maybeWhen(

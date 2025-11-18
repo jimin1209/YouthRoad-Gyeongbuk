@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
-import '../di.dart';
+import '../../providers/global_providers.dart';
 
 class PolicyListNotifier extends AsyncNotifier<List<Policy>> {
   late final PolicyRepository _repo;
