@@ -45,15 +45,21 @@ flutter {
     source = "../.."
 }
 
+def hasUnityLibrary = project.findProject(":unityLibrary") != null
+
 dependencies {
     implementation "androidx.multidex:multidex:2.0.1"
 
-    // Unity 라이브러리 연결
-    implementation project(":unityLibrary")
+    // Unity 라이브러리 연결 (존재할 때만)
+    if (hasUnityLibrary) {
+        implementation project(":unityLibrary")
+    }
 }
 
 repositories {
-    flatDir {
-        dirs "${project(':unityLibrary').projectDir}/libs"
+    if (hasUnityLibrary) {
+        flatDir {
+            dirs "${project(':unityLibrary').projectDir}/libs"
+        }
     }
 }

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  flutter-tests:
+    name: Flutter Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run flutter tests
+        env:
+          YOUTHROAD_API_KEY: ${{ secrets.YOUTHROAD_API_KEY }}
+        run: flutter test --reporter expanded --dart-define=YOUTHROAD_API_KEY=${YOUTHROAD_API_KEY}
+
+  unity-editmode-tests:
+    name: Unity EditMode Tests
+    runs-on: ubuntu-latest
+    if: ${{ secrets.UNITY_LICENSE != '' }}
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Unity EditMode tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          YOUTHROAD_API_KEY: ${{ secrets.YOUTHROAD_API_KEY }}
+          UNITY_LICENSE: ${{ env.UNITY_LICENSE }}
+        with:
+          projectPath: unity_project
+          testMode: editmode
+          unityVersion: 2021.3.30f1
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  unity-editmode-tests-skip:
+    name: Unity EditMode Tests (Skipped)
+    runs-on: ubuntu-latest
+    if: ${{ secrets.UNITY_LICENSE == '' }}
+    steps:
+      - name: Skip because UNITY_LICENSE is not configured
+        run: echo "UNITY_LICENSE not set; skipping Unity EditMode tests."
