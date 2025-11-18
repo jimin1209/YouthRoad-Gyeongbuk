@@ -41,6 +41,15 @@ namespace YouthRoadTests
         }
 
         [Test]
+        public void NormalizePageSize_ClampsToBounds()
+        {
+            Assert.AreEqual(1, PolicyQuerySanitizer.NormalizePageSize(0));
+            Assert.AreEqual(1, PolicyQuerySanitizer.NormalizePageSize(-10));
+            Assert.AreEqual(50, PolicyQuerySanitizer.NormalizePageSize(50));
+            Assert.AreEqual(100, PolicyQuerySanitizer.NormalizePageSize(500));
+        }
+
+        [Test]
         public void NormalizeAge_FiltersNonPositive()
         {
             Assert.IsNull(PolicyQuerySanitizer.NormalizeAge(null));

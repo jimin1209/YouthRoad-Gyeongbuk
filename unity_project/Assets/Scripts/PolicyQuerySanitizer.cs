@@ -6,6 +6,9 @@ namespace YouthRoad
 {
     public static class PolicyQuerySanitizer
     {
+        private const int MinPageSize = 1;
+        private const int MaxPageSize = 100;
+
         public static string NormalizeRegion(string region)
         {
             if (string.IsNullOrWhiteSpace(region))
@@ -41,6 +44,21 @@ namespace YouthRoad
         public static int NormalizePage(int page)
         {
             return page <= 0 ? 1 : page;
+        }
+
+        public static int NormalizePageSize(int size)
+        {
+            if (size < MinPageSize)
+            {
+                return MinPageSize;
+            }
+
+            if (size > MaxPageSize)
+            {
+                return MaxPageSize;
+            }
+
+            return size;
         }
 
         public static int? NormalizeAge(int? age)
