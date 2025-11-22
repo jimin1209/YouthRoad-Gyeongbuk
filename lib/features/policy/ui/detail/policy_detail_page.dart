@@ -6,6 +6,7 @@ import '../../model/policy_item.dart';
 import '../card/policy_card_v2.dart';
 import 'policy_detail_action_bar.dart';
 import 'policy_detail_sections.dart';
+import '../../../../features/support_center/logic/consult_history.dart';
 
 class PolicyDetailPage extends ConsumerStatefulWidget {
   const PolicyDetailPage({super.key, required this.item});
@@ -22,6 +23,7 @@ class _PolicyDetailPageState extends ConsumerState<PolicyDetailPage> {
   bool _applied = false;
   bool _favorite = false;
   bool _compared = false;
+  final TextEditingController _memoCtrl = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +64,8 @@ class _PolicyDetailPageState extends ConsumerState<PolicyDetailPage> {
             ),
             const SizedBox(height: 12),
             _notificationBox(context),
+            const SizedBox(height: 12),
+            _consultHistorySection(context, item),
             const SizedBox(height: 12),
             const PolicyDetailSections(),
             const SizedBox(height: 16),
@@ -129,5 +133,68 @@ class _PolicyDetailPageState extends ConsumerState<PolicyDetailPage> {
       widget.item.copyWith(title: '[유사] ${widget.item.title ?? ''} B'),
       widget.item.copyWith(title: '[유사] ${widget.item.title ?? ''} C'),
     ];
+  }
+
+  Widget _consultHistorySection(BuildContext context, PolicyItem item) {
+    final history = ref.watch(consultHistoryProvider);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('상담 히스토리', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _memoCtrl,
+              decoration: const InputDecoration(
+                hintText: '상담 메모를 남겨주세요',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: () async {
+                  await ref.read(consultHistoryProvider.notifier).add(
+                        ConsultRecord(
+                          policyId: item.id ?? '',
+                          policyTitle: item.title ?? '',
+                          timestamp: DateTime.now(),
+                          memo: _memoCtrl.text,
+                        ),
+                      );
+                  _memoCtrl.clear();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('상담 기록이 저장되었습니다')),
+                    );
+                  }
+                },
+                child: const Text('기록 추가'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...history.take(3).map(
+              (h) => ListTile(
+                dense: true,
+                title: Text(h.policyTitle),
+                subtitle: Text('${h.memo ?? ''}\n${h.timestamp.toLocal()}'),
+                isThreeLine: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _memoCtrl.dispose();
+    super.dispose();
   }
 }
