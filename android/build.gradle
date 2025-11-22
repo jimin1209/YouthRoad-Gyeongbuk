@@ -1,13 +1,37 @@
-buildscript {
-    ext.kotlin_version = '1.9.24'
+// 🔵 buildscript 블록 완전 제거 (AGP 8.x에서 필요 없음)
 
+allprojects {
     repositories {
         google()
         mavenCentral()
     }
 
-    dependencies {
-        classpath "com.android.tools.build:gradle:7.3.0"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    configurations.all {
+        resolutionStrategy {
+            // 🔵 Kotlin 강제 버전 지정 제거 (pluginManagement에서 처리됨)
+
+            // 🔵 annotation 최신 버전만 안전하게 고정
+            force "androidx.annotation:annotation:1.8.0"
+        }
+    }
+}
+
+// 🔵 APK 강제 생성 패치 (Unity + Flutter 조합 필수)
+subprojects { subproject ->
+    if (subproject.name == "app") {
+        subproject.afterEvaluate {
+            if (subproject.hasProperty("android")) {
+                subproject.android.applicationVariants.all { variant ->
+                    variant.outputs.all { output ->
+                        // AAB를 APK로 강제 변환
+                        if (output.outputFile != null &&
+                                output.outputFile.name?.endsWith(".aab")) {
+                            def apkName = output.outputFile.name.replace(".aab", ".apk")
+                            output.outputFileName = apkName
+                        }
+                    }
+                }
+            }
+        }
     }
 }

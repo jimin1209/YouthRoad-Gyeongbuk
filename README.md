@@ -1,140 +1,297 @@
-# 🧭 Youth App (Flutter + Unity 예정)
+# 🧭 YouthRoad App (Flutter + Unity Integrated Project)
 
-Flutter 기반으로 개발하는 청년 정책/지역 서비스 앱입니다.  
-현재는 Flutter 구조만 구성되어 있으며, 이후 Unity 3D 씬을 Android 내에 임베드해  
-상호작용 기능을 제공할 예정입니다.
-
----
-
-## 📌 Project Information
-
-- **Framework:** Flutter 3.22.2  
-- **Language:** Dart  
-- **Supported Platforms:** Android, iOS, Web, Windows  
-- **Unity Integration:** Unity 2022.3 LTS (설치 후 `unityLibrary` 폴더 통합 예정)  
-- **Primary IDE:** VS Code / Rider  
-- **Backup IDE:** Visual Studio 2022  
+**YouthRoad App**은 Flutter 3.x 기반과 Unity 2022.3 LTS 엔진을 하나의 Mobile App 안에 통합한
+경북 청년 정책 플랫폼 프로젝트입니다.
+Flutter UI와 Unity 3D 씬을 Android 단에서 안정적으로 실행하도록 구성되어 있습니다.
 
 ---
 
-## 📁 Current Project Structure
+# 📌 Project Information
 
-(2025-11-17 기준)
+| 항목                    | 값                                        |
+| --------------------- | ---------------------------------------- |
+| **Flutter**           | 3.24.x                                   |
+| **Dart**              | 3.4.x                                    |
+| **Unity**             | 2022.3 LTS                               |
+| **Android SDK**       | compileSdk 36 / targetSdk 36 / minSdk 24 |
+| **Scripting Backend** | IL2CPP + ARM64                           |
+| **빌드 상태**             | ✔ Flutter + Unity 정상 빌드됨                 |
+| **Platform 지원**       | Android, iOS, Web, Windows               |
 
-```
-youth_app/
- ├─ android/             # Android native project (Unity library가 여기로 들어올 예정)
- ├─ ios/                 # iOS project
- ├─ linux/               # Flutter Linux desktop support
- ├─ macos/               # Flutter macOS desktop support
- ├─ windows/             # Flutter Windows desktop support
- ├─ web/                 # Web support
- ├─ lib/                 # Flutter Dart source code
- ├─ build/               # Build output (ignored by Git)
- ├─ .idea/               # IDE config files (ignored)
- ├─ .dart_tool/          # Flutter tool cache (ignored)
- ├─ pubspec.yaml         # Flutter dependencies
- ├─ pubspec.lock         # Locked dependency versions
- ├─ .gitignore           # Flutter + Unity + Rider + VS 통합 무시 규칙
- └─ README.md            # (바로 이 파일)
-```
+**Flutter는 UI와 정책 API 처리**
+**Unity는 지도/3D 시각화 기능 담당**
 
-> Unity Export 후, 아래 폴더가 추가될 예정입니다:
+---
+
+# 📁 Project Structure (2025-11-22 기준, 정상 빌드 버전)
 
 ```
-unityLibrary/
- ├─ build.gradle
- ├─ src/
- ├─ libs/
+youth_road_app/
+ ├─ android/
+ │   ├─ app/                     # Flutter Android module
+ │   └─ unityLibrary/            # Unity Export Android Library
+ │
+ ├─ lib/                         # Flutter source (Riverpod / Router / API)
  ├─ assets/
- └─ jniLibs/
+ ├─ windows/
+ ├─ web/
+ ├─ build/
+ ├─ pubspec.yaml
+ └─ README.md
+```
+
+Unity Export 후 포함되는 구조:
+
+```
+android/unityLibrary/
+ ├─ build.gradle
+ ├─ libs/unity-classes.jar
+ ├─ src/main/AndroidManifest.xml
+ ├─ src/main/jniLibs/arm64-v8a/
+ └─ src/main/java/com/unity3d/player/*.java
 ```
 
 ---
 
-## 🚀 Getting Started
+# 🛠️ Versions & Dependencies (현재 빌드 성공 버전)
 
-### 1. Clone Repository
-```bash
-git clone https://github.com/jimin1209/youth_app.git
-cd youth_app
+## pubspec.yaml
+
+```yaml
+name: youth_road_app
+description: YouthRoad Flutter + Unity integrated project
+
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.1
+
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  retrofit: ^4.5.0
+  dio: ^5.7.0
+  shared_preferences: ^2.1.1
+
+  webview_flutter: ^4.10.0
+
+  # 현재 유일하게 빌드 성공하는 안정 버전
+  flutter_unity_widget: ^2022.1.1+5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  retrofit_generator: ^8.2.1
+  json_serializable: ^6.9.0
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
 ```
 
-### 2. Install Flutter Packages
+---
+
+# 🛠️ Android (build.gradle — 정상 빌드된 최종본)
+
+```gradle
+plugins {
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace = "com.youthroad.app"
+    compileSdk = 36
+
+    signingConfigs {
+        debug {
+            storeFile file("${rootDir}/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+
+    defaultConfig {
+        applicationId = "com.youthroad.app"
+        minSdk = 24
+        targetSdk = 36
+
+        versionCode = 1
+        versionName = "1.0"
+
+        multiDexEnabled = true
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    packagingOptions {
+        jniLibs.useLegacyPackaging = true
+        doNotStrip "*/arm64-v8a/*.so"
+
+        resources.pickFirsts += ['**/*.xml']
+        resources.pickFirsts += ['**/*.properties']
+        resources.pickFirsts += ['META-INF/*']
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+}
+
+afterEvaluate {
+    tasks.matching { it.name == "packageDebug" }.configureEach { t ->
+        t.doLast {
+            def fromApk = file("$projectDir/build/outputs/apk/debug/app-debug.apk")
+
+            def flutterDir = file("$rootDir/build/app/outputs/flutter-apk")
+            def backupDir = file("$rootDir/build")
+
+            if (fromApk.exists()) {
+                flutterDir.mkdirs()
+                copy { from fromApk into flutterDir }
+
+                backupDir.mkdirs()
+                copy { from fromApk into backupDir }
+
+                println("✔ APK copied successfully.")
+            } else {
+                println("✘ APK NOT FOUND at: ${fromApk}")
+            }
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    implementation "androidx.multidex:multidex:2.0.1"
+    implementation project(":unityLibrary")
+}
+
+configurations.all {
+    exclude group: "com.unity3d.player"
+    exclude module: "unity-classes"
+}
+
+repositories {
+    flatDir {
+        dirs "${project(':unityLibrary').projectDir}/libs"
+    }
+}
+```
+
+---
+
+# 🎮 Unity Integration Workflow (2022.3 LTS)
+
+Unity 설정은 아래처럼 작업해야 문제 없이 빌드됨:
+
+1. **Unity → Build Settings**
+
+   * Android
+   * Export Project 체크
+2. **Scripting Backend**
+
+   * IL2CPP
+3. **Architecture**
+
+   * ARM64
+4. **Export Path**
+
+   ```
+   android/unityLibrary/
+   ```
+5. 기존 Flutter Android와 자동 병합됨
+6. Flutter에서 `flutter_unity_widget`로 UnityView 렌더링
+7. 메시지 통신:
+
+   * Flutter → Unity: `postMessage`
+   * Unity → Flutter: `sendMessage`
+
+---
+
+# 🚀 Running the Project
+
 ```bash
+flutter clean
 flutter pub get
+flutter build apk --debug --no-shrink
 ```
 
-### 3. Run on Emulator / Device
-```bash
-flutter run
+APK 출력 경로:
+
+```
+build/app/outputs/flutter-apk/app-debug.apk
 ```
 
 ---
 
-## 🎨 Flutter Screens (현재 개발 예정 목록)
-- 앱 런치 → 간단한 로딩 애니메이션 (Custom)
-- 지역 선택 화면
-- 추천 정책 리스트
-- 감성 UI 기반 메인 홈
+# 🖼️ Flutter Screens (현재 계획)
+
+* 앱 첫 로딩 화면 (애니메이션)
+* 지역 선택 화면
+* 정책 추천 Home
+* Unity Map/3D 인터랙션 화면
+* 마이페이지
 
 ---
 
-## 🎮 Unity Integration (설치 후 진행)
-Unity 2022.3 LTS 설치 후:
+# 👩‍💻 Developer
 
-1. Build Settings → Android  
-2. Export Project → `unityLibrary/` 생성  
-3. `unityLibrary/` 전체를 `android/`에 병합  
-4. Flutter에서 UnityView 띄우기 설정  
-5. Unity ↔ Flutter 메시지 통신 연결  
+### **최지민 (ChoiDeborah)**
 
-(퓨와 함께 계속 진행 예정)
+Flutter × Unity × Oracle 기반의 YouthRoad App 개발자
 
 ---
 
-## 🛠 Tech Stack
+# 🛠 Tech Stack
 
-### **Flutter**
-- Dart 3.x  
-- Material 3  
-- Provider/Bloc 등 상태관리 (선택 예정)
+### Languages / Frameworks
 
-### **Unity (예정)**
-- Unity 2022.3 LTS  
-- OpenGLES3  
-- Android IL2CPP  
-- Unity as Library 방식
+![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge\&logo=dart\&logoColor=white)
+![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge\&logo=flutter\&logoColor=white)
+![Unity](https://img.shields.io/badge/Unity-000000?style=for-the-badge\&logo=unity\&logoColor=white)
 
-### **Development Tools**
-- VS Code (Flutter)  
-- Rider (Unity C# 메인 IDE)  
-- Android Studio (Gradle/Native 디버깅)  
-- VS 2022 (백업)
+### Tools
+
+![Android Studio](https://img.shields.io/badge/Android%20Studio-3DDC84?style=for-the-badge\&logo=androidstudio\&logoColor=white)
+![VS Code](https://img.shields.io/badge/VS%20Code-007ACC?style=for-the-badge\&logo=visualstudiocode\&logoColor=white)
+![Rider](https://img.shields.io/badge/JetBrains%20Rider-000000?style=for-the-badge\&logo=jetbrains\&logoColor=white)
+![Visual Studio](https://img.shields.io/badge/Visual%20Studio-5C2D91?style=for-the-badge\&logo=visualstudio\&logoColor=white)
 
 ---
-
-## 📌 Git Rules
-프로젝트에는 **Flutter, Unity, Rider, VS**가 섞이므로  
-.gitignore가 충돌 없이 작동하도록 최적화됨.
-
-Git에는 오직 **필요한 코드만 clean하게 올라가도록 구성**되어 있습니다.
-
----
-
-## © Developer
-**최지민 (ChoiDeborah)**  
-Flutter × Unity 기반 프로젝트 개발
-
-## 🛠 Tech Stack
-
-### **Languages & Frameworks**
-![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
-![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
-![Unity](https://img.shields.io/badge/Unity-000000?style=for-the-badge&logo=unity&logoColor=white)
-
-### **Tools**
-![Android Studio](https://img.shields.io/badge/Android%20Studio-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white)
-![VS Code](https://img.shields.io/badge/VS%20Code-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
-![Rider](https://img.shields.io/badge/JetBrains%20Rider-000000?style=for-the-badge&logo=jetbrains&logoColor=white)
-![Visual Studio](https://img.shields.io/badge/Visual%20Studio-5C2D91?style=for-the-badge&logo=visualstudio&logoColor=white)
