@@ -1,0 +1,107 @@
+# =========================================================
+# Flutter
+# =========================================================
+**/build/
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+flutter_export_environment.sh
+
+# Android generated
+android/.gradle/
+android/local.properties
+android/**/GeneratedPluginRegistrant.java
+android/**/GeneratedPluginRegistrant.kt
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+
+# macOS
+macos/Pods/
+macos/Flutter/ephemeral/
+
+# Windows
+windows/flutter/ephemeral/
+
+# Web
+web/.dart_tool/
+
+# =========================================================
+# Unity (unityLibrary, Unity project export)
+# =========================================================
+**/Library/
+**/Temp/
+**/Obj/
+**/Logs/
+**/MemoryCaptures/
+**/Build/
+**/Builds/
+**/UserSettings/
+
+# Unity Android Export caches
+unityLibrary/build/
+unityLibrary/libs/       # 👉 Unity 빌드산출물
+unityLibrary/.idea/
+unityLibrary/.gradle/
+unityLibrary/.settings/
+
+# 🔥 Unity 안에서 빌드된 JNI/IL2CPP 결과물 무시
+unityLibrary/src/main/jniLibs/
+unityLibrary/src/main/jniStaticLibs/
+unityLibrary/src/main/Il2CppOutputProject/
+
+# Unity asset pipeline
+**/*.pidb.meta
+**/*.pidb
+**/*.mdb
+**/*.opendb
+**/*.VC.db
+
+# Unity auto project files
+**/ProjectSettings/UnityConnectSettings.asset
+**/ProjectSettings/EditorBuildSettings.asset
+
+# =========================================================
+# JetBrains Rider
+# =========================================================
+.idea/
+*.sln.iml
+*.iws
+*.ipr
+
+# =========================================================
+# Visual Studio
+# =========================================================
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# VS build
+[Bb]in/
+[Oo]bj/
+
+# MonoDevelop
+*.userprefs
+
+# =========================================================
+# VS Code
+# =========================================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# =========================================================
+# OS-level
+# =========================================================
+.DS_Store
+Thumbs.db
+desktop.ini

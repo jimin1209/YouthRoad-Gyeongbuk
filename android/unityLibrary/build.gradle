@@ -1,0 +1,128 @@
+apply plugin: 'com.android.library'
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+android {
+
+    // Unity 2022.3.62f3 내장 NDK 버전
+    ndkVersion "23.1.7779620"
+
+    namespace "com.unity3d.player"
+    compileSdkVersion 35
+    buildToolsVersion '35.0.0'
+
+    defaultConfig {
+        minSdkVersion 24
+        targetSdkVersion 35
+
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+
+        versionCode 1
+        versionName "0.1"
+
+        consumerProguardFiles "proguard-unity.txt"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+
+    packagingOptions {
+        doNotStrip '*/arm64-v8a/*.so'
+
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
+    sourceSets {
+        main {
+            jni.srcDirs = ["src/main/Il2CppOutputProject"]
+        }
+    }
+
+    // IL2CPP 빌드 먼저 실행하도록 연결
+    afterEvaluate {
+        if (tasks.findByName('mergeDebugJniLibFolders'))
+            mergeDebugJniLibFolders.dependsOn BuildIl2CppTask
+
+        if (tasks.findByName('mergeReleaseJniLibFolders'))
+            mergeReleaseJniLibFolders.dependsOn BuildIl2CppTask
+    }
+}
+
+// SDK 경로 읽기
+def getSdkDir() {
+    Properties local = new Properties()
+    local.load(new FileInputStream("${rootDir}/local.properties"))
+    return local.getProperty('sdk.dir')
+}
+
+// IL2CPP 컴파일 실행
+def BuildIl2Cpp(
+        String workingDir,
+        String configuration,
+        String architecture,
+        String abi,
+        String[] staticLibraries
+) {
+    def exe = org.gradle.internal.os.OperatingSystem.current().isWindows() ? "il2cpp.exe" : "il2cpp"
+
+    def argsList = [
+            "--compile-cpp",
+            "--platform=Android",
+            "--architecture=${architecture}",
+            "--outputpath=${workingDir}/src/main/jniLibs/${abi}/libil2cpp.so",
+            "--baselib-directory=${workingDir}/src/main/jniStaticLibs/${abi}",
+            "--incremental-g-c-time-slice=3",
+            "--configuration=${configuration}",
+            "--dotnetprofile=unityaot-linux",
+            "--profiler-report",
+            "--profiler-output-file=${workingDir}/build/il2cpp_${abi}_${configuration}/il2cpp_conv.traceevents",
+            "--print-command-line",
+            "--data-folder=${workingDir}/src/main/Il2CppOutputProject/Source/il2cppOutput/data",
+            "--generatedcppdir=${workingDir}/src/main/Il2CppOutputProject/Source/il2cppOutput",
+            "--cachedirectory=${workingDir}/build/il2cpp_${abi}_${configuration}/il2cpp_cache",
+            "--tool-chain-path=${getSdkDir()}/ndk/${android.ndkVersion}"
+    ]
+
+    // 추가 static library
+    staticLibraries.each { fileName ->
+        argsList.add("--additional-libraries=${workingDir}/src/main/jniStaticLibs/${abi}/${fileName}")
+    }
+
+    exec {
+        executable "${workingDir}/src/main/Il2CppOutputProject/IL2CPP/build/deploy/${exe}"
+        args argsList
+        environment "ANDROID_SDK_ROOT", getSdkDir()
+    }
+
+    // 심볼 파일 이동
+    delete "${workingDir}/src/main/jniLibs/${abi}/libil2cpp.sym.so"
+    ant.move(
+            file: "${workingDir}/src/main/jniLibs/${abi}/libil2cpp.dbg.so",
+            tofile: "${workingDir}/symbols/${abi}/libil2cpp.so"
+    )
+}
+
+// Task 등록
+task BuildIl2CppTask {
+    doLast {
+        BuildIl2Cpp(
+                projectDir.toString().replaceAll('\\\\', '/'),
+                "Release",
+                "arm64",
+                "arm64-v8a",
+                [] as String[]
+        )
+    }
+}
