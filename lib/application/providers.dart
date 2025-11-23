@@ -43,5 +43,3 @@ final memoProvider =
 
 final chatProvider =
     NotifierProvider.autoDispose<ChatNotifier, ChatState>(ChatNotifier.new);
-
-export 'notifiers/region_notifier.dart' show regionProvider, RegionNotifier;
