@@ -26,7 +26,7 @@ class PolicyCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                policy.title,
+                policy.policyNm,
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
@@ -34,7 +34,7 @@ class PolicyCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                policy.summary,
+                policy.policyCn ?? '',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 12),

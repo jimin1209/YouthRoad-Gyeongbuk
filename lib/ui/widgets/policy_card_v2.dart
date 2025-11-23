@@ -54,15 +54,12 @@ class PolicyCardV2 extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final status = _StatusBadge.fromPolicy(policy);
     final tags = getPolicyTags(policy);
-    final regionText = (policy.eligibilityRegion == null ||
-            policy.eligibilityRegion!.trim().isEmpty)
+    final regionText = (policy.rgnSeNm == null || policy.rgnSeNm!.trim().isEmpty)
         ? '지역 전체'
-        : policy.eligibilityRegion!;
-    final ageText = policy.eligibilityAge == null
-        ? '연령 제한 없음'
-        : '${policy.eligibilityAge}세 이상';
+        : policy.rgnSeNm!;
+    final ageText = '연령 정보 없음';
 
-    final periodText = _formatPeriod(policy.periodStart, policy.periodEnd);
+    final periodText = _formatPeriod(policy.policyBgngYmd, policy.policyEndYmd);
     final ddayText = _formatDday(policy.dday);
 
     return Card(
@@ -89,19 +86,19 @@ class PolicyCardV2 extends ConsumerWidget {
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  _Pill(label: policy.category),
+                  _Pill(label: policy.policyTypeNm ?? '정책'),
                 ],
               ),
               const SizedBox(height: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (policy.agency != null &&
-                      policy.agency!.trim().isNotEmpty)
-                    _InfoRow(icon: '🏢', text: policy.agency!),
-                  if (policy.department != null &&
-                      policy.department!.trim().isNotEmpty)
-                    _InfoRow(icon: '👥', text: policy.department!),
+                  if (policy.sprvsnInstNm != null &&
+                      policy.sprvsnInstNm!.trim().isNotEmpty)
+                    _InfoRow(icon: '🏢', text: policy.sprvsnInstNm!),
+                  if (policy.operInstNm != null &&
+                      policy.operInstNm!.trim().isNotEmpty)
+                    _InfoRow(icon: '👥', text: policy.operInstNm!),
                   _InfoRow(icon: '📍', text: regionText),
                   _InfoRow(icon: '🎯', text: ageText),
                   if (periodText != null)
@@ -142,28 +139,33 @@ class PolicyCardV2 extends ConsumerWidget {
     );
   }
 
-  String? _formatPeriod(String? start, String? end) {
-    if ((start == null || start.trim().isEmpty) &&
-        (end == null || end.trim().isEmpty)) {
+  String? _formatPeriod(DateTime? start, DateTime? end) {
+    final startText = _formatDate(start);
+    final endText = _formatDate(end);
+    final hasStart = startText != null && startText.isNotEmpty;
+    final hasEnd = endText != null && endText.isNotEmpty;
+
+    if (!hasStart && !hasEnd) {
       return null;
     }
-
-    if (start != null && start.trim().isNotEmpty &&
-        end != null && end.trim().isNotEmpty) {
-      return '$start ~ $end';
+    if (hasStart && hasEnd) {
+      return '$startText ~ $endText';
     }
-
-    if (start != null && start.trim().isNotEmpty) {
-      return '$start 시작';
+    if (hasStart) {
+      return '$startText 시작';
     }
-
-    return '~ $end';
+    return '~ $endText';
   }
 
   String? _formatDday(int? dday) {
     if (dday == null) return null;
     if (dday >= 0) return 'D-$dday';
     return 'D+${dday.abs()}';
+  }
+
+  String? _formatDate(DateTime? date) {
+    if (date == null) return null;
+    return date.toIso8601String().split('T').first;
   }
 }
 
@@ -245,7 +247,7 @@ class _HeaderRow extends ConsumerWidget {
       children: [
         Expanded(
           child: Text(
-            policy.title,
+            policy.policyNm,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -256,8 +258,7 @@ class _HeaderRow extends ConsumerWidget {
             isFavorite ? Icons.favorite : Icons.favorite_border,
             color: isFavorite ? Colors.redAccent : null,
           ),
-          onPressed: () =>
-              ref.read(favoritesProvider.notifier).toggle(policy.id),
+          onPressed: () => ref.read(favoritesProvider.notifier).toggle(policy.id),
         ),
         CompareBadge(
           child: IconButton(
@@ -286,15 +287,18 @@ class _StatusBadge {
 
   static _StatusBadge? fromPolicy(Policy policy) {
     final now = DateTime.now();
-    final start = policy.periodStart != null
-        ? DateTime.tryParse(policy.periodStart!)
-        : null;
+    final start = policy.policyBgngYmd;
+    final end = policy.policyEndYmd;
 
     if (policy.isOngoing == true) {
       return _StatusBadge('모집중', Colors.blue);
     }
 
     if (policy.isOngoing == false && policy.dday != null && policy.dday! < 0) {
+      return _StatusBadge('마감', Colors.grey);
+    }
+
+    if (end != null && end.isBefore(now)) {
       return _StatusBadge('마감', Colors.grey);
     }
 
