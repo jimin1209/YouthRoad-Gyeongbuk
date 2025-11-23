@@ -40,6 +40,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
     final selectedRegion = ref.watch(regionProvider);
 
     final policy = detailState.policy;
+    final tags = policy == null ? const <String>[] : getPolicyTags(policy);
     final eligibilityText = policy == null
         ? '정보 없음'
         : _mapEligibilityResult(
@@ -93,13 +94,12 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                       ),
                     ],
                   ),
+                  if (tags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    buildTagChips(context, tags),
+                  ],
                   const SizedBox(height: 8),
                   Text(policy.summary),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    children: policy.tags.map((t) => Chip(label: Text(t))).toList(),
-                  ),
                   const SizedBox(height: 12),
                   PolicyDetailMetadata(policy: policy),
                   const SizedBox(height: 8),
