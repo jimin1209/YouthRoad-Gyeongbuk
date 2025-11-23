@@ -9,6 +9,7 @@ import '../data/sources/remote/policy_remote_source.dart';
 import '../domain/repositories/policy_repository.dart';
 import 'services/memo_repository.dart';
 import '../core/constants/env.dart';
+import '../debug/debug_network_logger.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences not initialized');
@@ -24,7 +25,11 @@ final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
   return PolicyRepositoryImpl(remoteSource);
 });
 
-final dioProvider = Provider<Dio>((_) => Dio());
+final dioProvider = Provider<Dio>((_) {
+  final dio = Dio();
+  DebugNetworkLogger.instance.attachTo(dio);
+  return dio;
+});
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   final dio = ref.watch(dioProvider);
