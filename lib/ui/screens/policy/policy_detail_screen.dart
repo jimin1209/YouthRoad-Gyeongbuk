@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/providers.dart';
 import '../../../domain/entities/policy.dart';
@@ -128,18 +129,64 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
   }
 
   void _openWebviewDialog(BuildContext context, Policy policy) {
+    final url = policy.policyUrl;
+
+    if (url == null || url.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(policy.title),
+          content: const Text('정책 상세 웹페이지 정보를 찾을 수 없습니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('닫기'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(policy.title),
-        content: const Text('웹뷰 연동 준비 중입니다. 임시 안내 문구를 확인해주세요.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('닫기'),
+      builder: (_) {
+        final loadingNotifier = ValueNotifier<bool>(true);
+        final controller = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setNavigationDelegate(
+            NavigationDelegate(
+              onPageFinished: (_) => loadingNotifier.value = false,
+            ),
+          )
+          ..loadRequest(Uri.parse(url));
+
+        return AlertDialog(
+          title: Text(policy.title),
+          content: SizedBox(
+            width: MediaQuery.sizeOf(context).width * 0.85,
+            height: 420,
+            child: Stack(
+              children: [
+                WebViewWidget(controller: controller),
+                ValueListenableBuilder<bool>(
+                  valueListenable: loadingNotifier,
+                  builder: (context, isLoading, _) {
+                    if (!isLoading) return const SizedBox.shrink();
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('닫기'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
