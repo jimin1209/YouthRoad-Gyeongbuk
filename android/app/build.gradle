@@ -64,36 +64,39 @@ android {
    📌 Flutter 3.24에서 APK 경로 감지 버그 해결 (최종 공식 해결)
    ────────────────────────────────────────────────────────────── */
 afterEvaluate {
-    tasks.matching { it.name == "packageDebug" }.configureEach { t ->
-        t.doLast {
-            def fromApk = file("$projectDir/build/outputs/apk/debug/app-debug.apk")
+    ["Debug", "Release"].each { variant ->
+        tasks.matching { it.name == "package${variant}" }.configureEach { t ->
+            t.doLast {
+                def variantDir = variant.toLowerCase()
+                def fromApk = file("$projectDir/build/outputs/apk/${variantDir}/app-${variantDir}.apk")
 
-            def flutterDir = file("$rootDir/build/app/outputs/flutter-apk")
-            def backupDir = file("$rootDir/build")
+                def flutterDir = file("$rootDir/build/app/outputs/flutter-apk")
+                def backupDir = file("$rootDir/build")
 
-            println("FROM APK: ${fromApk}")
-            println("TO Flutter DIR: ${flutterDir}")
-            println("TO Backup DIR : ${backupDir}")
+                println("FROM APK (${variant}): ${fromApk}")
+                println("TO Flutter DIR: ${flutterDir}")
+                println("TO Backup DIR : ${backupDir}")
 
-            if (fromApk.exists()) {
+                if (fromApk.exists()) {
 
-                // Flutter가 읽는 디렉토리로 복사
-                flutterDir.mkdirs()
-                copy {
-                    from fromApk
-                    into flutterDir
+                    // Flutter가 읽는 디렉토리로 복사
+                    flutterDir.mkdirs()
+                    copy {
+                        from fromApk
+                        into flutterDir
+                    }
+
+                    // 기존 백업 경로
+                    backupDir.mkdirs()
+                    copy {
+                        from fromApk
+                        into backupDir
+                    }
+
+                    println("✔ APK copied successfully to both directories (package${variant}).")
+                } else {
+                    println("✘ APK NOT FOUND at: ${fromApk}")
                 }
-
-                // 기존 백업 경로
-                backupDir.mkdirs()
-                copy {
-                    from fromApk
-                    into backupDir
-                }
-
-                println("✔ APK copied successfully to both directories (packageDebug).")
-            } else {
-                println("✘ APK NOT FOUND at: ${fromApk}")
             }
         }
     }
