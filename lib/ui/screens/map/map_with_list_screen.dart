@@ -9,6 +9,7 @@ import '../../../core/constants/env.dart';
 import '../../../domain/entities/policy.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/policy_card_v2.dart';
+import '../../widgets/global_error_view.dart';
 import 'kakao_map_html_builder.dart';
 
 class MapWithListScreen extends ConsumerStatefulWidget {
@@ -120,8 +121,12 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
                   itemCount: data.length,
                 ),
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, st) => Center(
-                  child: Text('정책을 불러오지 못했습니다: $e'),
+                error: (e, st) => GlobalErrorView(
+                  message: '정책을 불러오지 못했습니다: $e',
+                  onRetry: () {
+                    ref.invalidate(policyListNotifierProvider);
+                    ref.read(policyListNotifierProvider); // trigger reload
+                  },
                 ),
               ),
             ),

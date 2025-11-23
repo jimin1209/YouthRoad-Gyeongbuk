@@ -28,10 +28,17 @@ class _InstitutionListScreenState extends ConsumerState<InstitutionListScreen> {
     setState(() => _loading = true);
     final repo = ref.read(institutionRepositoryProvider);
     final data = await repo.fetchInstitutions(keyword: keyword);
+    if (!mounted) return;
     setState(() {
       _items = data;
       _loading = false;
     });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
