@@ -9,12 +9,14 @@ class ProviderStatusEntry {
     required this.providerName,
     required this.state,
     this.error,
+    this.stackTrace,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
   final String providerName;
   final String state;
   final Object? error;
+  final StackTrace? stackTrace;
   final DateTime timestamp;
 
   bool get isError => error != null || state.toLowerCase() == 'error';
@@ -76,7 +78,12 @@ class DebugProviderObserver extends ProviderObserver {
 
     final name = _resolveProviderName(provider);
     DebugProviderTracker.instance.addEntry(
-      ProviderStatusEntry(providerName: name, state: 'error', error: error),
+      ProviderStatusEntry(
+        providerName: name,
+        state: 'error',
+        error: error,
+        stackTrace: stackTrace,
+      ),
     );
     DebugToastController.instance
         .show('Provider "$name" error: ${error.toString()}');
@@ -95,12 +102,6 @@ class DebugProviderObserver extends ProviderObserver {
 class DebugProviderPanel extends StatelessWidget {
   const DebugProviderPanel({super.key});
 
-  Color _stateColor(ProviderStatusEntry entry) {
-    if (entry.isError) return const Color(0xFFFF4D6D);
-    if (entry.state == 'loading') return const Color(0xFF4D8AF0);
-    return const Color(0xFF4A5568);
-  }
-
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<List<ProviderStatusEntry>>(
@@ -116,44 +117,15 @@ class DebugProviderPanel extends StatelessWidget {
         }
 
         final reversed = entries.reversed.toList();
-        return ListView.builder(
+        return ListView.separated(
           itemCount: reversed.length,
+          separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white24),
           itemBuilder: (context, index) {
             final entry = reversed[index];
-            return _ProviderRow(entry: entry);
-          },
-        );
-      },
-    );
-  }
-}
-
-class _ProviderRow extends StatelessWidget {
-  const _ProviderRow({required this.entry});
-
-  final ProviderStatusEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: entry.isError
-                    ? const Color(0xFFFF4D6D)
-                    : const Color(0xFFCBD5E0),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
+            final preview = entry.error?.toString().split('\n').first ?? '';
+            return ListTile(
+              dense: true,
+              title: Text(
                 entry.providerName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -161,28 +133,70 @@ class _ProviderRow extends StatelessWidget {
                   color: entry.isError
                       ? const Color(0xFFFF4D6D)
                       : const Color(0xFF4A5568),
-                  fontWeight:
-                      entry.isError ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: entry.isError ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              entry.state.toUpperCase(),
-              style: TextStyle(
-                color: _stateColor(entry),
-                fontWeight: FontWeight.w700,
+              subtitle: Text(
+                entry.isError
+                    ? 'STATE: ${entry.state.toUpperCase()} • $preview'
+                    : 'STATE: ${entry.state.toUpperCase()}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70),
               ),
-            ),
-          ],
-        ),
-      ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+              onTap: () => _showProviderDetail(context, entry),
+            );
+          },
+        );
+      },
     );
   }
 
-  Color _stateColor(ProviderStatusEntry entry) {
-    if (entry.isError) return const Color(0xFFFF4D6D);
-    if (entry.state == 'loading') return const Color(0xFF4D8AF0);
-    return const Color(0xFF4A5568);
+  void _showProviderDetail(BuildContext context, ProviderStatusEntry entry) {
+    final stateLabel = entry.state.toUpperCase();
+    final buffer = StringBuffer('State: $stateLabel');
+    if (entry.error != null) {
+      buffer.writeln('\nError: ${entry.error}');
+    }
+    if (entry.stackTrace != null) {
+      buffer.writeln('\nStackTrace:\n${entry.stackTrace}');
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return SafeArea(
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(entry.providerName),
+            ),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Updated: ${entry.timestamp.toLocal()}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'State: $stateLabel',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  SelectableText(
+                    buffer.toString(),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../../application/notifiers/policy_list_notifier.dart';
 import '../../../application/providers.dart';
 import '../../../core/constants/env.dart';
 import '../../../domain/entities/policy.dart';
@@ -122,7 +123,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
                 ),
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, st) => GlobalErrorView(
-                  message: '정책을 불러오지 못했습니다: $e',
+                  message: PolicyListNotifier.errorMessage,
                   onRetry: () {
                     ref.invalidate(policyListNotifierProvider);
                     ref.read(policyListNotifierProvider); // trigger reload
