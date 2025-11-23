@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/policy_filter.dart';
+import '../../data/sources/local/search_history_source.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../di.dart';
@@ -45,46 +46,73 @@ class PolicyPagingState {
 
 class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
   late final PolicyRepository _repo;
+  int _requestId = 0;
+  String? _currentRegion;
+  String? _searchQuery;
   static const String errorMessage = '정책을 불러오지 못했습니다. 다시 시도해 주세요.';
 
   @override
   PolicyPagingState build() {
     _repo = ref.read(policyRepositoryProvider);
-    ref.listen<String?>(regionProvider, (_, __) => _loadInitial());
-    _loadInitial();
-    return const PolicyPagingState(
+    _currentRegion = ref.read(regionProvider);
+    ref.listen<String?>(regionProvider, (previous, next) {
+      if (previous == next) return;
+      _currentRegion = next;
+      _resetAndLoad();
+    });
+    const initialState = PolicyPagingState(
       items: [],
       page: 1,
       isLoading: false,
       hasMore: true,
       initialLoaded: false,
     );
+    state = initialState;
+    _resetAndLoad();
+    return initialState;
   }
 
-  Future<void> _loadInitial() async {
-    await loadMore(reset: true);
+  void _resetAndLoad() {
+    state = state.copyWith(
+      items: const [],
+      page: 1,
+      hasMore: true,
+      error: null,
+      isLoading: false,
+      initialLoaded: false,
+    );
+    loadMore(reset: true);
   }
 
   Future<void> loadMore({bool reset = false}) async {
-    if (state.isLoading) return;
+    if (state.isLoading || (!reset && !state.hasMore)) return;
+
     final nextPage = reset ? 1 : state.page + 1;
-    final selectedRegion = ref.read(regionProvider);
+    final currentRegion = _currentRegion ?? ref.read(regionProvider);
+    final currentRequestId = ++_requestId;
+    final previousItems = reset ? <Policy>[] : state.items;
+
     state = state.copyWith(
-      items: reset ? [] : state.items,
+      items: reset ? const [] : state.items,
       page: nextPage,
       isLoading: true,
       error: null,
       hasMore: reset ? true : state.hasMore,
+      initialLoaded: reset ? false : state.initialLoaded,
     );
+
     try {
       final List<Policy> newItems = await _repo.fetchPolicies(
         filter: PolicyFilter(
-          searchRgnSe: selectedRegion,
+          searchRgnSe: currentRegion,
+          searchPolicyNm: _searchQuery,
           pageIndex: nextPage,
           recordCount: 10,
         ),
       );
-      final merged = <Policy>[...(reset ? <Policy>[] : state.items), ...newItems];
+      if (_requestId != currentRequestId) return;
+
+      final merged = <Policy>[...previousItems, ...newItems];
       state = state.copyWith(
         items: merged,
         page: nextPage,
@@ -95,14 +123,27 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
     } catch (e, st) {
       debugPrint('Failed to load policy list: $e');
       debugPrint('$st');
+      if (_requestId != currentRequestId) return;
       state = state.copyWith(
-        items: state.items,
-        page: state.page,
+        items: previousItems,
+        page: reset ? 1 : state.page,
         isLoading: false,
-        hasMore: false,
+        hasMore: reset ? true : state.hasMore,
         error: errorMessage,
-        initialLoaded: true,
+        initialLoaded: reset ? false : state.initialLoaded,
       );
     }
+  }
+
+  Future<void> search(String query) async {
+    final normalized = query.trim();
+    _searchQuery = normalized.isEmpty ? null : normalized;
+    // === 보완 패치: 검색 히스토리 저장 ===
+    if (_searchQuery != null) {
+      final history = ref.read(searchHistorySourceProvider);
+      await history.saveQuery(_searchQuery!);
+      ref.invalidate(searchHistoryListProvider);
+    }
+    await loadMore(reset: true);
   }
 }

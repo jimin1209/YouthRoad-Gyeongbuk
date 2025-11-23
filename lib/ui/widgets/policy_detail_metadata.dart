@@ -40,17 +40,17 @@ class PolicyDetailMetadata extends StatelessWidget {
             MetadataRow(
               icon: '🏢',
               label: '주관 기관',
-              value: _textOrFallback(policy.sprvsnInstNm),
+              value: _textOrFallback(policy.supervisorName),
             ),
             MetadataRow(
               icon: '👥',
               label: '운영 기관',
-              value: _textOrFallback(policy.operInstNm),
+              value: _textOrFallback(policy.operatorName),
             ),
             MetadataRow(
               icon: '📍',
               label: '지역',
-              value: _formatRegion(policy.rgnSeNm),
+              value: _formatRegion(policy.regionName),
             ),
             MetadataRow(
               icon: '📝',
@@ -60,7 +60,7 @@ class PolicyDetailMetadata extends StatelessWidget {
             MetadataRow(
               icon: '📄',
               label: '신청 기간',
-              value: _formatPeriod(policy.applyStart, policy.applyEnd),
+              value: _formatPeriod(policy.applyStartDate, policy.applyEndDate),
             ),
             MetadataRow(
               icon: '☎️',
@@ -70,7 +70,7 @@ class PolicyDetailMetadata extends StatelessWidget {
             MetadataRow(
               icon: '📅',
               label: '운영 기간',
-              value: _formatPeriod(policy.policyBgngYmd, policy.policyEndYmd),
+              value: _formatPeriod(policy.startDate, policy.endDate),
             ),
             MetadataRow(
               icon: '⏳',
@@ -172,8 +172,8 @@ class _StatusBadge {
 
   static _StatusBadge? fromPolicy(Policy policy) {
     final now = DateTime.now();
-    final start = policy.policyBgngYmd;
-    final end = policy.policyEndYmd;
+    final start = policy.startDate;
+    final end = policy.endDate;
 
     if (policy.isOngoing == true) {
       return const _StatusBadge('모집중', Colors.blue);

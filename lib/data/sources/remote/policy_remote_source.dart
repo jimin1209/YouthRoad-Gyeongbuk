@@ -53,8 +53,8 @@ class PolicyRemoteSource {
   Future<List<PolicyModel>> fetchSimilar(String id) async {
     final base = await fetchPolicyById(id);
     final filter = PolicyFilter(
-      searchRgnSe: base.regionName,
-      searchPolicyType: base.typeName,
+      searchRgnSe: base.rgnSeNm,
+      searchPolicyType: base.policyTypeNm,
       pageIndex: 1,
       recordCount: 10,
     );
