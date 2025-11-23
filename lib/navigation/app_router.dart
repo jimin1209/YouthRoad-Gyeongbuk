@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../ui/screens/category/category_screen.dart';
 import '../ui/screens/chatbot/chatbot_screen.dart';
 import '../ui/screens/home/home_screen.dart';
+import '../ui/screens/favorites/favorites_screen.dart';
 import '../ui/screens/institution/department_list_screen.dart';
 import '../ui/screens/institution/institution_list_screen.dart';
 import '../ui/screens/map/kakao_map_screen.dart';
@@ -12,6 +13,7 @@ import '../ui/screens/policy/policy_compare_screen.dart';
 import '../ui/screens/policy/policy_detail_screen.dart';
 import '../ui/screens/policy/policy_list_legacy_screen.dart';
 import '../ui/screens/policy/policy_list_v2_screen.dart';
+import '../ui/screens/policy/policy_webview_page.dart';
 import '../ui/screens/region/region_select_screen.dart';
 import '../ui/screens/setting/setting_screen.dart';
 import '../ui/screens/setting/setting_v2_screen.dart';
@@ -112,6 +114,11 @@ class AppRouter {
           builder: (context, state) => const MapWithListScreen(),
         ),
         GoRoute(
+          path: RoutePaths.favorites,
+          name: 'FavoritesScreen',
+          builder: (context, state) => const FavoritesScreen(),
+        ),
+        GoRoute(
           path: RoutePaths.instList,
           builder: (context, state) => const InstitutionListScreen(),
         ),
@@ -127,6 +134,25 @@ class AppRouter {
           builder: (context, state) {
             final id = state.pathParameters['id'] ?? '';
             return PolicyDetailScreen(id: id);
+          },
+        ),
+        GoRoute(
+          path: RoutePaths.policyWebview,
+          builder: (context, state) {
+            String title = '정책 상세';
+            String url = '';
+
+            final extra = state.extra;
+            if (extra is Map) {
+              title = extra['title'] as String? ?? title;
+              url = extra['url'] as String? ?? url;
+            }
+
+            url = url.isNotEmpty
+                ? url
+                : (state.uri.queryParameters['url'] ?? '');
+
+            return PolicyWebviewPage(title: title, url: url);
           },
         ),
       ],
