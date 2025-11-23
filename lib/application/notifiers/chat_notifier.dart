@@ -55,20 +55,32 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
       timestamp: DateTime.now(),
     );
     final messagesWithUser = [...state.messages, userMessage];
-    _updateState(messagesWithUser, isSending: true);
+    _updateState(messagesWithUser, isSending: true, error: null);
     try {
       final reply = await _repository.sendMessage(trimmed);
-      final updated = [...messagesWithUser, reply];
+      final updated = [
+        ...messagesWithUser,
+        ChatMessage(
+          sender: '봇',
+          text: reply,
+          timestamp: DateTime.now(),
+        ),
+      ];
       _updateState(updated);
     } catch (e) {
-      final fallback = ChatMessage(
-        sender: '봇',
-        text: '일시적인 오류가 발생했습니다. 다시 시도해주세요.',
-        timestamp: DateTime.now(),
+      _updateState(
+        messagesWithUser,
+        error: '상담을 불러오지 못했습니다. 다시 시도해 주세요.',
       );
-      final updated = [...messagesWithUser, fallback];
-      _updateState(updated, error: '$e');
     }
+  }
+
+  void clearError() {
+    state = ChatState(
+      messages: state.messages,
+      isSending: state.isSending,
+      error: null,
+    );
   }
 
   void clearHistory() {

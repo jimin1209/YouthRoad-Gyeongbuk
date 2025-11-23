@@ -6,6 +6,7 @@ import '../../../application/notifiers/chat_notifier.dart';
 import '../../../application/providers.dart' show chatProvider;
 import '../../../core/constants/app_strings.dart';
 import '../../widgets/app_appbar.dart';
+import '../../widgets/global_error_view.dart';
 
 class ChatbotScreen extends ConsumerStatefulWidget {
   const ChatbotScreen({super.key});
@@ -17,15 +18,11 @@ class ChatbotScreen extends ConsumerStatefulWidget {
 class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  bool _showingError = false;
 
   @override
   void initState() {
     super.initState();
     ref.listen<ChatState>(chatProvider, (previous, next) {
-      if (next.error != null && next.error!.isNotEmpty && next.error != previous?.error) {
-        _showError(next.error!);
-      }
       if ((previous?.messages.length ?? 0) != next.messages.length) {
         _scrollToBottom();
       }
@@ -43,6 +40,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider);
     final notifier = ref.read(chatProvider.notifier);
+    final error = chatState.error;
 
     return Scaffold(
       appBar: AppAppBar(
@@ -63,23 +61,31 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.only(bottom: 12),
-                  itemCount: chatState.messages.length,
-                  itemBuilder: (context, index) {
-                    final message = chatState.messages[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: _ChatBubble(message: message),
-                    );
-                  },
+            if (error != null)
+              Expanded(
+                child: GlobalErrorView(
+                  message: error,
+                  onRetry: notifier.clearError,
+                ),
+              )
+            else
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.only(bottom: 12),
+                    itemCount: chatState.messages.length,
+                    itemBuilder: (context, index) {
+                      final message = chatState.messages[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: _ChatBubble(message: message),
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
             if (chatState.isSending)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -144,17 +150,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
       );
-    });
-  }
-
-  void _showError(String message) {
-    if (_showingError) return;
-    _showingError = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)))
-          .closed
-          .whenComplete(() => _showingError = false);
     });
   }
 
