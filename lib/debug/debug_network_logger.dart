@@ -85,6 +85,12 @@ class _DebugNetworkInterceptor extends Interceptor {
         start != null ? DateTime.now().difference(start) : Duration.zero;
     final uri = Uri.parse(options.uri.toString());
     final path = uri.path;
+    if (kDebugMode) {
+      debugPrint(
+        '[DebugNetworkLogger] ${options.method} $path '
+        'status=$statusCode duration=${duration.inMilliseconds}ms',
+      );
+    }
     logger.add(
       NetworkLogEntry(
         method: options.method,

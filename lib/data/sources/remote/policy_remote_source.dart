@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../../models/policy_filter.dart';
 import '../../models/policy_model.dart';
 import '../../../core/constants/env.dart';
@@ -11,11 +12,32 @@ class PolicyRemoteSource {
   final String _apiKey;
 
   Future<List<PolicyModel>> fetchPolicies({PolicyFilter filter = const PolicyFilter()}) async {
-    if (_apiKey.isEmpty) {
+    if (kDebugMode) {
+      debugPrint('[PolicyRemoteSource] fetchPolicies called. filter: $filter');
+    }
+
+    if (_apiKey.isEmpty && !kDebugMode) {
       throw StateError('YOUTH_API_KEY is not provided');
     }
 
+    final effectiveKey = _apiKey.isEmpty && kDebugMode ? 'DEBUG-PLACEHOLDER-KEY' : _apiKey;
+
+    if (kDebugMode && _apiKey.isEmpty) {
+      debugPrint(
+        '[PolicyRemoteSource] YOUTH_API_KEY is empty. '
+        'Using debug placeholder key just to send HTTP request.',
+      );
+    }
+
     final query = _buildQuery(filter);
+    query['apiKey'] = effectiveKey;
+
+    if (kDebugMode) {
+      debugPrint(
+        '[PolicyRemoteSource] fetchPolicies -> URL=/openapi/policy/list.json '
+        'query=$query',
+      );
+    }
     final response = await _dio.get(
       'https://gbyouth.co.kr/openapi/policy/list.json',
       queryParameters: query,
