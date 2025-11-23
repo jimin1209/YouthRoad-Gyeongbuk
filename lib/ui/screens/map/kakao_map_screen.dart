@@ -166,4 +166,32 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     }
     return _defaultCenter;
   }
+
+  String _missingApiKeyPage() {
+    return '''
+<!DOCTYPE html>
+<html>
+<body>
+  <p style="padding:16px;font-size:16px;">
+    카카오맵 API 키가 설정되지 않았습니다. KAKAO_MAP_API_KEY 환경 변수를 추가해주세요.
+  </p>
+</body>
+</html>
+''';
+  }
+}
+
+class _LatLng {
+  const _LatLng(this.lat, this.lng);
+
+  final double lat;
+  final double lng;
+}
+
+class _PolicyMarker {
+  const _PolicyMarker({required this.title, required this.lat, required this.lng});
+
+  final String title;
+  final double lat;
+  final double lng;
 }
