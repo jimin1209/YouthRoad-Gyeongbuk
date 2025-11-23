@@ -1,17 +1,13 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/api/models/department_model.dart';
 import '../models/dept_model.dart';
-import '../sources/remote/dept_remote_source.dart';
 import '../sources/remote/department_remote_source.dart';
 import '../../domain/repositories/dept_repository.dart';
 
 class DeptRepositoryImpl implements DeptRepository {
-  DeptRepositoryImpl([this._legacyRemote, DepartmentRemoteSource? remoteSource])
-      : _remoteSource = remoteSource ?? DepartmentRemoteSource(Dio());
+  DeptRepositoryImpl(this._remoteSource);
 
-  final DeptRemoteSource? _legacyRemote;
   final DepartmentRemoteSource _remoteSource;
 
   @override
