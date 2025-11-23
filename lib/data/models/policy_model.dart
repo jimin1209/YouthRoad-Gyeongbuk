@@ -23,6 +23,8 @@ class PolicyModel {
     this.createdAt,
     this.updatedAt,
     this.tags = const [],
+    this.dday,
+    this.isOngoing,
   });
 
   final String id; // no
@@ -46,6 +48,8 @@ class PolicyModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final List<String> tags;
+  final int? dday;
+  final bool? isOngoing;
 
   factory PolicyModel.fromJson(Map<String, dynamic> json) {
     final policyBgngYmd = _parseDate(json['policyBgngYmd']);
@@ -84,6 +88,12 @@ class PolicyModel {
       createdAt: _parseDateTime(json['crtDt']),
       updatedAt: _parseDateTime(json['updtDt']),
       tags: const [],
+      dday: _calculateDday(policyEndYmd ?? applyEnd),
+      isOngoing: _calculateIsOngoing(
+        start: applyStart ?? policyBgngYmd,
+        end: applyEnd ?? policyEndYmd,
+        isApplyNow: _asBoolFromYn(json['aplyPsbltyYn']),
+      ),
     );
   }
 
@@ -117,11 +127,13 @@ class PolicyModel {
         'crtDt': createdAt?.toIso8601String(),
         'updtDt': updatedAt?.toIso8601String(),
         'tags': tags,
+        'dday': dday,
+        'isOngoing': isOngoing,
       };
 
   Policy toEntity() {
-    final calculatedDday = _calculateDday(policyEndYmd ?? applyEnd);
-    final ongoing = _calculateIsOngoing(
+    final calculatedDday = dday ?? _calculateDday(policyEndYmd ?? applyEnd);
+    final ongoing = isOngoing ?? _calculateIsOngoing(
       start: applyStart ?? policyBgngYmd,
       end: applyEnd ?? policyEndYmd,
       isApplyNow: isApplyNow,
