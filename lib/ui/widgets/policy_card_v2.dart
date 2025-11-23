@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 
-class PolicyCardV2 extends StatelessWidget {
+class PolicyCardV2 extends ConsumerWidget {
   const PolicyCardV2({
     super.key,
     required this.policy,
@@ -13,7 +15,7 @@ class PolicyCardV2 extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final status = _StatusBadge.fromPolicy(policy);
@@ -43,23 +45,7 @@ class PolicyCardV2 extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      policy.title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  if (status != null) ...[
-                    const SizedBox(width: 8),
-                    status.toChip(theme),
-                  ],
-                ],
-              ),
+              _HeaderRow(policy: policy, status: status),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -215,6 +201,48 @@ class _Pill extends StatelessWidget {
             .labelMedium
             ?.copyWith(color: colorScheme.onPrimaryContainer),
       ),
+    );
+  }
+}
+
+class _HeaderRow extends ConsumerWidget {
+  const _HeaderRow({
+    required this.policy,
+    required this.status,
+  });
+
+  final Policy policy;
+  final _StatusBadge? status;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final favorites = ref.watch(favoritesProvider);
+    final isFavorite = favorites.contains(policy.id);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            policy.title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+        ),
+        IconButton(
+          icon: Icon(
+            isFavorite ? Icons.favorite : Icons.favorite_border,
+            color: isFavorite ? Colors.redAccent : null,
+          ),
+          onPressed: () =>
+              ref.read(favoritesProvider.notifier).toggle(policy.id),
+        ),
+        if (status != null) ...[
+          const SizedBox(width: 4),
+          status!.toChip(Theme.of(context)),
+        ],
+      ],
     );
   }
 }

@@ -28,8 +28,7 @@ final policyDetailProvider =
   PolicyDetailNotifier.new,
 );
 
-final favoritesProvider =
-    NotifierProvider.autoDispose<FavoritesNotifier, Set<String>>(
+final favoritesProvider = NotifierProvider<FavoritesNotifier, Set<String>>(
   FavoritesNotifier.new,
 );
 
