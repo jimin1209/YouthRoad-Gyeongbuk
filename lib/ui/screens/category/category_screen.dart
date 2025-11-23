@@ -13,18 +13,16 @@ class CategoryScreen extends StatelessWidget {
       '창업': [
         const Policy(
           id: 'c1',
-          title: '창업 패스트트랙',
-          category: '창업',
-          summary: '초기 창업팀 보육 및 자금 패키지',
+          policyNm: '창업 패스트트랙',
+          policyCn: '초기 창업팀 보육 및 자금 패키지',
           tags: ['창업', '보육'],
         ),
       ],
       '주거': [
         const Policy(
           id: 'c2',
-          title: '청년 주거 바우처',
-          category: '주거',
-          summary: '월세·전세 보증금 일부 지원',
+          policyNm: '청년 주거 바우처',
+          policyCn: '월세·전세 보증금 일부 지원',
           tags: ['주거', '바우처'],
         ),
       ],
