@@ -180,8 +180,56 @@ class LocalPolicySource {
 
   Future<List<PolicyModel>> fetchSimilar(String id) async {
     final base = await fetchDummyPolicy(id);
-    return _mockPolicies
-        .where((p) => p.id != base.id && p.category == base.category)
-        .toList();
+    final baseCategory = base.category?.trim().toLowerCase();
+    final baseRegion = base.eligibilityRegion?.trim().toLowerCase();
+    final baseAge = base.eligibilityAge;
+    final baseTitle = base.title?.trim().toLowerCase() ?? '';
+
+    final candidates = _mockPolicies.where((p) => p.id != base.id).map((p) {
+      final category = p.category?.trim().toLowerCase();
+      final region = p.eligibilityRegion?.trim().toLowerCase();
+      final age = p.eligibilityAge;
+      final title = p.title?.trim().toLowerCase() ?? '';
+
+      final categoryMatch =
+          baseCategory != null && baseCategory.isNotEmpty && baseCategory == category;
+      final regionMatch = baseRegion != null &&
+          baseRegion.isNotEmpty &&
+          region != null &&
+          region.isNotEmpty &&
+          baseRegion == region;
+      final ageMatch = baseAge != null && age != null && (baseAge - age).abs() <= 3;
+      final titleMatch = baseTitle.isNotEmpty &&
+          title.isNotEmpty &&
+          (title.contains(baseTitle) || baseTitle.contains(title));
+
+      return (
+        policy: p,
+        categoryMatch: categoryMatch,
+        regionMatch: regionMatch,
+        ageMatch: ageMatch,
+        titleMatch: titleMatch,
+      );
+    }).toList();
+
+    candidates.sort((a, b) {
+      int boolDesc(bool v) => v ? 1 : 0;
+
+      final catCompare = boolDesc(b.categoryMatch).compareTo(boolDesc(a.categoryMatch));
+      if (catCompare != 0) return catCompare;
+
+      final regionCompare = boolDesc(b.regionMatch).compareTo(boolDesc(a.regionMatch));
+      if (regionCompare != 0) return regionCompare;
+
+      final ageCompare = boolDesc(b.ageMatch).compareTo(boolDesc(a.ageMatch));
+      if (ageCompare != 0) return ageCompare;
+
+      final titleCompare = boolDesc(b.titleMatch).compareTo(boolDesc(a.titleMatch));
+      if (titleCompare != 0) return titleCompare;
+
+      return a.policy.id.compareTo(b.policy.id);
+    });
+
+    return candidates.take(5).map((c) => c.policy).toList();
   }
 }
