@@ -3,9 +3,14 @@ class PolicyFilter {
     this.searchRgnSe,
     this.searchPolicyType,
     this.searchPolicyNm,
+    this.searchText,
+    this.category,
     this.searchYear,
     this.instNo,
     this.deptNo,
+    this.startDate,
+    this.endDate,
+    this.availableOnly,
     this.pageIndex,
     this.recordCount,
     this.pageSize,
@@ -16,9 +21,14 @@ class PolicyFilter {
   final String? searchRgnSe;
   final String? searchPolicyType;
   final String? searchPolicyNm;
+  final String? searchText;
+  final String? category;
   final String? searchYear;
   final String? instNo;
   final String? deptNo;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool? availableOnly;
   final int? pageIndex;
   final int? recordCount;
   final int? pageSize;
@@ -29,9 +39,14 @@ class PolicyFilter {
     String? searchRgnSe,
     String? searchPolicyType,
     String? searchPolicyNm,
+    String? searchText,
+    String? category,
     String? searchYear,
     String? instNo,
     String? deptNo,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool? availableOnly,
     int? pageIndex,
     int? recordCount,
     int? pageSize,
@@ -42,9 +57,14 @@ class PolicyFilter {
       searchRgnSe: searchRgnSe ?? this.searchRgnSe,
       searchPolicyType: searchPolicyType ?? this.searchPolicyType,
       searchPolicyNm: searchPolicyNm ?? this.searchPolicyNm,
+      searchText: searchText ?? this.searchText,
+      category: category ?? this.category,
       searchYear: searchYear ?? this.searchYear,
       instNo: instNo ?? this.instNo,
       deptNo: deptNo ?? this.deptNo,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      availableOnly: availableOnly ?? this.availableOnly,
       pageIndex: pageIndex ?? this.pageIndex,
       recordCount: recordCount ?? this.recordCount,
       pageSize: pageSize ?? this.pageSize,
@@ -58,9 +78,14 @@ class PolicyFilter {
       searchRgnSe: json['searchRgnSe'] as String?,
       searchPolicyType: json['searchPolicyType'] as String?,
       searchPolicyNm: json['searchPolicyNm'] as String?,
+      searchText: json['searchText'] as String?,
+      category: json['category'] as String?,
       searchYear: json['searchYear'] as String?,
       instNo: json['instNo'] as String?,
       deptNo: json['deptNo'] as String?,
+      startDate: _parseDate(json['startDate'] as String?),
+      endDate: _parseDate(json['endDate'] as String?),
+      availableOnly: json['availableOnly'] as bool?,
       pageIndex: (json['pageIndex'] as num?)?.toInt(),
       recordCount: (json['recordCount'] as num?)?.toInt(),
       pageSize: (json['pageSize'] as num?)?.toInt(),
@@ -81,9 +106,14 @@ class PolicyFilter {
     put('searchRgnSe', searchRgnSe);
     put('searchPolicyType', searchPolicyType);
     put('searchPolicyNm', searchPolicyNm);
+    put('searchText', searchText);
+    put('category', category);
     put('searchYear', searchYear);
     put('instNo', instNo);
     put('deptNo', deptNo);
+    put('startDate', _formatDate(startDate));
+    put('endDate', _formatDate(endDate));
+    put('availableOnly', availableOnly);
     put('pageIndex', pageIndex);
     put('recordCount', recordCount);
     put('pageSize', pageSize);
@@ -91,5 +121,15 @@ class PolicyFilter {
     put('searchDsplyYn', searchDsplyYn);
 
     return data;
+  }
+
+  static DateTime? _parseDate(String? value) {
+    if (value == null || value.isEmpty) return null;
+    return DateTime.tryParse(value);
+  }
+
+  static String? _formatDate(DateTime? date) {
+    if (date == null) return null;
+    return date.toIso8601String();
   }
 }

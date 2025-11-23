@@ -40,7 +40,8 @@ class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
       final policies = await _repo.fetchPolicies(
         filter: PolicyFilter(
           searchRgnSe: region,
-          searchPolicyNm: _lastQuery,
+          searchText: _lastQuery,
+          availableOnly: true,
         ),
       );
       if (kDebugMode) {
