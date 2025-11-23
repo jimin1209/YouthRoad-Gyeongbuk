@@ -5,6 +5,39 @@ import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import 'compare_badge.dart';
 
+List<String> getPolicyTags(Policy policy) {
+  return policy.tags.where((tag) => tag.trim().isNotEmpty).toList();
+}
+
+Widget buildTagChips(BuildContext context, List<String> tags) {
+  if (tags.isEmpty) return const SizedBox.shrink();
+
+  final theme = Theme.of(context);
+  final colorScheme = theme.colorScheme;
+
+  return Wrap(
+    spacing: 6,
+    runSpacing: 4,
+    children: tags
+        .map(
+          (tag) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceVariant,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              tag,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        )
+        .toList(),
+  );
+}
+
 class PolicyCardV2 extends ConsumerWidget {
   const PolicyCardV2({
     super.key,
@@ -20,7 +53,7 @@ class PolicyCardV2 extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final status = _StatusBadge.fromPolicy(policy);
-    final tags = policy.tags.where((t) => t.isNotEmpty).take(2).toList();
+    final tags = getPolicyTags(policy);
     final regionText = (policy.eligibilityRegion == null ||
             policy.eligibilityRegion!.trim().isEmpty)
         ? '지역 전체'
@@ -47,6 +80,10 @@ class PolicyCardV2 extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _HeaderRow(policy: policy, status: status),
+              if (tags.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                buildTagChips(context, tags),
+              ],
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -71,52 +108,31 @@ class PolicyCardV2 extends ConsumerWidget {
                     _InfoRow(icon: '📅', text: periodText),
                 ],
               ),
-              if (tags.isNotEmpty || ddayText != null) ...[
+              if (ddayText != null) ...[
                 const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: tags.isEmpty
-                          ? const SizedBox.shrink()
-                          : Wrap(
-                              spacing: 8,
-                              runSpacing: 4,
-                              children: tags
-                                  .map(
-                                    (tag) => Chip(
-                                      label: Text('# $tag'),
-                                      backgroundColor:
-                                          colorScheme.surfaceVariant,
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
                     ),
-                    if (ddayText != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
+                    decoration: BoxDecoration(
+                      color: colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('⏳'),
+                        const SizedBox(width: 4),
+                        Text(
+                          ddayText,
+                          style: theme.textTheme.labelMedium,
                         ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.secondaryContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('⏳'),
-                            const SizedBox(width: 4),
-                            Text(
-                              ddayText,
-                              style: theme.textTheme.labelMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ],

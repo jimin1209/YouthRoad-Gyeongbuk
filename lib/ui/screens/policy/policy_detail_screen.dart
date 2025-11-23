@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/providers.dart';
 import '../../../application/services/eligibility_service.dart';
 import '../../../domain/entities/policy.dart';
+import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/policy_card_v2.dart';
 import '../../widgets/policy_detail_metadata.dart';
@@ -40,6 +42,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
     final selectedRegion = ref.watch(regionProvider);
 
     final policy = detailState.policy;
+    final tags = policy == null ? const <String>[] : getPolicyTags(policy);
     final eligibilityText = policy == null
         ? '정보 없음'
         : _mapEligibilityResult(
@@ -93,13 +96,12 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                       ),
                     ],
                   ),
+                  if (tags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    buildTagChips(context, tags),
+                  ],
                   const SizedBox(height: 8),
                   Text(policy.summary),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    children: policy.tags.map((t) => Chip(label: Text(t))).toList(),
-                  ),
                   const SizedBox(height: 12),
                   PolicyDetailMetadata(policy: policy),
                   const SizedBox(height: 8),
@@ -109,19 +111,24 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                       '지원 가능 여부: $eligibilityText',
                     ),
                   ),
-                  const Divider(height: 32),
-                  Text('유사 정책', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  if (detailState.similar.isEmpty)
-                    const Text('추천할 정책이 없어도 기본 정책을 보여드릴게요.'),
-                  ...detailState.similar
-                      .map(
-                        (p) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: PolicyCardV2(policy: p),
+                  if (detailState.similar.isNotEmpty) ...[
+                    const Divider(height: 32),
+                    Text('유사 정책',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    ...detailState.similar.take(3).map(
+                      (p) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: PolicyCardV2(
+                          policy: p,
+                          onTap: () {
+                            if (p.id == policy.id) return;
+                            context.push(RoutePaths.policyDetail(p.id));
+                          },
                         ),
-                      )
-                      .toList(),
+                      ),
+                    ),
+                  ],
                   const Divider(height: 32),
                   Text('상담 메모', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),

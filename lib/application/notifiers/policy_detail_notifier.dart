@@ -16,6 +16,20 @@ class PolicyDetailState {
   final List<Policy> similar;
   final bool isLoading;
   final String? error;
+
+  PolicyDetailState copyWith({
+    Policy? policy,
+    List<Policy>? similar,
+    bool? isLoading,
+    String? error,
+  }) {
+    return PolicyDetailState(
+      policy: policy ?? this.policy,
+      similar: similar ?? this.similar,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+    );
+  }
 }
 
 class PolicyDetailNotifier extends AutoDisposeNotifier<PolicyDetailState> {
@@ -28,13 +42,17 @@ class PolicyDetailNotifier extends AutoDisposeNotifier<PolicyDetailState> {
   }
 
   Future<void> load(String id) async {
-    state = const PolicyDetailState(isLoading: true);
+    state = state.copyWith(isLoading: true, error: null, similar: const []);
     try {
       final policy = await _repo.fetchPolicyById(id);
       final similar = await _repo.fetchSimilarPolicies(id);
-      state = PolicyDetailState(policy: policy, similar: similar);
+      state = state.copyWith(
+        policy: policy,
+        similar: similar,
+        isLoading: false,
+      );
     } catch (e) {
-      state = PolicyDetailState(policy: state.policy, similar: state.similar, error: '$e');
+      state = state.copyWith(isLoading: false, error: '$e', similar: const []);
     }
   }
 }

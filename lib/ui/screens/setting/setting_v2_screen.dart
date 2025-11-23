@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../application/providers.dart';
 import '../../widgets/app_appbar.dart';
+import '../../../navigation/route_paths.dart';
 
 class SettingV2Screen extends ConsumerWidget {
   const SettingV2Screen({super.key});
@@ -23,8 +24,10 @@ class SettingV2Screen extends ConsumerWidget {
             onTap: () => ref.read(regionProvider.notifier).clear(),
           ),
           ListTile(
-            title: const Text('즐겨찾기 개수'),
+            title: const Text('즐겨찾기 목록'),
             subtitle: Text('${favorites.length}건'),
+            trailing: const Icon(Icons.favorite),
+            onTap: () => context.push(RoutePaths.favorites),
           ),
           ListTile(
             title: const Text('정책 비교함으로 이동'),
