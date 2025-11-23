@@ -1,14 +1,48 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
+import '../../core/api/models/institution_model.dart';
 import '../models/inst_model.dart';
 import '../sources/remote/inst_remote_source.dart';
+import '../sources/remote/institution_remote_source.dart';
 import '../../domain/repositories/inst_repository.dart';
 
 class InstRepositoryImpl implements InstRepository {
-  InstRepositoryImpl(this._remoteSource);
+  InstRepositoryImpl([this._legacyRemote, InstitutionRemoteSource? remoteSource])
+      : _remoteSource = remoteSource ?? InstitutionRemoteSource(Dio());
 
-  final InstRemoteSource _remoteSource;
+  final InstRemoteSource? _legacyRemote;
+  final InstitutionRemoteSource _remoteSource;
 
   @override
-  Future<List<InstModel>> fetchInstList({String? keyword}) {
-    return _remoteSource.fetchInstList(keyword: keyword);
+  Future<List<InstModel>> fetchInstList({String? keyword}) async {
+    try {
+      final institutions = await getInstitutions(keyword: keyword);
+      return institutions
+          .map(
+            (inst) => InstModel(
+              id: inst.id,
+              name: inst.name,
+              tel: null,
+              addr: null,
+            ),
+          )
+          .toList();
+    } catch (e, st) {
+      debugPrint('InstRepositoryImpl.fetchInstList error: $e');
+      debugPrint('$st');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<InstitutionModel>> getInstitutions({String? keyword}) async {
+    try {
+      return await _remoteSource.fetchInstitutions(keyword: keyword);
+    } catch (e, st) {
+      debugPrint('InstRepositoryImpl.getInstitutions error: $e');
+      debugPrint('$st');
+      rethrow;
+    }
   }
 }
