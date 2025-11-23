@@ -245,19 +245,27 @@ Unity 설정은 아래처럼 작업해야 문제 없이 빌드됨:
 
 ---
 
-# 🚀 Running the Project
+# 🚀 Running the Project (Debug & Release 검증)
 
 ```bash
 flutter clean
 flutter pub get
 flutter build apk --debug --no-shrink
+
+# 릴리스 빌드 (현재 debug.keystore 기반 서명, Shrink 미적용)
+flutter build apk --release --no-shrink
 ```
 
 APK 출력 경로:
 
 ```
 build/app/outputs/flutter-apk/app-debug.apk
+build/app/outputs/flutter-apk/app-release.apk
 ```
+
+> **Note**: `android/app/build.gradle`에서 `packageDebug`와 `packageRelease` 작업 완료 후
+> 생성된 APK를 Flutter가 읽는 디렉토리(`build/app/outputs/flutter-apk`)와 백업 디렉토리(`build/`)
+> 두 곳에 자동 복사하도록 후처리가 걸려 있습니다. Debug/Release 모두 동일하게 동작합니다.
 
 ---
 
