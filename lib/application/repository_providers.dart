@@ -4,15 +4,15 @@ import '../data/models/dept_model.dart';
 import '../data/models/inst_model.dart';
 import '../data/repositories/dept_repository_impl.dart';
 import '../data/repositories/inst_repository_impl.dart';
-import '../data/sources/remote/dept_remote_source.dart';
-import '../data/sources/remote/inst_remote_source.dart';
+import '../data/sources/remote/department_remote_source.dart';
+import '../data/sources/remote/institution_remote_source.dart';
 import '../domain/repositories/dept_repository.dart';
 import '../domain/repositories/inst_repository.dart';
 import 'di.dart';
 
-final instRemoteSourceProvider = Provider<InstRemoteSource>((ref) {
+final instRemoteSourceProvider = Provider<InstitutionRemoteSource>((ref) {
   final dio = ref.watch(dioProvider);
-  return InstRemoteSource(dio);
+  return InstitutionRemoteSource(dio);
 });
 
 final instRepositoryProvider = Provider<InstRepository>((ref) {
@@ -25,9 +25,9 @@ final instListProvider = AutoDisposeFutureProvider<List<InstModel>>((ref) async 
   return repository.fetchInstList();
 });
 
-final deptRemoteSourceProvider = Provider<DeptRemoteSource>((ref) {
+final deptRemoteSourceProvider = Provider<DepartmentRemoteSource>((ref) {
   final dio = ref.watch(dioProvider);
-  return DeptRemoteSource(dio);
+  return DepartmentRemoteSource(dio);
 });
 
 final deptRepositoryProvider = Provider<DeptRepository>((ref) {

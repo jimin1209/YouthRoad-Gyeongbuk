@@ -1,17 +1,13 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/api/models/institution_model.dart';
 import '../models/inst_model.dart';
-import '../sources/remote/inst_remote_source.dart';
 import '../sources/remote/institution_remote_source.dart';
 import '../../domain/repositories/inst_repository.dart';
 
 class InstRepositoryImpl implements InstRepository {
-  InstRepositoryImpl([this._legacyRemote, InstitutionRemoteSource? remoteSource])
-      : _remoteSource = remoteSource ?? InstitutionRemoteSource(Dio());
+  InstRepositoryImpl(this._remoteSource);
 
-  final InstRemoteSource? _legacyRemote;
   final InstitutionRemoteSource _remoteSource;
 
   @override
