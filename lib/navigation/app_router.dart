@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../ui/screens/category/category_screen.dart';
 import '../ui/screens/chatbot/chatbot_screen.dart';
 import '../ui/screens/home/home_screen.dart';
+import '../ui/screens/favorites/favorites_screen.dart';
 import '../ui/screens/institution/department_list_screen.dart';
 import '../ui/screens/institution/institution_list_screen.dart';
 import '../ui/screens/map/kakao_map_screen.dart';
@@ -110,6 +111,11 @@ class AppRouter {
         GoRoute(
           path: RoutePaths.mapWithList,
           builder: (context, state) => const MapWithListScreen(),
+        ),
+        GoRoute(
+          path: RoutePaths.favorites,
+          name: 'FavoritesScreen',
+          builder: (context, state) => const FavoritesScreen(),
         ),
         GoRoute(
           path: RoutePaths.instList,
