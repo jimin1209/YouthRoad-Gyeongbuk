@@ -48,8 +48,8 @@ class UnityMapController {
   void onUnityMessage(dynamic message) {
     dynamic payload = message;
 
-    if (message is UnityMessage) {
-      payload = message.data ?? message.toString();
+    if (message is Map<String, dynamic> && message.containsKey('data')) {
+      payload = message['data'] ?? message.toString();
     }
 
     if (payload is String) {
