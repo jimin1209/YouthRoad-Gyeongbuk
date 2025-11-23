@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models/institution_model.dart';
-import '../../data/repositories/inst_repository_impl.dart';
-import '../../data/sources/remote/institution_remote_source.dart';
-import '../di.dart';
+import '../repository_providers.dart';
 
 final institutionNotifierProvider =
     AutoDisposeAsyncNotifierProvider<InstitutionNotifier, List<InstitutionModel>>(
@@ -27,8 +25,7 @@ class InstitutionNotifier extends AutoDisposeAsyncNotifier<List<InstitutionModel
   }
 
   Future<List<InstitutionModel>> _fetch() async {
-    final dio = ref.read(dioProvider);
-    final repository = InstRepositoryImpl(null, InstitutionRemoteSource(dio));
+    final repository = ref.read(instRepositoryProvider);
     final items = await repository.getInstitutions(keyword: _keyword);
     return items;
   }

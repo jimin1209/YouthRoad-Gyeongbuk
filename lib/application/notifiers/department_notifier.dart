@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models/department_model.dart';
-import '../../data/repositories/dept_repository_impl.dart';
-import '../../data/sources/remote/department_remote_source.dart';
-import '../di.dart';
+import '../repository_providers.dart';
 
 final departmentNotifierProvider = AutoDisposeAsyncNotifierProviderFamily<
     DepartmentNotifier, List<DepartmentModel>, String>(
@@ -35,8 +33,7 @@ class DepartmentNotifier
   }
 
   Future<List<DepartmentModel>> _fetch() async {
-    final dio = ref.read(dioProvider);
-    final repository = DeptRepositoryImpl(null, DepartmentRemoteSource(dio));
+    final repository = ref.read(deptRepositoryProvider);
     final items = await repository.getDepartments(
       instId: _instId,
       keyword: _keyword.isEmpty ? null : _keyword,
