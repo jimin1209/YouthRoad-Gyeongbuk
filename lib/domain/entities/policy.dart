@@ -49,4 +49,14 @@ class Policy {
   final List<String> tags;
   final int? dday;
   final bool? isOngoing;
+
+  String? get detailUrl => dtlLinkUrl;
+  String? get supervisorName => sprvsnInstNm;
+  String? get operatorName => operInstNm;
+  String? get regionName => rgnSeNm;
+  String? get typeName => policyTypeNm;
+  DateTime? get startDate => policyBgngYmd;
+  DateTime? get endDate => policyEndYmd;
+  DateTime? get applyStartDate => applyStart;
+  DateTime? get applyEndDate => applyEnd;
 }
