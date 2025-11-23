@@ -129,7 +129,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       final offset = markerOffsets[index];
       return KakaoMapPolicyMarker(
         id: policy.id,
-        title: policy.title,
+        title: policy.policyNm,
         lat: offset.lat,
         lng: offset.lng,
       );
