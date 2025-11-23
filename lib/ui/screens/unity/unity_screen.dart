@@ -30,7 +30,9 @@ class _UnityScreenState extends ConsumerState<UnityScreen> {
         controller.sendMarkersForPolicies(policies);
 
         if (controller.isUnityReady) {
-          setState(() => _status = '마커 정보를 Unity에 전송했습니다');
+          if (mounted) {
+            setState(() => _status = '마커 정보를 Unity에 전송했습니다');
+          }
         }
       }
     });
@@ -43,8 +45,8 @@ class _UnityScreenState extends ConsumerState<UnityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final mapController = ref.watch(unityMapControllerProvider)
-      ..onPolicySelected ??= _handlePolicySelection;
+    final mapController = ref.watch(unityMapControllerProvider);
+    mapController.onPolicySelected ??= _handlePolicySelection;
 
     return Scaffold(
       appBar: const AppAppBar(title: 'Unity View'),
@@ -54,7 +56,9 @@ class _UnityScreenState extends ConsumerState<UnityScreen> {
             child: UnityWidget(
               onUnityCreated: (controller) {
                 mapController.onUnityCreated(controller);
-                setState(() => _status = '지도 연결 완료');
+                if (mounted) {
+                  setState(() => _status = '지도 연결 완료');
+                }
               },
               onUnityMessage: mapController.onUnityMessage,
               useAndroidViewSurface: true,
@@ -74,8 +78,10 @@ class _UnityScreenState extends ConsumerState<UnityScreen> {
 
                     mapController.sendMarkersForPolicies(policies);
                     if (mapController.isUnityReady) {
-                      setState(
-                          () => _status = '마커 정보를 Unity에 전송했습니다');
+                      if (mounted) {
+                        setState(
+                            () => _status = '마커 정보를 Unity에 전송했습니다');
+                      }
                     }
                   },
                   icon: const Icon(Icons.send),
