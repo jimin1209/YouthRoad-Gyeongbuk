@@ -236,7 +236,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
       final targetOffset = (index * _estimatedItemHeight)
           .clamp(0, _listController.position.maxScrollExtent);
       _listController.animateTo(
-        targetOffset,
+        targetOffset.toDouble(),
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
