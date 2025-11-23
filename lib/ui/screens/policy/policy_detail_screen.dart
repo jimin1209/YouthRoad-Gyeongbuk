@@ -197,11 +197,11 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
             ),
             const Divider(height: 32),
             FilledButton.icon(
-              onPressed: () {
-                final url = policy.dtlLinkUrl;
-                if (url == null || url.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+  onPressed: () {
+    final url = policy.detailUrl;
+    if (url == null || url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
                         content: Text('정책 상세 웹페이지 정보를 찾을 수 없습니다.')),
                   );
                   return;

@@ -5,20 +5,20 @@ class PolicyModel {
     required this.id,
     required this.policyNm,
     this.policyYr,
-    this.rgnSeNm,
-    this.policyTypeNm,
-    this.sprvsnInstNm,
-    this.operInstNm,
-    this.policyBgngYmd,
-    this.policyEndYmd,
+    this.regionName,
+    this.typeName,
+    this.supervisorName,
+    this.operatorName,
+    this.startDate,
+    this.endDate,
     this.policyScl,
     this.policyCn,
     this.policyEnq,
     this.onlineApply,
-    this.applyStart,
-    this.applyEnd,
-    this.isApplyNow,
-    this.dtlLinkUrl,
+    this.applyStartDate,
+    this.applyEndDate,
+    this.isApplyPossible,
+    this.detailUrl,
     this.dsplyYn,
     this.createdAt,
     this.updatedAt,
@@ -30,20 +30,20 @@ class PolicyModel {
   final String id; // no
   final String policyNm;
   final String? policyYr;
-  final String? rgnSeNm;
-  final String? policyTypeNm;
-  final String? sprvsnInstNm;
-  final String? operInstNm;
-  final DateTime? policyBgngYmd;
-  final DateTime? policyEndYmd;
+  final String? regionName;
+  final String? typeName;
+  final String? supervisorName;
+  final String? operatorName;
+  final DateTime? startDate;
+  final DateTime? endDate;
   final String? policyScl;
   final String? policyCn;
   final String? policyEnq;
   final bool? onlineApply; // aplyYn
-  final DateTime? applyStart; // aplyBgngDt
-  final DateTime? applyEnd; // aplyEndDt
-  final bool? isApplyNow; // aplyPsbltyYn
-  final String? dtlLinkUrl;
+  final DateTime? applyStartDate; // aplyBgngDt
+  final DateTime? applyEndDate; // aplyEndDt
+  final bool? isApplyPossible; // aplyPsbltyYn
+  final String? detailUrl;
   final String? dsplyYn;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -70,20 +70,20 @@ class PolicyModel {
       id: id,
       policyNm: name,
       policyYr: _asNullableString(json['policyYr']),
-      rgnSeNm: _asNullableString(json['rgnSeNm']),
-      policyTypeNm: _asNullableString(json['policyTypeNm']),
-      sprvsnInstNm: _asNullableString(json['sprvsnInstNm']),
-      operInstNm: _asNullableString(json['operInstNm']),
-      policyBgngYmd: policyBgngYmd,
-      policyEndYmd: policyEndYmd,
+      regionName: _asNullableString(json['rgnSeNm']),
+      typeName: _asNullableString(json['policyTypeNm']),
+      supervisorName: _asNullableString(json['sprvsnInstNm']),
+      operatorName: _asNullableString(json['operInstNm']),
+      startDate: policyBgngYmd,
+      endDate: policyEndYmd,
       policyScl: _asNullableString(json['policyScl']),
       policyCn: _asNullableString(json['policyCn']),
       policyEnq: _asNullableString(json['policyEnq']),
       onlineApply: _asBoolFromYn(json['aplyYn']),
-      applyStart: applyStart,
-      applyEnd: applyEnd,
-      isApplyNow: _asBoolFromYn(json['aplyPsbltyYn']),
-      dtlLinkUrl: _asNullableString(json['dtlLinkUrl']),
+      applyStartDate: applyStart,
+      applyEndDate: applyEnd,
+      isApplyPossible: _asBoolFromYn(json['aplyPsbltyYn']),
+      detailUrl: _asNullableString(json['dtlLinkUrl']),
       dsplyYn: _asNullableString(json['dsplyYn']),
       createdAt: _parseDateTime(json['crtDt']),
       updatedAt: _parseDateTime(json['updtDt']),
@@ -101,12 +101,12 @@ class PolicyModel {
         'no': id,
         'policyNm': policyNm,
         'policyYr': policyYr,
-        'rgnSeNm': rgnSeNm,
-        'policyTypeNm': policyTypeNm,
-        'sprvsnInstNm': sprvsnInstNm,
-        'operInstNm': operInstNm,
-        'policyBgngYmd': policyBgngYmd?.toIso8601String(),
-        'policyEndYmd': policyEndYmd?.toIso8601String(),
+        'rgnSeNm': regionName,
+        'policyTypeNm': typeName,
+        'sprvsnInstNm': supervisorName,
+        'operInstNm': operatorName,
+        'policyBgngYmd': startDate?.toIso8601String(),
+        'policyEndYmd': endDate?.toIso8601String(),
         'policyScl': policyScl,
         'policyCn': policyCn,
         'policyEnq': policyEnq,
@@ -115,14 +115,14 @@ class PolicyModel {
             : onlineApply!
                 ? 'Y'
                 : 'N',
-        'aplyBgngDt': applyStart?.toIso8601String(),
-        'aplyEndDt': applyEnd?.toIso8601String(),
-        'aplyPsbltyYn': isApplyNow == null
+        'aplyBgngDt': applyStartDate?.toIso8601String(),
+        'aplyEndDt': applyEndDate?.toIso8601String(),
+        'aplyPsbltyYn': isApplyPossible == null
             ? null
-            : isApplyNow!
+            : isApplyPossible!
                 ? 'Y'
                 : 'N',
-        'dtlLinkUrl': dtlLinkUrl,
+        'dtlLinkUrl': detailUrl,
         'dsplyYn': dsplyYn,
         'crtDt': createdAt?.toIso8601String(),
         'updtDt': updatedAt?.toIso8601String(),
@@ -132,31 +132,31 @@ class PolicyModel {
       };
 
   Policy toEntity() {
-    final calculatedDday = dday ?? _calculateDday(policyEndYmd ?? applyEnd);
+    final calculatedDday = dday ?? _calculateDday(endDate ?? applyEndDate);
     final ongoing = isOngoing ?? _calculateIsOngoing(
-      start: applyStart ?? policyBgngYmd,
-      end: applyEnd ?? policyEndYmd,
-      isApplyNow: isApplyNow,
+      start: applyStartDate ?? startDate,
+      end: applyEndDate ?? endDate,
+      isApplyNow: isApplyPossible,
     );
 
     return Policy(
       id: id,
       policyNm: policyNm,
       policyYr: policyYr,
-      rgnSeNm: rgnSeNm,
-      policyTypeNm: policyTypeNm,
-      sprvsnInstNm: sprvsnInstNm,
-      operInstNm: operInstNm,
-      policyBgngYmd: policyBgngYmd,
-      policyEndYmd: policyEndYmd,
+      rgnSeNm: regionName,
+      policyTypeNm: typeName,
+      sprvsnInstNm: supervisorName,
+      operInstNm: operatorName,
+      policyBgngYmd: startDate,
+      policyEndYmd: endDate,
       policyScl: policyScl,
       policyCn: policyCn,
       policyEnq: policyEnq,
       onlineApply: onlineApply,
-      applyStart: applyStart,
-      applyEnd: applyEnd,
-      isApplyNow: isApplyNow,
-      dtlLinkUrl: dtlLinkUrl,
+      applyStart: applyStartDate,
+      applyEnd: applyEndDate,
+      isApplyNow: isApplyPossible,
+      dtlLinkUrl: detailUrl,
       dsplyYn: dsplyYn,
       createdAt: createdAt,
       updatedAt: updatedAt,
@@ -185,8 +185,26 @@ class PolicyModel {
   }
 
   static DateTime? _parseDate(dynamic value) {
-    final text = _asNullableString(value);
+    final text = _asNullableString(value)?.trim();
     if (text == null || text.isEmpty) return null;
+
+    final digitsOnly = RegExp(r'^\d{8}$');
+    final hyphenDate = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+
+    if (digitsOnly.hasMatch(text)) {
+      final year = int.tryParse(text.substring(0, 4));
+      final month = int.tryParse(text.substring(4, 6));
+      final day = int.tryParse(text.substring(6, 8));
+      if (year != null && month != null && day != null) {
+        return DateTime.tryParse('$year-${text.substring(4, 6)}-${text.substring(6, 8)}');
+      }
+      return null;
+    }
+
+    if (hyphenDate.hasMatch(text)) {
+      return DateTime.tryParse(text);
+    }
+
     return DateTime.tryParse(text);
   }
 
