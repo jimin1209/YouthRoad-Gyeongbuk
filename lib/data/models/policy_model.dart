@@ -41,7 +41,8 @@ class PolicyModel {
 
   factory PolicyModel.fromJson(Map<String, dynamic> json) {
     final List<String> parsedTags =
-        (json['tags'] as List<dynamic>?)?.map(_asString).toList() ?? const [];
+        (json['tags'] as List<dynamic>?)?.map(_asString).toList() ??
+            const [];
 
     return PolicyModel(
       id: _asString(json['id']),
