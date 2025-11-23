@@ -66,16 +66,6 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     super.initState();
     _listController = ScrollController()..addListener(_onListScroll);
     _initWebView();
-
-    ref.listen<String?>(regionProvider, (_, __) {
-      _reloadMap();
-    });
-
-    ref.listen<AsyncValue<List<Policy>>>(policyListNotifierProvider, (prev, next) {
-      if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
-        _reloadMap();
-      }
-    });
   }
 
   @override
@@ -87,6 +77,16 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<String?>(regionProvider, (_, __) {
+      _reloadMap();
+    });
+
+    ref.listen<AsyncValue<List<Policy>>>(policyListNotifierProvider, (prev, next) {
+      if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
+        _reloadMap();
+      }
+    });
+
     final policies = ref.watch(policyListNotifierProvider);
     return Scaffold(
       appBar: const AppAppBar(title: '지도 + 리스트'),

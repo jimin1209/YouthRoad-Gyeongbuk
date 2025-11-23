@@ -9,15 +9,14 @@ import '../../data/sources/local/search_history_source.dart';
 import 'region_notifier.dart';
 
 class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
-  late final PolicyRepository _repo;
-  late final SearchHistorySource _historySource;
   static const String errorMessage = '정책을 불러오지 못했습니다. 다시 시도해 주세요.';
   String? _lastQuery;
 
+  PolicyRepository get _repo => ref.read(policyRepositoryProvider);
+  SearchHistorySource get _historySource => ref.read(searchHistorySourceProvider);
+
   @override
   Future<List<Policy>> build() async {
-    _repo = ref.read(policyRepositoryProvider);
-    _historySource = ref.read(searchHistorySourceProvider);
     final selectedRegion = ref.watch(regionProvider);
     return _fetchPolicies(selectedRegion);
   }

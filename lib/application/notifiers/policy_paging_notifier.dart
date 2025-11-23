@@ -45,31 +45,38 @@ class PolicyPagingState {
 }
 
 class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
-  late final PolicyRepository _repo;
+  PolicyRepository get _repo => ref.read(policyRepositoryProvider);
   int _requestId = 0;
   String? _currentRegion;
   String? _searchQuery;
+  bool _initialized = false;
   static const String errorMessage = '정책을 불러오지 못했습니다. 다시 시도해 주세요.';
 
   @override
   PolicyPagingState build() {
-    _repo = ref.read(policyRepositoryProvider);
-    _currentRegion = ref.read(regionProvider);
-    ref.listen<String?>(regionProvider, (previous, next) {
-      if (previous == next) return;
-      _currentRegion = next;
+    final region = ref.watch(regionProvider);
+
+    if (!_initialized) {
+      _initialized = true;
+      _currentRegion = region;
+      const initialState = PolicyPagingState(
+        items: [],
+        page: 1,
+        isLoading: false,
+        hasMore: true,
+        initialLoaded: false,
+      );
+      state = initialState;
       _resetAndLoad();
-    });
-    const initialState = PolicyPagingState(
-      items: [],
-      page: 1,
-      isLoading: false,
-      hasMore: true,
-      initialLoaded: false,
-    );
-    state = initialState;
-    _resetAndLoad();
-    return initialState;
+      return initialState;
+    }
+
+    if (_currentRegion != region) {
+      _currentRegion = region;
+      _resetAndLoad();
+    }
+
+    return state;
   }
 
   void _resetAndLoad() {

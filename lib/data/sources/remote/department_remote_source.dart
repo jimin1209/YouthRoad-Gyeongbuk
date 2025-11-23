@@ -1,10 +1,11 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/api/models/department_model.dart';
+import '../../../core/constants/env.dart';
 
 class DepartmentRemoteSource {
   DepartmentRemoteSource(this._dio, {String? apiKey})
-      : _apiKey = apiKey ?? const String.fromEnvironment('YOUTH_API_KEY');
+      : _apiKey = apiKey ?? Env.youthApiKey;
 
   final Dio _dio;
   final String _apiKey;

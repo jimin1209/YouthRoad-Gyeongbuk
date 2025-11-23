@@ -22,7 +22,15 @@ class _UnityScreenState extends ConsumerState<UnityScreen> {
   @override
   void initState() {
     super.initState();
+  }
 
+  void _handlePolicySelection(Policy policy) {
+    if (!mounted) return;
+    context.push(RoutePaths.policyDetail(policy.id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     ref.listen(policyListNotifierProvider, (previous, next) {
       final policies = next.valueOrNull;
       if (policies != null && policies.isNotEmpty) {
@@ -36,15 +44,7 @@ class _UnityScreenState extends ConsumerState<UnityScreen> {
         }
       }
     });
-  }
 
-  void _handlePolicySelection(Policy policy) {
-    if (!mounted) return;
-    context.push(RoutePaths.policyDetail(policy.id));
-  }
-
-  @override
-  Widget build(BuildContext context) {
     final mapController = ref.watch(unityMapControllerProvider);
     mapController.onPolicySelected ??= _handlePolicySelection;
 

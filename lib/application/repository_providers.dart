@@ -9,10 +9,11 @@ import '../data/sources/remote/institution_remote_source.dart';
 import '../domain/repositories/dept_repository.dart';
 import '../domain/repositories/inst_repository.dart';
 import 'di.dart';
+import '../core/constants/env.dart';
 
 final instRemoteSourceProvider = Provider<InstitutionRemoteSource>((ref) {
   final dio = ref.watch(dioProvider);
-  return InstitutionRemoteSource(dio);
+  return InstitutionRemoteSource(dio, apiKey: Env.youthApiKey);
 });
 
 final instRepositoryProvider = Provider<InstRepository>((ref) {
@@ -27,7 +28,7 @@ final instListProvider = AutoDisposeFutureProvider<List<InstModel>>((ref) async 
 
 final deptRemoteSourceProvider = Provider<DepartmentRemoteSource>((ref) {
   final dio = ref.watch(dioProvider);
-  return DepartmentRemoteSource(dio);
+  return DepartmentRemoteSource(dio, apiKey: Env.youthApiKey);
 });
 
 final deptRepositoryProvider = Provider<DeptRepository>((ref) {
