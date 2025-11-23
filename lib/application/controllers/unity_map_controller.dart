@@ -1,10 +1,12 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_unity_widget/flutter_unity_widget.dart';
 
 import '../../domain/entities/policy.dart';
 import '../providers.dart';
+import '../../debug/debug_unity_logger.dart';
 
 /// Provides a bridge between Flutter and Unity for marker exchange on the map
 /// scene.
@@ -53,8 +55,15 @@ class UnityMapController {
     }
 
     if (payload is String) {
+      if (kDebugMode) {
+        DebugUnityLogger.instance.log('Unity -> Flutter: $payload');
+      }
       _parseMessage(payload);
     } else if (payload is Map<String, dynamic>) {
+      if (kDebugMode) {
+        DebugUnityLogger.instance
+            .log('Unity -> Flutter Map: ${payload.toString()}');
+      }
       _handleParsedMessage(payload);
     }
   }
