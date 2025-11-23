@@ -179,57 +179,66 @@ class LocalPolicySource {
   }
 
   Future<List<PolicyModel>> fetchSimilar(String id) async {
-    final base = await fetchDummyPolicy(id);
+    final allPolicies = await fetchDummyPolicies();
+    if (allPolicies.isEmpty) {
+      return [];
+    }
+
+    final base = allPolicies.firstWhere(
+      (p) => p.id == id,
+      orElse: () => allPolicies.first,
+    );
+
     final baseCategory = base.category?.trim().toLowerCase();
     final baseRegion = base.eligibilityRegion?.trim().toLowerCase();
-    final baseAge = base.eligibilityAge;
-    final baseTitle = base.title?.trim().toLowerCase() ?? '';
 
-    final candidates = _mockPolicies.where((p) => p.id != base.id).map((p) {
-      final category = p.category?.trim().toLowerCase();
-      final region = p.eligibilityRegion?.trim().toLowerCase();
-      final age = p.eligibilityAge;
-      final title = p.title?.trim().toLowerCase() ?? '';
+    bool hasCategoryMatch(PolicyModel model) {
+      final category = model.category?.trim().toLowerCase();
+      return baseCategory != null &&
+          baseCategory.isNotEmpty &&
+          category != null &&
+          category.isNotEmpty &&
+          category == baseCategory;
+    }
 
-      final categoryMatch =
-          baseCategory != null && baseCategory.isNotEmpty && baseCategory == category;
-      final regionMatch = baseRegion != null &&
+    bool hasRegionMatch(PolicyModel model) {
+      final region = model.eligibilityRegion?.trim().toLowerCase();
+      return baseRegion != null &&
           baseRegion.isNotEmpty &&
           region != null &&
           region.isNotEmpty &&
-          baseRegion == region;
-      final ageMatch = baseAge != null && age != null && (baseAge - age).abs() <= 3;
-      final titleMatch = baseTitle.isNotEmpty &&
-          title.isNotEmpty &&
-          (title.contains(baseTitle) || baseTitle.contains(title));
+          region == baseRegion;
+    }
 
-      return (
-        policy: p,
-        categoryMatch: categoryMatch,
-        regionMatch: regionMatch,
-        ageMatch: ageMatch,
-        titleMatch: titleMatch,
-      );
-    }).toList();
+    final sameCategoryAndRegion = <PolicyModel>[];
+    final sameCategory = <PolicyModel>[];
+    final sameRegion = <PolicyModel>[];
 
-    candidates.sort((a, b) {
-      int boolDesc(bool v) => v ? 1 : 0;
+    for (final policy in allPolicies) {
+      if (policy.id == base.id) continue;
 
-      final catCompare = boolDesc(b.categoryMatch).compareTo(boolDesc(a.categoryMatch));
-      if (catCompare != 0) return catCompare;
+      final categoryMatch = hasCategoryMatch(policy);
+      final regionMatch = hasRegionMatch(policy);
 
-      final regionCompare = boolDesc(b.regionMatch).compareTo(boolDesc(a.regionMatch));
-      if (regionCompare != 0) return regionCompare;
+      if (categoryMatch && regionMatch) {
+        sameCategoryAndRegion.add(policy);
+      } else if (categoryMatch) {
+        sameCategory.add(policy);
+      } else if (regionMatch) {
+        sameRegion.add(policy);
+      }
+    }
 
-      final ageCompare = boolDesc(b.ageMatch).compareTo(boolDesc(a.ageMatch));
-      if (ageCompare != 0) return ageCompare;
+    final results = <PolicyModel>[
+      ...sameCategoryAndRegion,
+      ...sameCategory,
+      ...sameRegion,
+    ];
 
-      final titleCompare = boolDesc(b.titleMatch).compareTo(boolDesc(a.titleMatch));
-      if (titleCompare != 0) return titleCompare;
+    if (results.isEmpty) {
+      return [];
+    }
 
-      return a.policy.id.compareTo(b.policy.id);
-    });
-
-    return candidates.take(5).map((c) => c.policy).toList();
+    return results.take(3).toList();
   }
 }
