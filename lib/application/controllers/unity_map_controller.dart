@@ -101,7 +101,7 @@ class UnityMapController {
       'items': policies
           .map((policy) => {
                 'id': policy.id,
-                'title': policy.title,
+                'title': policy.policyNm,
               })
           .toList(),
     };
