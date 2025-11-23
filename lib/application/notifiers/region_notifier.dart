@@ -3,6 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../di.dart';
 
+final regionProvider =
+    NotifierProvider.autoDispose<RegionNotifier, String?>(RegionNotifier.new);
+
 class RegionNotifier extends AutoDisposeNotifier<String?> {
   static const _key = 'selected_region';
   late final SharedPreferences _prefs;
