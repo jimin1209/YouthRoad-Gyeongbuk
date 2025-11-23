@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/providers.dart';
+import '../../../application/services/memo_repository.dart';
 import '../../../application/services/eligibility_service.dart';
 import '../../../domain/entities/policy.dart';
 import '../../../navigation/route_paths.dart';
@@ -23,15 +24,25 @@ class PolicyDetailScreen extends ConsumerStatefulWidget {
 
 class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
   final TextEditingController _memoController = TextEditingController();
+  late final MemoRepository _memoRepository;
 
   @override
   void initState() {
     super.initState();
+    _memoRepository = ref.read(memoRepositoryProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(policyDetailProvider.notifier).load(widget.id);
-      final memo = ref.read(memoProvider)[widget.id];
-      _memoController.text = memo ?? '';
+      _memoRepository.loadMemo(widget.id).then((memo) {
+        if (!mounted) return;
+        _memoController.text = memo ?? '';
+      });
     });
+  }
+
+  @override
+  void dispose() {
+    _memoController.dispose();
+    super.dispose();
   }
 
   @override
@@ -142,10 +153,14 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   FilledButton.icon(
-                    onPressed: () {
-                      ref
-                          .read(memoProvider.notifier)
-                          .save(policy.id, _memoController.text);
+                    onPressed: () async {
+                      final text = _memoController.text;
+                      if (text.trim().isEmpty) {
+                        await _memoRepository.clearMemo(policy.id);
+                        _memoController.text = '';
+                      } else {
+                        await _memoRepository.saveMemo(policy.id, text);
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('메모가 저장되었습니다.')),
                       );

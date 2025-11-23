@@ -7,6 +7,7 @@ import '../data/repositories/institution_repository.dart';
 import '../data/repositories/policy_repository_impl.dart';
 import '../data/sources/local/local_policy_source.dart';
 import '../domain/repositories/policy_repository.dart';
+import 'services/memo_repository.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences not initialized');
@@ -30,4 +31,9 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 
 final institutionRepositoryProvider = Provider<InstitutionRepository>((_) {
   return const InstitutionRepository();
+});
+
+final memoRepositoryProvider = Provider<MemoRepository>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return MemoRepository(prefs);
 });
