@@ -5,7 +5,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../../application/providers.dart';
 import '../../../domain/entities/policy.dart';
 import '../../widgets/app_appbar.dart';
-import '../../widgets/policy_card.dart';
+import '../../widgets/policy_card_v2.dart';
+import '../../widgets/policy_detail_metadata.dart';
 
 class PolicyDetailScreen extends ConsumerStatefulWidget {
   const PolicyDetailScreen({super.key, required this.id});
@@ -79,6 +80,8 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                     spacing: 8,
                     children: policy.tags.map((t) => Chip(label: Text(t))).toList(),
                   ),
+                  const SizedBox(height: 12),
+                  PolicyDetailMetadata(policy: policy),
                   const Divider(height: 32),
                   Text('유사 정책', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
@@ -88,7 +91,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                       .map(
                         (p) => Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: PolicyCard(policy: p),
+                          child: PolicyCardV2(policy: p),
                         ),
                       )
                       .toList(),

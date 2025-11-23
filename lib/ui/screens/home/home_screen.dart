@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../application/providers.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
-import '../../widgets/policy_card.dart';
+import '../../widgets/policy_card_v2.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -30,7 +30,7 @@ class HomeScreen extends ConsumerWidget {
             data: (list) => ListView.separated(
               physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
-              itemBuilder: (_, i) => PolicyCard(
+              itemBuilder: (_, i) => PolicyCardV2(
                 policy: list[i],
                 onTap: () =>
                     context.push(RoutePaths.policyDetail(list[i].id)),

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/providers.dart';
 import '../../widgets/app_appbar.dart';
-import '../../widgets/policy_card.dart';
+import '../../widgets/policy_card_v2.dart';
 
 class MapWithListScreen extends ConsumerWidget {
   const MapWithListScreen({super.key});
@@ -23,7 +23,7 @@ class MapWithListScreen extends ConsumerWidget {
             child: policies.when(
               data: (data) => ListView.separated(
                 padding: const EdgeInsets.all(16),
-                itemBuilder: (_, i) => PolicyCard(policy: data[i]),
+                itemBuilder: (_, i) => PolicyCardV2(policy: data[i]),
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemCount: data.length,
               ),
