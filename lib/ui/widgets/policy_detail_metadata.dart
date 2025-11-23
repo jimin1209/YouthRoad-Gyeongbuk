@@ -40,42 +40,37 @@ class PolicyDetailMetadata extends StatelessWidget {
             MetadataRow(
               icon: '🏢',
               label: '주관 기관',
-              value: _textOrFallback(policy.agency),
+              value: _textOrFallback(policy.supervisorName),
             ),
             MetadataRow(
               icon: '👥',
-              label: '담당 부서',
-              value: _textOrFallback(policy.department),
-            ),
-            MetadataRow(
-              icon: '🎯',
-              label: '연령 조건',
-              value: _formatAge(policy.eligibilityAge),
+              label: '운영 기관',
+              value: _textOrFallback(policy.operatorName),
             ),
             MetadataRow(
               icon: '📍',
               label: '지역',
-              value: _formatRegion(policy.eligibilityRegion),
+              value: _formatRegion(policy.regionName),
             ),
             MetadataRow(
               icon: '📝',
               label: '신청 방법',
-              value: _textOrFallback(policy.applicationMethod),
+              value: _formatApplyMethod(policy.onlineApply),
             ),
             MetadataRow(
               icon: '📄',
-              label: '필요 서류',
-              value: _textOrFallback(policy.requiredDocuments),
+              label: '신청 기간',
+              value: _formatPeriod(policy.applyStartDate, policy.applyEndDate),
             ),
             MetadataRow(
               icon: '☎️',
               label: '문의',
-              value: _textOrFallback(policy.contact),
+              value: _textOrFallback(policy.policyEnq),
             ),
             MetadataRow(
               icon: '📅',
-              label: '신청 기간',
-              value: _formatPeriod(policy.periodStart, policy.periodEnd),
+              label: '운영 기간',
+              value: _formatPeriod(policy.startDate, policy.endDate),
             ),
             MetadataRow(
               icon: '⏳',
@@ -177,15 +172,18 @@ class _StatusBadge {
 
   static _StatusBadge? fromPolicy(Policy policy) {
     final now = DateTime.now();
-    final start = policy.periodStart != null
-        ? DateTime.tryParse(policy.periodStart!)
-        : null;
+    final start = policy.startDate;
+    final end = policy.endDate;
 
     if (policy.isOngoing == true) {
       return const _StatusBadge('모집중', Colors.blue);
     }
 
     if (policy.isOngoing == false && policy.dday != null && policy.dday! < 0) {
+      return const _StatusBadge('마감', Colors.grey);
+    }
+
+    if (end != null && end.isBefore(now)) {
       return const _StatusBadge('마감', Colors.grey);
     }
 
@@ -203,24 +201,21 @@ String _textOrFallback(String? value, {String fallback = '정보 없음'}) {
   return text;
 }
 
-String _formatAge(int? age) {
-  if (age == null) return '연령 제한 없음';
-  return '$age세 이상';
-}
-
 String _formatRegion(String? region) {
   if (region == null || region.trim().isEmpty) return '지역 전체';
   return region;
 }
 
-String _formatPeriod(String? start, String? end) {
-  final hasStart = start != null && start.trim().isNotEmpty;
-  final hasEnd = end != null && end.trim().isNotEmpty;
+String _formatPeriod(DateTime? start, DateTime? end) {
+  final startText = _formatDate(start);
+  final endText = _formatDate(end);
+  final hasStart = startText != null && startText.isNotEmpty;
+  final hasEnd = endText != null && endText.isNotEmpty;
 
   if (!hasStart && !hasEnd) return '정보 없음';
-  if (hasStart && hasEnd) return '$start ~ $end';
-  if (hasStart) return '$start 시작';
-  return '~ $end';
+  if (hasStart && hasEnd) return '$startText ~ $endText';
+  if (hasStart) return '$startText 시작';
+  return '~ $endText';
 }
 
 String _formatDday(int? dday) {
@@ -232,4 +227,14 @@ String _formatDday(int? dday) {
 String _formatStatus(bool? isOngoing) {
   if (isOngoing == null) return '정보 없음';
   return isOngoing ? '진행 중' : '진행 종료';
+}
+
+String _formatDate(DateTime? date) {
+  if (date == null) return '';
+  return date.toIso8601String().split('T').first;
+}
+
+String _formatApplyMethod(bool? onlineApply) {
+  if (onlineApply == null) return '기관 문의 필요';
+  return onlineApply ? '온라인 신청 가능' : '기관 문의 필요';
 }
