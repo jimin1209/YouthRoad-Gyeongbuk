@@ -24,6 +24,7 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
   SharedPreferences get _prefs => ref.read(sharedPreferencesProvider);
 
   static const _storageKey = 'chat_history';
+  static const _thinkingMessage = '답변을 준비하고 있어요...';
 
   @override
   ChatState build() {
@@ -53,7 +54,17 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
       timestamp: DateTime.now(),
     );
     final messagesWithUser = [...state.messages, userMessage];
-    _updateState(messagesWithUser, isSending: true, error: null);
+    final thinkingMessage = ChatMessage(
+      sender: '봇',
+      text: _thinkingMessage,
+      timestamp: DateTime.now(),
+    );
+
+    _updateState(
+      [...messagesWithUser, thinkingMessage],
+      isSending: true,
+      error: null,
+    );
     try {
       final reply = await _repository.sendMessage(trimmed);
       final updated = [
@@ -97,7 +108,10 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
   }
 
   void _saveMessages(List<ChatMessage> messages) {
-    final encoded = messages.map((m) => json.encode(m.toJson())).toList();
+    final encoded = messages
+        .where((m) => m.text != _thinkingMessage)
+        .map((m) => json.encode(m.toJson()))
+        .toList();
     _prefs.setStringList(_storageKey, encoded);
   }
 }
