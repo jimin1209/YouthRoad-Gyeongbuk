@@ -5,15 +5,19 @@ import '../../data/models/policy_filter.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../di.dart';
+import '../../data/sources/local/search_history_source.dart';
 import 'region_notifier.dart';
 
 class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
   late final PolicyRepository _repo;
+  late final SearchHistorySource _historySource;
   static const String errorMessage = '정책을 불러오지 못했습니다. 다시 시도해 주세요.';
+  String? _lastQuery;
 
   @override
   Future<List<Policy>> build() async {
     _repo = ref.read(policyRepositoryProvider);
+    _historySource = ref.read(searchHistorySourceProvider);
     final selectedRegion = ref.watch(regionProvider);
     return _fetchPolicies(selectedRegion);
   }
@@ -21,7 +25,10 @@ class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
   Future<List<Policy>> _fetchPolicies(String? region) async {
     try {
       final policies = await _repo.fetchPolicies(
-        filter: PolicyFilter(searchRgnSe: region),
+        filter: PolicyFilter(
+          searchRgnSe: region,
+          searchPolicyNm: _lastQuery,
+        ),
       );
       return policies;
     } catch (e, st) {
@@ -35,5 +42,15 @@ class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
     final selectedRegion = ref.read(regionProvider);
     state = const AsyncLoading();
     state = await AsyncValue.guard(() => _fetchPolicies(selectedRegion));
+  }
+
+  Future<void> search(String query) async {
+    final normalized = query.trim();
+    _lastQuery = normalized.isEmpty ? null : normalized;
+    if (_lastQuery != null) {
+      await _historySource.saveQuery(_lastQuery!);
+    }
+    ref.invalidate(searchHistoryListProvider);
+    await refreshPolicies();
   }
 }
