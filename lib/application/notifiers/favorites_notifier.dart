@@ -1,13 +1,11 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../di.dart';
 
-class FavoritesNotifier extends AutoDisposeNotifier<Set<String>> {
+class FavoritesNotifier extends Notifier<Set<String>> {
   late final SharedPreferences _prefs;
-  static const _key = 'favorite_policies';
+  static const _key = 'favorites';
 
   @override
   Set<String> build() {
@@ -17,17 +15,37 @@ class FavoritesNotifier extends AutoDisposeNotifier<Set<String>> {
   }
 
   void toggle(String id) {
-    final updated = {...state};
-    if (updated.contains(id)) {
-      updated.remove(id);
+    if (state.contains(id)) {
+      remove(id);
     } else {
-      updated.add(id);
+      add(id);
     }
+  }
+
+  bool isFavorite(String id) => state.contains(id);
+
+  void add(String id) {
+    if (state.contains(id)) return;
+    final updated = {...state, id};
     _persist(updated);
     state = updated;
   }
 
-  bool isFavorite(String id) => state.contains(id);
+  void remove(String id) {
+    if (!state.contains(id)) return;
+    final updated = {...state}..remove(id);
+    _persist(updated);
+    state = updated;
+  }
+
+  void clear() {
+    if (state.isEmpty) {
+      _persist(const <String>{});
+      return;
+    }
+    _persist(const <String>{});
+    state = <String>{};
+  }
 
   void _persist(Set<String> ids) {
     _prefs.setStringList(_key, ids.toList());

@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/policy_filter.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../di.dart';
+import 'region_notifier.dart';
 
 class PolicyPagingState {
   const PolicyPagingState({
@@ -26,6 +28,7 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
   @override
   PolicyPagingState build() {
     _repo = ref.read(policyRepositoryProvider);
+    ref.watch(regionProvider);
     _loadInitial();
     return const PolicyPagingState(items: [], page: 1, isLoading: false);
   }
@@ -37,6 +40,7 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
   Future<void> loadMore({bool reset = false}) async {
     if (state.isLoading) return;
     final nextPage = reset ? 1 : state.page + 1;
+    final selectedRegion = ref.read(regionProvider);
     state = PolicyPagingState(
       items: reset ? [] : state.items,
       page: nextPage,
@@ -44,7 +48,12 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
       hasMore: state.hasMore,
     );
     try {
-      final List<Policy> newItems = await _repo.fetchPolicies(page: nextPage);
+      final List<Policy> newItems = await _repo.fetchPolicies(
+        filter: PolicyFilter(
+          region: selectedRegion,
+          pageIndex: nextPage,
+        ),
+      );
       final merged = <Policy>[...(reset ? <Policy>[] : state.items), ...newItems];
       state = PolicyPagingState(
         items: merged,

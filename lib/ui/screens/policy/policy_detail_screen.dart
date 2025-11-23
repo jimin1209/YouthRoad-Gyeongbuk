@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/providers.dart';
+import '../../../application/services/eligibility_service.dart';
 import '../../../domain/entities/policy.dart';
 import '../../widgets/app_appbar.dart';
-import '../../widgets/policy_card.dart';
+import '../../widgets/policy_card_v2.dart';
+import '../../widgets/policy_detail_metadata.dart';
 
 class PolicyDetailScreen extends ConsumerStatefulWidget {
   const PolicyDetailScreen({super.key, required this.id});
@@ -33,8 +35,18 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
   Widget build(BuildContext context) {
     final detailState = ref.watch(policyDetailProvider);
     final favorites = ref.watch(favoritesProvider);
+    final selectedRegion = ref.watch(regionProvider);
 
     final policy = detailState.policy;
+    final eligibilityText = policy == null
+        ? '정보 없음'
+        : _mapEligibilityResult(
+            EligibilityService().evaluate(
+              policy: policy,
+              userAge: null,
+              userRegion: selectedRegion,
+            ),
+          );
 
     return Scaffold(
       appBar: AppAppBar(title: '정책 상세 ${widget.id}'),
@@ -79,6 +91,15 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                     spacing: 8,
                     children: policy.tags.map((t) => Chip(label: Text(t))).toList(),
                   ),
+                  const SizedBox(height: 12),
+                  PolicyDetailMetadata(policy: policy),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '지원 가능 여부: $eligibilityText',
+                    ),
+                  ),
                   const Divider(height: 32),
                   Text('유사 정책', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
@@ -88,7 +109,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                       .map(
                         (p) => Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: PolicyCard(policy: p),
+                          child: PolicyCardV2(policy: p),
                         ),
                       )
                       .toList(),
@@ -126,6 +147,17 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
               ),
             ),
     );
+  }
+
+  String _mapEligibilityResult(EligibilityResult result) {
+    switch (result) {
+      case EligibilityResult.eligible:
+        return 'Y';
+      case EligibilityResult.notEligible:
+        return 'N';
+      case EligibilityResult.unknown:
+        return '정보 없음';
+    }
   }
 
   void _openWebviewDialog(BuildContext context, Policy policy) {

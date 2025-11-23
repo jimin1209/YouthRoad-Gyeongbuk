@@ -9,7 +9,6 @@ import 'notifiers/memo_notifier.dart';
 import 'notifiers/policy_detail_notifier.dart';
 import 'notifiers/policy_list_notifier.dart';
 import 'notifiers/policy_paging_notifier.dart';
-import 'notifiers/region_notifier.dart';
 
 export 'di.dart';
 
@@ -28,8 +27,7 @@ final policyDetailProvider =
   PolicyDetailNotifier.new,
 );
 
-final favoritesProvider =
-    NotifierProvider.autoDispose<FavoritesNotifier, Set<String>>(
+final favoritesProvider = NotifierProvider<FavoritesNotifier, Set<String>>(
   FavoritesNotifier.new,
 );
 
@@ -43,8 +41,7 @@ final memoProvider =
   MemoNotifier.new,
 );
 
-final regionProvider =
-    NotifierProvider.autoDispose<RegionNotifier, String?>(RegionNotifier.new);
-
 final chatProvider =
     NotifierProvider.autoDispose<ChatNotifier, ChatState>(ChatNotifier.new);
+
+export 'notifiers/region_notifier.dart' show regionProvider, RegionNotifier;
