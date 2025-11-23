@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/policy_filter.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../di.dart';
@@ -44,7 +45,9 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
       hasMore: state.hasMore,
     );
     try {
-      final List<Policy> newItems = await _repo.fetchPolicies(page: nextPage);
+      final List<Policy> newItems = await _repo.fetchPolicies(
+        filter: PolicyFilter(pageIndex: nextPage),
+      );
       final merged = <Policy>[...(reset ? <Policy>[] : state.items), ...newItems];
       state = PolicyPagingState(
         items: merged,

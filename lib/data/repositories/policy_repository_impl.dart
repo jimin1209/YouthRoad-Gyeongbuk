@@ -1,5 +1,6 @@
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
+import '../models/policy_filter.dart';
 import '../sources/local/local_policy_source.dart';
 
 class PolicyRepositoryImpl implements PolicyRepository {
@@ -8,8 +9,10 @@ class PolicyRepositoryImpl implements PolicyRepository {
   final LocalPolicySource _localSource;
 
   @override
-  Future<List<Policy>> fetchPolicies({int page = 1}) async {
-    final models = await _localSource.fetchDummyPolicies(page: page);
+  Future<List<Policy>> fetchPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+  }) async {
+    final models = await _localSource.fetchDummyPolicies(filter: filter);
     return models.map((m) => m.toEntity()).toList();
   }
 
@@ -23,7 +26,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
   Future<List<Policy>> fetchSimilarPolicies(String id) async {
     final models = await _localSource.fetchSimilar(id);
     if (models.isEmpty) {
-      return fetchPolicies();
+      return fetchPolicies(filter: const PolicyFilter());
     }
     return models.map((m) => m.toEntity()).toList();
   }

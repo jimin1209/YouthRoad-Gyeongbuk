@@ -1,3 +1,4 @@
+import '../../models/policy_filter.dart';
 import '../../models/policy_model.dart';
 
 class LocalPolicySource {
@@ -156,9 +157,11 @@ class LocalPolicySource {
     ),
   ];
 
-  Future<List<PolicyModel>> fetchDummyPolicies({int page = 1}) async {
+  Future<List<PolicyModel>> fetchDummyPolicies({PolicyFilter? filter}) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    // simple paging by cycling mock data
+    // simple paging by cycling mock data using the filter-provided page index
+    final pageIndex = filter?.pageIndex ?? 1;
+    final page = pageIndex < 1 ? 1 : pageIndex;
     final start = (page - 1) % _mockPolicies.length;
     final result = <PolicyModel>[];
     for (var i = 0; i < _mockPolicies.length; i++) {
