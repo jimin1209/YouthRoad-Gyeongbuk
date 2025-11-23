@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'debug_log_collector.dart';
 import 'debug_network_logger.dart';
 import 'debug_provider_tracker.dart';
 import 'debug_unity_logger.dart';
@@ -21,7 +22,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
         color: const Color(0x8C000000),
         child: SafeArea(
           child: DefaultTabController(
-            length: 3,
+            length: 4,
             child: Builder(
               builder: (context) {
                 final tabController = DefaultTabController.of(context)!;
@@ -53,6 +54,11 @@ class _DebugOverlayState extends State<DebugOverlay> {
                             controller: tabController,
                             tabIndex: 2,
                             child: const DebugUnityPanel(),
+                          ),
+                          _AnimatedTabContent(
+                            controller: tabController,
+                            tabIndex: 3,
+                            child: const DebugLogPanel(),
                           ),
                         ],
                       ),
@@ -156,6 +162,7 @@ class _DebugTabBar extends StatelessWidget {
           Tab(text: 'Provider'),
           Tab(text: 'Network'),
           Tab(text: 'Unity'),
+          Tab(text: 'Log'),
         ],
       ),
     );

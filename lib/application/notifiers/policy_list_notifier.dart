@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/policy_filter.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
+import '../../debug/debug_log_collector.dart';
 import '../di.dart';
 import '../../data/sources/local/search_history_source.dart';
 import 'region_notifier.dart';
@@ -18,7 +19,15 @@ class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
   @override
   Future<List<Policy>> build() async {
     final selectedRegion = ref.watch(regionProvider);
-    return _fetchPolicies(selectedRegion);
+    try {
+      return await _fetchPolicies(selectedRegion);
+    } catch (error, stackTrace) {
+      debugPrint('PolicyListNotifier.build failed: $error');
+      debugPrint('$stackTrace');
+      DebugLogCollector.instance
+          .add('PolicyListNotifier.build failed: $error\n$stackTrace');
+      throw Exception(errorMessage);
+    }
   }
 
   Future<List<Policy>> _fetchPolicies(String? region) async {
@@ -33,6 +42,8 @@ class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
     } catch (e, st) {
       debugPrint('Failed to fetch policies: $e');
       debugPrint('$st');
+      DebugLogCollector.instance
+          .add('Failed to fetch policies: $e\n$st');
       throw Exception(errorMessage);
     }
   }

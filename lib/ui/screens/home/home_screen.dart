@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../application/notifiers/policy_list_notifier.dart';
 import '../../../application/providers.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
+import '../../widgets/global_error_view.dart';
 import '../../widgets/policy_card_v2.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -39,8 +41,9 @@ class HomeScreen extends ConsumerWidget {
               itemCount: list.length,
             ),
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, st) => Center(
-              child: Text('불러오기에 실패했습니다: $e'),
+            error: (e, st) => GlobalErrorView(
+              message: PolicyListNotifier.errorMessage,
+              onRetry: () => ref.invalidate(policyListNotifierProvider),
             ),
           ),
         ],

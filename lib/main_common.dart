@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'application/di.dart';
+import 'debug/debug_log_collector.dart';
 import 'debug/debug_provider_tracker.dart';
 
 Future<void> mainCommon() async {
@@ -13,6 +14,13 @@ Future<void> mainCommon() async {
   final observers = <ProviderObserver>[];
 
   if (kDebugMode) {
+    final originalDebugPrint = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) {
+        DebugLogCollector.instance.add(message);
+      }
+      originalDebugPrint(message, wrapWidth: wrapWidth);
+    };
     observers.add(DebugProviderObserver());
   }
 

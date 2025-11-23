@@ -118,59 +118,62 @@ class _DebugNetworkPanelState extends State<DebugNetworkPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Wrap(
-            spacing: 8,
-            children: [
-              _FilterChip(
-                label: 'All',
-                selected: _filter == 'all',
-                onSelected: () => setState(() => _filter = 'all'),
-              ),
-              _FilterChip(
-                label: '정책 API',
-                selected: _filter == 'policy',
-                onSelected: () => setState(() => _filter = 'policy'),
-                color: const Color(0xFF4D8AF0),
-              ),
-              _FilterChip(
-                label: '기관/부서 API',
-                selected: _filter == 'institution',
-                onSelected: () => setState(() => _filter = 'institution'),
-                color: const Color(0xFF7A63F1),
-              ),
-            ],
+    return Material(
+      color: Colors.transparent,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Wrap(
+              spacing: 8,
+              children: [
+                _FilterChip(
+                  label: 'All',
+                  selected: _filter == 'all',
+                  onSelected: () => setState(() => _filter = 'all'),
+                ),
+                _FilterChip(
+                  label: '정책 API',
+                  selected: _filter == 'policy',
+                  onSelected: () => setState(() => _filter = 'policy'),
+                  color: const Color(0xFF4D8AF0),
+                ),
+                _FilterChip(
+                  label: '기관/부서 API',
+                  selected: _filter == 'institution',
+                  onSelected: () => setState(() => _filter = 'institution'),
+                  color: const Color(0xFF7A63F1),
+                ),
+              ],
+            ),
           ),
-        ),
-        Expanded(
-          child: ValueListenableBuilder<List<NetworkLogEntry>>(
-            valueListenable: DebugNetworkLogger.instance.entries,
-            builder: (context, entries, _) {
-              final filtered = entries.reversed
-                  .where((entry) => _filter == 'all' || entry.category == _filter)
-                  .toList();
-              if (filtered.isEmpty) {
-                return const Center(
-                  child: Text(
-                    'No network logs yet.',
-                    style: TextStyle(color: Colors.white70),
-                  ),
+          Expanded(
+            child: ValueListenableBuilder<List<NetworkLogEntry>>(
+              valueListenable: DebugNetworkLogger.instance.entries,
+              builder: (context, entries, _) {
+                final filtered = entries.reversed
+                    .where((entry) => _filter == 'all' || entry.category == _filter)
+                    .toList();
+                if (filtered.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No network logs yet.',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final entry = filtered[index];
+                    return _NetworkCard(entry: entry);
+                  },
                 );
-              }
-              return ListView.builder(
-                itemCount: filtered.length,
-                itemBuilder: (context, index) {
-                  final entry = filtered[index];
-                  return _NetworkCard(entry: entry);
-                },
-              );
-            },
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
