@@ -20,6 +20,7 @@ import '../ui/screens/setting/setting_v2_screen.dart';
 import '../ui/screens/splash/splash_screen.dart';
 import '../ui/screens/unity/unity_screen.dart';
 import '../ui/widgets/bottom_nav.dart';
+import '../ui/widgets/global_error_view.dart';
 import 'route_paths.dart';
 
 class AppRouter {
@@ -28,6 +29,14 @@ class AppRouter {
   GoRouter router() {
     return GoRouter(
       initialLocation: RoutePaths.splash,
+      errorBuilder: (context, state) {
+        return Scaffold(
+          body: GlobalErrorView(
+            message: state.error?.toString() ?? '페이지를 불러오지 못했습니다.',
+            onRetry: () => context.go(RoutePaths.home),
+          ),
+        );
+      },
       routes: [
         GoRoute(
           path: RoutePaths.splash,
