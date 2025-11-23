@@ -34,12 +34,18 @@ class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
 
   Future<List<Policy>> _fetchPolicies(String? region) async {
     try {
+      if (kDebugMode) {
+        debugPrint('[PolicyListNotifier] loading policy list...');
+      }
       final policies = await _repo.fetchPolicies(
         filter: PolicyFilter(
           searchRgnSe: region,
           searchPolicyNm: _lastQuery,
         ),
       );
+      if (kDebugMode) {
+        debugPrint('[PolicyListNotifier] fetched ${policies.length} policies');
+      }
       return policies;
     } catch (e, st) {
       if (kDebugMode) {
