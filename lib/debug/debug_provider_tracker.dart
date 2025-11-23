@@ -33,7 +33,11 @@ class DebugProviderTracker {
   void addEntry(ProviderStatusEntry entry) {
     if (!kDebugMode) return;
     final updated = List<ProviderStatusEntry>.from(_entries.value)..add(entry);
-    _entries.value = updated.takeLast(100);
+    if (updated.length > 100) {
+      _entries.value = updated.sublist(updated.length - 100);
+    } else {
+      _entries.value = updated;
+    }
   }
 }
 
