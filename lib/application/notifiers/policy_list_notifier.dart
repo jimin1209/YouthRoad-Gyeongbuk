@@ -10,7 +10,7 @@ import '../../data/sources/local/search_history_source.dart';
 import 'region_notifier.dart';
 
 class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
-  static const String errorMessage = '정책을 불러오지 못했습니다. 다시 시도해 주세요.';
+  static const String errorMessage = '정책을 불러오지 못했습니다.';
   String? _lastQuery;
 
   PolicyRepository get _repo => ref.read(policyRepositoryProvider);
@@ -22,10 +22,12 @@ class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
     try {
       return await _fetchPolicies(selectedRegion);
     } catch (error, stackTrace) {
-      debugPrint('PolicyListNotifier.build failed: $error');
-      debugPrint('$stackTrace');
-      DebugLogCollector.instance
-          .add('PolicyListNotifier.build failed: $error\n$stackTrace');
+      if (kDebugMode) {
+        debugPrint('PolicyListNotifier.build failed: $error');
+        debugPrint('$stackTrace');
+        DebugLogCollector.instance
+            .add('PolicyListNotifier.build failed: $error\n$stackTrace');
+      }
       throw Exception(errorMessage);
     }
   }
@@ -40,10 +42,12 @@ class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
       );
       return policies;
     } catch (e, st) {
-      debugPrint('Failed to fetch policies: $e');
-      debugPrint('$st');
-      DebugLogCollector.instance
-          .add('Failed to fetch policies: $e\n$st');
+      if (kDebugMode) {
+        debugPrint('Failed to fetch policies: $e');
+        debugPrint('$st');
+        DebugLogCollector.instance
+            .add('Failed to fetch policies: $e\n$st');
+      }
       throw Exception(errorMessage);
     }
   }
