@@ -146,6 +146,7 @@
 **Acceptance Criteria:**
 - Sending displays spinner until response arrives; messages wrap within screen width.
 - Input remains accessible while loading; send disabled during request if appropriate.
+- Status: Completed — chat bubbles, history reset, loading state, and error/snackbar handling implemented for interactive UX.
 
 ## Issue 19 — KakaoMap JS WebView Fix
 **Description:** Ensure KakaoMap WebView loads JS SDK, centers on selected region, and shows markers.

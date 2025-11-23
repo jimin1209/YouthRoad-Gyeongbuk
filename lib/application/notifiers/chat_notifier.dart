@@ -55,13 +55,11 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
       timestamp: DateTime.now(),
     );
     final messagesWithUser = [...state.messages, userMessage];
-    state = ChatState(messages: messagesWithUser, isSending: true);
-    _saveMessages(messagesWithUser);
+    _updateState(messagesWithUser, isSending: true);
     try {
       final reply = await _repository.sendMessage(trimmed);
       final updated = [...messagesWithUser, reply];
-      state = ChatState(messages: updated, isSending: false, error: null);
-      _saveMessages(updated);
+      _updateState(updated);
     } catch (e) {
       final fallback = ChatMessage(
         sender: '봇',
@@ -69,8 +67,7 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
         timestamp: DateTime.now(),
       );
       final updated = [...messagesWithUser, fallback];
-      state = ChatState(messages: updated, isSending: false, error: '$e');
-      _saveMessages(updated);
+      _updateState(updated, error: '$e');
     }
   }
 
@@ -78,6 +75,15 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
     final seed = _seedMessages();
     state = ChatState(messages: seed);
     _prefs.remove(_storageKey);
+  }
+
+  void _updateState(
+    List<ChatMessage> messages, {
+    bool isSending = false,
+    String? error,
+  }) {
+    state = ChatState(messages: messages, isSending: isSending, error: error);
+    _saveMessages(messages);
   }
 
   void _saveMessages(List<ChatMessage> messages) {

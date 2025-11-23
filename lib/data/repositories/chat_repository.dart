@@ -15,18 +15,22 @@ class ChatRepository {
 
   static const _fallbackText = '죄송합니다. 답변을 불러올 수 없습니다.';
 
-  Future<ChatMessage> sendMessage(String prompt) async {
-    try {
-      // CHAT_ENDPOINT and OPENAI_API_KEY must be provided via --dart-define
-      // to reach the OpenAI Chat Completions endpoint.
-      if (Env.chatEndpoint.isEmpty || _apiKey.isEmpty) {
-        return ChatMessage(
-          sender: '봇',
-          text: _fallbackText,
-          timestamp: DateTime.now(),
-        );
-      }
+  ChatMessage _fallbackMessage([String? text]) {
+    return ChatMessage(
+      sender: '봇',
+      text: text ?? _fallbackText,
+      timestamp: DateTime.now(),
+    );
+  }
 
+  Future<ChatMessage> sendMessage(String prompt) async {
+    // CHAT_ENDPOINT and OPENAI_API_KEY must be provided via --dart-define
+    // to reach the OpenAI Chat Completions endpoint.
+    if (Env.chatEndpoint.isEmpty || _apiKey.isEmpty) {
+      return _fallbackMessage();
+    }
+
+    try {
       final response = await _dio.post(
         Env.chatEndpoint,
         data: {
@@ -66,23 +70,11 @@ class ChatRepository {
           ? _fallbackText
           : messageContent;
 
-      return ChatMessage(
-        sender: '봇',
-        text: text,
-        timestamp: DateTime.now(),
-      );
+      return _fallbackMessage(text);
     } on DioException {
-      return ChatMessage(
-        sender: '봇',
-        text: _fallbackText,
-        timestamp: DateTime.now(),
-      );
+      return _fallbackMessage();
     } catch (_) {
-      return ChatMessage(
-        sender: '봇',
-        text: _fallbackText,
-        timestamp: DateTime.now(),
-      );
+      return _fallbackMessage();
     }
   }
 }
