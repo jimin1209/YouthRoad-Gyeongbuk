@@ -11,6 +11,7 @@ import 'notifiers/policy_list_notifier.dart';
 import 'notifiers/policy_paging_notifier.dart';
 
 export 'di.dart';
+export 'notifiers/region_notifier.dart' show regionProvider, RegionNotifier;
 
 final policyListNotifierProvider =
     AsyncNotifierProvider<PolicyListNotifier, List<Policy>>(
