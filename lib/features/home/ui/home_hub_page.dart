@@ -43,8 +43,8 @@ class HomeHubPage extends ConsumerWidget {
                   _HubCard(
                     icon: Icons.map,
                     title: '지도에서 찾아보기',
-                    description: '지역을 터치하면 해당 정책을 바로 확인',
-                    onTap: () => context.push('/map_explore'),
+                    description: 'Google 지도에서 바로 보기',
+                    onTap: () => context.push('/google_map'),
                   ),
                 ],
               ),

@@ -15,6 +15,7 @@ import '../feature/splash/splash_screen.dart';
 import '../features/ai/ui/ai_chat_page.dart';
 import '../features/home/ui/home_hub_page.dart';
 import '../features/map/ui/map_with_list_page.dart';
+import '../features/map/ui/google_map_page.dart';
 import '../features/policy/model/policy_item.dart' as v2_model;
 import '../features/policy/ui/detail/policy_detail_page.dart' as v2_detail;
 import '../features/policy/ui/compare/policy_compare_page.dart' as v2_compare;
@@ -110,7 +111,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/map_explore',
-        builder: (context, state) => const MapWithListPage(),
+        builder: (context, state) => const GoogleMapPage(),
+      ),
+      GoRoute(
+        path: '/google_map',
+        builder: (context, state) => const GoogleMapPage(),
       ),
       GoRoute(
         path: '/ai_chat',
