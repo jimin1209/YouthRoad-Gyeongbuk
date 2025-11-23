@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../application/notifiers/policy_list_notifier.dart';
 import '../../../application/providers.dart';
+import '../../widgets/global_error_view.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/policy_card.dart';
 
@@ -11,6 +13,7 @@ class PolicyListLegacyScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final policies = ref.watch(policyListNotifierProvider);
+    final notifier = ref.read(policyListNotifierProvider.notifier);
     return Scaffold(
       appBar: const AppAppBar(title: '레거시 정책 목록'),
       body: policies.when(
@@ -21,7 +24,10 @@ class PolicyListLegacyScreen extends ConsumerWidget {
           itemCount: list.length,
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('불러오기에 실패했습니다: $e')),
+        error: (e, st) => GlobalErrorView(
+          message: PolicyListNotifier.errorMessage,
+          onRetry: notifier.refreshPolicies,
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/policy.dart';
@@ -34,6 +35,7 @@ class PolicyDetailState {
 
 class PolicyDetailNotifier extends AutoDisposeNotifier<PolicyDetailState> {
   late final PolicyRepository _repo;
+  static const String errorMessage = '정책을 불러오지 못했습니다. 다시 시도해 주세요.';
 
   @override
   PolicyDetailState build() {
@@ -51,8 +53,14 @@ class PolicyDetailNotifier extends AutoDisposeNotifier<PolicyDetailState> {
         similar: similar,
         isLoading: false,
       );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: '$e', similar: const []);
+    } catch (e, st) {
+      debugPrint('Failed to load policy detail: $e');
+      debugPrint('$st');
+      state = state.copyWith(
+        isLoading: false,
+        error: errorMessage,
+        similar: const [],
+      );
     }
   }
 }
