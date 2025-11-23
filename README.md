@@ -15,7 +15,7 @@ Flutter UI와 Unity 3D 씬을 Android 단에서 안정적으로 실행하도록 
 | **Unity**             | 2022.3 LTS                               |
 | **Android SDK**       | compileSdk 36 / targetSdk 36 / minSdk 24 |
 | **Scripting Backend** | IL2CPP + ARM64                           |
-| **빌드 상태**             | ✔ Flutter + Unity 정상 빌드됨                 |
+| **빌드 상태**             | ✔ Flutter + Unity 정상 빌드됨 *(현재 컨테이너에서는 SDK 부재로 재검증 불가)* |
 | **Platform 지원**       | Android, iOS, Web, Windows               |
 
 **Flutter는 UI와 정책 API 처리**
@@ -193,6 +193,12 @@ afterEvaluate {
         }
     }
 }
+
+## 🔍 Build Verification (현재 컨테이너 상황)
+
+- Android Gradle 빌드에는 `android/local.properties`의 `flutter.sdk`/`sdk.dir` 값이 필요합니다.
+- 본 컨테이너에는 Flutter SDK와 Android SDK 경로가 비어 있어 Gradle wrapper 실행이 중단되었습니다.
+- 로컬에서 확인 시 `android/local.properties.example`를 복사 후 실제 경로로 수정하면 `./gradlew assembleDebug`로 빌드 검증을 수행할 수 있습니다.
 
 flutter {
     source = "../.."
