@@ -159,11 +159,12 @@ Status: Completed — Kakao 지도 WebView가 SDK를 로드하고 선택 지역 
 
 ## Issue 20 — Map + List Sync
 **Description:** Synchronize list scrolling with map camera and allow map taps to update list filters.
-**Files to Modify:** `lib/ui/screens/map/map_with_list_page.dart`.
+**Files to Modify:** `lib/ui/screens/map/map_with_list_screen.dart`; `lib/ui/screens/map/kakao_map_html_builder.dart`; `lib/ui/screens/map/kakao_map_screen.dart`.
 **Exact Code Areas:** Scroll listener → map camera movement; map tap callback → filter update and list refresh.
 **Acceptance Criteria:**
 - Selecting a list item recenters the map; tapping a map area filters/updates the list accordingly.
 - No infinite refresh loops or crashes during sync.
+Status: Completed — map/list sync sends camera moves from list scrolls or taps, and Kakao map marker clicks highlight the list without refresh loops.
 
 ## Issue 21 — Unity Map Integration
 **Description:** Implement two-way messaging between Flutter and Unity for map markers.
