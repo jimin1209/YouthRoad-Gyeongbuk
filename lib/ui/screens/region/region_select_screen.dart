@@ -26,19 +26,21 @@ class RegionSelectScreen extends ConsumerWidget {
       body: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemBuilder: (_, i) {
-          final region = regions[i];
-          final isSelected = selected == region;
-          return ListTile(
-            title: Text(region),
-            trailing:
-                isSelected ? const Icon(Icons.check_circle) : const SizedBox(),
-            onTap: () {
-              ref.read(regionProvider.notifier).select(region);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$region 지역이 저장되었습니다.')),
-              );
-              context.go(RoutePaths.home);
-            },
+              final region = regions[i];
+              final isSelected = selected == region;
+              return ListTile(
+                title: Text(region),
+                trailing:
+                    isSelected ? const Icon(Icons.check_circle) : const SizedBox(),
+                onTap: () {
+                  ref.read(regionProvider.notifier).select(region);
+                  ref.invalidate(policyListNotifierProvider);
+                  ref.invalidate(policyPagingProvider);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$region 지역이 저장되었습니다.')),
+                  );
+                  context.go(RoutePaths.home);
+                },
           );
         },
         separatorBuilder: (_, __) => const Divider(),

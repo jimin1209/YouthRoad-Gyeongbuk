@@ -1,14 +1,15 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../core/constants/env.dart';
+
 class ChatRepository {
   ChatRepository(this._dio);
 
   final Dio _dio;
 
   Future<String> sendMessage(String text) async {
-    final endpoint =
-        const String.fromEnvironment('CHAT_ENDPOINT', defaultValue: '');
+    final endpoint = Env.chatEndpoint;
     if (endpoint.isEmpty) {
       throw StateError('CHAT_ENDPOINT is not provided');
     }

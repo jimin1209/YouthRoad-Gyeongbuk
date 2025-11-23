@@ -102,12 +102,27 @@ class PolicyRemoteSource {
     }
 
     put('searchYear', filter.searchYear);
-    put('searchPolicyNm', filter.searchPolicyNm);
-    put('searchPolicyType', filter.searchPolicyType);
+    put('searchPolicyNm', filter.searchPolicyNm ?? filter.searchText);
+    put('searchPolicyType', filter.searchPolicyType ?? filter.category);
     put('searchRgnSe', filter.searchRgnSe);
     put('instNo', filter.instNo);
     put('deptNo', filter.deptNo);
+    if (filter.availableOnly == true) {
+      put('aplyPsbltyYn', 'Y');
+    }
+    if (filter.startDate != null) {
+      put('policyBgngYmd', _formatDate(filter.startDate!));
+    }
+    if (filter.endDate != null) {
+      put('policyEndYmd', _formatDate(filter.endDate!));
+    }
 
     return query;
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}'
+        '${date.month.toString().padLeft(2, '0')}'
+        '${date.day.toString().padLeft(2, '0')}';
   }
 }
