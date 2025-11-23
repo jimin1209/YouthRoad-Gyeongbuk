@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/providers.dart';
+import '../../../application/notifiers/chat_notifier.dart';
 import '../../widgets/app_appbar.dart';
 
 class ChatbotScreen extends ConsumerStatefulWidget {

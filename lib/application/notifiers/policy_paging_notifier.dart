@@ -44,8 +44,8 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
       hasMore: state.hasMore,
     );
     try {
-      final newItems = await _repo.fetchPolicies(page: nextPage);
-      final merged = [...(reset ? [] : state.items), ...newItems];
+      final List<Policy> newItems = await _repo.fetchPolicies(page: nextPage);
+      final merged = <Policy>[...(reset ? <Policy>[] : state.items), ...newItems];
       state = PolicyPagingState(
         items: merged,
         page: nextPage,

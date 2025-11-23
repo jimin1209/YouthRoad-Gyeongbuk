@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/repositories/chat_repository.dart';
 import '../../domain/entities/chat_message.dart';
+import '../di.dart';
 
 class ChatState {
   const ChatState({
@@ -36,7 +37,7 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
     return ChatState(messages: restored.isEmpty ? _seedMessages() : restored);
   }
 
-  List<ChatMessage> _seedMessages() => const [
+  List<ChatMessage> _seedMessages() => [
         ChatMessage(
           sender: '시스템',
           text: '무엇을 도와드릴까요? 정책, 지도, 상담 모두 물어보세요!',
