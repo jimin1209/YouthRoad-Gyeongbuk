@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../application/providers.dart';
+import '../../../application/services/memo_repository.dart';
 import '../../../application/services/eligibility_service.dart';
 import '../../../domain/entities/policy.dart';
+import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/policy_card_v2.dart';
 import '../../widgets/policy_detail_metadata.dart';
@@ -21,15 +23,25 @@ class PolicyDetailScreen extends ConsumerStatefulWidget {
 
 class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
   final TextEditingController _memoController = TextEditingController();
+  late final MemoRepository _memoRepository;
 
   @override
   void initState() {
     super.initState();
+    _memoRepository = ref.read(memoRepositoryProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(policyDetailProvider.notifier).load(widget.id);
-      final memo = ref.read(memoProvider)[widget.id];
-      _memoController.text = memo ?? '';
+      _memoRepository.loadMemo(widget.id).then((memo) {
+        if (!mounted) return;
+        _memoController.text = memo ?? '';
+      });
     });
+  }
+
+  @override
+  void dispose() {
+    _memoController.dispose();
+    super.dispose();
   }
 
   @override
@@ -40,6 +52,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
     final selectedRegion = ref.watch(regionProvider);
 
     final policy = detailState.policy;
+    final tags = policy == null ? const <String>[] : getPolicyTags(policy);
     final eligibilityText = policy == null
         ? '정보 없음'
         : _mapEligibilityResult(
@@ -93,13 +106,12 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                       ),
                     ],
                   ),
+                  if (tags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    buildTagChips(context, tags),
+                  ],
                   const SizedBox(height: 8),
                   Text(policy.summary),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    children: policy.tags.map((t) => Chip(label: Text(t))).toList(),
-                  ),
                   const SizedBox(height: 12),
                   PolicyDetailMetadata(policy: policy),
                   const SizedBox(height: 8),
@@ -109,19 +121,24 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                       '지원 가능 여부: $eligibilityText',
                     ),
                   ),
-                  const Divider(height: 32),
-                  Text('유사 정책', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  if (detailState.similar.isEmpty)
-                    const Text('추천할 정책이 없어도 기본 정책을 보여드릴게요.'),
-                  ...detailState.similar
-                      .map(
-                        (p) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: PolicyCardV2(policy: p),
+                  if (detailState.similar.isNotEmpty) ...[
+                    const Divider(height: 32),
+                    Text('유사 정책',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    ...detailState.similar.take(3).map(
+                      (p) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: PolicyCardV2(
+                          policy: p,
+                          onTap: () {
+                            if (p.id == policy.id) return;
+                            context.push(RoutePaths.policyDetail(p.id));
+                          },
                         ),
-                      )
-                      .toList(),
+                      ),
+                    ),
+                  ],
                   const Divider(height: 32),
                   Text('상담 메모', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
@@ -135,10 +152,14 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   FilledButton.icon(
-                    onPressed: () {
-                      ref
-                          .read(memoProvider.notifier)
-                          .save(policy.id, _memoController.text);
+                    onPressed: () async {
+                      final text = _memoController.text;
+                      if (text.trim().isEmpty) {
+                        await _memoRepository.clearMemo(policy.id);
+                        _memoController.text = '';
+                      } else {
+                        await _memoRepository.saveMemo(policy.id, text);
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('메모가 저장되었습니다.')),
                       );
@@ -148,7 +169,24 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                   ),
                   const Divider(height: 32),
                   FilledButton.icon(
-                    onPressed: () => _openWebviewDialog(context, policy),
+                    onPressed: () {
+                      final url = policy.policyUrl;
+                      if (url == null || url.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('정책 상세 웹페이지 정보를 찾을 수 없습니다.')),
+                        );
+                        return;
+                      }
+
+                      context.push(
+                        RoutePaths.policyWebview,
+                        extra: {
+                          'title': policy.title,
+                          'url': url,
+                        },
+                      );
+                    },
                     icon: const Icon(Icons.open_in_browser),
                     label: const Text('관련 웹뷰 열기'),
                   ),
@@ -167,67 +205,5 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
       case EligibilityResult.unknown:
         return '정보 없음';
     }
-  }
-
-  void _openWebviewDialog(BuildContext context, Policy policy) {
-    final url = policy.policyUrl;
-
-    if (url == null || url.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text(policy.title),
-          content: const Text('정책 상세 웹페이지 정보를 찾을 수 없습니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('닫기'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (_) {
-        final loadingNotifier = ValueNotifier<bool>(true);
-        final controller = WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setNavigationDelegate(
-            NavigationDelegate(
-              onPageFinished: (_) => loadingNotifier.value = false,
-            ),
-          )
-          ..loadRequest(Uri.parse(url));
-
-        return AlertDialog(
-          title: Text(policy.title),
-          content: SizedBox(
-            width: MediaQuery.sizeOf(context).width * 0.85,
-            height: 420,
-            child: Stack(
-              children: [
-                WebViewWidget(controller: controller),
-                ValueListenableBuilder<bool>(
-                  valueListenable: loadingNotifier,
-                  builder: (context, isLoading, _) {
-                    if (!isLoading) return const SizedBox.shrink();
-                    return const Center(child: CircularProgressIndicator());
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('닫기'),
-            ),
-          ],
-        );
-      },
-    );
   }
 }

@@ -46,27 +46,28 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
       ];
 
   Future<void> sendMessage(String text) async {
-    if (text.trim().isEmpty) return;
+    if (state.isSending) return;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
     final userMessage = ChatMessage(
       sender: '나',
-      text: text.trim(),
+      text: trimmed,
       timestamp: DateTime.now(),
     );
-    state = ChatState(messages: [...state.messages, userMessage], isSending: true);
+    final messagesWithUser = [...state.messages, userMessage];
+    _updateState(messagesWithUser, isSending: true);
     try {
-      final reply = await _repository.sendMessage(text);
-      final updated = [...state.messages, reply];
-      state = ChatState(messages: updated, isSending: false);
-      _saveMessages(updated);
+      final reply = await _repository.sendMessage(trimmed);
+      final updated = [...messagesWithUser, reply];
+      _updateState(updated);
     } catch (e) {
       final fallback = ChatMessage(
         sender: '봇',
-        text: '잠시 후 다시 시도해주세요. 임시 답변: ${text.trim()}',
+        text: '일시적인 오류가 발생했습니다. 다시 시도해주세요.',
         timestamp: DateTime.now(),
       );
-      final updated = [...state.messages, fallback];
-      state = ChatState(messages: updated, isSending: false, error: '$e');
-      _saveMessages(updated);
+      final updated = [...messagesWithUser, fallback];
+      _updateState(updated, error: '$e');
     }
   }
 
@@ -74,6 +75,15 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
     final seed = _seedMessages();
     state = ChatState(messages: seed);
     _prefs.remove(_storageKey);
+  }
+
+  void _updateState(
+    List<ChatMessage> messages, {
+    bool isSending = false,
+    String? error,
+  }) {
+    state = ChatState(messages: messages, isSending: isSending, error: error);
+    _saveMessages(messages);
   }
 
   void _saveMessages(List<ChatMessage> messages) {
