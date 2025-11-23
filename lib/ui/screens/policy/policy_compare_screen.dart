@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../application/providers.dart';
 import '../../../application/services/eligibility_service.dart';
 import '../../widgets/app_appbar.dart';
+import '../../widgets/compare_badge.dart';
 import '../../widgets/policy_card_v2.dart';
 
 class PolicyCompareScreen extends ConsumerWidget {
@@ -14,8 +15,20 @@ class PolicyCompareScreen extends ConsumerWidget {
     final compareAsync = ref.watch(compareProvider);
     final selectedRegion = ref.watch(regionProvider);
 
+    final compareCount = compareAsync.valueOrNull?.length ?? 0;
+
     return Scaffold(
-      appBar: const AppAppBar(title: '정책 비교'),
+      appBar: AppAppBar(
+        title: '정책 비교',
+        actions: [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: CompareBadge(
+              child: Center(child: Text('비교함')),
+            ),
+          ),
+        ],
+      ),
       body: compareAsync.when(
         data: (policies) {
           if (policies.isEmpty) {
@@ -61,11 +74,19 @@ class PolicyCompareScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('비교 정보를 불러올 수 없습니다: $e')),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => ref.read(compareProvider.notifier).clear(),
-        icon: const Icon(Icons.clear_all),
-        label: const Text('비우기'),
-      ),
+      floatingActionButton: compareCount == 0
+          ? null
+          : CompareBadge(
+              child: FloatingActionButton.extended(
+                onPressed: compareCount >= 2
+                    ? () => ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('두 개의 정책을 비교합니다.')),
+                        )
+                    : null,
+                icon: const Icon(Icons.balance),
+                label: Text('비교하기 (${compareCount.clamp(0, 2)}/2)'),
+              ),
+            ),
     );
   }
 

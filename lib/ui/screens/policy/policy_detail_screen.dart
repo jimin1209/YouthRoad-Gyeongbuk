@@ -8,6 +8,7 @@ import '../../../domain/entities/policy.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/policy_card_v2.dart';
 import '../../widgets/policy_detail_metadata.dart';
+import '../../widgets/compare_badge.dart';
 
 class PolicyDetailScreen extends ConsumerStatefulWidget {
   const PolicyDetailScreen({super.key, required this.id});
@@ -35,6 +36,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
   Widget build(BuildContext context) {
     final detailState = ref.watch(policyDetailProvider);
     final favorites = ref.watch(favoritesProvider);
+    final compareAsync = ref.watch(compareProvider);
     final selectedRegion = ref.watch(regionProvider);
 
     final policy = detailState.policy;
@@ -77,10 +79,17 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                         onPressed: () =>
                             ref.read(favoritesProvider.notifier).toggle(policy.id),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.balance),
-                        onPressed: () =>
-                            ref.read(compareProvider.notifier).add(policy.id),
+                      CompareBadge(
+                        child: IconButton(
+                          icon: Icon(
+                            (compareAsync.valueOrNull ?? [])
+                                    .any((p) => p.id == policy.id)
+                                ? Icons.balance
+                                : Icons.balance_outlined,
+                          ),
+                          onPressed: () =>
+                              ref.read(compareProvider.notifier).toggle(policy.id),
+                        ),
                       ),
                     ],
                   ),

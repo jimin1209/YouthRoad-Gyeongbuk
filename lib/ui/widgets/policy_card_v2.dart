@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
+import 'compare_badge.dart';
 
 class PolicyCardV2 extends ConsumerWidget {
   const PolicyCardV2({
@@ -219,6 +220,10 @@ class _HeaderRow extends ConsumerWidget {
     final favorites = ref.watch(favoritesProvider);
     final isFavorite = favorites.contains(policy.id);
 
+    final compareAsync = ref.watch(compareProvider);
+    final isInCompare =
+        compareAsync.valueOrNull?.any((p) => p.id == policy.id) ?? false;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -237,6 +242,16 @@ class _HeaderRow extends ConsumerWidget {
           ),
           onPressed: () =>
               ref.read(favoritesProvider.notifier).toggle(policy.id),
+        ),
+        CompareBadge(
+          child: IconButton(
+            icon: Icon(
+              isInCompare ? Icons.balance : Icons.balance_outlined,
+              color: isInCompare ? Colors.teal : null,
+            ),
+            onPressed: () =>
+                ref.read(compareProvider.notifier).toggle(policy.id),
+          ),
         ),
         if (status != null) ...[
           const SizedBox(width: 4),

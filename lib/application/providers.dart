@@ -32,8 +32,7 @@ final favoritesProvider = NotifierProvider<FavoritesNotifier, Set<String>>(
   FavoritesNotifier.new,
 );
 
-final compareProvider =
-    AsyncNotifierProvider.autoDispose<CompareNotifier, List<Policy>>(
+final compareProvider = AsyncNotifierProvider<CompareNotifier, List<Policy>>(
   CompareNotifier.new,
 );
 
@@ -44,3 +43,5 @@ final memoProvider =
 
 final chatProvider =
     NotifierProvider.autoDispose<ChatNotifier, ChatState>(ChatNotifier.new);
+
+export 'notifiers/region_notifier.dart' show regionProvider, RegionNotifier;
