@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../application/notifiers/chat_notifier.dart';
 import '../../../application/providers.dart' show chatProvider;
 import '../../../core/constants/app_strings.dart';
+import '../../../domain/entities/chat_message.dart';
 import '../../widgets/app_appbar.dart';
 
 class ChatbotScreen extends ConsumerStatefulWidget {
