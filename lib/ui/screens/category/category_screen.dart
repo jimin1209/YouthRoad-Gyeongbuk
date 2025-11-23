@@ -1,32 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/app_appbar.dart';
 import '../../widgets/policy_card.dart';
-import '../../../domain/entities/policy.dart';
+import '../../../features/category/category_provider.dart';
 
-class CategoryScreen extends StatelessWidget {
+class CategoryScreen extends ConsumerWidget {
   const CategoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final categories = <String, List<Policy>>{
-      '창업': [
-        const Policy(
-          id: 'c1',
-          policyNm: '창업 패스트트랙',
-          policyCn: '초기 창업팀 보육 및 자금 패키지',
-          tags: ['창업', '보육'],
-        ),
-      ],
-      '주거': [
-        const Policy(
-          id: 'c2',
-          policyNm: '청년 주거 바우처',
-          policyCn: '월세·전세 보증금 일부 지원',
-          tags: ['주거', '바우처'],
-        ),
-      ],
-    };
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categories = ref.watch(categoryPoliciesProvider);
 
     return Scaffold(
       appBar: const AppAppBar(title: '카테고리별 탐색'),

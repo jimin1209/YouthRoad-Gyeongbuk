@@ -10,4 +10,9 @@ class Env {
     'CHAT_ENDPOINT',
     defaultValue: '',
   );
+
+  static const youthApiKey = String.fromEnvironment(
+    'YOUTH_API_KEY',
+    defaultValue: '',
+  );
 }

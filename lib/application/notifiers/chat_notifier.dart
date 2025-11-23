@@ -20,15 +20,13 @@ class ChatState {
 }
 
 class ChatNotifier extends AutoDisposeNotifier<ChatState> {
-  late final ChatRepository _repository;
-  late final SharedPreferences _prefs;
+  ChatRepository get _repository => ref.read(chatRepositoryProvider);
+  SharedPreferences get _prefs => ref.read(sharedPreferencesProvider);
 
   static const _storageKey = 'chat_history';
 
   @override
   ChatState build() {
-    _repository = ref.read(chatRepositoryProvider);
-    _prefs = ref.read(sharedPreferencesProvider);
     final saved = _prefs.getStringList(_storageKey) ?? [];
     final restored = saved
         .map((jsonStr) => ChatMessage.fromJson(

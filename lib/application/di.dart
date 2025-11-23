@@ -8,6 +8,7 @@ import '../data/repositories/policy_repository_impl.dart';
 import '../data/sources/remote/policy_remote_source.dart';
 import '../domain/repositories/policy_repository.dart';
 import 'services/memo_repository.dart';
+import '../core/constants/env.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences not initialized');
@@ -15,7 +16,7 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 
 final remotePolicySourceProvider = Provider<PolicyRemoteSource>((ref) {
   final dio = ref.watch(dioProvider);
-  return PolicyRemoteSource(dio);
+  return PolicyRemoteSource(dio, apiKey: Env.youthApiKey);
 });
 
 final policyRepositoryProvider = Provider<PolicyRepository>((ref) {

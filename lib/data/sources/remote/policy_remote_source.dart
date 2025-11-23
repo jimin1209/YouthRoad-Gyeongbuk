@@ -1,10 +1,11 @@
 import 'package:dio/dio.dart';
 import '../../models/policy_filter.dart';
 import '../../models/policy_model.dart';
+import '../../../core/constants/env.dart';
 
 class PolicyRemoteSource {
   PolicyRemoteSource(this._dio, {String? apiKey})
-      : _apiKey = apiKey ?? const String.fromEnvironment('YOUTH_API_KEY');
+      : _apiKey = apiKey ?? Env.youthApiKey;
 
   final Dio _dio;
   final String _apiKey;

@@ -7,13 +7,11 @@ import '../di.dart';
 
 class CompareNotifier extends AsyncNotifier<List<Policy>> {
   static const _key = 'compare';
-  late final SharedPreferences _prefs;
-  late final PolicyRepository _repo;
+  SharedPreferences get _prefs => ref.read(sharedPreferencesProvider);
+  PolicyRepository get _repo => ref.read(policyRepositoryProvider);
 
   @override
   Future<List<Policy>> build() async {
-    _prefs = ref.read(sharedPreferencesProvider);
-    _repo = ref.read(policyRepositoryProvider);
     final ids = _prefs.getStringList(_key) ?? [];
     final normalized = _normalize(ids);
     if (normalized.length != ids.length) {

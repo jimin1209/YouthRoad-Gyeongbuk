@@ -22,11 +22,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   @override
   void initState() {
     super.initState();
-    ref.listen<ChatState>(chatProvider, (previous, next) {
-      if ((previous?.messages.length ?? 0) != next.messages.length) {
-        _scrollToBottom();
-      }
-    });
   }
 
   @override
@@ -38,6 +33,12 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<ChatState>(chatProvider, (previous, next) {
+      if ((previous?.messages.length ?? 0) != next.messages.length) {
+        _scrollToBottom();
+      }
+    });
+
     final chatState = ref.watch(chatProvider);
     final notifier = ref.read(chatProvider.notifier);
     final error = chatState.error;

@@ -67,7 +67,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           markers: _policyMarkers(center, ref.read(policyListNotifierProvider)),
         ),
       );
+  }
 
+  @override
+  Widget build(BuildContext context) {
     ref.listen<String?>(regionProvider, (_, __) {
       _reloadMap();
     });
@@ -77,10 +80,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         _reloadMap();
       }
     });
-  }
 
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: const AppAppBar(title: '카카오맵 보기'),
       body: Stack(
