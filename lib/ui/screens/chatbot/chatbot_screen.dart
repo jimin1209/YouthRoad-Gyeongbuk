@@ -1,65 +1,78 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../application/providers.dart';
 import '../../widgets/app_appbar.dart';
 
-class ChatbotScreen extends StatefulWidget {
+class ChatbotScreen extends ConsumerStatefulWidget {
   const ChatbotScreen({super.key});
 
   @override
-  State<ChatbotScreen> createState() => _ChatbotScreenState();
+  ConsumerState<ChatbotScreen> createState() => _ChatbotScreenState();
 }
 
-class _ChatbotScreenState extends State<ChatbotScreen> {
-  final List<_Message> _messages = <_Message>[
-    const _Message(sender: '시스템', text: '무엇을 도와드릴까요?'),
-  ];
+class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final TextEditingController _controller = TextEditingController();
-
-  void _send() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    setState(() {
-      _messages.add(_Message(sender: '나', text: text));
-      _messages.add(const _Message(sender: '봇', text: '준비 중입니다...'));
-    });
-    _controller.clear();
-  }
 
   @override
   Widget build(BuildContext context) {
+    final chatState = ref.watch(chatProvider);
+    final notifier = ref.read(chatProvider.notifier);
+
     return Scaffold(
-      appBar: const AppAppBar(title: 'AI 챗봇'),
+      appBar: AppAppBar(
+        title: 'AI 챗봇',
+        actions: [
+          IconButton(
+            onPressed: notifier.clearHistory,
+            icon: const Icon(Icons.refresh),
+            tooltip: '대화 초기화',
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
+              itemCount: chatState.messages.length,
               itemBuilder: (_, i) {
-                final m = _messages[i];
+                final m = chatState.messages[i];
                 final isUser = m.sender == '나';
-                final align =
-                    isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-                final color = isUser
-                    ? Theme.of(context).colorScheme.primaryContainer
-                    : Theme.of(context).colorScheme.surfaceContainerLow;
-                return Column(
-                  crossAxisAlignment: align,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(m.text),
+                return Align(
+                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isUser
+                          ? Theme.of(context).colorScheme.primaryContainer
+                          : Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ],
+                    child: Column(
+                      crossAxisAlignment:
+                          isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                      children: [
+                        Text(m.sender,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text(m.text),
+                      ],
+                    ),
+                  ),
                 );
               },
             ),
           ),
+          if (chatState.isSending)
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -68,14 +81,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
-                      decoration:
-                          const InputDecoration(hintText: '메시지를 입력하세요'),
-                      onSubmitted: (_) => _send(),
+                      decoration: const InputDecoration(hintText: '메시지를 입력하세요'),
+                      onSubmitted: (_) => _send(notifier),
                     ),
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
-                    onPressed: _send,
+                    onPressed: () => _send(notifier),
                     icon: const Icon(Icons.send),
                     label: const Text('보내기'),
                   ),
@@ -87,10 +99,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       ),
     );
   }
-}
 
-class _Message {
-  const _Message({required this.sender, required this.text});
-  final String sender;
-  final String text;
+  void _send(ChatNotifier notifier) {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    notifier.sendMessage(text);
+    _controller.clear();
+  }
 }
