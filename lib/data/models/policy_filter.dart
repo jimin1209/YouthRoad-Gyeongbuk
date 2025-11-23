@@ -1,51 +1,71 @@
 class PolicyFilter {
   const PolicyFilter({
-    this.region,
-    this.policyType,
-    this.keyword,
-    this.year,
-    this.isAvailable,
+    this.searchRgnSe,
+    this.searchPolicyType,
+    this.searchPolicyNm,
+    this.searchYear,
+    this.instNo,
+    this.deptNo,
     this.pageIndex,
+    this.recordCount,
     this.pageSize,
+    this.pagingYn,
+    this.searchDsplyYn,
   });
 
-  final String? region;
-  final String? policyType;
-  final String? keyword;
-  final int? year;
-  final bool? isAvailable;
+  final String? searchRgnSe;
+  final String? searchPolicyType;
+  final String? searchPolicyNm;
+  final String? searchYear;
+  final String? instNo;
+  final String? deptNo;
   final int? pageIndex;
+  final int? recordCount;
   final int? pageSize;
+  final String? pagingYn;
+  final String? searchDsplyYn;
 
   PolicyFilter copyWith({
-    String? region,
-    String? policyType,
-    String? keyword,
-    int? year,
-    bool? isAvailable,
+    String? searchRgnSe,
+    String? searchPolicyType,
+    String? searchPolicyNm,
+    String? searchYear,
+    String? instNo,
+    String? deptNo,
     int? pageIndex,
+    int? recordCount,
     int? pageSize,
+    String? pagingYn,
+    String? searchDsplyYn,
   }) {
     return PolicyFilter(
-      region: region ?? this.region,
-      policyType: policyType ?? this.policyType,
-      keyword: keyword ?? this.keyword,
-      year: year ?? this.year,
-      isAvailable: isAvailable ?? this.isAvailable,
+      searchRgnSe: searchRgnSe ?? this.searchRgnSe,
+      searchPolicyType: searchPolicyType ?? this.searchPolicyType,
+      searchPolicyNm: searchPolicyNm ?? this.searchPolicyNm,
+      searchYear: searchYear ?? this.searchYear,
+      instNo: instNo ?? this.instNo,
+      deptNo: deptNo ?? this.deptNo,
       pageIndex: pageIndex ?? this.pageIndex,
+      recordCount: recordCount ?? this.recordCount,
       pageSize: pageSize ?? this.pageSize,
+      pagingYn: pagingYn ?? this.pagingYn,
+      searchDsplyYn: searchDsplyYn ?? this.searchDsplyYn,
     );
   }
 
   factory PolicyFilter.fromJson(Map<String, dynamic> json) {
     return PolicyFilter(
-      region: json['region'] as String?,
-      policyType: json['policyType'] as String?,
-      keyword: json['keyword'] as String?,
-      year: (json['year'] as num?)?.toInt(),
-      isAvailable: json['isAvailable'] as bool?,
+      searchRgnSe: json['searchRgnSe'] as String?,
+      searchPolicyType: json['searchPolicyType'] as String?,
+      searchPolicyNm: json['searchPolicyNm'] as String?,
+      searchYear: json['searchYear'] as String?,
+      instNo: json['instNo'] as String?,
+      deptNo: json['deptNo'] as String?,
       pageIndex: (json['pageIndex'] as num?)?.toInt(),
+      recordCount: (json['recordCount'] as num?)?.toInt(),
       pageSize: (json['pageSize'] as num?)?.toInt(),
+      pagingYn: json['pagingYn'] as String?,
+      searchDsplyYn: json['searchDsplyYn'] as String?,
     );
   }
 
@@ -58,13 +78,17 @@ class PolicyFilter {
       }
     }
 
-    put('region', region);
-    put('policyType', policyType);
-    put('keyword', keyword);
-    put('year', year);
-    put('isAvailable', isAvailable);
+    put('searchRgnSe', searchRgnSe);
+    put('searchPolicyType', searchPolicyType);
+    put('searchPolicyNm', searchPolicyNm);
+    put('searchYear', searchYear);
+    put('instNo', instNo);
+    put('deptNo', deptNo);
     put('pageIndex', pageIndex);
+    put('recordCount', recordCount);
     put('pageSize', pageSize);
+    put('pagingYn', pagingYn);
+    put('searchDsplyYn', searchDsplyYn);
 
     return data;
   }

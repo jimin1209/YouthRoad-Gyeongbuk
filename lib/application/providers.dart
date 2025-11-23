@@ -13,7 +13,7 @@ export 'di.dart';
 export 'notifiers/region_notifier.dart' show regionProvider, RegionNotifier;
 
 final policyListNotifierProvider =
-    AsyncNotifierProvider<PolicyListNotifier, List<Policy>>(
+    AsyncNotifierProvider.autoDispose<PolicyListNotifier, List<Policy>>(
   PolicyListNotifier.new,
 );
 
