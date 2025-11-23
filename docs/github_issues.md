@@ -146,14 +146,16 @@
 **Acceptance Criteria:**
 - Sending displays spinner until response arrives; messages wrap within screen width.
 - Input remains accessible while loading; send disabled during request if appropriate.
+- Status: Completed — chat bubbles, history reset, loading state, and error/snackbar handling implemented for interactive UX.
 
 ## Issue 19 — KakaoMap JS WebView Fix
 **Description:** Ensure KakaoMap WebView loads JS SDK, centers on selected region, and shows markers.
-**Files to Modify:** `lib/ui/screens/map/kakao_map_page.dart`.
+**Files to Modify:** `lib/ui/screens/map/kakao_map_screen.dart`.
 **Exact Code Areas:** WebView initialization, JS SDK injection, center coordinate setup, marker creation logic.
 **Acceptance Criteria:**
 - Map renders with Kakao tiles visible; centers on selected region default coordinates.
 - Markers appear for policies (mock or live) and are interactive.
+Status: Completed — Kakao 지도 WebView가 SDK를 로드하고 선택 지역 중심에 마커와 정보창을 표시하도록 구현됨.
 
 ## Issue 20 — Map + List Sync
 **Description:** Synchronize list scrolling with map camera and allow map taps to update list filters.

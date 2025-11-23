@@ -8,6 +8,6 @@ class Env {
 
   static const chatEndpoint = String.fromEnvironment(
     'CHAT_ENDPOINT',
-    defaultValue: 'https://jsonplaceholder.typicode.com/posts/1',
+    defaultValue: '',
   );
 }

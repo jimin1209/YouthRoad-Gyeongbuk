@@ -25,9 +25,6 @@ class PolicyRepositoryImpl implements PolicyRepository {
   @override
   Future<List<Policy>> fetchSimilarPolicies(String id) async {
     final models = await _localSource.fetchSimilar(id);
-    if (models.isEmpty) {
-      return fetchPolicies(filter: const PolicyFilter());
-    }
     return models.map((m) => m.toEntity()).toList();
   }
 }
