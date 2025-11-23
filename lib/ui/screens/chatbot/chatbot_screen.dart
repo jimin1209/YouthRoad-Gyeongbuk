@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/entities/chat_message.dart';
 import '../../../application/notifiers/chat_notifier.dart';
 import '../../../application/providers.dart' show chatProvider;
 import '../../../core/constants/app_strings.dart';
