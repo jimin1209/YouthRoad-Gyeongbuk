@@ -13,7 +13,7 @@ final departmentNotifierProvider = AutoDisposeAsyncNotifierProviderFamily<
 );
 
 class DepartmentNotifier
-    extends AutoDisposeAsyncNotifier<List<DepartmentModel>> {
+    extends AutoDisposeFamilyAsyncNotifier<List<DepartmentModel>, String> {
   late String _instId;
   String _keyword = '';
 

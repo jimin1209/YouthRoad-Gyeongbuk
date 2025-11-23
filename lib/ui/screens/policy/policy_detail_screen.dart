@@ -198,7 +198,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
             const Divider(height: 32),
             FilledButton.icon(
   onPressed: () {
-    final url = policy.detailUrl;
+    final url = policy.dtlLinkUrl;
     if (url == null || url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
