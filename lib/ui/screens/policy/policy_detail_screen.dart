@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/providers.dart';
 import '../../../application/services/memo_repository.dart';
@@ -170,7 +169,24 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                   ),
                   const Divider(height: 32),
                   FilledButton.icon(
-                    onPressed: () => _openWebviewDialog(context, policy),
+                    onPressed: () {
+                      final url = policy.policyUrl;
+                      if (url == null || url.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('정책 상세 웹페이지 정보를 찾을 수 없습니다.')),
+                        );
+                        return;
+                      }
+
+                      context.push(
+                        RoutePaths.policyWebview,
+                        extra: {
+                          'title': policy.title,
+                          'url': url,
+                        },
+                      );
+                    },
                     icon: const Icon(Icons.open_in_browser),
                     label: const Text('관련 웹뷰 열기'),
                   ),
@@ -189,67 +205,5 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
       case EligibilityResult.unknown:
         return '정보 없음';
     }
-  }
-
-  void _openWebviewDialog(BuildContext context, Policy policy) {
-    final url = policy.policyUrl;
-
-    if (url == null || url.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text(policy.title),
-          content: const Text('정책 상세 웹페이지 정보를 찾을 수 없습니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('닫기'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (_) {
-        final loadingNotifier = ValueNotifier<bool>(true);
-        final controller = WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setNavigationDelegate(
-            NavigationDelegate(
-              onPageFinished: (_) => loadingNotifier.value = false,
-            ),
-          )
-          ..loadRequest(Uri.parse(url));
-
-        return AlertDialog(
-          title: Text(policy.title),
-          content: SizedBox(
-            width: MediaQuery.sizeOf(context).width * 0.85,
-            height: 420,
-            child: Stack(
-              children: [
-                WebViewWidget(controller: controller),
-                ValueListenableBuilder<bool>(
-                  valueListenable: loadingNotifier,
-                  builder: (context, isLoading, _) {
-                    if (!isLoading) return const SizedBox.shrink();
-                    return const Center(child: CircularProgressIndicator());
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('닫기'),
-            ),
-          ],
-        );
-      },
-    );
   }
 }
