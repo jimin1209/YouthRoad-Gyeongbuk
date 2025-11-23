@@ -198,6 +198,11 @@ afterEvaluate {
 
 - Android Gradle 빌드에는 `android/local.properties`의 `flutter.sdk`/`sdk.dir` 값이 필요합니다.
 - 본 컨테이너에는 Flutter SDK와 Android SDK 경로가 비어 있어 Gradle wrapper 실행이 중단되었습니다.
+
+## ▶️ 앱 실행 엔트리포인트
+
+- 개발용: `flutter run -t lib/main_dev.dart`
+- 운영용(기본): `flutter run -t lib/main_prod.dart` 또는 기본 `lib/main.dart`
 - 로컬에서 확인 시 `android/local.properties.example`를 복사 후 실제 경로로 수정하면 `./gradlew assembleDebug`로 빌드 검증을 수행할 수 있습니다.
 
 flutter {
