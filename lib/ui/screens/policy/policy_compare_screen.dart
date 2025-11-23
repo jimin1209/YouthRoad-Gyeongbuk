@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/providers.dart';
 import '../../widgets/app_appbar.dart';
-import '../../widgets/policy_card.dart';
+import '../../widgets/policy_card_v2.dart';
 
 class PolicyCompareScreen extends ConsumerWidget {
   const PolicyCompareScreen({super.key});
@@ -28,7 +28,7 @@ class PolicyCompareScreen extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  PolicyCard(policy: p),
+                  PolicyCardV2(policy: p),
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(

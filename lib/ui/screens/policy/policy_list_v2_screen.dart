@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../application/providers.dart';
 import '../../../navigation/route_paths.dart';
-import '../../widgets/policy_card.dart';
 import '../../widgets/app_appbar.dart';
+import '../../widgets/policy_card_v2.dart';
 
 class PolicyListV2Screen extends ConsumerWidget {
   const PolicyListV2Screen({super.key});
@@ -27,7 +27,7 @@ class PolicyListV2Screen extends ConsumerWidget {
               final policy = state.items[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: PolicyCard(
+                child: PolicyCardV2(
                   policy: policy,
                   onTap: () => context.push(RoutePaths.policyDetail(policy.id)),
                 ),
