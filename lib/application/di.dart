@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/repositories/chat_repository.dart';
 import '../data/repositories/institution_repository.dart';
 import '../data/repositories/policy_repository_impl.dart';
-import '../data/sources/local/local_policy_source.dart';
+import '../data/sources/remote/policy_remote_source.dart';
 import '../domain/repositories/policy_repository.dart';
 import 'services/memo_repository.dart';
 
@@ -13,13 +13,14 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences not initialized');
 });
 
-final localPolicySourceProvider = Provider<LocalPolicySource>((_) {
-  return LocalPolicySource();
+final remotePolicySourceProvider = Provider<PolicyRemoteSource>((ref) {
+  final dio = ref.watch(dioProvider);
+  return PolicyRemoteSource(dio);
 });
 
 final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
-  final source = ref.watch(localPolicySourceProvider);
-  return PolicyRepositoryImpl(source);
+  final remoteSource = ref.watch(remotePolicySourceProvider);
+  return PolicyRepositoryImpl(remoteSource);
 });
 
 final dioProvider = Provider<Dio>((_) => Dio());
