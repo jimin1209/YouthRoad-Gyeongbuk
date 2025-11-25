@@ -21,6 +21,7 @@ class PolicyListV2Screen extends ConsumerStatefulWidget {
 class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
   late final TextEditingController _controller;
   late final ScrollController _scrollController;
+  ProviderSubscription<String?>? _regionSubscription;
   String? _selectedCategory;
   String? _selectedYear;
   bool _availableOnly = false;
@@ -31,7 +32,8 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     _controller = TextEditingController();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
-    ref.listen<String?>(regionProvider, (_, __) => _applyFilter());
+    _regionSubscription =
+        ref.listenManual<String?>(regionProvider, (_, __) => _applyFilter());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(policyPagingProvider.notifier).loadInitial(_buildFilter());
     });
@@ -39,6 +41,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
 
   @override
   void dispose() {
+    _regionSubscription?.close();
     _scrollController.dispose();
     _controller.dispose();
     super.dispose();
