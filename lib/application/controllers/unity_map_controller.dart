@@ -42,6 +42,8 @@ class UnityMapController {
 
   bool get isUnityReady => _unityController != null;
 
+  String? get _selectedRegion => _ref.read(regionProvider);
+
   void onUnityCreated(UnityWidgetController controller) {
     _unityController = controller;
     _sendCurrentPolicies();
@@ -69,6 +71,10 @@ class UnityMapController {
   }
 
   void sendMarkersForPolicies(List<Policy> policies) {
+    _sendMarkers(policies);
+  }
+
+  void refreshPolicies(List<Policy> policies) {
     _sendMarkers(policies);
   }
 
@@ -111,6 +117,7 @@ class UnityMapController {
           .map((policy) => {
                 'id': policy.id,
                 'title': policy.policyNm,
+                'region': _selectedRegion,
               })
           .toList(),
     };

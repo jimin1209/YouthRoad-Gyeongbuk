@@ -12,6 +12,7 @@ class RoutePaths {
   static const policyListV2 = '/policy/list/v2';
   static const policyLegacyList = '/policy/list';
   static const policyCompare = '/policy/compare';
+  static const compare = '/compare';
   static const favorites = '/favorites';
   static const instList = '/inst/list';
   static const deptList = '/inst/:instNo/dept/list';

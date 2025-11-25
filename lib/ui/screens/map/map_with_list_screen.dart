@@ -2,15 +2,17 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/notifiers/policy_list_notifier.dart';
 import '../../../application/providers.dart';
 import '../../../core/constants/env.dart';
 import '../../../domain/entities/policy.dart';
+import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
-import '../../widgets/policy_card_v2.dart';
 import '../../widgets/global_error_view.dart';
+import '../../widgets/policy_card_v2.dart';
 import 'kakao_map_html_builder.dart';
 
 class MapWithListScreen extends ConsumerStatefulWidget {
@@ -23,49 +25,23 @@ class MapWithListScreen extends ConsumerStatefulWidget {
 class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   static const _htmlBuilder = KakaoMapHtmlBuilder();
   static const _bridgeName = 'MapBridge';
-  static const _estimatedItemHeight = 220.0;
-
-  static const _defaultCenter = KakaoMapLatLng(35.8714, 128.6014); // Daegu
-  static const _mockPolicies = <KakaoMapPolicyMarker>[
-    KakaoMapPolicyMarker(
-      id: 'mock-1',
-      title: '청년 취업 지원',
-      lat: 35.872,
-      lng: 128.602,
-    ),
-    KakaoMapPolicyMarker(
-      id: 'mock-2',
-      title: '창업 보육 프로그램',
-      lat: 35.876,
-      lng: 128.61,
-    ),
-    KakaoMapPolicyMarker(
-      id: 'mock-3',
-      title: '주거 지원 시범사업',
-      lat: 35.868,
-      lng: 128.595,
-    ),
-    KakaoMapPolicyMarker(
-      id: 'mock-4',
-      title: '문화 체험 바우처',
-      lat: 35.865,
-      lng: 128.59,
-    ),
-  ];
+  static const _estimatedItemHeight = 240.0;
+  static const _defaultCenter = KakaoMapLatLng(36.4919, 128.8889);
 
   late final ScrollController _listController;
   late final WebViewController _mapController;
   bool _isLoading = true;
   bool _mapReady = false;
   bool _isMapUpdating = false;
-  bool _isRegionUpdating = false;
   String? _selectedPolicyId;
+  String? _lastMarkerTapId;
   Map<String, KakaoMapPolicyMarker> _markerLookup = {};
 
   @override
   void initState() {
     super.initState();
     _listController = ScrollController()..addListener(_onListScroll);
+    _setupListeners();
     _initWebView();
   }
 
@@ -78,16 +54,6 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<String?>(regionProvider, (_, __) {
-      _reloadMap();
-    });
-
-    ref.listen<AsyncValue<List<Policy>>>(policyListNotifierProvider, (prev, next) {
-      if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
-        _reloadMap();
-      }
-    });
-
     final policies = ref.watch(policyListNotifierProvider);
     return Scaffold(
       appBar: const AppAppBar(title: '지도 + 리스트'),
@@ -95,7 +61,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
         child: Column(
           children: [
             SizedBox(
-              height: 220,
+              height: 240,
               child: Stack(
                 children: [
                   WebViewWidget(controller: _mapController),
@@ -103,6 +69,12 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
                     const Center(
                       child: CircularProgressIndicator(),
                     ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 12,
+                    child: _buildOverlay(policies),
+                  ),
                 ],
               ),
             ),
@@ -126,7 +98,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
                   message: PolicyListNotifier.errorMessage,
                   onRetry: () {
                     ref.invalidate(policyListNotifierProvider);
-                    ref.read(policyListNotifierProvider); // trigger reload
+                    ref.read(policyListNotifierProvider);
                   },
                 ),
               ),
@@ -146,7 +118,10 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
       )
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) => setState(() => _isLoading = true),
+          onPageStarted: (_) => setState(() {
+            _isLoading = true;
+            _mapReady = false;
+          }),
           onPageFinished: (_) => setState(() => _isLoading = false),
         ),
       );
@@ -154,8 +129,18 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     _reloadMap();
   }
 
+  void _setupListeners() {
+    ref.listen<String?>(regionProvider, (_, __) => _reloadMap());
+    ref.listen<AsyncValue<List<Policy>>>(policyListNotifierProvider,
+        (prev, next) {
+      if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
+        _reloadMap();
+      }
+    });
+  }
+
   void _reloadMap() {
-    final center = _centerFromRegion(ref.read(regionProvider));
+    final center = _centerForRegion(ref.read(regionProvider));
     final markers = _policyMarkers(center, ref.read(policyListNotifierProvider));
     _markerLookup = {for (final marker in markers) marker.id: marker};
 
@@ -174,9 +159,30 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     );
   }
 
+  Widget _buildOverlay(AsyncValue<List<Policy>> policies) {
+    return policies.when(
+      data: (_) => const SizedBox.shrink(),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, __) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.65),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          '정책을 불러오지 못했습니다.',
+          style: TextStyle(color: Colors.white),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
   void _onPolicyTap(Policy policy) {
     _selectedPolicyId = policy.id;
     _moveMapToPolicy(policy.id);
+    context.push(RoutePaths.policyDetail(policy.id));
   }
 
   void _moveMapToPolicy(String policyId) {
@@ -214,8 +220,12 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     }
     if (content.startsWith('marker:')) {
       final markerId = content.replaceFirst('marker:', '');
+      if (_lastMarkerTapId == markerId) {
+        context.push(RoutePaths.policyDetail(markerId));
+        return;
+      }
+      _lastMarkerTapId = markerId;
       _highlightPolicy(markerId);
-      return;
     }
     if (content.startsWith('region:')) {
       final coords = content.replaceFirst('region:', '').split(',');
@@ -223,7 +233,6 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
         final lat = double.tryParse(coords[0]);
         final lng = double.tryParse(coords[1]);
         if (lat != null && lng != null) {
-          _updateRegionFilter(lat, lng);
           _highlightNearestPolicy(lat, lng);
         }
       }
@@ -262,40 +271,25 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     _highlightPolicy(nearest.id);
   }
 
-  void _updateRegionFilter(double lat, double lng) {
-    if (_isRegionUpdating) return;
-    final current = ref.read(regionProvider);
-    final region = _regionNameFromLatLng(lat, lng);
-    if (region == null || region == current) return;
-    _isRegionUpdating = true;
-    ref.read(regionProvider.notifier).select(region);
-    Future.delayed(const Duration(milliseconds: 200), () {
-      _isRegionUpdating = false;
-    });
-  }
-
-  KakaoMapLatLng _centerFromRegion(String? region) {
-    if (region == null || region.isEmpty) {
-      return _defaultCenter;
+  KakaoMapLatLng _centerForRegion(String? regionName) {
+    final normalized = (regionName ?? '').trim();
+    switch (normalized) {
+      case '포항시':
+        return const KakaoMapLatLng(36.0190, 129.3435);
+      case '구미시':
+        return const KakaoMapLatLng(36.1195, 128.3446);
+      case '경산시':
+        return const KakaoMapLatLng(35.8252, 128.7415);
+      case '안동시':
+        return const KakaoMapLatLng(36.5684, 128.7294);
+      case '김천시':
+        return const KakaoMapLatLng(36.1398, 128.1136);
+      case '경북 전체':
+        return _defaultCenter;
+      default:
+        if (normalized.isEmpty) return _defaultCenter;
+        return _defaultCenter;
     }
-    final normalized = region.replaceAll(' ', '');
-    if (normalized.contains('경상북')) {
-      return const KakaoMapLatLng(36.4919, 128.8889);
-    }
-    if (normalized.contains('대구')) {
-      return const KakaoMapLatLng(35.8714, 128.6014);
-    }
-    return _defaultCenter;
-  }
-
-  String? _regionNameFromLatLng(double lat, double lng) {
-    if (lat >= 36.2) {
-      return '경상북도';
-    }
-    if (lat >= 35.7 && lng >= 128.4 && lng <= 128.9) {
-      return '대구광역시';
-    }
-    return null;
   }
 
   List<KakaoMapPolicyMarker> _policyMarkers(
@@ -303,9 +297,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     AsyncValue<List<Policy>> asyncPolicies,
   ) {
     final policies = asyncPolicies.valueOrNull;
-    if (policies == null || policies.isEmpty) {
-      return _mockPolicies;
-    }
+    if (policies == null || policies.isEmpty) return const [];
 
     final markerOffsets = _markerOffsets(center);
     final limitedPolicies = policies.take(markerOffsets.length).toList();
