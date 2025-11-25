@@ -21,7 +21,7 @@ class PolicyListV2Screen extends ConsumerStatefulWidget {
 class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
   late final TextEditingController _controller;
   late final ScrollController _scrollController;
-  ProviderSubscription<String?>? _regionSubscription;
+  late final ProviderSubscription<String?> _regionSubscription;
   String? _selectedCategory;
   String? _selectedYear;
   bool _availableOnly = false;
@@ -41,7 +41,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
 
   @override
   void dispose() {
-    _regionSubscription?.close();
+    _regionSubscription.close();
     _scrollController.dispose();
     _controller.dispose();
     super.dispose();
