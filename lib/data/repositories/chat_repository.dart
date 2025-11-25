@@ -28,6 +28,8 @@ class ChatRepository {
         },
       );
 
+      debugPrint('AI response raw: ${response.data}');
+
       final data = response.data;
       if (data is Map && data['reply'] is String) {
         return data['reply'] as String;
