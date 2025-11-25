@@ -26,18 +26,23 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   static const _defaultCenter = KakaoMapLatLng(36.4919, 128.8889); // Gyeongbuk
   AsyncValue<List<Policy>>? _lastPolicies;
+  ProviderSubscription<String?>? _regionSubscription;
+  ProviderSubscription<AsyncValue<List<Policy>>>? _policySubscription;
 
   @override
   void initState() {
     super.initState();
-    ref.listen<String?>(regionProvider, (_, __) => _reloadMap());
-    ref.listen<AsyncValue<List<Policy>>>(policyListNotifierProvider,
-        (prev, next) {
-      if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
-        _lastPolicies = next;
-        _reloadMap();
-      }
-    });
+    _regionSubscription =
+        ref.listenManual<String?>(regionProvider, (_, __) => _reloadMap());
+    _policySubscription = ref.listenManual<AsyncValue<List<Policy>>>(
+      policyListNotifierProvider,
+      (prev, next) {
+        if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
+          _lastPolicies = next;
+          _reloadMap();
+        }
+      },
+    );
     final center = _centerForRegion(ref.read(regionProvider));
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -59,6 +64,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           bridgeName: _bridgeName,
         ),
       );
+  }
+
+  @override
+  void dispose() {
+    _regionSubscription?.close();
+    _policySubscription?.close();
+    super.dispose();
   }
 
   @override

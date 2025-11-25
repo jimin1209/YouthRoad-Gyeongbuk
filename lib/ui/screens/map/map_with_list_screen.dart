@@ -30,6 +30,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
 
   late final ScrollController _listController;
   late final WebViewController _mapController;
+  ProviderSubscription<String?>? _regionSubscription;
+  ProviderSubscription<AsyncValue<List<Policy>>>? _policySubscription;
   bool _isLoading = true;
   bool _mapReady = false;
   bool _isMapUpdating = false;
@@ -49,6 +51,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   void dispose() {
     _listController.removeListener(_onListScroll);
     _listController.dispose();
+    _regionSubscription?.close();
+    _policySubscription?.close();
     super.dispose();
   }
 
@@ -130,13 +134,16 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   }
 
   void _setupListeners() {
-    ref.listen<String?>(regionProvider, (_, __) => _reloadMap());
-    ref.listen<AsyncValue<List<Policy>>>(policyListNotifierProvider,
-        (prev, next) {
-      if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
-        _reloadMap();
-      }
-    });
+    _regionSubscription =
+        ref.listenManual<String?>(regionProvider, (_, __) => _reloadMap());
+    _policySubscription = ref.listenManual<AsyncValue<List<Policy>>>(
+      policyListNotifierProvider,
+      (prev, next) {
+        if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
+          _reloadMap();
+        }
+      },
+    );
   }
 
   void _reloadMap() {
