@@ -56,8 +56,8 @@ class PolicyCardV2 extends ConsumerWidget {
     final tags = getPolicyTags(policy);
     final regionText = (policy.rgnSeNm == null || policy.rgnSeNm!.trim().isEmpty)
         ? '지역 전체'
-        : policy.rgnSeNm!;
-    final ageText = '연령 정보 없음';
+        : policy.rgnSeNm!.trim();
+    final ageText = _buildAgeText(policy);
 
     final periodText = _formatPeriod(policy.policyBgngYmd, policy.policyEndYmd);
     final ddayText = _formatDday(policy.dday);
@@ -159,6 +159,7 @@ class PolicyCardV2 extends ConsumerWidget {
 
   String? _formatDday(int? dday) {
     if (dday == null) return null;
+    if (dday == 0) return 'D-Day';
     if (dday >= 0) return 'D-$dday';
     return 'D+${dday.abs()}';
   }
@@ -166,6 +167,26 @@ class PolicyCardV2 extends ConsumerWidget {
   String? _formatDate(DateTime? date) {
     if (date == null) return null;
     return date.toIso8601String().split('T').first;
+  }
+
+  String _buildAgeText(Policy policy) {
+    final candidates = [policy.policyScl, policy.policyCn];
+    final rangePattern = RegExp(r'(만\s*)?\d{1,2}\s*~\s*\d{1,2}\s*세');
+    final singlePattern = RegExp(r'(만\s*)?\d{1,2}\s*세');
+
+    for (final text in candidates) {
+      if (text == null) continue;
+      final rangeMatch = rangePattern.firstMatch(text);
+      if (rangeMatch != null) {
+        return rangeMatch.group(0)!.replaceAll(RegExp(r'\s+'), ' ').trim();
+      }
+      final singleMatch = singlePattern.firstMatch(text);
+      if (singleMatch != null) {
+        return singleMatch.group(0)!.replaceAll(RegExp(r'\s+'), ' ').trim();
+      }
+    }
+
+    return '연령 정보 없음';
   }
 }
 

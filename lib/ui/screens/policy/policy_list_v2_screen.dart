@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../application/providers.dart';
 import '../../../application/notifiers/policy_paging_notifier.dart';
-import '../../../navigation/route_paths.dart';
+import '../../../application/providers.dart';
+import '../../../data/models/policy_filter.dart';
 import '../../../data/sources/local/search_history_source.dart';
+import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/global_error_view.dart';
 import '../../widgets/policy_card_v2.dart';
@@ -20,6 +21,9 @@ class PolicyListV2Screen extends ConsumerStatefulWidget {
 class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
   late final TextEditingController _controller;
   late final ScrollController _scrollController;
+  String? _selectedCategory;
+  String? _selectedYear;
+  bool _availableOnly = false;
 
   @override
   void initState() {
@@ -27,6 +31,10 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     _controller = TextEditingController();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
+    ref.listen<String?>(regionProvider, (_, __) => _applyFilter());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(policyPagingProvider.notifier).loadInitial(_buildFilter());
+    });
   }
 
   @override
@@ -38,17 +46,34 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
 
   void _onScroll() {
     final state = ref.read(policyPagingProvider);
-    if (!state.hasMore || state.isLoading) return;
+    if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
     final position = _scrollController.position;
     if (position.pixels >= position.maxScrollExtent - 200) {
       ref.read(policyPagingProvider.notifier).loadMore();
     }
   }
 
+  PolicyFilter _buildFilter() {
+    final region = ref.read(regionProvider);
+    return PolicyFilter(
+      searchRgnSe: region,
+      searchPolicyNm: _controller.text.trim().isEmpty ? null : _controller.text.trim(),
+      category: _selectedCategory,
+      searchYear: _selectedYear,
+      availableOnly: _availableOnly,
+      pageIndex: 1,
+      recordCount: 10,
+      pagingYn: 'Y',
+    );
+  }
+
+  void _applyFilter() {
+    ref.read(policyPagingProvider.notifier).updateFilter(_buildFilter());
+  }
+
   Future<void> _performSearch(PolicyPagingNotifier notifier) async {
-    // === 보완 패치: 검색 실행 타이밍 안정화 ===
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      notifier.search(_controller.text);
+      notifier.updateFilter(_buildFilter());
     });
   }
 
@@ -57,33 +82,42 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     final pagingState = ref.watch(policyPagingProvider);
     final pagingNotifier = ref.read(policyPagingProvider.notifier);
     final history = ref.watch(searchHistoryListProvider);
+    final compareCount = ref.watch(
+      compareProvider.select((value) => value.valueOrNull?.length ?? 0),
+    );
 
     Widget buildList() {
       if (pagingState.error != null && pagingState.items.isEmpty) {
         return GlobalErrorView(
           message: pagingState.error!,
-          onRetry: () => pagingNotifier.loadMore(reset: true),
+          onRetry: () => pagingNotifier.loadInitial(_buildFilter()),
         );
       }
 
-      if (!pagingState.initialLoaded && pagingState.isLoading) {
+      if (pagingState.items.isEmpty && pagingState.isLoading) {
         return const Center(child: CircularProgressIndicator());
       }
 
       if (pagingState.items.isEmpty) {
         return GlobalErrorView(
           message: '표시할 정책이 없습니다.',
-          onRetry: () => pagingNotifier.loadMore(reset: true),
+          onRetry: () => pagingNotifier.loadInitial(_buildFilter()),
         );
       }
 
       return RefreshIndicator(
-        onRefresh: () => pagingNotifier.loadMore(reset: true),
+        onRefresh: () => pagingNotifier.loadInitial(_buildFilter()),
         child: ListView.separated(
           controller: _scrollController,
           padding: const EdgeInsets.all(16),
           itemBuilder: (_, i) {
             if (i >= pagingState.items.length) {
+              if (!pagingState.hasMore) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: Text('마지막 정책까지 모두 불러왔습니다.')),
+                );
+              }
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(child: CircularProgressIndicator()),
@@ -96,7 +130,8 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
             );
           },
           separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemCount: pagingState.items.length + (pagingState.isLoading ? 1 : 0),
+          itemCount:
+              pagingState.items.length + (pagingState.isLoadingMore || pagingState.hasMore ? 1 : 0),
         ),
       );
     }
@@ -117,9 +152,8 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
                         label: Text(e.query),
                         onPressed: () {
                           _controller.text = e.query;
-                          // === 보완 패치: 검색 호출 + 타이밍 보강 ===
                           WidgetsBinding.instance.addPostFrameCallback((_) {
-                            pagingNotifier.search(e.query);
+                            pagingNotifier.updateFilter(_buildFilter());
                           });
                         },
                       ),
@@ -136,6 +170,13 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
 
     return Scaffold(
       appBar: const AppAppBar(title: '정책 목록'),
+      floatingActionButton: compareCount == 0
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.push(RoutePaths.compare),
+              icon: const Icon(Icons.balance),
+              label: Text('비교하기 ($compareCount)'),
+            ),
       body: Column(
         children: [
           Padding(
@@ -150,6 +191,73 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
                 ),
               ),
               onSubmitted: (_) => _performSearch(pagingNotifier),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('전체'),
+                        selected: _selectedCategory == null,
+                        onSelected: (_) {
+                          setState(() => _selectedCategory = null);
+                          _applyFilter();
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('취업'),
+                        selected: _selectedCategory == '취업',
+                        onSelected: (_) {
+                          setState(() => _selectedCategory = '취업');
+                          _applyFilter();
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('창업'),
+                        selected: _selectedCategory == '창업',
+                        onSelected: (_) {
+                          setState(() => _selectedCategory = '창업');
+                          _applyFilter();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                DropdownButton<String?>(
+                  value: _selectedYear,
+                  hint: const Text('연도'),
+                  items: const [null, '2024', '2023']
+                      .map(
+                        (e) => DropdownMenuItem<String?>(
+                          value: e,
+                          child: Text(e ?? '전체'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedYear = value);
+                    _applyFilter();
+                  },
+                ),
+                const SizedBox(width: 8),
+                Row(
+                  children: [
+                    const Text('신청가능'),
+                    Switch(
+                      value: _availableOnly,
+                      onChanged: (value) {
+                        setState(() => _availableOnly = value);
+                        _applyFilter();
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
           Padding(

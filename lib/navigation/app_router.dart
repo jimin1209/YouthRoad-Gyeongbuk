@@ -9,8 +9,9 @@ import '../ui/screens/institution/department_list_screen.dart';
 import '../ui/screens/institution/institution_list_screen.dart';
 import '../ui/screens/map/kakao_map_screen.dart';
 import '../ui/screens/map/map_with_list_screen.dart';
+import '../ui/screens/compare/compare_screen.dart';
 import '../ui/screens/policy/policy_compare_screen.dart';
-import '../ui/screens/policy/policy_detail_screen.dart';
+import '../ui/screens/policy/policy_detail_v2_screen.dart';
 import '../ui/screens/policy/policy_list_legacy_screen.dart';
 import '../ui/screens/policy/policy_list_v2_screen.dart';
 import '../ui/screens/policy/policy_webview_page.dart';
@@ -111,6 +112,10 @@ class AppRouter {
           builder: (context, state) => const PolicyCompareScreen(),
         ),
         GoRoute(
+          path: RoutePaths.compare,
+          builder: (context, state) => const CompareScreen(),
+        ),
+        GoRoute(
           path: RoutePaths.unity,
           builder: (context, state) => const UnityScreen(),
         ),
@@ -142,7 +147,7 @@ class AppRouter {
           path: '/policy/:id',
           builder: (context, state) {
             final id = state.pathParameters['id'] ?? '';
-            return PolicyDetailScreen(id: id);
+            return PolicyDetailV2Screen(id: id);
           },
         ),
         GoRoute(

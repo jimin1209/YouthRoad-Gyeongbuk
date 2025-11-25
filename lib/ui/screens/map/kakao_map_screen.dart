@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/providers.dart';
 import '../../../core/constants/env.dart';
 import '../../../domain/entities/policy.dart';
+import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import 'kakao_map_html_builder.dart';
 
@@ -17,46 +19,35 @@ class KakaoMapScreen extends ConsumerStatefulWidget {
 
 class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   static const _htmlBuilder = KakaoMapHtmlBuilder();
+  static const _bridgeName = 'KakaoBridge';
   late final WebViewController _controller;
   bool _isLoading = true;
+  bool _mapReady = false;
 
-  static const _defaultCenter = KakaoMapLatLng(35.8714, 128.6014); // Daegu
-  static const _mockPolicies = <KakaoMapPolicyMarker>[
-    KakaoMapPolicyMarker(
-      id: 'mock-1',
-      title: '청년 취업 지원',
-      lat: 35.872,
-      lng: 128.602,
-    ),
-    KakaoMapPolicyMarker(
-      id: 'mock-2',
-      title: '창업 보육 프로그램',
-      lat: 35.876,
-      lng: 128.61,
-    ),
-    KakaoMapPolicyMarker(
-      id: 'mock-3',
-      title: '주거 지원 시범사업',
-      lat: 35.868,
-      lng: 128.595,
-    ),
-    KakaoMapPolicyMarker(
-      id: 'mock-4',
-      title: '문화 체험 바우처',
-      lat: 35.865,
-      lng: 128.59,
-    ),
-  ];
+  static const _defaultCenter = KakaoMapLatLng(36.4919, 128.8889); // Gyeongbuk
+  AsyncValue<List<Policy>>? _lastPolicies;
 
   @override
   void initState() {
     super.initState();
-    final center = _centerFromRegion(ref.read(regionProvider));
+    ref.listen<String?>(regionProvider, (_, __) => _reloadMap());
+    ref.listen<AsyncValue<List<Policy>>>(policyListNotifierProvider,
+        (prev, next) {
+      if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
+        _lastPolicies = next;
+        _reloadMap();
+      }
+    });
+    final center = _centerForRegion(ref.read(regionProvider));
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel(_bridgeName, onMessageReceived: _onMapMessage)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) => setState(() => _isLoading = true),
+          onPageStarted: (_) => setState(() {
+            _isLoading = true;
+            _mapReady = false;
+          }),
           onPageFinished: (_) => setState(() => _isLoading = false),
         ),
       )
@@ -65,22 +56,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           apiKey: Env.kakaoMapApiKey,
           center: center,
           markers: _policyMarkers(center, ref.read(policyListNotifierProvider)),
+          bridgeName: _bridgeName,
         ),
       );
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<String?>(regionProvider, (_, __) {
-      _reloadMap();
-    });
-
-    ref.listen<AsyncValue<List<Policy>>>(policyListNotifierProvider, (prev, next) {
-      if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
-        _reloadMap();
-      }
-    });
-
     return Scaffold(
       appBar: const AppAppBar(title: '카카오맵 보기'),
       body: Stack(
@@ -90,17 +72,24 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             const Center(
               child: CircularProgressIndicator(),
             ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 16,
+            child: _buildOverlay(ref.watch(policyListNotifierProvider)),
+          ),
         ],
       ),
     );
   }
 
   void _reloadMap() {
-    final center = _centerFromRegion(ref.read(regionProvider));
+    final center = _centerForRegion(ref.read(regionProvider));
     final markers = _policyMarkers(center, ref.read(policyListNotifierProvider));
 
     setState(() {
       _isLoading = true;
+      _mapReady = false;
     });
 
     _controller.loadHtmlString(
@@ -108,6 +97,29 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         apiKey: Env.kakaoMapApiKey,
         center: center,
         markers: markers,
+        bridgeName: _bridgeName,
+      ),
+    );
+  }
+
+  Widget _buildOverlay(AsyncValue<List<Policy>> policies) {
+    return policies.when(
+      data: (_) => const SizedBox.shrink(),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, __) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Text(
+            '정책을 불러오지 못했습니다.',
+            style: TextStyle(color: Colors.white),
+            textAlign: TextAlign.center,
+          ),
+        ),
       ),
     );
   }
@@ -116,10 +128,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     KakaoMapLatLng center,
     AsyncValue<List<Policy>> asyncPolicies,
   ) {
-    final policies = asyncPolicies.valueOrNull;
-    if (policies == null || policies.isEmpty) {
-      return _mockPolicies;
-    }
+    final policies = asyncPolicies.valueOrNull ?? _lastPolicies?.valueOrNull;
+    if (policies == null || policies.isEmpty) return const [];
 
     final markerOffsets = _markerOffsets(center);
     final limitedPolicies = policies.take(markerOffsets.length).toList();
@@ -153,45 +163,42 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         .toList();
   }
 
-  KakaoMapLatLng _centerFromRegion(String? region) {
-    if (region == null || region.isEmpty) {
-      return _defaultCenter;
+  KakaoMapLatLng _centerForRegion(String? regionName) {
+    final normalized = (regionName ?? '').trim();
+    switch (normalized) {
+      case '포항시':
+        return const KakaoMapLatLng(36.0190, 129.3435);
+      case '구미시':
+        return const KakaoMapLatLng(36.1195, 128.3446);
+      case '경산시':
+        return const KakaoMapLatLng(35.8252, 128.7415);
+      case '안동시':
+        return const KakaoMapLatLng(36.5684, 128.7294);
+      case '김천시':
+        return const KakaoMapLatLng(36.1398, 128.1136);
+      case '경북 전체':
+        return _defaultCenter;
+      default:
+        if (normalized.isEmpty) return _defaultCenter;
+        return _defaultCenter;
     }
-    final normalized = region.replaceAll(' ', '');
-    if (normalized.contains('경상북')) {
-      return const KakaoMapLatLng(36.4919, 128.8889);
-    }
-    if (normalized.contains('대구')) {
-      return const KakaoMapLatLng(35.8714, 128.6014);
-    }
-    return _defaultCenter;
   }
 
-  String _missingApiKeyPage() {
-    return '''
-<!DOCTYPE html>
-<html>
-<body>
-  <p style="padding:16px;font-size:16px;">
-    카카오맵 API 키가 설정되지 않았습니다. KAKAO_MAP_API_KEY 환경 변수를 추가해주세요.
-  </p>
-</body>
-</html>
-''';
+  void _onMapMessage(JavaScriptMessage message) {
+    final content = message.message;
+    if (content == 'ready') {
+      setState(() {
+        _mapReady = true;
+        _isLoading = false;
+      });
+      return;
+    }
+    if (content.startsWith('marker:')) {
+      if (!_mapReady) return;
+      final policyId = content.replaceFirst('marker:', '');
+      if (policyId.isNotEmpty && mounted) {
+        context.push(RoutePaths.policyDetail(policyId));
+      }
+    }
   }
-}
-
-class _LatLng {
-  const _LatLng(this.lat, this.lng);
-
-  final double lat;
-  final double lng;
-}
-
-class _PolicyMarker {
-  const _PolicyMarker({required this.title, required this.lat, required this.lng});
-
-  final String title;
-  final double lat;
-  final double lng;
 }
