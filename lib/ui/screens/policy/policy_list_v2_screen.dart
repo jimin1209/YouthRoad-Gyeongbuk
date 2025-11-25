@@ -32,8 +32,11 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     _controller = TextEditingController();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
-    _regionSubscription =
-        ref.listenManual<String?>(regionProvider, (_, __) => _applyFilter());
+    _regionSubscription = ref.listenManual<String?>(regionProvider, (_, __) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _applyFilter();
+      });
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(policyPagingProvider.notifier).loadInitial(_buildFilter());
     });
