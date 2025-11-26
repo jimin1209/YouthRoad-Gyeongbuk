@@ -11,12 +11,15 @@ class PolicyFilter {
     this.startDate,
     this.endDate,
     this.availableOnly,
-    this.pageIndex,
-    this.recordCount,
     this.pageSize,
-    this.pagingYn,
-    this.searchDsplyYn,
-  });
+    int? pageIndex,
+    int? recordCount,
+    String? pagingYn,
+    String? searchDsplyYn,
+  })  : pageIndex = pageIndex ?? 1,
+        recordCount = recordCount ?? 2000,
+        pagingYn = pagingYn ?? 'N',
+        searchDsplyYn = searchDsplyYn ?? 'all';
 
   final String? searchRgnSe;
   final String? searchPolicyType;
