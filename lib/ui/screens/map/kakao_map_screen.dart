@@ -43,7 +43,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     _lastPolicies = ref.read(policyListNotifierProvider);
     _pendingMarkers =
         _policyMarkers(_lastCenter, _lastPolicies ?? const AsyncLoading());
-    _regionSubscription = ref.listenManual<String?>(regionProvider, (prev, next) {
+    _regionSubscription =
+        ref.listenManual<String?>(regionProvider, (prev, next) {
       if (next == _lastRegion) return;
       _lastRegion = next;
       _lastCenter = _centerForRegion(_lastRegion);
@@ -88,7 +89,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           markers: _pendingMarkers,
           bridgeName: _bridgeName,
         ),
-        baseUrl: 'https://gbyouth.co.kr',
+        baseUrl: 'https://youthroad.co.kr',
       );
   }
 
