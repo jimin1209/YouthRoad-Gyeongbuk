@@ -31,5 +31,5 @@ Write-Host "🚀 3) Flutter 바이너리 실행..." -ForegroundColor Cyan
 flutter run `
   --use-application-binary="$apkTarget" `
   --dart-define=YOUTH_API_KEY=yAlMhwGFZps7vHtbsjnbsL6Cpha6bHqaPDSScV6pgU0 `
-  --dart-define=KAKAO_MAP_API_KEY=416a3356e5061f181be8671e56f1367f `
+  --dart-define=KAKAO_MAP_API_KEY=e56be9363d2fd5a9cecd3264a29d40fc `
   --dart-define=CHAT_ENDPOINT=https://worker.youthroad-chat.workers.dev
