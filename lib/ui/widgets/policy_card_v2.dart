@@ -254,6 +254,8 @@ class _HeaderRow extends ConsumerWidget {
   final Policy policy;
   final _StatusBadge? status;
 
+  static const double _actionSize = 40;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favorites = ref.watch(favoritesProvider);
@@ -281,35 +283,43 @@ class _HeaderRow extends ConsumerWidget {
         const SizedBox(width: 4),
 
         /// 즐겨찾기 버튼
-        IconButton(
-          icon: Icon(
-            isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: isFavorite ? Colors.redAccent : null,
+        SizedBox(
+          width: _actionSize,
+          height: _actionSize,
+          child: IconButton(
+            icon: Icon(
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite ? Colors.redAccent : null,
+            ),
+            onPressed: () =>
+                ref.read(favoritesProvider.notifier).toggle(policy.id),
+            constraints: const BoxConstraints(),
+            padding: EdgeInsets.zero,
           ),
-          onPressed: () =>
-              ref.read(favoritesProvider.notifier).toggle(policy.id),
-          constraints: const BoxConstraints(),
-          padding: EdgeInsets.zero,
         ),
 
         /// 비교 버튼
         CompareBadge(
-          child: IconButton(
-            icon: Icon(
-              isInCompare ? Icons.balance : Icons.balance_outlined,
-              color: isInCompare ? Colors.teal : null,
+          child: SizedBox(
+            width: _actionSize,
+            height: _actionSize,
+            child: IconButton(
+              icon: Icon(
+                isInCompare ? Icons.balance : Icons.balance_outlined,
+                color: isInCompare ? Colors.teal : null,
+              ),
+              onPressed: () =>
+                  ref.read(compareProvider.notifier).toggle(policy.id),
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
             ),
-            onPressed: () =>
-                ref.read(compareProvider.notifier).toggle(policy.id),
-            constraints: const BoxConstraints(),
-            padding: EdgeInsets.zero,
           ),
         ),
 
         /// 상태 뱃지
         if (status != null) ...[
           const SizedBox(width: 4),
-          status!.toChip(Theme.of(context)),
+          Flexible(child: status!.toChip(Theme.of(context))),
         ],
       ],
     );

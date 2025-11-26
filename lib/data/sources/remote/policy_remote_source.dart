@@ -102,14 +102,24 @@ class PolicyRemoteSource {
     }
 
     put('searchYear', filter.searchYear);
-    put('searchPolicyNm', filter.searchPolicyNm ?? filter.searchText);
-    put('searchPolicyType', filter.searchPolicyType ?? filter.category);
-    put('searchRgnSe', filter.searchRgnSe);
-    put('instNo', filter.instNo);
-    put('deptNo', filter.deptNo);
+
+    if (filter.searchRgnSe == '전체' || filter.searchRgnSe == '경북 전체') {
+      // skip adding region filter
+    } else {
+      put('searchRgnSe', filter.searchRgnSe);
+    }
+
     if (filter.availableOnly == true) {
       put('aplyPsbltyYn', 'Y');
     }
+
+    if (filter.category != null && filter.category != '전체') {
+      put('searchPolicyType', filter.category);
+    }
+
+    put('searchPolicyNm', filter.searchText);
+    put('instNo', filter.instNo);
+    put('deptNo', filter.deptNo);
     if (filter.startDate != null) {
       put('policyBgngYmd', _formatDate(filter.startDate!));
     }
