@@ -89,10 +89,10 @@ class PolicyRemoteSource {
     final query = <String, dynamic>{
       'apiKey': _apiKey,
       'pageIndex': filter.pageIndex ?? 1,
-      'recordCount': filter.recordCount ?? filter.pageSize ?? 10,
+      'recordCount': filter.recordCount ?? 2000,
       'pageSize': filter.pageSize,
-      'pagingYn': filter.pagingYn ?? 'Y',
-      'searchDsplyYn': filter.searchDsplyYn ?? 'Y',
+      'pagingYn': filter.pagingYn ?? 'N',
+      'searchDsplyYn': filter.searchDsplyYn ?? 'all',
     };
 
     void put(String key, dynamic value) {
