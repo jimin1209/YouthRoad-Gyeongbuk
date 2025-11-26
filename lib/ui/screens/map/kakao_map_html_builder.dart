@@ -46,9 +46,10 @@ class KakaoMapHtmlBuilder {
         ? """
             function notifyFlutter(message) {
               try {
+                console.log('[WEBVIEW] notifyFlutter -> ' + message);
                 $safeBridgeName.postMessage(message);
               } catch (e) {
-                console.warn('Bridge postMessage failed', e);
+                console.error('[WEBVIEW] Bridge postMessage failed', e);
               }
             }
           """
