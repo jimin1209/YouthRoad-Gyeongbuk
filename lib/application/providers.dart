@@ -15,7 +15,7 @@ export 'repository_providers.dart';
 export 'notifiers/region_notifier.dart' show regionProvider, RegionNotifier;
 
 final policyListNotifierProvider =
-    AsyncNotifierProvider.autoDispose<PolicyListNotifier, List<Policy>>(
+    AsyncNotifierProvider<PolicyListNotifier, List<Policy>>(
   PolicyListNotifier.new,
 );
 

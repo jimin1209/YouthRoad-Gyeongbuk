@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +25,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   late final WebViewController _controller;
   bool _isLoading = true;
   bool _mapReady = false;
+  late KakaoMapLatLng _lastCenter;
+  String? _lastRegion;
+  List<KakaoMapPolicyMarker> _pendingMarkers = const [];
 
   static const _defaultCenter = KakaoMapLatLng(36.4919, 128.8889); // Gyeongbuk
   AsyncValue<List<Policy>>? _lastPolicies;
@@ -33,18 +38,26 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   void initState() {
     super.initState();
     debugPrint('[KakaoMapScreen] Env.kakaoMapApiKey = ${Env.kakaoMapApiKey}');
-    _regionSubscription =
-        ref.listenManual<String?>(regionProvider, (_, __) => _reloadMap());
+    _lastRegion = ref.read(regionProvider);
+    _lastCenter = _centerForRegion(_lastRegion);
+    _lastPolicies = ref.read(policyListNotifierProvider);
+    _pendingMarkers =
+        _policyMarkers(_lastCenter, _lastPolicies ?? const AsyncLoading());
+    _regionSubscription = ref.listenManual<String?>(regionProvider, (prev, next) {
+      if (next == _lastRegion) return;
+      _lastRegion = next;
+      _lastCenter = _centerForRegion(_lastRegion);
+      _pushMarkerUpdate();
+    });
     _policySubscription = ref.listenManual<AsyncValue<List<Policy>>>(
       policyListNotifierProvider,
       (prev, next) {
         if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
           _lastPolicies = next;
-          _reloadMap();
+          _pushMarkerUpdate();
         }
       },
     );
-    final center = _centerForRegion(ref.read(regionProvider));
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..addJavaScriptChannel(_bridgeName, onMessageReceived: _onMapMessage)
@@ -60,8 +73,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       ..loadHtmlString(
         _htmlBuilder.build(
           apiKey: Env.kakaoMapApiKey,
-          center: center,
-          markers: _policyMarkers(center, ref.read(policyListNotifierProvider)),
+          center: _lastCenter,
+          markers: _pendingMarkers,
           bridgeName: _bridgeName,
         ),
         baseUrl: 'https://gbyouth.co.kr',
@@ -95,28 +108,6 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         ],
       ),
     );
-  }
-
-  void _reloadMap() {
-    final center = _centerForRegion(ref.read(regionProvider));
-    final markers = _policyMarkers(center, ref.read(policyListNotifierProvider));
-
-    setState(() {
-      _isLoading = true;
-      _mapReady = false;
-    });
-
-    Future.delayed(const Duration(milliseconds: 50), () {
-      _controller.loadHtmlString(
-        _htmlBuilder.build(
-          apiKey: Env.kakaoMapApiKey,
-          center: center,
-          markers: markers,
-          bridgeName: _bridgeName,
-        ),
-        baseUrl: 'https://gbyouth.co.kr',
-      );
-    });
   }
 
   Widget _buildOverlay(AsyncValue<List<Policy>> policies) {
@@ -161,6 +152,49 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         lng: offset.lng,
       );
     });
+  }
+
+  void _pushMarkerUpdate() {
+    _pendingMarkers =
+        _policyMarkers(_lastCenter, _lastPolicies ?? const AsyncLoading());
+    if (_mapReady) {
+      _applyMarkers();
+    } else {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+  }
+
+  Future<void> _applyMarkers() async {
+    if (!_mapReady) return;
+    final encodedMarkers = jsonEncode(
+      _pendingMarkers
+          .map(
+            (m) => {
+              'id': m.id,
+              'title': m.title,
+              'lat': m.lat,
+              'lng': m.lng,
+            },
+          )
+          .toList(),
+    );
+
+    final script = '''
+      try {
+        if (typeof moveTo === 'function') { moveTo(${_lastCenter.lat}, ${_lastCenter.lng}); }
+        if (typeof updateMarkers === 'function') { updateMarkers($encodedMarkers); }
+      } catch (e) { console.warn('applyMarkers failed', e); }
+    ''';
+
+    await _controller.runJavaScript(script);
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   List<KakaoMapLatLng> _markerOffsets(KakaoMapLatLng base) {
@@ -208,6 +242,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         _mapReady = true;
         _isLoading = false;
       });
+      _applyMarkers();
       return;
     }
     if (content.startsWith('marker:')) {
