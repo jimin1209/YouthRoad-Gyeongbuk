@@ -63,7 +63,7 @@ class KakaoMapHtmlBuilder {
   <style>
     html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
   </style>
-  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=$apiKey&autoload=true"></script>
+  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=$apiKey&autoload=false"></script>
 </head>
 <body>
   <div id="map"></div>
@@ -109,13 +109,15 @@ class KakaoMapHtmlBuilder {
       notifyFlutter('ready');
     }
 
-    window.onload = function() {
-      if (kakao && kakao.maps) {
-        initMap();
+    function loadKakaoMap() {
+      if (window.kakao && kakao.maps && kakao.maps.load) {
+        kakao.maps.load(initMap);
       } else {
-        setTimeout(() => initMap(), 100);
+        setTimeout(loadKakaoMap, 100);
       }
-    };
+    }
+
+    window.onload = loadKakaoMap;
   </script>
 </body>
 </html>

@@ -32,6 +32,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[KakaoMapScreen] Env.kakaoMapApiKey = ${Env.kakaoMapApiKey}');
     _regionSubscription =
         ref.listenManual<String?>(regionProvider, (_, __) => _reloadMap());
     _policySubscription = ref.listenManual<AsyncValue<List<Policy>>>(
