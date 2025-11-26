@@ -16,7 +16,8 @@ class PolicyFilter {
     int? recordCount,
     String? pagingYn,
     String? searchDsplyYn,
-  })  : pageIndex = pageIndex ?? 1,
+  })
+      : pageIndex = pageIndex ?? 1,
         recordCount = recordCount ?? 2000,
         pagingYn = pagingYn ?? 'N',
         searchDsplyYn = searchDsplyYn ?? 'all';
