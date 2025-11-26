@@ -61,6 +61,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..addJavaScriptChannel(_bridgeName, onMessageReceived: _onMapMessage)
+      ..setOnConsoleMessage((JavaScriptConsoleMessage message) {
+        debugPrint('[WEBVIEW][${message.level}] ${message.message}');
+      })
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (_) => setState(() {
