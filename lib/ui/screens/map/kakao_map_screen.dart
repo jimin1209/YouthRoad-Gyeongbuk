@@ -66,11 +66,19 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       })
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) => setState(() {
-            _isLoading = true;
-            _mapReady = false;
-          }),
-          onPageFinished: (_) {},
+          onPageStarted: (_) {
+            setState(() {
+              _isLoading = true;
+              _mapReady = false;
+            });
+          },
+          onPageFinished: (_) {
+            // HTML은 적어도 로드 완료된 상태이므로 스피너는 끈다
+            if (!mounted) return;
+            setState(() {
+              _isLoading = false;
+            });
+          },
         ),
       )
       ..loadHtmlString(
@@ -240,14 +248,17 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   void _onMapMessage(JavaScriptMessage message) {
     final content = message.message;
+    debugPrint('[KakaoMapScreen] JS message: $content');
+
     if (content == 'ready') {
+      if (!mounted) return;
       setState(() {
         _mapReady = true;
-        _isLoading = false;
+        _isLoading = false; // ready가 오면 한 번 더 확실히 끄기
       });
-      _applyMarkers();
       return;
     }
+
     if (content.startsWith('marker:')) {
       if (!_mapReady) return;
       final policyId = content.replaceFirst('marker:', '');
