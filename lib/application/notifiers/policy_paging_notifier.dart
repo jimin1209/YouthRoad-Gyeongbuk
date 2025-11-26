@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -55,15 +57,13 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
 
   bool _initialized = false;
   int _requestId = 0;
+  String? _inFlightKey;
 
   @override
   PolicyPagingState build() {
-    final region = ref.watch(regionProvider);
-
     if (!_initialized) {
       _initialized = true;
       final filter = PolicyFilter(
-        searchRgnSe: region,
         pageIndex: 1,
         recordCount: _pageSize,
         pagingYn: 'Y',
@@ -77,14 +77,8 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
         hasMore: true,
       );
       state = initialState;
-      loadInitial(filter);
       return initialState;
     }
-
-    if (state.filter.searchRgnSe != region) {
-      updateFilter(state.filter.copyWith(searchRgnSe: region, pageIndex: 1));
-    }
-
     return state;
   }
 
@@ -95,6 +89,12 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
       recordCount: _pageSize,
       pagingYn: 'Y',
     );
+
+    final requestKey = _buildRequestKey(mergedFilter);
+    if (state.isLoading && requestKey == _inFlightKey) {
+      return;
+    }
+    _inFlightKey = requestKey;
 
     state = state.copyWith(
       items: const [],
@@ -107,6 +107,7 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
     );
 
     await _fetch(pageIndex: 1, append: false, filter: mergedFilter);
+    _inFlightKey = null;
   }
 
   Future<void> loadMore() async {
@@ -170,5 +171,28 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
         error: errorMessage,
       );
     }
+  }
+
+  String _buildRequestKey(PolicyFilter filter) {
+    final normalized = PolicyFilter(
+      searchRgnSe: filter.searchRgnSe,
+      searchPolicyType: filter.searchPolicyType,
+      searchPolicyNm: filter.searchPolicyNm,
+      searchText: filter.searchText,
+      category: filter.category,
+      searchYear: filter.searchYear,
+      instNo: filter.instNo,
+      deptNo: filter.deptNo,
+      startDate: filter.startDate,
+      endDate: filter.endDate,
+      availableOnly: filter.availableOnly,
+      pageIndex: filter.pageIndex ?? 1,
+      recordCount: filter.recordCount ?? _pageSize,
+      pageSize: filter.pageSize,
+      pagingYn: filter.pagingYn ?? 'Y',
+      searchDsplyYn: filter.searchDsplyYn ?? 'all',
+    );
+
+    return jsonEncode(normalized.toJson());
   }
 }

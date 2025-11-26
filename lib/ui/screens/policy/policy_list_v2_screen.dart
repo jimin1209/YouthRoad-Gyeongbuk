@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +27,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
   String? _selectedCategory;
   String? _selectedYear;
   bool _availableOnly = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -32,9 +35,9 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     _controller = TextEditingController();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
-    _regionSubscription = ref.listenManual<String?>(regionProvider, (prev, next) {
+    _regionSubscription = ref.listen<String?>(regionProvider, (prev, next) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _applyFilter();
+        _applyFilterDebounced();
       });
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -44,6 +47,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _regionSubscription.close();
     _scrollController.dispose();
     _controller.dispose();
@@ -77,10 +81,13 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     ref.read(policyPagingProvider.notifier).updateFilter(_buildFilter());
   }
 
+  void _applyFilterDebounced() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 150), _applyFilter);
+  }
+
   Future<void> _performSearch(PolicyPagingNotifier notifier) async {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      notifier.updateFilter(_buildFilter());
-    });
+    _applyFilterDebounced();
   }
 
   @override
@@ -159,7 +166,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
                         onPressed: () {
                           _controller.text = e.query;
                           WidgetsBinding.instance.addPostFrameCallback((_) {
-                            pagingNotifier.updateFilter(_buildFilter());
+                            _applyFilterDebounced();
                           });
                         },
                       ),
@@ -212,7 +219,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
                         selected: _selectedCategory == null,
                         onSelected: (_) {
                           setState(() => _selectedCategory = null);
-                          _applyFilter();
+                          _applyFilterDebounced();
                         },
                       ),
                       ChoiceChip(
@@ -220,7 +227,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
                         selected: _selectedCategory == '취업',
                         onSelected: (_) {
                           setState(() => _selectedCategory = '취업');
-                          _applyFilter();
+                          _applyFilterDebounced();
                         },
                       ),
                       ChoiceChip(
@@ -228,7 +235,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
                         selected: _selectedCategory == '창업',
                         onSelected: (_) {
                           setState(() => _selectedCategory = '창업');
-                          _applyFilter();
+                          _applyFilterDebounced();
                         },
                       ),
                     ],
@@ -247,7 +254,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
                       .toList(),
                   onChanged: (value) {
                     setState(() => _selectedYear = value);
-                    _applyFilter();
+                    _applyFilterDebounced();
                   },
                 ),
                 const SizedBox(width: 8),
@@ -258,7 +265,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
                       value: _availableOnly,
                       onChanged: (value) {
                         setState(() => _availableOnly = value);
-                        _applyFilter();
+                        _applyFilterDebounced();
                       },
                     ),
                   ],
