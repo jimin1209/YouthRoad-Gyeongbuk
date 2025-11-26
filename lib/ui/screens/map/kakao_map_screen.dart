@@ -53,7 +53,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             _isLoading = true;
             _mapReady = false;
           }),
-          onPageFinished: (_) => setState(() => _isLoading = false),
+          onPageFinished: (_) {},
         ),
       )
       ..loadHtmlString(
@@ -63,6 +63,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           markers: _policyMarkers(center, ref.read(policyListNotifierProvider)),
           bridgeName: _bridgeName,
         ),
+        baseUrl: 'https://gbyouth.co.kr',
       );
   }
 
@@ -104,14 +105,17 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       _mapReady = false;
     });
 
-    _controller.loadHtmlString(
-      _htmlBuilder.build(
-        apiKey: Env.kakaoMapApiKey,
-        center: center,
-        markers: markers,
-        bridgeName: _bridgeName,
-      ),
-    );
+    Future.delayed(const Duration(milliseconds: 50), () {
+      _controller.loadHtmlString(
+        _htmlBuilder.build(
+          apiKey: Env.kakaoMapApiKey,
+          center: center,
+          markers: markers,
+          bridgeName: _bridgeName,
+        ),
+        baseUrl: 'https://gbyouth.co.kr',
+      );
+    });
   }
 
   Widget _buildOverlay(AsyncValue<List<Policy>> policies) {
