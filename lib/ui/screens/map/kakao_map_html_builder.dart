@@ -69,6 +69,8 @@ class KakaoMapHtmlBuilder {
   <div id="map"></div>
   <script>
     var map;
+    var markers = [];
+    var markerData = [$markerJson];
 
     $notifyFlutter
 
@@ -78,12 +80,19 @@ class KakaoMapHtmlBuilder {
       map.setCenter(latlng);
     }
 
-    function createMarkers(map) {
-      var markers = [$markerJson];
-      markers.forEach(function(m) {
+    function clearMarkers() {
+      markers.forEach(function(marker) {
+        marker.setMap(null);
+      });
+      markers = [];
+    }
+
+    function renderMarkers(map) {
+      markerData.forEach(function(m) {
         var position = new kakao.maps.LatLng(m.lat, m.lng);
         var marker = new kakao.maps.Marker({ position: position });
         marker.setMap(map);
+        markers.push(marker);
 
         var infoWindow = new kakao.maps.InfoWindow({
           content: '<div style="padding:8px;font-size:13px;">' + m.title + '</div>'
@@ -95,6 +104,15 @@ class KakaoMapHtmlBuilder {
       });
     }
 
+    function updateMarkers(data) {
+      if (Array.isArray(data)) {
+        markerData = data;
+      }
+      if (!map) return;
+      clearMarkers();
+      renderMarkers(map);
+    }
+
     function initMap() {
       var container = document.getElementById('map');
       var options = {
@@ -102,7 +120,7 @@ class KakaoMapHtmlBuilder {
         level: 6
       };
       map = new kakao.maps.Map(container, options);
-      createMarkers(map);
+      renderMarkers(map);
       kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
         notifyFlutter('region:' + mouseEvent.latLng.getLat() + ',' + mouseEvent.latLng.getLng());
       });

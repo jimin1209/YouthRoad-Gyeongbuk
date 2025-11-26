@@ -9,7 +9,7 @@ import '../di.dart';
 import '../../data/sources/local/search_history_source.dart';
 import 'region_notifier.dart';
 
-class PolicyListNotifier extends AutoDisposeAsyncNotifier<List<Policy>> {
+class PolicyListNotifier extends AsyncNotifier<List<Policy>> {
   static const String errorMessage = '정책을 불러오지 못했습니다.';
   String? _lastQuery;
 
