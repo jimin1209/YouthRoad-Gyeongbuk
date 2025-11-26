@@ -266,21 +266,33 @@ class _HeaderRow extends ConsumerWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        /// 정책명 영역 → 무조건 Expanded 적용하여 overflow 방지
         Expanded(
           child: Text(
             policy.policyNm,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
           ),
         ),
+
+        const SizedBox(width: 4),
+
+        /// 즐겨찾기 버튼
         IconButton(
           icon: Icon(
             isFavorite ? Icons.favorite : Icons.favorite_border,
             color: isFavorite ? Colors.redAccent : null,
           ),
-          onPressed: () => ref.read(favoritesProvider.notifier).toggle(policy.id),
+          onPressed: () =>
+              ref.read(favoritesProvider.notifier).toggle(policy.id),
+          constraints: const BoxConstraints(),
+          padding: EdgeInsets.zero,
         ),
+
+        /// 비교 버튼
         CompareBadge(
           child: IconButton(
             icon: Icon(
@@ -289,8 +301,12 @@ class _HeaderRow extends ConsumerWidget {
             ),
             onPressed: () =>
                 ref.read(compareProvider.notifier).toggle(policy.id),
+            constraints: const BoxConstraints(),
+            padding: EdgeInsets.zero,
           ),
         ),
+
+        /// 상태 뱃지
         if (status != null) ...[
           const SizedBox(width: 4),
           status!.toChip(Theme.of(context)),
