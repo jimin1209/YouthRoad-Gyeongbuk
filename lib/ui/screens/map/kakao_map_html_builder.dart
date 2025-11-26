@@ -54,7 +54,7 @@ class KakaoMapHtmlBuilder {
           """
         : "function notifyFlutter(message) {}";
 
-    return '''
+  return '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -68,6 +68,9 @@ class KakaoMapHtmlBuilder {
 <body>
   <div id="map"></div>
   <script>
+    console.log("HTML LOADED");
+    console.log("API KEY =", "$apiKey");
+
     var map;
     var markers = [];
     var markerData = [$markerJson];
@@ -114,6 +117,7 @@ class KakaoMapHtmlBuilder {
     }
 
     function initMap() {
+      console.log("initMap START");
       var container = document.getElementById('map');
       var options = {
         center: new kakao.maps.LatLng(${center.lat}, ${center.lng}),
