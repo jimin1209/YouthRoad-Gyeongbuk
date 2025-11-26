@@ -123,29 +123,33 @@ class DebugProviderPanel extends StatelessWidget {
           itemBuilder: (context, index) {
             final entry = reversed[index];
             final preview = entry.error?.toString().split('\n').first ?? '';
-            return ListTile(
-              dense: true,
-              title: Text(
-                entry.providerName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: entry.isError
-                      ? const Color(0xFFFF4D6D)
-                      : const Color(0xFF4A5568),
-                  fontWeight: entry.isError ? FontWeight.w700 : FontWeight.w600,
+
+            return Material(
+              color: Colors.transparent,
+              child: ListTile(
+                dense: true,
+                title: Text(
+                  entry.providerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: entry.isError
+                        ? const Color(0xFFFF4D6D)
+                        : const Color(0xFF4A5568),
+                    fontWeight: entry.isError ? FontWeight.w700 : FontWeight.w600,
+                  ),
                 ),
+                subtitle: Text(
+                  entry.isError
+                      ? 'STATE: ${entry.state.toUpperCase()} • $preview'
+                      : 'STATE: ${entry.state.toUpperCase()}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+                onTap: () => _showProviderDetail(context, entry),
               ),
-              subtitle: Text(
-                entry.isError
-                    ? 'STATE: ${entry.state.toUpperCase()} • $preview'
-                    : 'STATE: ${entry.state.toUpperCase()}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white70),
-              ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white70),
-              onTap: () => _showProviderDetail(context, entry),
             );
           },
         );
