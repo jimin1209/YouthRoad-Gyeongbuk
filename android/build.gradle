@@ -34,4 +34,26 @@ subprojects { subproject ->
             }
         }
     }
+
+    // 🔵 flutter_unity_widget는 AGP 8.x 이상에서 namespace를 요구함
+    if (subproject.name == "flutter_unity_widget") {
+        subproject.plugins.withId("com.android.library") {
+            def androidExt = subproject.extensions.findByName("android")
+            if (androidExt?.hasProperty("namespace") && !androidExt.namespace) {
+                androidExt.namespace = "com.xraph.plugin.flutter_unity_widget"
+            }
+
+            // Kotlin(기본 JDK 17)과 Java(기본 1.8) 타겟 미스매치 방지 → 둘 다 11로 맞춤
+            androidExt.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_11
+                targetCompatibility JavaVersion.VERSION_11
+            }
+        }
+
+        subproject.plugins.withId("org.jetbrains.kotlin.android") {
+            subproject.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { task ->
+                task.kotlinOptions.jvmTarget = "11"
+            }
+        }
+    }
 }
