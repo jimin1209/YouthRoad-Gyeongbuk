@@ -25,12 +25,8 @@ mixin _$DepartmentListResponse {
   String? get msg => throw _privateConstructorUsedError;
   List<Department>? get resultList => throw _privateConstructorUsedError;
 
-  /// Serializes this DepartmentListResponse to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of DepartmentListResponse
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $DepartmentListResponseCopyWith<DepartmentListResponse> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -55,8 +51,6 @@ class _$DepartmentListResponseCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of DepartmentListResponse
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -103,8 +97,6 @@ class __$$DepartmentListResponseImplCopyWithImpl<$Res>
       $Res Function(_$DepartmentListResponseImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of DepartmentListResponse
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -169,14 +161,12 @@ class _$DepartmentListResponseImpl implements _DepartmentListResponse {
                 .equals(other._resultList, _resultList));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, success, msg,
       const DeepCollectionEquality().hash(_resultList));
 
-  /// Create a copy of DepartmentListResponse
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$DepartmentListResponseImplCopyWith<_$DepartmentListResponseImpl>
@@ -206,11 +196,8 @@ abstract class _DepartmentListResponse implements DepartmentListResponse {
   String? get msg;
   @override
   List<Department>? get resultList;
-
-  /// Create a copy of DepartmentListResponse
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$DepartmentListResponseImplCopyWith<_$DepartmentListResponseImpl>
       get copyWith => throw _privateConstructorUsedError;
 }

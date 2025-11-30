@@ -26,12 +26,8 @@ mixin _$PolicyListResponse {
   Map<String, dynamic>? get paginationInfo =>
       throw _privateConstructorUsedError;
 
-  /// Serializes this PolicyListResponse to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of PolicyListResponse
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $PolicyListResponseCopyWith<PolicyListResponse> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -59,8 +55,6 @@ class _$PolicyListResponseCopyWithImpl<$Res, $Val extends PolicyListResponse>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of PolicyListResponse
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -113,8 +107,6 @@ class __$$PolicyListResponseImplCopyWithImpl<$Res>
       $Res Function(_$PolicyListResponseImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PolicyListResponse
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -200,7 +192,7 @@ class _$PolicyListResponseImpl implements _PolicyListResponse {
                 .equals(other._paginationInfo, _paginationInfo));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -209,9 +201,7 @@ class _$PolicyListResponseImpl implements _PolicyListResponse {
       const DeepCollectionEquality().hash(_resultList),
       const DeepCollectionEquality().hash(_paginationInfo));
 
-  /// Create a copy of PolicyListResponse
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PolicyListResponseImplCopyWith<_$PolicyListResponseImpl> get copyWith =>
@@ -244,11 +234,8 @@ abstract class _PolicyListResponse implements PolicyListResponse {
   List<Policy>? get resultList;
   @override
   Map<String, dynamic>? get paginationInfo;
-
-  /// Create a copy of PolicyListResponse
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PolicyListResponseImplCopyWith<_$PolicyListResponseImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

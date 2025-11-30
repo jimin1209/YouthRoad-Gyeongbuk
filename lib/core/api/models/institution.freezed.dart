@@ -25,12 +25,8 @@ mixin _$Institution {
   String? get description => throw _privateConstructorUsedError;
   String? get region => throw _privateConstructorUsedError;
 
-  /// Serializes this Institution to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of Institution
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $InstitutionCopyWith<Institution> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -54,8 +50,6 @@ class _$InstitutionCopyWithImpl<$Res, $Val extends Institution>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of Institution
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -104,8 +98,6 @@ class __$$InstitutionImplCopyWithImpl<$Res>
       _$InstitutionImpl _value, $Res Function(_$InstitutionImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Institution
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -169,13 +161,11 @@ class _$InstitutionImpl implements _Institution {
             (identical(other.region, region) || other.region == region));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, id, name, description, region);
 
-  /// Create a copy of Institution
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$InstitutionImplCopyWith<_$InstitutionImpl> get copyWith =>
@@ -207,11 +197,8 @@ abstract class _Institution implements Institution {
   String? get description;
   @override
   String? get region;
-
-  /// Create a copy of Institution
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$InstitutionImplCopyWith<_$InstitutionImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

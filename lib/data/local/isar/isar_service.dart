@@ -16,14 +16,15 @@ class IsarService {
     }
 
     final dir = await getApplicationSupportDirectory();
+
     if (kDebugMode) {
-      debugPrint('[IsarService] Opening Isar at ${dir.path}');
+      debugPrint('[IsarService] Open DB at ${dir.path}');
     }
 
-    return Isar.open(
+    return await Isar.open(
       [PolicyIsarModelSchema],
-      inspector: kDebugMode,
       directory: dir.path,
+      inspector: kDebugMode,
     );
   }
 
@@ -42,102 +43,94 @@ class IsarService {
   Future<List<PolicyIsarModel>> getPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
-    final policies = await getAllPolicies();
-    Iterable<PolicyIsarModel> results = policies;
+    final isar = await instance;
 
-    bool _containsIgnoreCase(String source, String query) {
-      return source.toLowerCase().contains(query.toLowerCase());
-    }
+    var qb = isar.policyIsarModels.filter();
 
     if (filter.searchPolicyNm != null && filter.searchPolicyNm!.isNotEmpty) {
-      results = results.where(
-        (item) => _containsIgnoreCase(item.policyNm, filter.searchPolicyNm!),
-      );
-    }
-
-    if (filter.searchText != null && filter.searchText!.isNotEmpty) {
-      results = results.where(
-        (item) =>
-            (item.policyCn != null &&
-                _containsIgnoreCase(item.policyCn!, filter.searchText!)) ||
-            (item.policyNm.isNotEmpty &&
-                _containsIgnoreCase(item.policyNm, filter.searchText!)),
-      );
+      qb = qb.policyNmContains(filter.searchPolicyNm!, caseSensitive: false);
     }
 
     if (filter.searchRgnSe != null && filter.searchRgnSe!.isNotEmpty) {
-      results = results.where(
-        (item) =>
-            item.rgnSeNm != null &&
-            item.rgnSeNm!.toLowerCase() == filter.searchRgnSe!.toLowerCase(),
-      );
-    }
-
-    if (filter.searchPolicyType != null && filter.searchPolicyType!.isNotEmpty) {
-      results = results.where(
-        (item) =>
-            item.policyTypeNm != null &&
-            item.policyTypeNm!.toLowerCase() ==
-                filter.searchPolicyType!.toLowerCase(),
-      );
+      qb = qb.rgnSeNmEqualTo(filter.searchRgnSe!, caseSensitive: false);
     }
 
     if (filter.category != null && filter.category!.isNotEmpty) {
-      results = results.where(
-        (item) =>
-            item.policyTypeNm != null &&
-            item.policyTypeNm!.toLowerCase() == filter.category!.toLowerCase(),
-      );
+      qb = qb.policyTypeNmEqualTo(filter.category!, caseSensitive: false);
     }
 
     if (filter.searchYear != null && filter.searchYear!.isNotEmpty) {
-      results = results.where(
-        (item) => item.policyYr != null && item.policyYr == filter.searchYear,
-      );
-    }
-
-    if (filter.availableOnly == true) {
-      results = results.where(
-        (item) => item.isApplyNow == true || item.isOngoing == true,
-      );
+      qb = qb.policyYrEqualTo(filter.searchYear!);
     }
 
     if (filter.startDate != null) {
-      results = results.where((item) {
-        final start = item.applyStart ?? item.policyBgngYmd;
-        if (start == null) return false;
-        return !start.isBefore(filter.startDate!);
-      });
+      qb = qb.policyBgngYmdGreaterThan(filter.startDate!, include: true);
     }
 
     if (filter.endDate != null) {
-      results = results.where((item) {
-        final end = item.applyEnd ?? item.policyEndYmd;
-        if (end == null) return false;
-        return !end.isAfter(filter.endDate!);
-      });
+      qb = qb.policyEndYmdLessThan(filter.endDate!, include: true);
     }
 
-    final pageIndex = (filter.pageIndex ?? 1) < 1 ? 1 : filter.pageIndex ?? 1;
-    final pageSize = filter.recordCount ?? results.length;
-    final start = (pageIndex - 1) * pageSize;
+    final andResult = await qb.findAll();
 
-    return results.skip(start).take(pageSize).toList();
-  }
+    final Set<PolicyIsarModel> orSet = {};
 
-  Future<PolicyIsarModel?> getPolicyById(String policyId) async {
-    final policies = await getAllPolicies();
-    try {
-      return policies.firstWhere((element) => element.policyId == policyId);
-    } catch (_) {
-      return null;
+    if (filter.searchText != null && filter.searchText!.isNotEmpty) {
+      final t = filter.searchText!;
+
+      final title = await isar.policyIsarModels
+          .filter()
+          .policyNmContains(t, caseSensitive: false)
+          .findAll();
+
+      final content = await isar.policyIsarModels
+          .filter()
+          .policyCnContains(t, caseSensitive: false)
+          .findAll();
+
+      orSet.addAll(title);
+      orSet.addAll(content);
     }
+
+    if (filter.availableOnly == true) {
+      final now = await isar.policyIsarModels
+          .filter()
+          .isApplyNowEqualTo(true)
+          .findAll();
+
+      final ongoing =
+          await isar.policyIsarModels.filter().isOngoingEqualTo(true).findAll();
+
+      orSet.addAll(now);
+      orSet.addAll(ongoing);
+    }
+
+    List<PolicyIsarModel> result;
+
+    if (orSet.isNotEmpty) {
+      result = andResult.where(orSet.contains).toList();
+    } else {
+      result = andResult;
+    }
+
+    final pageIndex = (filter.pageIndex ?? 1).clamp(1, 9999);
+    final pageSize = filter.recordCount ?? 50;
+
+    final offset = (pageIndex - 1) * pageSize;
+    if (offset >= result.length) return [];
+
+    return result.skip(offset).take(pageSize).toList();
   }
 
-  Future<void> putAllPolicies(List<PolicyIsarModel> models) async {
+  Future<PolicyIsarModel?> getPolicyById(String id) async {
+    final isar = await instance;
+    return isar.policyIsarModels.filter().policyIdEqualTo(id).findFirst();
+  }
+
+  Future<void> putAllPolicies(List<PolicyIsarModel> list) async {
     final isar = await instance;
     await isar.writeTxn(() async {
-      await isar.policyIsarModels.putAll(models);
+      await isar.policyIsarModels.putAll(list);
     });
   }
 

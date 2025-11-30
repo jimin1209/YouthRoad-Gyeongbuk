@@ -25,12 +25,8 @@ mixin _$InstitutionListResponse {
   String? get msg => throw _privateConstructorUsedError;
   List<Institution>? get resultList => throw _privateConstructorUsedError;
 
-  /// Serializes this InstitutionListResponse to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of InstitutionListResponse
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $InstitutionListResponseCopyWith<InstitutionListResponse> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -55,8 +51,6 @@ class _$InstitutionListResponseCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of InstitutionListResponse
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -103,8 +97,6 @@ class __$$InstitutionListResponseImplCopyWithImpl<$Res>
       $Res Function(_$InstitutionListResponseImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of InstitutionListResponse
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -169,14 +161,12 @@ class _$InstitutionListResponseImpl implements _InstitutionListResponse {
                 .equals(other._resultList, _resultList));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, success, msg,
       const DeepCollectionEquality().hash(_resultList));
 
-  /// Create a copy of InstitutionListResponse
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$InstitutionListResponseImplCopyWith<_$InstitutionListResponseImpl>
@@ -206,11 +196,8 @@ abstract class _InstitutionListResponse implements InstitutionListResponse {
   String? get msg;
   @override
   List<Institution>? get resultList;
-
-  /// Create a copy of InstitutionListResponse
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$InstitutionListResponseImplCopyWith<_$InstitutionListResponseImpl>
       get copyWith => throw _privateConstructorUsedError;
 }

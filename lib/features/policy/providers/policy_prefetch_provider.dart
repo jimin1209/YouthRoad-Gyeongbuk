@@ -2,16 +2,21 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/di.dart';
-import '../../../application/notifiers/policy_paging_notifier.dart';
+import '../../../application/notifiers/policy_paging_notifier.dart'; // ← ★ 반드시 필요!!
+
 import '../../../data/repositories/hybrid_policy_repository.dart';
 
-final policyPrefetchProvider = AsyncNotifierProvider<PolicyPrefetchNotifier, void>(
+final policyPrefetchProvider =
+    AsyncNotifierProvider<PolicyPrefetchNotifier, void>(
   PolicyPrefetchNotifier.new,
 );
 
 class PolicyPrefetchNotifier extends AsyncNotifier<void> {
-  HybridPolicyRepository get _repository => ref.read(hybridPolicyRepositoryProvider);
-  PolicyPagingNotifier get _pagingNotifier => ref.read(policyPagingProvider.notifier);
+  HybridPolicyRepository get _repository =>
+      ref.read(hybridPolicyRepositoryProvider);
+
+  PolicyPagingNotifier get _pagingNotifier =>
+      ref.read(policyPagingProvider.notifier); // ← 오류 해결됨!
 
   @override
   Future<void> build() async {}
