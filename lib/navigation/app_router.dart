@@ -13,12 +13,12 @@ import '../ui/screens/compare/compare_screen.dart';
 import '../ui/screens/policy/policy_compare_screen.dart';
 import '../ui/screens/policy/policy_detail_v2_screen.dart';
 import '../ui/screens/policy/policy_list_legacy_screen.dart';
-import '../ui/screens/policy/policy_list_v2_screen.dart';
 import '../ui/screens/policy/policy_webview_page.dart';
 import '../ui/screens/region/region_select_screen.dart';
 import '../ui/screens/setting/setting_screen.dart';
 import '../ui/screens/setting/setting_v2_screen.dart';
-import '../ui/screens/splash/splash_screen.dart';
+import '../app/splash/splash_page.dart';
+import '../features/policy/ui/policy_list_page.dart';
 import '../ui/screens/unity/unity_screen.dart';
 import '../ui/widgets/bottom_nav.dart';
 import '../ui/widgets/global_error_view.dart';
@@ -41,7 +41,7 @@ class AppRouter {
       routes: [
         GoRoute(
           path: RoutePaths.splash,
-          builder: (context, state) => const SplashScreen(),
+          builder: (context, state) => const SplashPage(),
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {
@@ -101,7 +101,7 @@ class AppRouter {
         ),
         GoRoute(
           path: RoutePaths.policyListV2,
-          builder: (context, state) => const PolicyListV2Screen(),
+          builder: (context, state) => const PolicyListPage(),
         ),
         GoRoute(
           path: RoutePaths.policyLegacyList,
