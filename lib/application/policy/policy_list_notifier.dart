@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/policy_filter.dart';
-import '../../data/policy/policy_repository.dart';
 import '../../data/sources/local/search_history_source.dart';
 import '../../domain/entities/policy.dart';
+import '../../domain/repositories/policy_repository.dart';
 import '../di.dart';
 import '../notifiers/region_notifier.dart';
 
@@ -52,31 +52,75 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
   static const String errorMessage = '정책을 불러오지 못했습니다.';
 
   String? _lastQuery;
+  bool _initialLoadScheduled = false;
 
-  SwrPolicyRepository get _repo => ref.read(policyRepositoryProvider);
+  PolicyRepository get _repo => ref.read(policyRepositoryInterfaceProvider);
 
   SearchHistorySource get _historySource => ref.read(searchHistorySourceProvider);
 
   @override
   PolicyListState build() {
-    _loadPolicies();
+    final region = ref.watch(regionProvider);
+    final normalizedRegion = region?.trim() ?? '';
+    debugPrint('[PolicyListNotifier] build() with region=$region');
+
+    if (!_initialLoadScheduled) {
+      _initialLoadScheduled = true;
+      Future.microtask(() {
+        debugPrint('[PolicyListNotifier] scheduling initial load');
+        _loadPolicies(region: normalizedRegion);
+      });
+    }
+
+    ref.listen<String?>(regionProvider, (previous, next) {
+      if (previous == next) return;
+      debugPrint(
+        '[PolicyListNotifier] region changed: $previous -> $next, reloading policies',
+      );
+      _loadPolicies(region: (next ?? '').trim(), forceRefresh: false);
+    });
+
+    ref.onDispose(() {
+      debugPrint('[PolicyListNotifier] disposed');
+    });
+
     return const PolicyListState(isLoading: true);
   }
 
-  PolicyFilter _buildFilter() {
-    final region = ref.watch(regionProvider);
+  PolicyFilter _buildFilter({required String region}) {
+    final normalizedRegion = region.trim();
     return PolicyFilter(
-      searchRgnSe: region,
+      searchRgnSe: normalizedRegion.isEmpty ? null : normalizedRegion,
       searchText: _lastQuery,
       availableOnly: true,
     );
   }
 
-  Future<void> _loadPolicies({bool forceRefresh = false}) async {
-    final filter = _buildFilter();
-    state = state.copyWith(isLoading: true, error: null, isStale: true);
+  Future<void> _loadPolicies({
+    required String region,
+    bool forceRefresh = false,
+  }) async {
+    if (kDebugMode) {
+      try {
+        // Accessing state to ensure provider is initialized.
+        // ignore: unused_local_variable
+        final _ = state;
+      } catch (e, st) {
+        debugPrint(
+          '[PolicyListNotifier] WARNING: _loadPolicies called before build completion: $e',
+        );
+        debugPrint('$st');
+      }
+    }
+
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      isStale: true,
+    );
 
     try {
+      final filter = _buildFilter(region: region);
       final result = await _repo.getPolicies(
         filter: filter,
         forceRefresh: forceRefresh,
@@ -89,7 +133,8 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
         error: null,
       );
       debugPrint(
-          '[PolicyListNotifier] initial cache load done. count=${result.policies.length}');
+        '[PolicyListNotifier] initial cache load done. count=${result.policies.length}',
+      );
 
       final remoteFuture = result.remoteRefresh;
       if (remoteFuture != null) {
@@ -100,11 +145,15 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
             error: null,
           );
           debugPrint(
-              '[PolicyListNotifier] remote refresh success. count=${latest.length}');
+            '[PolicyListNotifier] remote refresh success. count=${latest.length}',
+          );
         }).catchError((error, stack) {
           debugPrint('[PolicyListNotifier] remote refresh failed: error=$error');
           debugPrint('$stack');
-          state = state.copyWith(error: error, isStale: true);
+          state = state.copyWith(
+            error: error,
+            isStale: state.policies.isNotEmpty,
+          );
         });
       }
     } catch (e, st) {
@@ -116,24 +165,61 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
         isStale: state.policies.isNotEmpty,
       );
     }
+
+    _debugLogState('after _loadPolicies');
   }
 
   Future<void> refresh() async {
-    state = state.copyWith(isRefreshing: true, error: null);
+    final region = (ref.read(regionProvider) ?? '').trim();
+    debugPrint('[PolicyListNotifier] refresh() start with region=$region');
+
+    state = state.copyWith(
+      isRefreshing: true,
+      error: null,
+    );
+
     try {
-      final policies = await _repo.refreshPolicies(
-        filter: _buildFilter(),
+      final filter = _buildFilter(region: region);
+      final result = await _repo.getPolicies(
+        filter: filter,
+        forceRefresh: true,
       );
+
       state = state.copyWith(
-        policies: policies,
-        isRefreshing: false,
-        isStale: false,
+        policies: result.policies,
+        isStale: true,
         error: null,
       );
-      debugPrint(
-          '[PolicyListNotifier] remote refresh success. count=${policies.length}');
+
+      final remoteFuture = result.remoteRefresh;
+      if (remoteFuture != null) {
+        await remoteFuture.then((latest) {
+          state = state.copyWith(
+            policies: latest,
+            isStale: false,
+            isRefreshing: false,
+            error: null,
+          );
+          debugPrint(
+            '[PolicyListNotifier] refresh remote success. count=${latest.length}',
+          );
+        }).catchError((error, stack) {
+          debugPrint('[PolicyListNotifier] refresh remote failed: error=$error');
+          debugPrint('$stack');
+          state = state.copyWith(
+            isRefreshing: false,
+            error: error,
+            isStale: state.policies.isNotEmpty,
+          );
+        });
+      } else {
+        state = state.copyWith(
+          isRefreshing: false,
+          isStale: false,
+        );
+      }
     } catch (e, st) {
-      debugPrint('[PolicyListNotifier] remote refresh failed: error=$e');
+      debugPrint('[PolicyListNotifier] refresh failed: error=$e');
       debugPrint('$st');
       state = state.copyWith(
         isRefreshing: false,
@@ -141,15 +227,32 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
         isStale: state.policies.isNotEmpty,
       );
     }
+
+    _debugLogState('after refresh');
   }
 
   Future<void> search(String query) async {
     final normalized = query.trim();
     _lastQuery = normalized.isEmpty ? null : normalized;
+    debugPrint('[PolicyListNotifier] search() query="$normalized" lastQuery=$_lastQuery');
+
     if (_lastQuery != null) {
       await _historySource.saveQuery(_lastQuery!);
     }
+
     ref.invalidate(searchHistoryListProvider);
     await refresh();
+  }
+
+  void _debugLogState(String where) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '[PolicyListNotifier][$where] '
+      'isLoading=${state.isLoading}, '
+      'isRefreshing=${state.isRefreshing}, '
+      'isStale=${state.isStale}, '
+      'policies=${state.policies.length}, '
+      'error=${state.error}',
+    );
   }
 }

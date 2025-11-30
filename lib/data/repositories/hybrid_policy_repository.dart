@@ -6,6 +6,7 @@ import '../local/isar/isar_service.dart';
 import '../local/isar/policy_isar_model.dart';
 import '../models/policy_filter.dart';
 import '../models/policy_model.dart';
+import '../policy/policy_repository.dart';
 import '../sources/remote/policy_remote_source.dart';
 
 class HybridPolicyRepository implements PolicyRepository {
@@ -14,66 +15,53 @@ class HybridPolicyRepository implements PolicyRepository {
   final PolicyRemoteSource _remoteSource;
   final IsarService _isarService;
 
+  @override
+  Future<PolicyFetchResult> getPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+    bool forceRefresh = false,
+  }) async {
+    final cached = await _safeLoadCache(filter);
+    debugPrint(
+      '[HybridPolicyRepository] returning cached policies count=${cached.length}',
+    );
+
+    final remoteFuture = _refreshFromRemote(
+      filter: filter,
+      replaceExisting: forceRefresh || _isDefaultFilter(filter),
+    );
+
+    return PolicyFetchResult(
+      policies: cached,
+      remoteRefresh: remoteFuture,
+    );
+  }
+
+  @override
   Future<List<Policy>> loadCachedPolicies({
     PolicyFilter filter = const PolicyFilter(),
-  }) async {
-    final cached = await _isarService.getPolicies(filter: filter);
-    return cached.map((model) => model.toDomain()).toList();
+  }) {
+    return _safeLoadCache(filter);
   }
 
-  Future<void> _persistPolicies(
-    List<PolicyModel> models, {
+  @override
+  Future<List<Policy>> refreshPolicies({
+    PolicyFilter filter = const PolicyFilter(),
     bool replaceExisting = false,
-  }) async {
-    if (models.isEmpty) return;
-    final isarModels = models.map(PolicyIsarModel.fromApi).toList();
-    if (replaceExisting) {
-      await _isarService.clearPolicies();
-    }
-    await _isarService.putAllPolicies(isarModels);
-  }
-
-  bool _isDefaultFilter(PolicyFilter filter) {
-    return filter.searchRgnSe == null &&
-        filter.searchPolicyType == null &&
-        filter.searchPolicyNm == null &&
-        filter.searchText == null &&
-        filter.category == null &&
-        filter.searchYear == null &&
-        filter.instNo == null &&
-        filter.deptNo == null &&
-        filter.startDate == null &&
-        filter.endDate == null &&
-        filter.availableOnly == null &&
-        (filter.pageIndex == null || filter.pageIndex == 1) &&
-        (filter.recordCount == null || filter.recordCount == 2000) &&
-        (filter.pagingYn == null || filter.pagingYn == 'N') &&
-        (filter.searchDsplyYn == null || filter.searchDsplyYn == 'all');
+  }) {
+    return _refreshFromRemote(
+      filter: filter,
+      replaceExisting: replaceExisting || _isDefaultFilter(filter),
+    );
   }
 
   @override
   Future<List<Policy>> fetchPolicies({
     PolicyFilter filter = const PolicyFilter(),
-  }) async {
-    List<Policy> fallback = const [];
-    try {
-      fallback = await loadCachedPolicies(filter: filter);
-    } catch (e, st) {
-      debugPrint('[HybridPolicyRepository] cache load failed: $e\n$st');
-    }
-
-    try {
-      final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
-      final replace = _isDefaultFilter(filter) && filter.pageIndex == 1;
-      await _persistPolicies(remoteModels, replaceExisting: replace);
-      return remoteModels.map((model) => model.toEntity()).toList();
-    } catch (e, st) {
-      debugPrint('[HybridPolicyRepository] remote fetch failed: $e\n$st');
-      if (fallback.isNotEmpty) {
-        return fallback;
-      }
-      rethrow;
-    }
+  }) {
+    return refreshPolicies(
+      filter: filter,
+      replaceExisting: _isDefaultFilter(filter),
+    );
   }
 
   @override
@@ -127,5 +115,54 @@ class HybridPolicyRepository implements PolicyRepository {
     final models = await _remoteSource.fetchSimilar(id);
     await _persistPolicies(models);
     return models.map((model) => model.toEntity()).toList();
+  }
+
+  Future<List<Policy>> _safeLoadCache(PolicyFilter filter) async {
+    try {
+      final cached = await _isarService.getPolicies(filter: filter);
+      return cached.map((model) => model.toDomain()).toList();
+    } catch (e, st) {
+      debugPrint('[HybridPolicyRepository] cache load failed: $e\n$st');
+      return const [];
+    }
+  }
+
+  Future<void> _persistPolicies(
+    List<PolicyModel> models, {
+    bool replaceExisting = false,
+  }) async {
+    if (models.isEmpty) return;
+    final isarModels = models.map(PolicyIsarModel.fromApi).toList();
+    if (replaceExisting) {
+      await _isarService.clearPolicies();
+    }
+    await _isarService.putAllPolicies(isarModels);
+  }
+
+  Future<List<Policy>> _refreshFromRemote({
+    required PolicyFilter filter,
+    bool replaceExisting = false,
+  }) async {
+    final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
+    await _persistPolicies(remoteModels, replaceExisting: replaceExisting);
+    return remoteModels.map((model) => model.toEntity()).toList();
+  }
+
+  bool _isDefaultFilter(PolicyFilter filter) {
+    return filter.searchRgnSe == null &&
+        filter.searchPolicyType == null &&
+        filter.searchPolicyNm == null &&
+        filter.searchText == null &&
+        filter.category == null &&
+        filter.searchYear == null &&
+        filter.instNo == null &&
+        filter.deptNo == null &&
+        filter.startDate == null &&
+        filter.endDate == null &&
+        filter.availableOnly == null &&
+        (filter.pageIndex == null || filter.pageIndex == 1) &&
+        (filter.recordCount == null || filter.recordCount == 2000) &&
+        (filter.pagingYn == null || filter.pagingYn == 'N') &&
+        (filter.searchDsplyYn == null || filter.searchDsplyYn == 'all');
   }
 }
