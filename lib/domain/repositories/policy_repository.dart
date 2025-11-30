@@ -1,6 +1,15 @@
 import '../../data/models/policy_filter.dart';
-import '../../data/policy/policy_repository.dart' show PolicyFetchResult;
 import '../entities/policy.dart';
+
+class PolicyFetchResult {
+  const PolicyFetchResult({
+    required this.policies,
+    this.remoteRefresh,
+  });
+
+  final List<Policy> policies;
+  final Future<List<Policy>>? remoteRefresh;
+}
 
 abstract class PolicyRepository {
   Future<PolicyFetchResult> getPolicies({
@@ -8,16 +17,11 @@ abstract class PolicyRepository {
     bool forceRefresh = false,
   });
 
-  Future<List<Policy>> loadCachedPolicies({
-    PolicyFilter filter = const PolicyFilter(),
-  });
-
   Future<List<Policy>> refreshPolicies({
     PolicyFilter filter = const PolicyFilter(),
-    bool replaceExisting = false,
   });
 
-  Future<List<Policy>> fetchPolicies({
+  Future<List<Policy>> loadCachedPolicies({
     PolicyFilter filter = const PolicyFilter(),
   });
 

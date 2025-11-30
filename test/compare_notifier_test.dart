@@ -33,7 +33,6 @@ class _FakePolicyRepository implements PolicyRepository {
   @override
   Future<List<Policy>> refreshPolicies({
     PolicyFilter filter = const PolicyFilter(),
-    bool replaceExisting = false,
   }) async {
     return _policies.values.toList();
   }
@@ -45,13 +44,6 @@ class _FakePolicyRepository implements PolicyRepository {
       throw Exception('Not found');
     }
     return policy;
-  }
-
-  @override
-  Future<List<Policy>> fetchPolicies({
-    PolicyFilter filter = const PolicyFilter(),
-  }) async {
-    return _policies.values.toList();
   }
 
   @override

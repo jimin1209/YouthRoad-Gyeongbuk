@@ -50,7 +50,7 @@ class PolicyPagingState {
 }
 
 class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
-  PolicyRepository get _repo => ref.read(policyRepositoryProvider);
+  PolicyRepository get _repo => ref.read(policyRepositoryInterfaceProvider);
 
   static const String errorMessage = '정책을 불러오지 못했습니다. 다시 시도해 주세요.';
   static const int _pageSize = 10;
@@ -143,9 +143,7 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
 
   Future<void> _loadFromCache(PolicyFilter filter) async {
     try {
-      final cached = await ref
-          .read(hybridPolicyRepositoryProvider)
-          .loadCachedPolicies(filter: filter);
+      final cached = await _repo.loadCachedPolicies(filter: filter);
       if (cached.isNotEmpty) {
         await seedFromCache(cached);
       }
@@ -167,7 +165,7 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
     );
 
     try {
-      final policies = await _repo.fetchPolicies(
+      final policies = await _repo.refreshPolicies(
         filter: filter.copyWith(
           pageIndex: pageIndex,
           recordCount: _pageSize,

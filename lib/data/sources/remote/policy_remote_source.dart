@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../core/constants/env.dart';
-import '../models/policy_filter.dart';
-import '../models/policy_model.dart';
+import '../../../core/constants/env.dart';
+import '../../models/policy_filter.dart';
+import '../../models/policy_model.dart';
 
 const String kPolicyApiBaseUrl = String.fromEnvironment(
   'POLICY_API_BASE_URL',
@@ -20,7 +20,9 @@ class PolicyRemoteSource {
   })  : _apiKey = apiKey ?? Env.youthApiKey,
         _baseUrl = _normalizeBaseUrl(
           baseUrl ??
-              (Env.policyApiBaseUrl.isNotEmpty ? Env.policyApiBaseUrl : kPolicyApiBaseUrl),
+              (Env.policyApiBaseUrl.isNotEmpty
+                  ? Env.policyApiBaseUrl
+                  : kPolicyApiBaseUrl),
         );
 
   final Dio _dio;
@@ -31,6 +33,7 @@ class PolicyRemoteSource {
     PolicyFilter filter = const PolicyFilter(),
   }) async {
     final query = _buildQuery(filter);
+
     if (kDebugMode) {
       debugPrint(
         '[PolicyRemoteSource] fetchPolicies -> URL=$_baseUrl/policy/list query=$query',
@@ -47,7 +50,6 @@ class PolicyRemoteSource {
     if (rawJson == null) {
       throw StateError('Empty response from policy endpoint');
     }
-
     return compute(parsePoliciesJson, rawJson);
   }
 
@@ -64,18 +66,19 @@ class PolicyRemoteSource {
       (policy) => policy.id == id,
       orElse: () => throw StateError('Policy not found for id: $id'),
     );
-
     return match;
   }
 
   Future<List<PolicyModel>> fetchSimilar(String id) async {
     final base = await fetchPolicyById(id);
+
     final filter = PolicyFilter(
       searchRgnSe: base.regionName,
       searchPolicyType: base.typeName,
       pageIndex: 1,
       recordCount: 10,
     );
+
     final list = await fetchPolicies(filter: filter);
     return list.where((item) => item.id != id).toList();
   }
@@ -119,6 +122,7 @@ class PolicyRemoteSource {
     put('searchPolicyNm', filter.searchText ?? filter.searchPolicyNm);
     put('instNo', filter.instNo);
     put('deptNo', filter.deptNo);
+
     if (filter.startDate != null) {
       put('policyBgngYmd', _formatDate(filter.startDate!));
     }
@@ -154,7 +158,9 @@ List<PolicyModel> parsePoliciesJson(String rawJson) {
 
   return resultList
       .map(
-        (item) => PolicyModel.fromJson((item as Map).cast<String, dynamic>()),
+        (item) => PolicyModel.fromJson(
+          (item as Map).cast<String, dynamic>(),
+        ),
       )
       .toList();
 }
