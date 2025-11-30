@@ -61,7 +61,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
   @override
   PolicyListState build() {
     final region = ref.watch(regionProvider);
-    final normalizedRegion = region ?? '';
+    final normalizedRegion = region?.trim() ?? '';
     debugPrint('[PolicyListNotifier] build() with region=$region');
 
     if (!_initialLoadScheduled) {
@@ -77,7 +77,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       debugPrint(
         '[PolicyListNotifier] region changed: $previous -> $next, reloading policies',
       );
-      _loadPolicies(region: next ?? '', forceRefresh: false);
+      _loadPolicies(region: (next ?? '').trim(), forceRefresh: false);
     });
 
     ref.onDispose(() {
@@ -87,8 +87,8 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     return const PolicyListState(isLoading: true);
   }
 
-  PolicyFilter _buildFilter({String? region}) {
-    final normalizedRegion = (region ?? '').trim();
+  PolicyFilter _buildFilter({required String region}) {
+    final normalizedRegion = region.trim();
     return PolicyFilter(
       searchRgnSe: normalizedRegion.isEmpty ? null : normalizedRegion,
       searchText: _lastQuery,
@@ -97,7 +97,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
   }
 
   Future<void> _loadPolicies({
-    String? region,
+    required String region,
     bool forceRefresh = false,
   }) async {
     if (kDebugMode) {
@@ -170,7 +170,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
   }
 
   Future<void> refresh() async {
-    final region = ref.read(regionProvider);
+    final region = (ref.read(regionProvider) ?? '').trim();
     debugPrint('[PolicyListNotifier] refresh() start with region=$region');
 
     state = state.copyWith(

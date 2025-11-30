@@ -9,10 +9,10 @@ import 'package:youth_road_app/data/local/isar/isar_service.dart';
 import '../core/constants/env.dart';
 import '../data/policy/policy_cache_source.dart';
 import '../data/policy/policy_remote_source.dart';
-import '../data/policy/policy_repository.dart';
 
 // Repositories
 import '../data/repositories/chat_repository.dart';
+import '../data/repositories/hybrid_policy_repository.dart';
 import '../data/repositories/institution_repository.dart';
 
 // Domain abstraction
@@ -59,10 +59,10 @@ final policyCacheSourceProvider = Provider<PolicyCacheSource>((ref) {
 });
 
 /// Stale-while-revalidate Policy Repository (Cache + API)
-final policyRepositoryProvider = Provider<SwrPolicyRepository>((ref) {
+final policyRepositoryProvider = Provider<HybridPolicyRepository>((ref) {
   final remote = ref.watch(policyRemoteSourceProvider);
-  final cache = ref.watch(policyCacheSourceProvider);
-  return SwrPolicyRepository(remote, cache);
+  final isar = ref.watch(isarServiceProvider);
+  return HybridPolicyRepository(remote, isar);
 });
 
 /// For components expecting the abstract interface
@@ -71,7 +71,7 @@ final policyRepositoryInterfaceProvider = Provider<PolicyRepository>((ref) {
 });
 
 /// Backward-compatible provider name for cache-aware operations
-final hybridPolicyRepositoryProvider = Provider<SwrPolicyRepository>((ref) {
+final hybridPolicyRepositoryProvider = Provider<HybridPolicyRepository>((ref) {
   return ref.watch(policyRepositoryProvider);
 });
 
@@ -83,6 +83,10 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 
 /// Institution repo
 final institutionRepositoryProvider = Provider<InstitutionRepository>((ref) {
+  return ref.watch(_institutionRepositoryProvider);
+});
+
+final _institutionRepositoryProvider = Provider<InstitutionRepository>((ref) {
   return const InstitutionRepository();
 });
 

@@ -33,7 +33,6 @@ class SwrPolicyRepository implements PolicyRepository {
     final cached = await _safeLoadCache(filter);
     debugPrint('[PolicyRepository] returning cached policies count=${cached.length}');
 
-    debugPrint('[PolicyRepository] refreshing policies from remote...');
     final remoteFuture = _refreshFromRemote(
       filter: filter,
       replaceExisting: forceRefresh || _isDefaultFilter(filter),
@@ -64,48 +63,11 @@ class SwrPolicyRepository implements PolicyRepository {
     );
   }
 
-  Future<List<Policy>> _safeLoadCache(PolicyFilter filter) async {
-    try {
-      return await _cacheSource.loadCachedPolicies(filter: filter);
-    } catch (e, st) {
-      debugPrint('[PolicyRepository] cache load failed: $e\n$st');
-      return const [];
-    }
-  }
-
-  Future<List<Policy>> _refreshFromRemote({
-    required PolicyFilter filter,
-    bool replaceExisting = false,
-  }) async {
-    final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
-    final policies = remoteModels.map((model) => model.toEntity()).toList();
-    await _cacheSource.savePolicies(policies, replaceExisting: replaceExisting);
-    return policies;
-  }
-
-  bool _isDefaultFilter(PolicyFilter filter) {
-    return filter.searchRgnSe == null &&
-        filter.searchPolicyType == null &&
-        filter.searchPolicyNm == null &&
-        filter.searchText == null &&
-        filter.category == null &&
-        filter.searchYear == null &&
-        filter.instNo == null &&
-        filter.deptNo == null &&
-        filter.startDate == null &&
-        filter.endDate == null &&
-        filter.availableOnly == null &&
-        (filter.pageIndex == null || filter.pageIndex == 1) &&
-        (filter.recordCount == null || filter.recordCount == 2000) &&
-        (filter.pagingYn == null || filter.pagingYn == 'N') &&
-        (filter.searchDsplyYn == null || filter.searchDsplyYn == 'all');
-  }
-
   @override
   Future<List<Policy>> fetchPolicies({
     PolicyFilter filter = const PolicyFilter(),
-  }) async {
-    return _refreshFromRemote(
+  }) {
+    return refreshPolicies(
       filter: filter,
       replaceExisting: _isDefaultFilter(filter),
     );
@@ -172,5 +134,42 @@ class SwrPolicyRepository implements PolicyRepository {
     final policies = models.map((model) => model.toEntity()).toList();
     await _cacheSource.savePolicies(policies);
     return policies;
+  }
+
+  Future<List<Policy>> _safeLoadCache(PolicyFilter filter) async {
+    try {
+      return await _cacheSource.loadCachedPolicies(filter: filter);
+    } catch (e, st) {
+      debugPrint('[PolicyRepository] cache load failed: $e\n$st');
+      return const [];
+    }
+  }
+
+  Future<List<Policy>> _refreshFromRemote({
+    required PolicyFilter filter,
+    bool replaceExisting = false,
+  }) async {
+    final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
+    final policies = remoteModels.map((model) => model.toEntity()).toList();
+    await _cacheSource.savePolicies(policies, replaceExisting: replaceExisting);
+    return policies;
+  }
+
+  bool _isDefaultFilter(PolicyFilter filter) {
+    return filter.searchRgnSe == null &&
+        filter.searchPolicyType == null &&
+        filter.searchPolicyNm == null &&
+        filter.searchText == null &&
+        filter.category == null &&
+        filter.searchYear == null &&
+        filter.instNo == null &&
+        filter.deptNo == null &&
+        filter.startDate == null &&
+        filter.endDate == null &&
+        filter.availableOnly == null &&
+        (filter.pageIndex == null || filter.pageIndex == 1) &&
+        (filter.recordCount == null || filter.recordCount == 2000) &&
+        (filter.pagingYn == null || filter.pagingYn == 'N') &&
+        (filter.searchDsplyYn == null || filter.searchDsplyYn == 'all');
   }
 }
