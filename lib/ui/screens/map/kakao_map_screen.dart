@@ -7,7 +7,6 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/providers.dart';
 import '../../../core/constants/env.dart';
-import '../../../domain/entities/policy.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import 'kakao_map_html_builder.dart';

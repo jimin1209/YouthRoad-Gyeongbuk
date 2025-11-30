@@ -13,6 +13,30 @@ class _FakePolicyRepository implements PolicyRepository {
   final Map<String, Policy> _policies;
 
   @override
+  Future<PolicyFetchResult> getPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+    bool forceRefresh = false,
+  }) async {
+    final policies = _policies.values.toList();
+    return PolicyFetchResult(policies: policies);
+  }
+
+  @override
+  Future<List<Policy>> loadCachedPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+  }) async {
+    return _policies.values.toList();
+  }
+
+  @override
+  Future<List<Policy>> refreshPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+    bool replaceExisting = false,
+  }) async {
+    return _policies.values.toList();
+  }
+
+  @override
   Future<Policy> fetchPolicyById(String id) async {
     final policy = _policies[id];
     if (policy == null) {

@@ -10,10 +10,10 @@ import 'models/policy_list_response.dart';
 
 part 'youth_api_service.g.dart';
 
-const YouthApiServiceBaseUrl = "https://api.youthroad.kr/v1";
+const youthApiServiceBaseUrl = "https://api.youthroad.kr/v1";
 const String apiKey = "yAlMhwGFZps7vHtbsjnbsL6Cpha6bHqaPDSScV6pgU0";
 
-@RestApi(baseUrl: YouthApiServiceBaseUrl)
+@RestApi(baseUrl: youthApiServiceBaseUrl)
 abstract class YouthApiService {
   factory YouthApiService(Dio dio, {String? baseUrl}) {
     if (kDebugMode) {
@@ -21,7 +21,7 @@ abstract class YouthApiService {
     }
     return _YouthApiService(
       dio,
-      baseUrl: baseUrl ?? YouthApiServiceBaseUrl,
+      baseUrl: baseUrl ?? youthApiServiceBaseUrl,
     );
   }
 

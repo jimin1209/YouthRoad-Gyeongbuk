@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/providers.dart';
-import '../../../application/policy/policy_list_notifier.dart';
 import '../../../core/constants/env.dart';
 import '../../../domain/entities/policy.dart';
 import '../../../navigation/route_paths.dart';

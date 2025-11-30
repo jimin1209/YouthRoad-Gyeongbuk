@@ -1,13 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/entities/policy.dart';
-import 'di.dart';
-import 'repository_providers.dart';
 import 'notifiers/chat_notifier.dart';
 import 'notifiers/compare_notifier.dart';
 import 'notifiers/favorites_notifier.dart';
 import 'notifiers/policy_detail_notifier.dart';
-import 'policy/policy_list_notifier.dart';
 import 'notifiers/policy_paging_notifier.dart';
 
 export 'di.dart';
