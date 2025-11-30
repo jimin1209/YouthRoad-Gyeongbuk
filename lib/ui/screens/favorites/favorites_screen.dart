@@ -14,7 +14,7 @@ class FavoritesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favorites = ref.watch(favoritesProvider);
-    final policyRepository = ref.watch(policyRepositoryProvider);
+    final policyRepository = ref.watch(policyRepositoryInterfaceProvider);
     final compareCount = ref.watch(
       compareProvider.select((value) => value.valueOrNull?.length ?? 0),
     );

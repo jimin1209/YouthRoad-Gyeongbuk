@@ -1,61 +1,52 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+
+import '../../../core/constants/env.dart';
 import '../../models/policy_filter.dart';
 import '../../models/policy_model.dart';
-import '../../../core/constants/env.dart';
+
+const String kPolicyApiBaseUrl = String.fromEnvironment(
+  'POLICY_API_BASE_URL',
+  defaultValue: 'https://worker.youthroad-policy.workers.dev',
+);
 
 class PolicyRemoteSource {
-  PolicyRemoteSource(this._dio, {String? apiKey})
-      : _apiKey = apiKey ?? Env.youthApiKey;
+  PolicyRemoteSource(
+    this._dio, {
+    String? apiKey,
+    String? baseUrl,
+  })  : _apiKey = apiKey ?? Env.youthApiKey,
+        _baseUrl =
+            baseUrl ?? (Env.policyApiBaseUrl.isNotEmpty ? Env.policyApiBaseUrl : kPolicyApiBaseUrl);
 
   final Dio _dio;
   final String _apiKey;
+  final String _baseUrl;
 
-  Future<List<PolicyModel>> fetchPolicies({PolicyFilter filter = const PolicyFilter()}) async {
-    if (kDebugMode) {
-      debugPrint('[PolicyRemoteSource] fetchPolicies called. filter: $filter');
-    }
-
-    if (_apiKey.isEmpty && !kDebugMode) {
-      throw StateError('YOUTH_API_KEY is not provided');
-    }
-
-    final effectiveKey = _apiKey.isEmpty && kDebugMode ? 'DEBUG-PLACEHOLDER-KEY' : _apiKey;
-
-    if (kDebugMode && _apiKey.isEmpty) {
-      debugPrint(
-        '[PolicyRemoteSource] YOUTH_API_KEY is empty. '
-        'Using debug placeholder key just to send HTTP request.',
-      );
-    }
-
+  Future<List<PolicyModel>> fetchPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+  }) async {
     final query = _buildQuery(filter);
-    query['apiKey'] = effectiveKey;
-
     if (kDebugMode) {
       debugPrint(
-        '[PolicyRemoteSource] fetchPolicies -> URL=/openapi/policy/list.json '
-        'query=$query',
+        '[PolicyRemoteSource] fetchPolicies -> URL=$_baseUrl/policy/list query=$query',
       );
     }
-    final response = await _dio.get(
-      'https://gbyouth.co.kr/openapi/policy/list.json',
+
+    final response = await _dio.get<String>(
+      '$_baseUrl/policy/list',
       queryParameters: query,
+      options: Options(responseType: ResponseType.plain),
     );
 
-    final data = response.data;
-    if (data is! Map<String, dynamic>) {
-      throw StateError('Invalid policy list response');
+    final rawJson = response.data;
+    if (rawJson == null) {
+      throw StateError('Empty response from policy endpoint');
     }
 
-    final resultList = data['resultList'];
-    if (resultList is! List) {
-      throw StateError('Missing resultList in response');
-    }
-
-    return resultList
-        .map((item) => PolicyModel.fromJson((item as Map).cast<String, dynamic>()))
-        .toList();
+    return compute(parsePoliciesJson, rawJson);
   }
 
   Future<PolicyModel> fetchPolicyById(String id) async {
@@ -66,10 +57,12 @@ class PolicyRemoteSource {
         recordCount: 2000,
       ),
     );
+
     final match = list.firstWhere(
       (policy) => policy.id == id,
       orElse: () => throw StateError('Policy not found for id: $id'),
     );
+
     return match;
   }
 
@@ -87,13 +80,16 @@ class PolicyRemoteSource {
 
   Map<String, dynamic> _buildQuery(PolicyFilter filter) {
     final query = <String, dynamic>{
-      'apiKey': _apiKey,
       'pageIndex': filter.pageIndex ?? 1,
       'recordCount': filter.recordCount ?? 2000,
       'pageSize': filter.pageSize,
       'pagingYn': filter.pagingYn ?? 'N',
       'searchDsplyYn': filter.searchDsplyYn ?? 'all',
     };
+
+    if (_apiKey.isNotEmpty) {
+      query['apiKey'] = _apiKey;
+    }
 
     void put(String key, dynamic value) {
       if (value != null && value.toString().isNotEmpty) {
@@ -103,9 +99,10 @@ class PolicyRemoteSource {
 
     put('searchYear', filter.searchYear);
 
-    if (filter.searchRgnSe == '전체' || filter.searchRgnSe == '경북 전체') {
-      // skip adding region filter
-    } else {
+    if (filter.searchRgnSe != null &&
+        filter.searchRgnSe!.isNotEmpty &&
+        filter.searchRgnSe != '전체' &&
+        filter.searchRgnSe != '경북 전체') {
       put('searchRgnSe', filter.searchRgnSe);
     }
 
@@ -117,7 +114,7 @@ class PolicyRemoteSource {
       put('searchPolicyType', filter.category);
     }
 
-    put('searchPolicyNm', filter.searchText);
+    put('searchPolicyNm', filter.searchText ?? filter.searchPolicyNm);
     put('instNo', filter.instNo);
     put('deptNo', filter.deptNo);
     if (filter.startDate != null) {
@@ -135,4 +132,22 @@ class PolicyRemoteSource {
         '${date.month.toString().padLeft(2, '0')}'
         '${date.day.toString().padLeft(2, '0')}';
   }
+}
+
+List<PolicyModel> parsePoliciesJson(String rawJson) {
+  final decoded = json.decode(rawJson);
+  if (decoded is! Map<String, dynamic>) {
+    throw StateError('Invalid policy list response');
+  }
+
+  final resultList = decoded['resultList'];
+  if (resultList is! List) {
+    throw StateError('Missing resultList in response');
+  }
+
+  return resultList
+      .map(
+        (item) => PolicyModel.fromJson((item as Map).cast<String, dynamic>()),
+      )
+      .toList();
 }

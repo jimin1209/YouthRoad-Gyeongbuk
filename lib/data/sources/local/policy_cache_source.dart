@@ -1,27 +1,26 @@
-// FILE: lib/data/policy/policy_cache_source.dart
 import 'package:flutter/foundation.dart';
 
-import '../../domain/entities/policy.dart';
-import '../local/isar/isar_service.dart';
-import '../local/isar/policy_isar_model.dart';
-import '../models/policy_filter.dart';
+import '../../../domain/entities/policy.dart';
+import '../../local/isar/isar_service.dart';
+import '../../local/isar/policy_isar_model.dart';
+import '../../models/policy_filter.dart';
 
 class PolicyCacheSource {
   PolicyCacheSource(this._isarService);
 
   final IsarService _isarService;
 
-  Future<List<Policy>> loadCachedPolicies({
+  Future<List<Policy>> getPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
-    debugPrint('[PolicyCacheSource] loadCachedPolicies called');
+    debugPrint('[PolicyCacheSource] getPolicies called');
     final cached = await _isarService.getPolicies(filter: filter);
     final policies = cached.map((model) => model.toDomain()).toList();
     debugPrint('[PolicyCacheSource] loaded ${policies.length} policies from cache');
     return policies;
   }
 
-  Future<List<Policy>> loadAllPolicies() async {
+  Future<List<Policy>> getAllPolicies() async {
     final cached = await _isarService.getAllPolicies();
     return cached.map((model) => model.toDomain()).toList();
   }
@@ -31,7 +30,7 @@ class PolicyCacheSource {
     return cached?.toDomain();
   }
 
-  Future<void> savePolicies(
+  Future<void> putAllPolicies(
     List<Policy> policies, {
     bool replaceExisting = false,
   }) async {
@@ -42,4 +41,6 @@ class PolicyCacheSource {
     }
     await _isarService.putAllPolicies(isarModels);
   }
+
+  Future<void> clearPolicies() => _isarService.clearPolicies();
 }

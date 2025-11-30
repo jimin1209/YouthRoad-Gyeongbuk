@@ -7,8 +7,9 @@ import 'package:youth_road_app/data/local/isar/isar_service.dart';
 
 // Core & Sources
 import '../core/constants/env.dart';
-import '../data/policy/policy_cache_source.dart';
-import '../data/policy/policy_remote_source.dart';
+import '../data/repositories/swr_policy_repository.dart';
+import '../data/sources/local/policy_cache_source.dart';
+import '../data/sources/remote/policy_remote_source.dart';
 
 // Repositories
 import '../data/repositories/chat_repository.dart';
@@ -59,19 +60,14 @@ final policyCacheSourceProvider = Provider<PolicyCacheSource>((ref) {
 });
 
 /// Stale-while-revalidate Policy Repository (Cache + API)
-final policyRepositoryProvider = Provider<HybridPolicyRepository>((ref) {
+final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
   final remote = ref.watch(policyRemoteSourceProvider);
-  final isar = ref.watch(isarServiceProvider);
-  return HybridPolicyRepository(remote, isar);
+  final cache = ref.watch(policyCacheSourceProvider);
+  return SwrPolicyRepository(remote, cache);
 });
 
 /// For components expecting the abstract interface
 final policyRepositoryInterfaceProvider = Provider<PolicyRepository>((ref) {
-  return ref.watch(policyRepositoryProvider);
-});
-
-/// Backward-compatible provider name for cache-aware operations
-final hybridPolicyRepositoryProvider = Provider<HybridPolicyRepository>((ref) {
   return ref.watch(policyRepositoryProvider);
 });
 

@@ -36,7 +36,7 @@ class PolicyPrefetchNotifier extends AsyncNotifier<void> {
     }
 
     try {
-      final remote = await _repository.fetchPolicies(
+      final remote = await _repository.refreshPolicies(
         filter: _pagingNotifier.currentFilter,
       );
       _pagingNotifier.replaceWithFresh(remote);

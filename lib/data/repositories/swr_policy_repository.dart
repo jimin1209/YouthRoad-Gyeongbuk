@@ -1,23 +1,10 @@
-// FILE: lib/data/policy/policy_repository.dart
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../models/policy_filter.dart';
-import 'policy_cache_source.dart';
-import 'policy_remote_source.dart';
-
-class PolicyFetchResult {
-  const PolicyFetchResult({
-    required this.policies,
-    this.remoteRefresh,
-  });
-
-  final List<Policy> policies;
-  final Future<List<Policy>>? remoteRefresh;
-}
+import '../sources/local/policy_cache_source.dart';
+import '../sources/remote/policy_remote_source.dart';
 
 class SwrPolicyRepository implements PolicyRepository {
   SwrPolicyRepository(this._remoteSource, this._cacheSource);
@@ -48,26 +35,15 @@ class SwrPolicyRepository implements PolicyRepository {
   Future<List<Policy>> loadCachedPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) {
-    return _cacheSource.loadCachedPolicies(filter: filter);
+    return _cacheSource.getPolicies(filter: filter);
   }
 
   @override
   Future<List<Policy>> refreshPolicies({
     PolicyFilter filter = const PolicyFilter(),
-    bool replaceExisting = false,
   }) {
     debugPrint('[PolicyRepository] refreshing policies from remote...');
     return _refreshFromRemote(
-      filter: filter,
-      replaceExisting: replaceExisting || _isDefaultFilter(filter),
-    );
-  }
-
-  @override
-  Future<List<Policy>> fetchPolicies({
-    PolicyFilter filter = const PolicyFilter(),
-  }) {
-    return refreshPolicies(
       filter: filter,
       replaceExisting: _isDefaultFilter(filter),
     );
@@ -80,29 +56,16 @@ class SwrPolicyRepository implements PolicyRepository {
       return cached;
     }
 
-    final list = await _remoteSource.fetchPolicies(
-      filter: const PolicyFilter(
-        pagingYn: 'N',
-        searchDsplyYn: 'all',
-        recordCount: 2000,
-      ),
-    );
-
-    final match = list.firstWhere(
-      (policy) => policy.id == id,
-      orElse: () => throw StateError('Policy not found for id: $id'),
-    );
-
-    await _cacheSource.savePolicies([
-      match.toEntity(),
-    ]);
-    return match.toEntity();
+    final model = await _remoteSource.fetchPolicyById(id);
+    final entity = model.toEntity();
+    await _cacheSource.putAllPolicies([entity]);
+    return entity;
   }
 
   @override
   Future<List<Policy>> fetchSimilarPolicies(String id) async {
     try {
-      final cached = await _cacheSource.loadAllPolicies();
+      final cached = await _cacheSource.getAllPolicies();
       if (cached.isNotEmpty) {
         final base = cached.firstWhere(
           (item) => item.id == id,
@@ -132,27 +95,30 @@ class SwrPolicyRepository implements PolicyRepository {
 
     final models = await _remoteSource.fetchSimilar(id);
     final policies = models.map((model) => model.toEntity()).toList();
-    await _cacheSource.savePolicies(policies);
+    await _cacheSource.putAllPolicies(policies);
+    return policies;
+  }
+
+  Future<List<Policy>> _refreshFromRemote({
+    required PolicyFilter filter,
+    required bool replaceExisting,
+  }) async {
+    final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
+    final policies = remoteModels.map((model) => model.toEntity()).toList();
+    await _cacheSource.putAllPolicies(
+      policies,
+      replaceExisting: replaceExisting,
+    );
     return policies;
   }
 
   Future<List<Policy>> _safeLoadCache(PolicyFilter filter) async {
     try {
-      return await _cacheSource.loadCachedPolicies(filter: filter);
+      return await _cacheSource.getPolicies(filter: filter);
     } catch (e, st) {
       debugPrint('[PolicyRepository] cache load failed: $e\n$st');
       return const [];
     }
-  }
-
-  Future<List<Policy>> _refreshFromRemote({
-    required PolicyFilter filter,
-    bool replaceExisting = false,
-  }) async {
-    final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
-    final policies = remoteModels.map((model) => model.toEntity()).toList();
-    await _cacheSource.savePolicies(policies, replaceExisting: replaceExisting);
-    return policies;
   }
 
   bool _isDefaultFilter(PolicyFilter filter) {

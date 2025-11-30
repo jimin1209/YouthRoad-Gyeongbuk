@@ -36,7 +36,7 @@ class PolicyDetailState {
 class PolicyDetailNotifier extends AutoDisposeNotifier<PolicyDetailState> {
   static const String errorMessage = '정책을 불러오지 못했습니다. 다시 시도해 주세요.';
 
-  PolicyRepository get _repo => ref.read(policyRepositoryProvider);
+  PolicyRepository get _repo => ref.read(policyRepositoryInterfaceProvider);
 
   @override
   PolicyDetailState build() {
