@@ -6,8 +6,6 @@ import 'package:youth_road_app/application/providers.dart';
 import 'package:youth_road_app/data/models/policy_filter.dart';
 import 'package:youth_road_app/domain/entities/policy.dart';
 import 'package:youth_road_app/domain/repositories/policy_repository.dart';
-import 'package:youth_road_app/data/policy/policy_repository.dart'
-    show PolicyFetchResult; // 🔹 이 줄 추가
 
 class _FakePolicyRepository implements PolicyRepository {
   _FakePolicyRepository(this._policies);
