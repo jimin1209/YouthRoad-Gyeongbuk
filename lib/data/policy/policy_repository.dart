@@ -25,6 +25,7 @@ class SwrPolicyRepository implements PolicyRepository {
   final PolicyRemoteSource _remoteSource;
   final PolicyCacheSource _cacheSource;
 
+  @override
   Future<PolicyFetchResult> getPolicies({
     PolicyFilter filter = const PolicyFilter(),
     bool forceRefresh = false,
@@ -44,12 +45,14 @@ class SwrPolicyRepository implements PolicyRepository {
     );
   }
 
+  @override
   Future<List<Policy>> loadCachedPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) {
     return _cacheSource.loadCachedPolicies(filter: filter);
   }
 
+  @override
   Future<List<Policy>> refreshPolicies({
     PolicyFilter filter = const PolicyFilter(),
     bool replaceExisting = false,

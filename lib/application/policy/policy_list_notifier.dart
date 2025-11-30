@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/policy_filter.dart';
-import '../../data/policy/policy_repository.dart';
 import '../../data/sources/local/search_history_source.dart';
 import '../../domain/entities/policy.dart';
+import '../../domain/repositories/policy_repository.dart';
 import '../di.dart';
 import '../notifiers/region_notifier.dart';
 
@@ -61,22 +61,23 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
   @override
   PolicyListState build() {
     final region = ref.watch(regionProvider);
+    final normalizedRegion = region ?? '';
     debugPrint('[PolicyListNotifier] build() with region=$region');
 
     if (!_initialLoadScheduled) {
       _initialLoadScheduled = true;
       Future.microtask(() {
         debugPrint('[PolicyListNotifier] scheduling initial load');
-        _loadPolicies(region: region);
+        _loadPolicies(region: normalizedRegion);
       });
     }
 
-    ref.listen<String>(regionProvider, (previous, next) {
+    ref.listen<String?>(regionProvider, (previous, next) {
       if (previous == next) return;
       debugPrint(
         '[PolicyListNotifier] region changed: $previous -> $next, reloading policies',
       );
-      _loadPolicies(region: next, forceRefresh: false);
+      _loadPolicies(region: next ?? '', forceRefresh: false);
     });
 
     ref.onDispose(() {
@@ -86,16 +87,17 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     return const PolicyListState(isLoading: true);
   }
 
-  PolicyFilter _buildFilter({required String region}) {
+  PolicyFilter _buildFilter({String? region}) {
+    final normalizedRegion = (region ?? '').trim();
     return PolicyFilter(
-      searchRgnSe: region,
+      searchRgnSe: normalizedRegion.isEmpty ? null : normalizedRegion,
       searchText: _lastQuery,
       availableOnly: true,
     );
   }
 
   Future<void> _loadPolicies({
-    required String region,
+    String? region,
     bool forceRefresh = false,
   }) async {
     if (kDebugMode) {
@@ -177,20 +179,47 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     );
 
     try {
-      final policies = await _repo.refreshPolicies(
-        filter: _buildFilter(region: region),
+      final filter = _buildFilter(region: region);
+      final result = await _repo.getPolicies(
+        filter: filter,
+        forceRefresh: true,
       );
+
       state = state.copyWith(
-        policies: policies,
-        isRefreshing: false,
-        isStale: false,
+        policies: result.policies,
+        isStale: true,
         error: null,
       );
-      debugPrint(
-        '[PolicyListNotifier] remote refresh success. count=${policies.length}',
-      );
+
+      final remoteFuture = result.remoteRefresh;
+      if (remoteFuture != null) {
+        await remoteFuture.then((latest) {
+          state = state.copyWith(
+            policies: latest,
+            isStale: false,
+            isRefreshing: false,
+            error: null,
+          );
+          debugPrint(
+            '[PolicyListNotifier] refresh remote success. count=${latest.length}',
+          );
+        }).catchError((error, stack) {
+          debugPrint('[PolicyListNotifier] refresh remote failed: error=$error');
+          debugPrint('$stack');
+          state = state.copyWith(
+            isRefreshing: false,
+            error: error,
+            isStale: state.policies.isNotEmpty,
+          );
+        });
+      } else {
+        state = state.copyWith(
+          isRefreshing: false,
+          isStale: false,
+        );
+      }
     } catch (e, st) {
-      debugPrint('[PolicyListNotifier] remote refresh failed: error=$e');
+      debugPrint('[PolicyListNotifier] refresh failed: error=$e');
       debugPrint('$st');
       state = state.copyWith(
         isRefreshing: false,
