@@ -30,9 +30,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   List<KakaoMapPolicyMarker> _pendingMarkers = const [];
 
   static const _defaultCenter = KakaoMapLatLng(36.4919, 128.8889); // Gyeongbuk
-  AsyncValue<List<Policy>>? _lastPolicies;
+  PolicyListState? _lastPolicies;
   ProviderSubscription<String?>? _regionSubscription;
-  ProviderSubscription<AsyncValue<List<Policy>>>? _policySubscription;
+  ProviderSubscription<PolicyListState>? _policySubscription;
 
   @override
   void initState() {
@@ -42,7 +42,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     _lastCenter = _centerForRegion(_lastRegion);
     _lastPolicies = ref.read(policyListNotifierProvider);
     _pendingMarkers =
-        _policyMarkers(_lastCenter, _lastPolicies ?? const AsyncLoading());
+        _policyMarkers(_lastCenter, _lastPolicies ?? const PolicyListState());
     _regionSubscription =
         ref.listenManual<String?>(regionProvider, (prev, next) {
       if (next == _lastRegion) return;
@@ -50,10 +50,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       _lastCenter = _centerForRegion(_lastRegion);
       _pushMarkerUpdate();
     });
-    _policySubscription = ref.listenManual<AsyncValue<List<Policy>>>(
+    _policySubscription = ref.listenManual<PolicyListState>(
       policyListNotifierProvider,
       (prev, next) {
-        if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
+        if (next.policies != prev?.policies) {
           _lastPolicies = next;
           _pushMarkerUpdate();
         }
@@ -122,11 +122,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     );
   }
 
-  Widget _buildOverlay(AsyncValue<List<Policy>> policies) {
-    return policies.when(
-      data: (_) => const SizedBox.shrink(),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, __) => Center(
+  Widget _buildOverlay(PolicyListState state) {
+    if (state.isLoading && state.policies.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state.error != null && state.policies.isEmpty) {
+      return Center(
         child: Container(
           padding: const EdgeInsets.all(12),
           margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -140,16 +142,18 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             textAlign: TextAlign.center,
           ),
         ),
-      ),
-    );
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   List<KakaoMapPolicyMarker> _policyMarkers(
     KakaoMapLatLng center,
-    AsyncValue<List<Policy>> asyncPolicies,
+    PolicyListState asyncPolicies,
   ) {
-    final policies = asyncPolicies.valueOrNull ?? _lastPolicies?.valueOrNull;
-    if (policies == null || policies.isEmpty) return const [];
+    final policies = asyncPolicies.policies;
+    if (policies.isEmpty) return const [];
 
     final markerOffsets = _markerOffsets(center);
     final limitedPolicies = policies.take(markerOffsets.length).toList();
@@ -168,7 +172,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   void _pushMarkerUpdate() {
     _pendingMarkers =
-        _policyMarkers(_lastCenter, _lastPolicies ?? const AsyncLoading());
+        _policyMarkers(_lastCenter, _lastPolicies ?? const PolicyListState());
     if (_mapReady) {
       _applyMarkers();
     } else {

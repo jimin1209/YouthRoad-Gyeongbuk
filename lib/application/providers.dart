@@ -7,19 +7,16 @@ import 'notifiers/chat_notifier.dart';
 import 'notifiers/compare_notifier.dart';
 import 'notifiers/favorites_notifier.dart';
 import 'notifiers/policy_detail_notifier.dart';
-import 'notifiers/policy_list_notifier.dart';
+import 'policy/policy_list_notifier.dart';
 import 'notifiers/policy_paging_notifier.dart';
 
 export 'di.dart';
 export 'repository_providers.dart';
 export 'notifiers/region_notifier.dart' show regionProvider, RegionNotifier;
+export 'policy/policy_list_notifier.dart'
+    show policyListNotifierProvider, PolicyListNotifier, PolicyListState;
 export '../features/policy/providers/policy_prefetch_provider.dart'
     show policyPrefetchProvider, PolicyPrefetchNotifier;
-
-final policyListNotifierProvider =
-    AsyncNotifierProvider<PolicyListNotifier, List<Policy>>(
-  PolicyListNotifier.new,
-);
 
 final policyPagingProvider =
     NotifierProvider.autoDispose<PolicyPagingNotifier, PolicyPagingState>(
