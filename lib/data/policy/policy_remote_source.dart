@@ -10,7 +10,7 @@ import '../models/policy_model.dart';
 
 const String kPolicyApiBaseUrl = String.fromEnvironment(
   'POLICY_API_BASE_URL',
-  defaultValue: 'https://worker.youthroad-policy.workers.dev',
+  defaultValue: 'https://worker.youthroad-chat.workers.dev',
 );
 
 class PolicyRemoteSource {
@@ -19,8 +19,10 @@ class PolicyRemoteSource {
     String? apiKey,
     String? baseUrl,
   })  : _apiKey = apiKey ?? Env.youthApiKey,
-        _baseUrl =
-            baseUrl ?? (Env.policyApiBaseUrl.isNotEmpty ? Env.policyApiBaseUrl : kPolicyApiBaseUrl);
+        _baseUrl = _normalizeBaseUrl(
+          baseUrl ??
+              (Env.policyApiBaseUrl.isNotEmpty ? Env.policyApiBaseUrl : kPolicyApiBaseUrl),
+        );
 
   final Dio _dio;
   final String _apiKey;
@@ -132,6 +134,11 @@ class PolicyRemoteSource {
     return '${date.year.toString().padLeft(4, '0')}'
         '${date.month.toString().padLeft(2, '0')}'
         '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  static String _normalizeBaseUrl(String value) {
+    if (value.isEmpty) return value;
+    return value.replaceAll(RegExp(r'/+$'), '');
   }
 }
 

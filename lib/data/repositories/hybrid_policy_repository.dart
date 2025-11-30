@@ -143,9 +143,14 @@ class HybridPolicyRepository implements PolicyRepository {
     required PolicyFilter filter,
     bool replaceExisting = false,
   }) async {
-    final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
-    await _persistPolicies(remoteModels, replaceExisting: replaceExisting);
-    return remoteModels.map((model) => model.toEntity()).toList();
+    try {
+      final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
+      await _persistPolicies(remoteModels, replaceExisting: replaceExisting);
+      return remoteModels.map((model) => model.toEntity()).toList();
+    } catch (e, st) {
+      debugPrint('[HybridPolicyRepository] remote refresh failed: $e\n$st');
+      rethrow;
+    }
   }
 
   bool _isDefaultFilter(PolicyFilter filter) {
