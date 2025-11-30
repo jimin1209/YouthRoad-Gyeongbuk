@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-import '../../../application/notifiers/policy_list_notifier.dart';
 import '../../../application/providers.dart';
+import '../../../application/policy/policy_list_notifier.dart';
 import '../../../core/constants/env.dart';
 import '../../../domain/entities/policy.dart';
 import '../../../navigation/route_paths.dart';
@@ -31,7 +31,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   late final ScrollController _listController;
   late final WebViewController _mapController;
   ProviderSubscription<String?>? _regionSubscription;
-  ProviderSubscription<AsyncValue<List<Policy>>>? _policySubscription;
+  ProviderSubscription<PolicyListState>? _policySubscription;
   bool _isLoading = true;
   bool _mapReady = false;
   bool _isMapUpdating = false;
@@ -58,7 +58,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final policies = ref.watch(policyListNotifierProvider);
+    final state = ref.watch(policyListNotifierProvider);
+    final policies = state.policies;
     return Scaffold(
       appBar: const AppAppBar(title: '지도 + 리스트'),
       body: SafeArea(
@@ -77,35 +78,35 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
                     left: 0,
                     right: 0,
                     bottom: 12,
-                    child: _buildOverlay(policies),
+                    child: _buildOverlay(state),
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: policies.when(
-                data: (data) => ListView.separated(
-                  controller: _listController,
-                  padding: const EdgeInsets.all(16),
-                  itemBuilder: (_, i) {
-                    final policy = data[i];
-                    return PolicyCardV2(
-                      policy: policy,
-                      onTap: () => _onPolicyTap(policy),
-                    );
-                  },
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemCount: data.length,
-                ),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, st) => GlobalErrorView(
-                  message: PolicyListNotifier.errorMessage,
-                  onRetry: () {
-                    ref.invalidate(policyListNotifierProvider);
-                    ref.read(policyListNotifierProvider);
-                  },
-                ),
-              ),
+              child: state.isLoading && policies.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : state.error != null && policies.isEmpty
+                      ? GlobalErrorView(
+                          message: PolicyListNotifier.errorMessage,
+                          onRetry: () {
+                            ref.invalidate(policyListNotifierProvider);
+                            ref.read(policyListNotifierProvider);
+                          },
+                        )
+                      : ListView.separated(
+                          controller: _listController,
+                          padding: const EdgeInsets.all(16),
+                          itemBuilder: (_, i) {
+                            final policy = policies[i];
+                            return PolicyCardV2(
+                              policy: policy,
+                              onTap: () => _onPolicyTap(policy),
+                            );
+                          },
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemCount: policies.length,
+                        ),
             ),
           ],
         ),
@@ -136,10 +137,10 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   void _setupListeners() {
     _regionSubscription =
         ref.listenManual<String?>(regionProvider, (_, __) => _reloadMap());
-    _policySubscription = ref.listenManual<AsyncValue<List<Policy>>>(
+    _policySubscription = ref.listenManual<PolicyListState>(
       policyListNotifierProvider,
       (prev, next) {
-        if (next.hasValue && next.valueOrNull != prev?.valueOrNull) {
+        if (next.policies != prev?.policies) {
           _reloadMap();
         }
       },
@@ -166,11 +167,13 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     );
   }
 
-  Widget _buildOverlay(AsyncValue<List<Policy>> policies) {
-    return policies.when(
-      data: (_) => const SizedBox.shrink(),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, __) => Container(
+  Widget _buildOverlay(PolicyListState state) {
+    if (state.isLoading && state.policies.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state.error != null && state.policies.isEmpty) {
+      return Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -182,8 +185,10 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
           style: TextStyle(color: Colors.white),
           textAlign: TextAlign.center,
         ),
-      ),
-    );
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   void _onPolicyTap(Policy policy) {
@@ -204,8 +209,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     if (_isMapUpdating || !_mapReady) return;
     if (!_listController.hasClients) return;
 
-    final policies = ref.read(policyListNotifierProvider).valueOrNull;
-    if (policies == null || policies.isEmpty) return;
+    final policies = ref.read(policyListNotifierProvider).policies;
+    if (policies.isEmpty) return;
 
     final index = (_listController.offset / _estimatedItemHeight)
         .floor()
@@ -247,8 +252,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   }
 
   void _highlightPolicy(String policyId) {
-    final policies = ref.read(policyListNotifierProvider).valueOrNull;
-    if (policies == null) return;
+    final policies = ref.read(policyListNotifierProvider).policies;
+    if (policies.isEmpty) return;
     final index = policies.indexWhere((p) => p.id == policyId);
     if (index == -1) return;
 
@@ -301,10 +306,10 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
 
   List<KakaoMapPolicyMarker> _policyMarkers(
     KakaoMapLatLng center,
-    AsyncValue<List<Policy>> asyncPolicies,
+    PolicyListState state,
   ) {
-    final policies = asyncPolicies.valueOrNull;
-    if (policies == null || policies.isEmpty) return const [];
+    final policies = state.policies;
+    if (policies.isEmpty) return const [];
 
     final markerOffsets = _markerOffsets(center);
     final limitedPolicies = policies.take(markerOffsets.length).toList();

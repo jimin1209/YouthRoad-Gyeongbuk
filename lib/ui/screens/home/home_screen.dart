@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../application/notifiers/policy_list_notifier.dart';
 import '../../../application/providers.dart';
+import '../../../application/policy/policy_list_notifier.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/global_error_view.dart';
@@ -14,40 +14,55 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final policies = ref.watch(policyListNotifierProvider);
+    final state = ref.watch(policyListNotifierProvider);
+    final notifier = ref.read(policyListNotifierProvider.notifier);
     final region = ref.watch(regionProvider) ?? '지역을 선택해주세요';
 
-    return Scaffold(
-      appBar: const AppAppBar(title: '청년 정책 추천'),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _RegionBanner(region: region),
-          const SizedBox(height: 12),
-          _QuickActions(),
-          const SizedBox(height: 16),
-          Text('추천 정책', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          policies.when(
-            data: (list) => ListView.separated(
+    final policies = state.policies;
+
+    Widget body;
+    if (state.isLoading && policies.isEmpty) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (state.error != null && policies.isEmpty) {
+      body = GlobalErrorView(
+        message: PolicyListNotifier.errorMessage,
+        onRetry: notifier.refresh,
+      );
+    } else {
+      body = RefreshIndicator(
+        onRefresh: notifier.refresh,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _RegionBanner(region: region),
+            const SizedBox(height: 12),
+            _QuickActions(),
+            const SizedBox(height: 16),
+            Text('추천 정책', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            if (state.isStale)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text('캐시된 데이터 표시 중... 최신 정보를 불러오는 중입니다.'),
+              ),
+            ListView.separated(
               physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
               itemBuilder: (_, i) => PolicyCardV2(
-                policy: list[i],
-                onTap: () =>
-                    context.push(RoutePaths.policyDetail(list[i].id)),
+                policy: policies[i],
+                onTap: () => context.push(RoutePaths.policyDetail(policies[i].id)),
               ),
               separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemCount: list.length,
+              itemCount: policies.length,
             ),
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, st) => GlobalErrorView(
-              message: PolicyListNotifier.errorMessage,
-              onRetry: () => ref.invalidate(policyListNotifierProvider),
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: const AppAppBar(title: '청년 정책 추천'),
+      body: body,
     );
   }
 }
