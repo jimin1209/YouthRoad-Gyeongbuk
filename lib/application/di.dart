@@ -4,9 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/repositories/chat_repository.dart';
 import '../data/repositories/institution_repository.dart';
-import '../data/repositories/policy_repository_impl.dart';
-import '../data/sources/remote/policy_remote_source.dart';
+import '../data/repositories/policy_repository.dart';
+import '../data/local/isar/isar_service.dart';
 import '../domain/repositories/policy_repository.dart';
+import '../data/sources/remote/policy_remote_source.dart';
 import 'services/memo_repository.dart';
 import '../core/constants/env.dart';
 import '../debug/debug_network_logger.dart';
@@ -22,7 +23,16 @@ final remotePolicySourceProvider = Provider<PolicyRemoteSource>((ref) {
 
 final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
   final remoteSource = ref.watch(remotePolicySourceProvider);
-  return PolicyRepositoryImpl(remoteSource);
+  final isarService = ref.watch(isarServiceProvider);
+  return HybridPolicyRepository(remoteSource, isarService);
+});
+
+final hybridPolicyRepositoryProvider = Provider<HybridPolicyRepository>((ref) {
+  final repo = ref.watch(policyRepositoryProvider);
+  if (repo is HybridPolicyRepository) {
+    return repo;
+  }
+  throw StateError('policyRepositoryProvider is not HybridPolicyRepository');
 });
 
 final dioProvider = Provider<Dio>((_) {
