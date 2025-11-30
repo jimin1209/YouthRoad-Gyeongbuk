@@ -59,11 +59,14 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
   int _requestId = 0;
   String? _inFlightKey;
 
+  PolicyFilter get currentFilter => state.filter;
+
   @override
   PolicyPagingState build() {
     if (!_initialized) {
       _initialized = true;
       final filter = PolicyFilter(
+        searchRgnSe: ref.read(regionProvider),
         pageIndex: 1,
         recordCount: _pageSize,
         pagingYn: 'Y',
@@ -83,13 +86,7 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
   }
 
   Future<void> loadInitial(PolicyFilter filter) async {
-    final mergedFilter = filter.copyWith(
-      searchRgnSe: filter.searchRgnSe ?? ref.read(regionProvider),
-      pageIndex: 1,
-      recordCount: _pageSize,
-      pagingYn: 'Y',
-    );
-
+    final mergedFilter = _normalizeFilter(filter);
     final requestKey = _buildRequestKey(mergedFilter);
     if (state.isLoading && requestKey == _inFlightKey) {
       return;
@@ -97,7 +94,7 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
     _inFlightKey = requestKey;
 
     state = state.copyWith(
-      items: const [],
+      items: state.items,
       pageIndex: 1,
       filter: mergedFilter,
       isLoading: true,
@@ -106,6 +103,7 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
       error: null,
     );
 
+    await _loadFromCache(mergedFilter);
     await _fetch(pageIndex: 1, append: false, filter: mergedFilter);
     _inFlightKey = null;
   }
@@ -117,13 +115,43 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
   }
 
   void updateFilter(PolicyFilter filter) {
-    final normalized = filter.copyWith(
-      searchRgnSe: filter.searchRgnSe ?? ref.read(regionProvider),
-      pageIndex: 1,
-      recordCount: _pageSize,
-      pagingYn: 'Y',
-    );
+    final normalized = _normalizeFilter(filter);
     loadInitial(normalized);
+  }
+
+  Future<void> seedFromCache(List<Policy> policies) async {
+    final limited = policies.take(_pageSize).toList();
+    state = state.copyWith(
+      items: limited,
+      pageIndex: 1,
+      hasMore: policies.length >= _pageSize,
+      isLoading: state.isLoading,
+      error: null,
+    );
+  }
+
+  Future<void> replaceWithFresh(List<Policy> policies) async {
+    state = state.copyWith(
+      items: policies.take(_pageSize).toList(),
+      pageIndex: 1,
+      hasMore: policies.length >= _pageSize,
+      isLoading: false,
+      isLoadingMore: false,
+      error: null,
+    );
+  }
+
+  Future<void> _loadFromCache(PolicyFilter filter) async {
+    try {
+      final cached = await ref
+          .read(hybridPolicyRepositoryProvider)
+          .loadCachedPolicies(filter: filter);
+      if (cached.isNotEmpty) {
+        await seedFromCache(cached);
+      }
+    } catch (e, st) {
+      debugPrint('[PolicyPagingNotifier] cache fallback failed: $e\n$st');
+    }
   }
 
   Future<void> _fetch({
@@ -171,6 +199,16 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
         error: errorMessage,
       );
     }
+  }
+
+  PolicyFilter _normalizeFilter(PolicyFilter filter) {
+    final region = filter.searchRgnSe ?? ref.read(regionProvider);
+    return filter.copyWith(
+      searchRgnSe: region,
+      pageIndex: 1,
+      recordCount: _pageSize,
+      pagingYn: 'Y',
+    );
   }
 
   String _buildRequestKey(PolicyFilter filter) {

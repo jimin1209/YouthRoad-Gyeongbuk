@@ -107,14 +107,19 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
         );
       }
 
-      if (pagingState.items.isEmpty && pagingState.isLoading) {
-        return const Center(child: CircularProgressIndicator());
-      }
-
       if (pagingState.items.isEmpty) {
-        return GlobalErrorView(
-          message: '표시할 정책이 없습니다.',
-          onRetry: () => pagingNotifier.loadInitial(_buildFilter()),
+        return RefreshIndicator(
+          onRefresh: () => pagingNotifier.loadInitial(_buildFilter()),
+          child: ListView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: const [
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(child: Text('표시할 정책이 없습니다.')),
+              ),
+            ],
+          ),
         );
       }
 
@@ -192,6 +197,8 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
             ),
       body: Column(
         children: [
+          if (pagingState.isLoading)
+            const LinearProgressIndicator(minHeight: 2),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(

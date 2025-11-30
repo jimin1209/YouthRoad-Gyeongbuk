@@ -19,13 +19,19 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(policyPrefetchProvider.notifier).prefetchPolicies();
-      Timer(const Duration(milliseconds: 200), () {
-        if (mounted) {
-          context.go(RoutePaths.home);
-        }
-      });
+      ref.read(policyPrefetchProvider.notifier).start();
+      if (mounted) {
+        unawaited(_goHome());
+      }
     });
+  }
+
+  Future<void> _goHome() async {
+    if (!mounted) return;
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (mounted) {
+      context.go(RoutePaths.home);
+    }
   }
 
   @override
@@ -35,8 +41,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
+            SizedBox(height: 12),
             Text('청년 정책을 준비하고 있어요...'),
           ],
         ),
