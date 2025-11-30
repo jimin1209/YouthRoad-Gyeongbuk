@@ -5,16 +5,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/env.dart';
 import '../data/local/isar/isar_service.dart';
 import '../data/repositories/chat_repository.dart';
+import '../data/repositories/hybrid_policy_repository.dart';
 import '../data/repositories/institution_repository.dart';
-import '../data/repositories/policy_repository_hybrid.dart';
 import '../data/sources/remote/policy_remote_source.dart';
 import '../debug/debug_network_logger.dart';
 import '../domain/repositories/policy_repository.dart';
-import '../data/sources/remote/policy_remote_source.dart';
 import 'services/memo_repository.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences not initialized');
+});
+
+final dioProvider = Provider<Dio>((_) {
+  final dio = Dio();
+  DebugNetworkLogger.instance.attachTo(dio);
+  return dio;
+});
+
+final isarServiceProvider = Provider<IsarService>((ref) {
+  final service = IsarService();
+  ref.onDispose(service.close);
+  return service;
 });
 
 final remotePolicySourceProvider = Provider<PolicyRemoteSource>((ref) {
@@ -29,17 +40,11 @@ final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
 });
 
 final hybridPolicyRepositoryProvider = Provider<HybridPolicyRepository>((ref) {
-  final repo = ref.watch(policyRepositoryProvider);
-  if (repo is HybridPolicyRepository) {
-    return repo;
+  final repository = ref.watch(policyRepositoryProvider);
+  if (repository is HybridPolicyRepository) {
+    return repository;
   }
   throw StateError('policyRepositoryProvider is not HybridPolicyRepository');
-});
-
-final dioProvider = Provider<Dio>((_) {
-  final dio = Dio();
-  DebugNetworkLogger.instance.attachTo(dio);
-  return dio;
 });
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {

@@ -1,39 +1,35 @@
 import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/policy.dart';
-import '../../domain/repositories/policy_repository.dart' as domain;
+import '../../domain/repositories/policy_repository.dart';
 import '../local/isar/isar_service.dart';
 import '../local/isar/policy_isar_model.dart';
 import '../models/policy_filter.dart';
 import '../models/policy_model.dart';
 import '../sources/remote/policy_remote_source.dart';
 
-class HybridPolicyRepository implements domain.PolicyRepository {
+class HybridPolicyRepository implements PolicyRepository {
   HybridPolicyRepository(this._remoteSource, this._isarService);
 
   final PolicyRemoteSource _remoteSource;
   final IsarService _isarService;
 
-  Future<List<Policy>> loadFromCache() async {
-    final cached = await _isarService.getAllPolicies();
+  Future<List<Policy>> loadCachedPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+  }) async {
+    final cached = await _isarService.getPolicies(filter: filter);
     return cached.map((model) => model.toDomain()).toList();
   }
 
-  Future<List<PolicyModel>> fetchAllFromApi({
-    PolicyFilter filter = const PolicyFilter(),
-  }) {
-    return _remoteSource.fetchPolicies(filter: filter);
-  }
-
-  Future<void> saveToCache(List<PolicyModel> models) async {
-    final isarModels = models.map(PolicyIsarModel.fromApi).toList();
-    await _isarService.clearPolicies();
-    await _isarService.putAllPolicies(isarModels);
-  }
-
-  Future<void> _upsertPolicies(List<PolicyModel> models) async {
+  Future<void> _persistPolicies(
+    List<PolicyModel> models, {
+    bool replaceExisting = false,
+  }) async {
     if (models.isEmpty) return;
     final isarModels = models.map(PolicyIsarModel.fromApi).toList();
+    if (replaceExisting) {
+      await _isarService.clearPolicies();
+    }
     await _isarService.putAllPolicies(isarModels);
   }
 
@@ -56,38 +52,28 @@ class HybridPolicyRepository implements domain.PolicyRepository {
   }
 
   @override
-  Future<List<Policy>> fetchPolicies({PolicyFilter filter = const PolicyFilter()}) async {
-    final useCache = _isDefaultFilter(filter);
-
-    if (useCache) {
-      try {
-        final cached = await loadFromCache();
-        if (cached.isNotEmpty) {
-          return cached;
-        }
-      } catch (e, st) {
-        debugPrint('[HybridPolicyRepository] cache load failed: $e\n$st');
-      }
+  Future<List<Policy>> fetchPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+  }) async {
+    List<Policy> fallback = const [];
+    try {
+      fallback = await loadCachedPolicies(filter: filter);
+    } catch (e, st) {
+      debugPrint('[HybridPolicyRepository] cache load failed: $e\n$st');
     }
 
-    final remoteModels = await fetchAllFromApi(filter: filter);
-    final entities = remoteModels.map((model) => model.toEntity()).toList();
-
-    if (useCache) {
-      try {
-        await saveToCache(remoteModels);
-      } catch (e, st) {
-        debugPrint('[HybridPolicyRepository] cache save failed: $e\n$st');
+    try {
+      final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
+      final replace = _isDefaultFilter(filter) && filter.pageIndex == 1;
+      await _persistPolicies(remoteModels, replaceExisting: replace);
+      return remoteModels.map((model) => model.toEntity()).toList();
+    } catch (e, st) {
+      debugPrint('[HybridPolicyRepository] remote fetch failed: $e\n$st');
+      if (fallback.isNotEmpty) {
+        return fallback;
       }
-    } else {
-      try {
-        await _upsertPolicies(remoteModels);
-      } catch (e, st) {
-        debugPrint('[HybridPolicyRepository] upsert failed: $e\n$st');
-      }
+      rethrow;
     }
-
-    return entities;
   }
 
   @override
@@ -102,7 +88,7 @@ class HybridPolicyRepository implements domain.PolicyRepository {
     }
 
     final model = await _remoteSource.fetchPolicyById(id);
-    await _upsertPolicies([model]);
+    await _persistPolicies([model]);
     return model.toEntity();
   }
 
@@ -115,6 +101,7 @@ class HybridPolicyRepository implements domain.PolicyRepository {
           (item) => item.policyId == id,
           orElse: () => PolicyIsarModel(policyId: '', policyNm: ''),
         );
+
         if (base.policyId.isNotEmpty) {
           final similar = cached
               .where(
@@ -127,6 +114,7 @@ class HybridPolicyRepository implements domain.PolicyRepository {
               .take(10)
               .map((item) => item.toDomain())
               .toList();
+
           if (similar.isNotEmpty) {
             return similar;
           }
@@ -137,7 +125,7 @@ class HybridPolicyRepository implements domain.PolicyRepository {
     }
 
     final models = await _remoteSource.fetchSimilar(id);
-    await _upsertPolicies(models);
+    await _persistPolicies(models);
     return models.map((model) => model.toEntity()).toList();
   }
 }

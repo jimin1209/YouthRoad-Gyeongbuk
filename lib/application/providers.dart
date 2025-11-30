@@ -13,6 +13,8 @@ import 'notifiers/policy_paging_notifier.dart';
 export 'di.dart';
 export 'repository_providers.dart';
 export 'notifiers/region_notifier.dart' show regionProvider, RegionNotifier;
+export '../features/policy/providers/policy_prefetch_provider.dart'
+    show policyPrefetchProvider, PolicyPrefetchNotifier;
 
 final policyListNotifierProvider =
     AsyncNotifierProvider<PolicyListNotifier, List<Policy>>(
