@@ -24,4 +24,18 @@ abstract class PolicyRepository {
   Future<Policy> fetchPolicyById(String id);
 
   Future<List<Policy>> fetchSimilarPolicies(String id);
+
+  Future<PolicyFetchResult> getPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+    bool forceRefresh = false,
+  });
+
+  Future<List<Policy>> refreshPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+    bool replaceExisting = false,
+  });
+
+  Future<List<Policy>> loadCachedPolicies({
+    PolicyFilter filter = const PolicyFilter(),
+  });
 }
