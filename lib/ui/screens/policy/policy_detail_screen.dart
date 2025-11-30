@@ -42,10 +42,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
 
   void _loadDetail() {
     if (widget.id.isEmpty) {
-      ref.read(policyDetailProvider.notifier).state = const PolicyDetailState(
-        isLoading: false,
-        error: PolicyDetailNotifier.errorMessage,
-      );
+      ref.read(policyDetailProvider.notifier).showInvalidIdError();
       return;
     }
     ref.read(policyDetailProvider.notifier).load(widget.id);

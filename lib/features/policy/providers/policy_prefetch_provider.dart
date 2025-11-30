@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/di.dart';
 import '../../../application/notifiers/policy_paging_notifier.dart'; // ← ★ 반드시 필요!!
+import '../../../application/providers.dart';
 
 import '../../../data/repositories/hybrid_policy_repository.dart';
 
@@ -21,7 +22,7 @@ class PolicyPrefetchNotifier extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<void> start() async {
+  Future<void> prefetchPolicies() async {
     if (state.isLoading) return;
     state = const AsyncValue.loading();
 
