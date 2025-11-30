@@ -9,7 +9,7 @@ import '../../models/policy_model.dart';
 
 const String kPolicyApiBaseUrl = String.fromEnvironment(
   'POLICY_API_BASE_URL',
-  defaultValue: 'https://worker.youthroad-policy.workers.dev',
+  defaultValue: 'https://worker.youthroad-chat.workers.dev',
 );
 
 class PolicyRemoteSource {
@@ -18,8 +18,12 @@ class PolicyRemoteSource {
     String? apiKey,
     String? baseUrl,
   })  : _apiKey = apiKey ?? Env.youthApiKey,
-        _baseUrl =
-            baseUrl ?? (Env.policyApiBaseUrl.isNotEmpty ? Env.policyApiBaseUrl : kPolicyApiBaseUrl);
+        _baseUrl = _normalizeBaseUrl(
+          baseUrl ??
+              (Env.policyApiBaseUrl.isNotEmpty
+                  ? Env.policyApiBaseUrl
+                  : kPolicyApiBaseUrl),
+        );
 
   final Dio _dio;
   final String _apiKey;
@@ -29,6 +33,7 @@ class PolicyRemoteSource {
     PolicyFilter filter = const PolicyFilter(),
   }) async {
     final query = _buildQuery(filter);
+
     if (kDebugMode) {
       debugPrint(
         '[PolicyRemoteSource] fetchPolicies -> URL=$_baseUrl/policy/list query=$query',
@@ -45,7 +50,6 @@ class PolicyRemoteSource {
     if (rawJson == null) {
       throw StateError('Empty response from policy endpoint');
     }
-
     return compute(parsePoliciesJson, rawJson);
   }
 
@@ -62,18 +66,19 @@ class PolicyRemoteSource {
       (policy) => policy.id == id,
       orElse: () => throw StateError('Policy not found for id: $id'),
     );
-
     return match;
   }
 
   Future<List<PolicyModel>> fetchSimilar(String id) async {
     final base = await fetchPolicyById(id);
+
     final filter = PolicyFilter(
       searchRgnSe: base.regionName,
       searchPolicyType: base.typeName,
       pageIndex: 1,
       recordCount: 10,
     );
+
     final list = await fetchPolicies(filter: filter);
     return list.where((item) => item.id != id).toList();
   }
@@ -117,6 +122,7 @@ class PolicyRemoteSource {
     put('searchPolicyNm', filter.searchText ?? filter.searchPolicyNm);
     put('instNo', filter.instNo);
     put('deptNo', filter.deptNo);
+
     if (filter.startDate != null) {
       put('policyBgngYmd', _formatDate(filter.startDate!));
     }
@@ -131,6 +137,11 @@ class PolicyRemoteSource {
     return '${date.year.toString().padLeft(4, '0')}'
         '${date.month.toString().padLeft(2, '0')}'
         '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  static String _normalizeBaseUrl(String value) {
+    if (value.isEmpty) return value;
+    return value.replaceAll(RegExp(r'/+$'), '');
   }
 }
 
@@ -147,7 +158,9 @@ List<PolicyModel> parsePoliciesJson(String rawJson) {
 
   return resultList
       .map(
-        (item) => PolicyModel.fromJson((item as Map).cast<String, dynamic>()),
+        (item) => PolicyModel.fromJson(
+          (item as Map).cast<String, dynamic>(),
+        ),
       )
       .toList();
 }

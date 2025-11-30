@@ -116,7 +116,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     state = state.copyWith(
       isLoading: true,
       error: null,
-      isStale: true,
+      isStale: state.policies.isNotEmpty,
     );
 
     try {
@@ -126,17 +126,19 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
         forceRefresh: forceRefresh,
       );
 
+      final remoteFuture = result.remoteRefresh;
+      final shouldMarkStale = remoteFuture != null && result.policies.isNotEmpty;
+
       state = state.copyWith(
         policies: result.policies,
         isLoading: false,
-        isStale: true,
+        isStale: shouldMarkStale,
         error: null,
       );
       debugPrint(
         '[PolicyListNotifier] initial cache load done. count=${result.policies.length}',
       );
 
-      final remoteFuture = result.remoteRefresh;
       if (remoteFuture != null) {
         remoteFuture.then((latest) {
           state = state.copyWith(
@@ -152,7 +154,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
           debugPrint('$stack');
           state = state.copyWith(
             error: error,
-            isStale: state.policies.isNotEmpty,
+            isStale: false,
           );
         });
       }
@@ -162,7 +164,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       state = state.copyWith(
         isLoading: false,
         error: e,
-        isStale: state.policies.isNotEmpty,
+        isStale: false,
       );
     }
 
@@ -176,6 +178,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     state = state.copyWith(
       isRefreshing: true,
       error: null,
+      isStale: state.policies.isNotEmpty,
     );
 
     try {
@@ -185,13 +188,15 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
         forceRefresh: true,
       );
 
+      final remoteFuture = result.remoteRefresh;
+      final shouldMarkStale = remoteFuture != null && result.policies.isNotEmpty;
+
       state = state.copyWith(
         policies: result.policies,
-        isStale: true,
+        isStale: shouldMarkStale,
         error: null,
       );
 
-      final remoteFuture = result.remoteRefresh;
       if (remoteFuture != null) {
         await remoteFuture.then((latest) {
           state = state.copyWith(
@@ -209,7 +214,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
           state = state.copyWith(
             isRefreshing: false,
             error: error,
-            isStale: state.policies.isNotEmpty,
+            isStale: false,
           );
         });
       } else {
@@ -224,7 +229,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       state = state.copyWith(
         isRefreshing: false,
         error: e,
-        isStale: state.policies.isNotEmpty,
+        isStale: false,
       );
     }
 

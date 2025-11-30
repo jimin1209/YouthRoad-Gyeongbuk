@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../models/policy_filter.dart';
+import '../models/policy_model.dart';
 import '../sources/local/policy_cache_source.dart';
 import '../sources/remote/policy_remote_source.dart';
 
@@ -18,7 +19,6 @@ class SwrPolicyRepository implements PolicyRepository {
     bool forceRefresh = false,
   }) async {
     final cached = await _safeLoadCache(filter);
-    debugPrint('[PolicyRepository] returning cached policies count=${cached.length}');
 
     final remoteFuture = _refreshFromRemote(
       filter: filter,
@@ -42,7 +42,6 @@ class SwrPolicyRepository implements PolicyRepository {
   Future<List<Policy>> refreshPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) {
-    debugPrint('[PolicyRepository] refreshing policies from remote...');
     return _refreshFromRemote(
       filter: filter,
       replaceExisting: _isDefaultFilter(filter),
@@ -105,10 +104,12 @@ class SwrPolicyRepository implements PolicyRepository {
   }) async {
     final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
     final policies = remoteModels.map((model) => model.toEntity()).toList();
+
     await _cacheSource.putAllPolicies(
       policies,
       replaceExisting: replaceExisting,
     );
+
     return policies;
   }
 

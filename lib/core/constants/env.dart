@@ -18,6 +18,6 @@ class Env {
 
   static const policyApiBaseUrl = String.fromEnvironment(
     'POLICY_API_BASE_URL',
-    defaultValue: 'https://worker.youthroad-policy.workers.dev',
+    defaultValue: 'https://worker.youthroad-chat.workers.dev',
   );
 }
