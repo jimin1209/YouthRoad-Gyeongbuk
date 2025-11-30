@@ -23,28 +23,19 @@ class PolicyListNotifier extends StateNotifier<AsyncValue<List<Policy>>> {
   }
 
   void add(Policy policy) {
-    state = state.whenData((value) {
-      final updated = [...value, policy];
-      return List.unmodifiable(updated);
-    });
+    final current = state.asData?.value ?? [];
+    state = AsyncValue.data(List.unmodifiable([...current, policy]));
   }
 
   void update(Policy policy) {
-    state = state.whenData((value) {
-      final updated = value.map((item) {
-        if (item.id == policy.id) {
-          return policy;
-        }
-        return item;
-      }).toList();
-      return List.unmodifiable(updated);
-    });
+    final current = state.asData?.value ?? [];
+    final updated = current.map((item) => item.id == policy.id ? policy : item).toList();
+    state = AsyncValue.data(List.unmodifiable(updated));
   }
 
   void remove(String id) {
-    state = state.whenData((value) {
-      final updated = value.where((item) => item.id != id).toList();
-      return List.unmodifiable(updated);
-    });
+    final current = state.asData?.value ?? [];
+    final updated = current.where((item) => item.id != id).toList();
+    state = AsyncValue.data(List.unmodifiable(updated));
   }
 }

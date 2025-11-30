@@ -30,12 +30,11 @@ class PolicyListPage extends ConsumerWidget {
                   children: const [
                     Text(
                       '지금 바로 확인하세요',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 8),
                     Text(
-                      '앱 실행과 동시에 정책을 준비하고 있어요. \n새로운 정보를 받는 동안에도 화면을 바로 볼 수 있습니다.',
+                      '앱 실행과 동시에 정책을 준비하고 있어요.\n새로운 정보를 받는 동안에도 화면을 바로 볼 수 있습니다.',
                     ),
                   ],
                 ),
@@ -44,14 +43,7 @@ class PolicyListPage extends ConsumerWidget {
             state.when(
               data: (policies) {
                 if (policies.isEmpty) {
-                  return const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(
-                        child: Text('표시할 정책이 없습니다. 새 데이터를 불러오고 있어요.'),
-                      ),
-                    ),
-                  );
+                  return const _LoadingSection();
                 }
 
                 return SliverList.separated(
@@ -63,7 +55,7 @@ class PolicyListPage extends ConsumerWidget {
                   itemCount: policies.length,
                 );
               },
-              loading: () => const _LazyLoadingPlaceholder(),
+              loading: () => const _LoadingSection(),
               error: (error, _) => SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
@@ -118,21 +110,28 @@ class _PolicyTile extends StatelessWidget {
   }
 }
 
-class _LazyLoadingPlaceholder extends StatelessWidget {
-  const _LazyLoadingPlaceholder();
+class _LoadingSection extends StatelessWidget {
+  const _LoadingSection();
 
   @override
   Widget build(BuildContext context) {
     return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          return const Padding(
+      delegate: SliverChildListDelegate([
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            '정책 로딩 중... 최신 정보를 준비하고 있습니다.',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+        ...List.generate(
+          8,
+          (index) => const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: _PlaceholderTile(),
-          );
-        },
-        childCount: 8,
-      ),
+          ),
+        ),
+      ]),
     );
   }
 }

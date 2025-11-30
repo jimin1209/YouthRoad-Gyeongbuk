@@ -36,13 +36,20 @@ class PolicyIsarModel {
 
   Id isarId;
 
-  @Index(unique: true)
+  @Index(unique: true, replace: true)
   String policyId;
 
+  @Index(caseSensitive: false)
   String policyNm;
+
   String? policyYr;
+
+  @Index(caseSensitive: false)
   String? rgnSeNm;
+
+  @Index(caseSensitive: false)
   String? policyTypeNm;
+
   String? sprvsnInstNm;
   String? operInstNm;
   DateTime? policyBgngYmd;

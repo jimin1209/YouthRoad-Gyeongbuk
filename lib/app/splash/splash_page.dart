@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,11 +18,13 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() async {
-      await ref.read(policyPrefetchProvider.notifier).prefetchPolicies();
-      if (mounted) {
-        context.go(RoutePaths.home);
-      }
+    Future.microtask(() {
+      ref.read(policyPrefetchProvider.notifier).prefetchPolicies();
+      Timer(const Duration(milliseconds: 200), () {
+        if (mounted) {
+          context.go(RoutePaths.home);
+        }
+      });
     });
   }
 
