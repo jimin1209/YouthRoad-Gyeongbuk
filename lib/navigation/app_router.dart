@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:youth_road_app/app/splash/splash_page.dart';
+
 import '../ui/screens/category/category_screen.dart';
 import '../ui/screens/chatbot/chatbot_screen.dart';
 import '../ui/screens/home/home_screen.dart';
@@ -17,7 +19,6 @@ import '../ui/screens/policy/policy_webview_page.dart';
 import '../ui/screens/region/region_select_screen.dart';
 import '../ui/screens/setting/setting_screen.dart';
 import '../ui/screens/setting/setting_v2_screen.dart';
-import '../app/splash/splash_page.dart';
 import '../features/policy/ui/policy_list_page.dart';
 import '../ui/screens/unity/unity_screen.dart';
 import '../ui/widgets/bottom_nav.dart';
@@ -162,9 +163,8 @@ class AppRouter {
               url = extra['url'] as String? ?? url;
             }
 
-            url = url.isNotEmpty
-                ? url
-                : (state.uri.queryParameters['url'] ?? '');
+            url =
+                url.isNotEmpty ? url : (state.uri.queryParameters['url'] ?? '');
 
             return PolicyWebviewPage(title: title, url: url);
           },

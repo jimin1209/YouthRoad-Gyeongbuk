@@ -19,7 +19,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(policyPrefetchProvider.notifier).start();
+      ref.read(policyPrefetchProvider.notifier).prefetchPolicies(); // ← ✔ 수정!
       if (mounted) {
         unawaited(_goHome());
       }

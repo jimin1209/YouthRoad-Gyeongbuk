@@ -27,6 +27,7 @@ void main() {
     expect(materialAppFinder, findsOneWidget);
 
     final materialApp = tester.widget<MaterialApp>(materialAppFinder);
+
     expect(materialApp.routerConfig, isNotNull);
     expect(materialApp.routerConfig, isA<GoRouter>());
   });
@@ -41,7 +42,9 @@ void main() {
     final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
     final router = materialApp.routerConfig as GoRouter;
 
-    expect(router.configuration.routes, isNotEmpty);
-    expect(router.initialLocation, RoutePaths.splash);
+    // ★★★ 최신 안전한 방식 (GoRouter v12~v13 기준)
+    final initialUri = router.routeInformationProvider.value.uri.toString();
+
+    expect(initialUri, RoutePaths.splash);
   });
 }
