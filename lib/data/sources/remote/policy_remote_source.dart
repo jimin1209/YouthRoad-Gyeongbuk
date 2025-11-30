@@ -7,9 +7,12 @@ import '../../../core/constants/env.dart';
 import '../../models/policy_filter.dart';
 import '../../models/policy_model.dart';
 
+/// 올바른 정책 API 기본 URL
+/// 실제 정책 리스트 엔드포인트 예:
+///   GET https://www.gbyouth.go.kr/openapi/policy/list.json
 const String kPolicyApiBaseUrl = String.fromEnvironment(
   'POLICY_API_BASE_URL',
-  defaultValue: 'https://worker.youthroad-chat.workers.dev',
+  defaultValue: 'https://www.gbyouth.go.kr/openapi',
 );
 
 class PolicyRemoteSource {
@@ -29,6 +32,7 @@ class PolicyRemoteSource {
   final String _apiKey;
   final String _baseUrl;
 
+  /// 정책 리스트 불러오기 (GET)
   Future<List<PolicyModel>> fetchPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
@@ -36,12 +40,12 @@ class PolicyRemoteSource {
 
     if (kDebugMode) {
       debugPrint(
-        '[PolicyRemoteSource] fetchPolicies -> URL=$_baseUrl/policy/list query=$query',
+        '[PolicyRemoteSource] fetchPolicies -> URL=$_baseUrl/policy/list.json query=$query',
       );
     }
 
     final response = await _dio.get<String>(
-      '$_baseUrl/policy/list',
+      '$_baseUrl/policy/list.json',
       queryParameters: query,
       options: Options(responseType: ResponseType.plain),
     );
@@ -50,9 +54,11 @@ class PolicyRemoteSource {
     if (rawJson == null) {
       throw StateError('Empty response from policy endpoint');
     }
+
     return compute(parsePoliciesJson, rawJson);
   }
 
+  /// 정책 단일 조회 (전체 리스트 내에서 필터링)
   Future<PolicyModel> fetchPolicyById(String id) async {
     final list = await fetchPolicies(
       filter: const PolicyFilter(
@@ -66,9 +72,11 @@ class PolicyRemoteSource {
       (policy) => policy.id == id,
       orElse: () => throw StateError('Policy not found for id: $id'),
     );
+
     return match;
   }
 
+  /// 유사 정책 조회
   Future<List<PolicyModel>> fetchSimilar(String id) async {
     final base = await fetchPolicyById(id);
 
@@ -83,6 +91,7 @@ class PolicyRemoteSource {
     return list.where((item) => item.id != id).toList();
   }
 
+  /// 쿼리 파라미터 생성
   Map<String, dynamic> _buildQuery(PolicyFilter filter) {
     final query = <String, dynamic>{
       'pageIndex': filter.pageIndex ?? 1,

@@ -13,7 +13,6 @@ import '../data/sources/remote/policy_remote_source.dart';
 
 // Repositories
 import '../data/repositories/chat_repository.dart';
-import '../data/repositories/hybrid_policy_repository.dart';
 import '../data/repositories/institution_repository.dart';
 
 // Domain abstraction
