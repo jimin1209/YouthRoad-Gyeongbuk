@@ -63,4 +63,11 @@ class PolicyDetailNotifier extends AutoDisposeNotifier<PolicyDetailState> {
       );
     }
   }
+
+  void showInvalidIdError() {
+    state = state.copyWith(
+      isLoading: false,
+      error: errorMessage,
+    );
+  }
 }

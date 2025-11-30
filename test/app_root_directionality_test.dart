@@ -42,6 +42,6 @@ void main() {
     final router = materialApp.routerConfig as GoRouter;
 
     expect(router.configuration.routes, isNotEmpty);
-    expect(router.configuration.initialLocation, RoutePaths.splash);
+    expect(router.initialLocation, RoutePaths.splash);
   });
 }

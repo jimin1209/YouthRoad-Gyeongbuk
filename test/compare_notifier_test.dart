@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:youth_road_app/application/notifiers/compare_notifier.dart';
 import 'package:youth_road_app/application/providers.dart';
 import 'package:youth_road_app/data/models/policy_filter.dart';
 import 'package:youth_road_app/domain/entities/policy.dart';
@@ -35,9 +34,9 @@ class _FakePolicyRepository implements PolicyRepository {
 
 Policy _policy(String id) => Policy(
       id: id,
-      title: 'title$id',
-      category: 'cat',
-      summary: 'summary',
+      policyNm: 'title$id',
+      policyTypeNm: 'cat',
+      policyCn: 'summary',
       tags: const [],
     );
 

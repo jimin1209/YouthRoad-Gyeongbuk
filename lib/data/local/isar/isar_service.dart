@@ -71,7 +71,7 @@ class IsarService {
       qb = qb.policyEndYmdLessThan(filter.endDate!, include: true);
     }
 
-    final andResult = await qb.findAll();
+    final andResult = await qb.build().findAll();
 
     final Set<PolicyIsarModel> orSet = {};
 
