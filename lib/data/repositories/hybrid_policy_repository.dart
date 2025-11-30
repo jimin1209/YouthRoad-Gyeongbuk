@@ -7,7 +7,7 @@ import '../local/isar/policy_isar_model.dart';
 import '../models/policy_filter.dart';
 import '../models/policy_model.dart';
 import '../policy/policy_remote_source.dart';
-import '../policy/policy_repository.dart';
+import '../policy/policy_repository.dart' show PolicyFetchResult;
 
 class HybridPolicyRepository implements PolicyRepository {
   HybridPolicyRepository(this._remoteSource, this._isarService);
