@@ -1,3 +1,5 @@
+// FILE: lib/ui/screens/unity/unity_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_unity_widget/flutter_unity_widget.dart';
@@ -31,9 +33,11 @@ class _UnityScreenState extends ConsumerState<UnityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    /// Listen to policy list state changes
     ref.listen(policyListNotifierProvider, (previous, next) {
-      final policies = next.valueOrNull;
-      if (policies != null && policies.isNotEmpty) {
+      final policies = next.policies; // ← valueOrNull → policies로 변경된 핵심 부분
+
+      if (policies.isNotEmpty) {
         final controller = ref.read(unityMapControllerProvider);
         controller.sendMarkersForPolicies(policies);
 
@@ -72,15 +76,15 @@ class _UnityScreenState extends ConsumerState<UnityScreen> {
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: () {
+                    /// Pull all current policies
                     final policies =
-                        ref.read(policyListNotifierProvider).valueOrNull ??
-                            const <Policy>[];
+                        ref.read(policyListNotifierProvider).policies;
 
                     mapController.sendMarkersForPolicies(policies);
+
                     if (mapController.isUnityReady) {
                       if (mounted) {
-                        setState(
-                            () => _status = '마커 정보를 Unity에 전송했습니다');
+                        setState(() => _status = '마커 정보를 Unity에 전송했습니다');
                       }
                     }
                   },
