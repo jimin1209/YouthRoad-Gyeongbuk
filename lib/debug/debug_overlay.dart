@@ -25,7 +25,10 @@ class _DebugOverlayState extends State<DebugOverlay> {
             length: 4,
             child: Builder(
               builder: (context) {
-                final tabController = DefaultTabController.of(context)!;
+                final tabController = DefaultTabController.of(context);
+                if (tabController == null) {
+                  return const SizedBox.shrink();
+                }
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../application/providers.dart';
-import '../../../application/policy/policy_list_notifier.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/global_error_view.dart';

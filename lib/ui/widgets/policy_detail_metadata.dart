@@ -33,7 +33,7 @@ class PolicyDetailMetadata extends StatelessWidget {
                     ),
                   ),
                 ),
-                OptionalBadge(badge: badge),
+                _OptionalBadge(badge: badge),
               ],
             ),
             const SizedBox(height: 12),
@@ -136,8 +136,8 @@ class MetadataRow extends StatelessWidget {
   }
 }
 
-class OptionalBadge extends StatelessWidget {
-  const OptionalBadge({super.key, this.badge});
+class _OptionalBadge extends StatelessWidget {
+  const _OptionalBadge({super.key, this.badge});
 
   final _StatusBadge? badge;
 
@@ -209,8 +209,8 @@ String _formatRegion(String? region) {
 String _formatPeriod(DateTime? start, DateTime? end) {
   final startText = _formatDate(start);
   final endText = _formatDate(end);
-  final hasStart = startText != null && startText.isNotEmpty;
-  final hasEnd = endText != null && endText.isNotEmpty;
+  final hasStart = startText.isNotEmpty;
+  final hasEnd = endText.isNotEmpty;
 
   if (!hasStart && !hasEnd) return '정보 없음';
   if (hasStart && hasEnd) return '$startText ~ $endText';

@@ -1,8 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:riverpod/riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:youth_road_app/application/notifiers/favorites_notifier.dart';
 import 'package:youth_road_app/application/providers.dart';
 
 void main() {

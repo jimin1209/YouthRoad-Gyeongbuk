@@ -6,7 +6,6 @@ import '../../../application/notifiers/policy_detail_notifier.dart';
 import '../../../application/providers.dart';
 import '../../../application/services/memo_repository.dart';
 import '../../../application/services/eligibility_service.dart';
-import '../../../domain/entities/policy.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/global_error_view.dart';
