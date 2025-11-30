@@ -9,10 +9,10 @@ import '../../models/policy_model.dart';
 
 /// 올바른 정책 API 기본 URL
 /// 실제 정책 리스트 엔드포인트 예:
-///   GET https://www.gbyouth.go.kr/openapi/policy/list.json
+///   GET https://www.gbyouth.co.kr/openapi/policy/list.json
 const String kPolicyApiBaseUrl = String.fromEnvironment(
   'POLICY_API_BASE_URL',
-  defaultValue: 'https://www.gbyouth.go.kr/openapi',
+  defaultValue: 'https://www.gbyouth.co.kr/openapi',
 );
 
 class PolicyRemoteSource {
