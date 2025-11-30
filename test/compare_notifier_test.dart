@@ -57,7 +57,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
-        policyRepositoryProvider.overrideWithValue(repo),
+        policyRepositoryInterfaceProvider.overrideWithValue(repo),
       ],
     );
   });
@@ -99,7 +99,7 @@ void main() {
     final newContainer = ProviderContainer(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
-        policyRepositoryProvider.overrideWithValue(repo),
+        policyRepositoryInterfaceProvider.overrideWithValue(repo),
       ],
     );
     addTearDown(newContainer.dispose);
@@ -129,7 +129,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
-        policyRepositoryProvider.overrideWithValue(repo),
+        policyRepositoryInterfaceProvider.overrideWithValue(repo),
       ],
     );
 

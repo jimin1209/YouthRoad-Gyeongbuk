@@ -7,10 +7,11 @@ import 'package:youth_road_app/data/local/isar/isar_service.dart';
 
 // Core & Sources
 import '../core/constants/env.dart';
-import '../data/sources/remote/policy_remote_source.dart';
+import '../data/policy/policy_cache_source.dart';
+import '../data/policy/policy_remote_source.dart';
+import '../data/policy/policy_repository.dart';
 
 // Repositories
-import '../data/repositories/hybrid_policy_repository.dart';
 import '../data/repositories/chat_repository.dart';
 import '../data/repositories/institution_repository.dart';
 
@@ -43,24 +44,35 @@ final isarServiceProvider = Provider<IsarService>((ref) {
 });
 
 /// Remote Source Provider
-final remotePolicySourceProvider = Provider<PolicyRemoteSource>((ref) {
+final policyRemoteSourceProvider = Provider<PolicyRemoteSource>((ref) {
   final dio = ref.watch(dioProvider);
-  return PolicyRemoteSource(dio, apiKey: Env.youthApiKey);
+  return PolicyRemoteSource(
+    dio,
+    apiKey: Env.youthApiKey,
+    baseUrl: Env.policyApiBaseUrl,
+  );
 });
 
-/// Hybrid Policy Repository (Cache + API)
-final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
-  final remote = ref.watch(remotePolicySourceProvider);
+final policyCacheSourceProvider = Provider<PolicyCacheSource>((ref) {
   final isar = ref.watch(isarServiceProvider);
-  return HybridPolicyRepository(remote, isar);
+  return PolicyCacheSource(isar);
 });
 
-/// Guarantee Hybrid type for internal use
-final hybridPolicyRepositoryProvider = Provider<HybridPolicyRepository>((ref) {
-  final repo = ref.watch(policyRepositoryProvider);
-  if (repo is HybridPolicyRepository) return repo;
+/// Stale-while-revalidate Policy Repository (Cache + API)
+final policyRepositoryProvider = Provider<SwrPolicyRepository>((ref) {
+  final remote = ref.watch(policyRemoteSourceProvider);
+  final cache = ref.watch(policyCacheSourceProvider);
+  return SwrPolicyRepository(remote, cache);
+});
 
-  throw StateError('policyRepositoryProvider is not HybridPolicyRepository');
+/// For components expecting the abstract interface
+final policyRepositoryInterfaceProvider = Provider<PolicyRepository>((ref) {
+  return ref.watch(policyRepositoryProvider);
+});
+
+/// Backward-compatible provider name for cache-aware operations
+final hybridPolicyRepositoryProvider = Provider<SwrPolicyRepository>((ref) {
+  return ref.watch(policyRepositoryProvider);
 });
 
 /// Chat repo

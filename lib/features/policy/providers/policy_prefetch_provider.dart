@@ -5,7 +5,7 @@ import '../../../application/di.dart';
 import '../../../application/notifiers/policy_paging_notifier.dart'; // ← ★ 반드시 필요!!
 import '../../../application/providers.dart';
 
-import '../../../data/repositories/hybrid_policy_repository.dart';
+import '../../../data/policy/policy_repository.dart';
 
 final policyPrefetchProvider =
     AsyncNotifierProvider<PolicyPrefetchNotifier, void>(
@@ -13,7 +13,7 @@ final policyPrefetchProvider =
 );
 
 class PolicyPrefetchNotifier extends AsyncNotifier<void> {
-  HybridPolicyRepository get _repository =>
+  SwrPolicyRepository get _repository =>
       ref.read(hybridPolicyRepositoryProvider);
 
   PolicyPagingNotifier get _pagingNotifier =>

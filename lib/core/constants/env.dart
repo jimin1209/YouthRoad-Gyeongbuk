@@ -15,4 +15,9 @@ class Env {
     'YOUTH_API_KEY',
     defaultValue: '',
   );
+
+  static const policyApiBaseUrl = String.fromEnvironment(
+    'POLICY_API_BASE_URL',
+    defaultValue: 'https://worker.youthroad-policy.workers.dev',
+  );
 }

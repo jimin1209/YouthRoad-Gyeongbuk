@@ -100,9 +100,8 @@ class UnityMapController {
   }
 
   void _sendCurrentPolicies() {
-    final asyncPolicies = _ref.read(policyListNotifierProvider);
-    final policies = asyncPolicies.valueOrNull;
-    if (policies == null || policies.isEmpty) return;
+    final policies = _ref.read(policyListNotifierProvider).policies;
+    if (policies.isEmpty) return;
 
     _sendMarkers(policies);
   }
@@ -130,8 +129,7 @@ class UnityMapController {
   }
 
   void _handleMarkerTap(String policyId) {
-    final policies =
-        _ref.read(policyListNotifierProvider).valueOrNull ?? const <Policy>[];
+    final policies = _ref.read(policyListNotifierProvider).policies;
 
     Policy? tapped;
     for (final policy in policies) {
