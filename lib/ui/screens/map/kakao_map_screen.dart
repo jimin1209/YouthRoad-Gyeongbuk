@@ -20,6 +20,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   bool _loading = true;
   String? _errorCode;
+  String? _lastLog;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +51,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             onReady: () => _setLoading(false),
             onLoadingChanged: _setLoading,
             onError: (code) => setState(() => _errorCode = code),
+            onLog: (event) => setState(() => _lastLog = event.logMessage),
+            showDebugPanel: true,
           ),
           if (_loading)
             const Center(
@@ -78,6 +81,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                       '오류 코드: ${_errorCode ?? ''}',
                       style: const TextStyle(color: Colors.white70),
                     ),
+                    if (_lastLog != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '최근 로그: $_lastLog',
+                        style: const TextStyle(color: Colors.white60, fontSize: 12),
+                      ),
+                    ],
                   ],
                 ),
               ),

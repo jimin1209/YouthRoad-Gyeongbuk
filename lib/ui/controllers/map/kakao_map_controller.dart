@@ -6,16 +6,64 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../screens/map/kakao_map_html_builder.dart';
 
-enum KakaoMapEventType { ready, markerTap, mapTap, clusterTap, loading, error, mapType, log, unknown }
+enum KakaoMapEventType {
+  ready,
+  markerTap,
+  mapTap,
+  clusterTap,
+  loading,
+  error,
+  mapType,
+  log,
+  heartbeat,
+  unknown,
+}
 
-class KakaoMapEvent {
-  const KakaoMapEvent(this.type, this.payload);
+class KakaoMapMessage {
+  const KakaoMapMessage({
+    required this.type,
+    required this.payload,
+    this.timestamp,
+    this.origin,
+    this.logLevel,
+    this.raw,
+  });
 
-  final KakaoMapEventType type;
+  factory KakaoMapMessage.fromRaw(String message) {
+    try {
+      final decoded = jsonDecode(message);
+      if (decoded is Map<String, dynamic>) {
+        return KakaoMapMessage(
+          type: decoded['type']?.toString() ?? 'unknown',
+          payload: (decoded['payload'] as Map?)?.cast<String, dynamic>() ??
+              decoded.map((key, value) => MapEntry(key.toString(), value)),
+          timestamp: decoded['timestamp'] is num
+              ? DateTime.fromMillisecondsSinceEpoch(decoded['timestamp'] as int)
+              : null,
+          origin: decoded['origin']?.toString(),
+          logLevel: decoded['logLevel']?.toString(),
+          raw: message,
+        );
+      }
+    } catch (_) {
+      // handled by fallback below
+    }
+    return KakaoMapMessage(
+      type: 'log',
+      payload: {'message': message},
+      logLevel: 'raw',
+      raw: message,
+    );
+  }
+
+  final String type;
   final Map<String, dynamic> payload;
+  final DateTime? timestamp;
+  final String? origin;
+  final String? logLevel;
+  final String? raw;
 
   String? get markerId => payload['id'] as String?;
-
   KakaoMapLatLng? get position {
     final lat = payload['lat'];
     final lng = payload['lng'];
@@ -26,9 +74,22 @@ class KakaoMapEvent {
   }
 
   bool get loadingValue => payload['value'] == true;
-  String? get errorCode => payload['code'] as String?;
-  String? get logLevel => payload['level'] as String?;
-  String? get logMessage => payload['message'] as String?;
+  String? get errorCode => payload['code']?.toString();
+  String? get logMessage => payload['message']?.toString();
+}
+
+class KakaoMapEvent {
+  const KakaoMapEvent(this.type, this.message);
+
+  final KakaoMapEventType type;
+  final KakaoMapMessage message;
+
+  String? get markerId => message.markerId;
+  KakaoMapLatLng? get position => message.position;
+  bool get loadingValue => message.loadingValue;
+  String? get errorCode => message.errorCode;
+  String? get logLevel => message.logLevel;
+  String? get logMessage => message.logMessage;
 }
 
 class _LoadRequest {
@@ -55,6 +116,7 @@ class KakaoMapController {
     required KakaoMapHtmlBuilder builder,
     this.bridgeName = 'KakaoBridge',
     this.baseUrl = 'https://youthroad.co.kr',
+    this.maxAutoReloads = 3,
   })  : _apiKey = apiKey,
         _builder = builder {
     _initializeController();
@@ -64,6 +126,7 @@ class KakaoMapController {
   final KakaoMapHtmlBuilder _builder;
   final String bridgeName;
   final String baseUrl;
+  final int maxAutoReloads;
 
   final _eventController = StreamController<KakaoMapEvent>.broadcast();
   final List<Future<void> Function()> _pendingActions = [];
@@ -75,6 +138,7 @@ class KakaoMapController {
 
   Stream<KakaoMapEvent> get events => _eventController.stream;
   bool get isReady => _ready;
+  int get reloadAttempts => _reloadAttempts;
 
   Future<void> load({
     required KakaoMapLatLng center,
@@ -206,6 +270,10 @@ class KakaoMapController {
     );
   }
 
+  Future<void> runRawScript(String script) {
+    return _runWhenReady(() => webViewController.runJavaScript(script));
+  }
+
   Future<void> _runWhenReady(Future<void> Function() action) {
     if (_ready) {
       return action();
@@ -241,21 +309,10 @@ class KakaoMapController {
       );
   }
 
-  Map<String, dynamic> _parseMessage(String raw) {
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map<String, dynamic>) return decoded;
-    } catch (_) {
-      // Fallback handled below
-    }
-    return {'type': 'log', 'level': 'raw', 'message': raw};
-  }
-
   void _handleMessage(JavaScriptMessage message) {
-    final parsed = _parseMessage(message.message);
-    final type = _mapType(parsed['type'] as String?);
-    final payload = parsed.cast<String, dynamic>();
-    final event = KakaoMapEvent(type, payload);
+    final parsed = KakaoMapMessage.fromRaw(message.message);
+    final type = _mapType(parsed.type);
+    final event = KakaoMapEvent(type, parsed);
 
     if (type == KakaoMapEventType.ready) {
       _ready = true;
@@ -263,12 +320,21 @@ class KakaoMapController {
       _flushPendingActions();
     }
 
-    if (type == KakaoMapEventType.error && _reloadAttempts < 2) {
-      _reloadAttempts += 1;
-      reloadMap();
+    if (type == KakaoMapEventType.error) {
+      _handleErrorCode(parsed.errorCode);
     }
 
     _eventController.add(event);
+  }
+
+  void _handleErrorCode(String? code) {
+    if (code == null) return;
+    final lower = code.toLowerCase();
+    if (_reloadAttempts >= maxAutoReloads) return;
+    if (lower.contains('sdkfail') || lower.contains('timeout')) {
+      _reloadAttempts += 1;
+      reloadMap();
+    }
   }
 
   KakaoMapEventType _mapType(String? raw) {
@@ -284,11 +350,16 @@ class KakaoMapController {
       case 'loading':
         return KakaoMapEventType.loading;
       case 'error':
+      case 'sdkFail':
+      case 'timeout':
+      case 'jsException':
         return KakaoMapEventType.error;
       case 'map_type':
         return KakaoMapEventType.mapType;
       case 'log':
         return KakaoMapEventType.log;
+      case 'heartbeat':
+        return KakaoMapEventType.heartbeat;
       default:
         return KakaoMapEventType.unknown;
     }

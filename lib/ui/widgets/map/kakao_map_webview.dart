@@ -22,6 +22,8 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
     this.onReady,
     this.onLoadingChanged,
     this.onError,
+    this.onLog,
+    this.showDebugPanel = false,
   });
 
   final KakaoMapLatLng center;
@@ -35,6 +37,8 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
   final VoidCallback? onReady;
   final void Function(bool isLoading)? onLoadingChanged;
   final void Function(String code)? onError;
+  final void Function(KakaoMapEvent logEvent)? onLog;
+  final bool showDebugPanel;
 
   @override
   ConsumerState<KakaoMapWebView> createState() => _KakaoMapWebViewState();
@@ -51,6 +55,8 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
   bool? _lastClustering;
   Timer? _readyTimeout;
   static const _readyTimeoutDuration = Duration(seconds: 15);
+  final List<KakaoMapEvent> _logs = [];
+  bool _showDebug = false;
 
   @override
   void initState() {
@@ -134,7 +140,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       case KakaoMapEventType.error:
         _notifyLoading(false);
         _errorCount += 1;
-        if (_errorCount > 2) {
+        if (_errorCount > _controller.maxAutoReloads) {
           setState(() {
             _fatalError = true;
           });
@@ -142,10 +148,22 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
         final code = event.errorCode ?? 'unknown';
         widget.onError?.call(code);
         break;
-      case KakaoMapEventType.mapType:
       case KakaoMapEventType.log:
+        _logs.add(event);
+        widget.onLog?.call(event);
+        if (_logs.length > 50) {
+          _logs.removeAt(0);
+        }
+        break;
+      case KakaoMapEventType.mapType:
+      case KakaoMapEventType.heartbeat:
       case KakaoMapEventType.unknown:
         break;
+    }
+    if (widget.showDebugPanel && !_showDebug) {
+      setState(() {
+        _showDebug = true;
+      });
     }
   }
 
@@ -188,46 +206,160 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     return true;
   }
 
+  Widget _buildFatalOverlay() {
+    final lastLog = _logs.isNotEmpty ? _logs.last.logMessage : null;
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black54,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  '지도를 불러오지 못했습니다. 다시 시도해주세요.',
+                  style: TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              if (lastLog != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: Text(
+                    lastLog,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _fatalError = false;
+                    _loading = true;
+                    _logs.clear();
+                  });
+                  _controller.reloadMap();
+                  _scheduleReadyTimeout();
+                },
+                child: const Text('다시 시도'),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoading() {
+    return const Center(
+      child: CircularProgressIndicator(),
+    );
+  }
+
+  Widget _buildDebugPanel() {
+    if (!widget.showDebugPanel || !_showDebug) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return Positioned(
+      right: 12,
+      top: 12,
+      child: Container(
+        width: 260,
+        constraints: const BoxConstraints(maxHeight: 240),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface.withOpacity(0.92),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'Map Debug',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _showDebug = false;
+                    });
+                  },
+                  icon: const Icon(Icons.close, size: 18),
+                  visualDensity: VisualDensity.compact,
+                )
+              ],
+            ),
+            const Divider(height: 8),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _logs.reversed
+                      .map(
+                        (e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            '[${e.logLevel ?? e.type.name}] ${e.logMessage ?? e.message.type}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         WebViewWidget(controller: _controller.webViewController),
-        if (_loading)
-          const Center(
-            child: CircularProgressIndicator(),
-          ),
-        if (_fatalError)
-          Positioned.fill(
-            child: Container(
-              color: Colors.black54,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text(
-                        '지도를 불러오지 못했습니다. 다시 시도해주세요.',
-                        style: TextStyle(color: Colors.white),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _fatalError = false;
-                          _loading = true;
-                        });
-                        _controller.reloadMap();
-                      },
-                      child: const Text('다시 시도'),
-                    )
-                  ],
+        if (_loading) _buildLoading(),
+        if (_fatalError) _buildFatalOverlay(),
+        Positioned(
+          bottom: 12,
+          right: 12,
+          child: Row(
+            children: [
+              if (widget.showDebugPanel)
+                IconButton(
+                  onPressed: () => setState(() => _showDebug = !_showDebug),
+                  icon: Icon(
+                    _showDebug ? Icons.bug_report : Icons.bug_report_outlined,
+                    color: Colors.white,
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black54,
+                    padding: const EdgeInsets.all(8),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              IconButton(
+                onPressed: () {
+                  _controller.reloadMap();
+                  _scheduleReadyTimeout();
+                  _notifyLoading(true);
+                },
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black54,
+                  padding: const EdgeInsets.all(8),
+                  visualDensity: VisualDensity.compact,
                 ),
               ),
-            ),
+            ],
           ),
+        ),
+        _buildDebugPanel(),
       ],
     );
   }

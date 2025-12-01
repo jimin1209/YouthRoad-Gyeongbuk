@@ -208,278 +208,328 @@ class KakaoMapHtmlBuilder {
 <body>
   <div id="map"></div>
   <script>
-    var map;
-    var clusterer;
-    var markers = [];
-    var polylines = [];
-    var markerData = $markerJson;
-    var polylineData = $polylineJson;
-    var mapOptions = $optionsJson;
-    var ready = false;
-    var loadTimer;
-    var loadAttempts = 0;
-    var sdkPollCount = 0;
-    var maxPolls = 60;
-    var maxReloads = 2;
-
-    function notifyFlutter(event) {
-      if (!event || !window.$bridgeName) { return; }
-      try {
-        window.$bridgeName.postMessage(JSON.stringify(event));
-      } catch (e) {
-        console.error('[WEBVIEW] Bridge postMessage failed', e);
-      }
-    }
-
-    function redirectConsole() {
-      var originalLog = console.log;
-      var originalError = console.error;
-      console.log = function() {
-        var msg = Array.prototype.slice.call(arguments).join(' ');
-        notifyFlutter({ type: 'log', level: 'log', message: msg });
-        originalLog.apply(console, arguments);
+    (() => {
+      const ORIGIN = 'kakao-map-webview';
+      const state = {
+        ready: false,
+        loading: false,
+        loadTimer: null,
+        loadAttempts: 0,
+        sdkPollCount: 0,
+        maxPolls: 80,
+        maxReloads: 3,
+        map: null,
+        clusterer: null,
+        markers: [],
+        polylines: [],
+        markerData: $markerJson,
+        polylineData: $polylineJson,
+        options: $optionsJson,
+        enableClustering: ${enableClustering ? 'true' : 'false'},
       };
-      console.error = function() {
-        var msg = Array.prototype.slice.call(arguments).join(' ');
-        notifyFlutter({ type: 'log', level: 'error', message: msg });
-        originalError.apply(console, arguments);
-      };
-    }
 
-    function sendLoading(value) {
-      notifyFlutter({ type: 'loading', value: value });
-    }
+      const bridge = window.$bridgeName;
 
-    function setMapType(type) {
-      if (!map) return;
-      var mapping = {
-        'roadmap': kakao.maps.MapTypeId.ROADMAP,
-        'skyview': kakao.maps.MapTypeId.SKYVIEW,
-        'hybrid': kakao.maps.MapTypeId.HYBRID,
-        'terrain': kakao.maps.MapTypeId.TERRAIN
-      };
-      var target = mapping[type] || kakao.maps.MapTypeId.ROADMAP;
-      map.setMapTypeId(target);
-      notifyFlutter({ type: 'map_type', value: type });
-    }
-
-    function markerImage(options) {
-      if (!options || !options.url) return null;
-      var size = new kakao.maps.Size(options.width || 32, options.height || 32);
-      return new kakao.maps.MarkerImage(options.url, size);
-    }
-
-    function clearMarkers() {
-      markers.forEach(function(marker) { marker.setMap(null); });
-      markers = [];
-      if (clusterer) { clusterer.clear(); }
-    }
-
-    function clearPolylines() {
-      polylines.forEach(function(polyline) { polyline.setMap(null); });
-      polylines = [];
-    }
-
-    function createMarker(m) {
-      var position = new kakao.maps.LatLng(m.lat, m.lng);
-      var markerOptions = { position: position };
-      var image = markerImage(m.image);
-      if (image) { markerOptions.image = image; }
-      var marker = new kakao.maps.Marker(markerOptions);
-      var infoWindow = new kakao.maps.InfoWindow({
-        content: '<div style="padding:8px;font-size:13px;">' + m.title + '</div>'
-      });
-      kakao.maps.event.addListener(marker, 'click', function() {
-        infoWindow.open(map, marker);
-        notifyFlutter({ type: 'marker', id: m.id });
-      });
-      return marker;
-    }
-
-    function renderMarkers(targetMap) {
-      if (!Array.isArray(markerData)) return;
-      clearMarkers();
-      markerData.forEach(function(m) {
-        var marker = createMarker(m);
-        markers.push(marker);
-      });
-      if (clusterer) {
-        clusterer.addMarkers(markers);
-      } else {
-        markers.forEach(function(marker) { marker.setMap(targetMap); });
+      function envelope(type, payload, level) {
+        return {
+          type: type,
+          payload: payload || {},
+          timestamp: Date.now(),
+          origin: ORIGIN,
+          logLevel: level || 'info',
+        };
       }
-    }
 
-    function renderPolylines(targetMap) {
-      if (!Array.isArray(polylineData)) return;
-      clearPolylines();
-      polylineData.forEach(function(p) {
-        var path = (p.path || []).map(function(point) {
-          return new kakao.maps.LatLng(point.lat, point.lng);
-        });
-        var polyline = new kakao.maps.Polyline({
-          path: path,
-          strokeWeight: p.strokeWeight || 4,
-          strokeColor: p.strokeColor || '#2E8B57',
-          strokeOpacity: p.strokeOpacity || 0.9,
-          strokeStyle: 'solid'
-        });
-        polyline.setMap(targetMap);
-        polylines.push(polyline);
-      });
-    }
-
-    function setMarkers(data) {
-      if (Array.isArray(data)) {
-        markerData = data;
-      }
-      if (!map) return;
-      renderMarkers(map);
-    }
-
-    function setPolylines(data) {
-      if (Array.isArray(data)) {
-        polylineData = data;
-      }
-      if (!map) return;
-      renderPolylines(map);
-    }
-
-    function moveTo(lat, lng, level) {
-      if (!map) return;
-      var latlng = new kakao.maps.LatLng(lat, lng);
-      map.setCenter(latlng);
-      if (typeof level === 'number') { map.setLevel(level); }
-    }
-
-    function animateTo(lat, lng, level) {
-      if (!map) return;
-      var latlng = new kakao.maps.LatLng(lat, lng);
-      map.panTo(latlng);
-      if (typeof level === 'number') { map.setLevel(level); }
-    }
-
-    function zoomIn() {
-      if (!map) return;
-      map.setLevel(map.getLevel() - 1);
-    }
-
-    function zoomOut() {
-      if (!map) return;
-      map.setLevel(map.getLevel() + 1);
-    }
-
-    function fitBounds(data) {
-      if (!map) return;
-      var points = Array.isArray(data) ? data : markerData;
-      if (!points || !points.length) return;
-      var bounds = new kakao.maps.LatLngBounds();
-      points.forEach(function(m) { bounds.extend(new kakao.maps.LatLng(m.lat, m.lng)); });
-      map.setBounds(bounds);
-    }
-
-    function prepareClusterer(targetMap) {
-      if (!mapOptions || !mapOptions.enableClustering) return;
-      clusterer = new kakao.maps.MarkerClusterer({
-        map: targetMap,
-        averageCenter: true,
-        minLevel: 5,
-      });
-      kakao.maps.event.addListener(clusterer, 'clusterclick', function(cluster) {
-        var center = cluster.getCenter();
-        notifyFlutter({ type: 'cluster', lat: center.getLat(), lng: center.getLng() });
-      });
-    }
-
-    function initMap() {
-      var container = document.getElementById('map');
-      var options = {
-        center: new kakao.maps.LatLng(${center.lat}, ${center.lng}),
-        level: mapOptions.level || 6,
-        mapTypeId: kakao.maps.MapTypeId[(mapOptions.mapType || 'roadmap').toUpperCase()] || kakao.maps.MapTypeId.ROADMAP,
-      };
-      map = new kakao.maps.Map(container, options);
-      clearTimeout(loadTimer);
-      prepareClusterer(map);
-      renderMarkers(map);
-      renderPolylines(map);
-      setMapType(mapOptions.mapType || 'roadmap');
-      if (mapOptions.showZoomControl) {
-        var zoomControl = new kakao.maps.ZoomControl();
-        map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
-      }
-      if (mapOptions.showMapTypeControl) {
-        var mapTypeControl = new kakao.maps.MapTypeControl();
-        map.addControl(mapTypeControl, kakao.maps.ControlPosition.TOPRIGHT);
-      }
-      kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
-        notifyFlutter({
-          type: 'map',
-          lat: mouseEvent.latLng.getLat(),
-          lng: mouseEvent.latLng.getLng()
-        });
-      });
-      ready = true;
-      sendLoading(false);
-      notifyFlutter({ type: 'ready' });
-    }
-
-    function handleLoadTimeout() {
-      if (ready) return;
-      notifyFlutter({ type: 'error', code: 'SDK_LOAD_TIMEOUT', attempt: loadAttempts });
-    }
-
-    function pollSdkLoaded(force) {
-      if (window.kakao && kakao.maps && kakao.maps.load) {
-        kakao.maps.load(initMap);
-        return;
-      }
-      sdkPollCount += 1;
-      if (sdkPollCount > maxPolls) {
-        notifyFlutter({ type: 'error', code: 'SDK_LOAD_FAILED', attempt: loadAttempts, polls: sdkPollCount });
-        if (loadAttempts <= maxReloads) {
-          loadKakaoMap(true);
+      function notifyFlutter(type, payload, level) {
+        if (!bridge) return;
+        try {
+          bridge.postMessage(JSON.stringify(envelope(type, payload, level)));
+        } catch (e) {
+          console.warn('[KakaoMap] Failed to post message', e);
         }
-        return;
       }
-      setTimeout(function() { pollSdkLoaded(force); }, 250);
-    }
 
-    function loadKakaoMap(force) {
-      ready = false;
-      sendLoading(true);
-      loadAttempts += 1;
-      sdkPollCount = 0;
-      clearTimeout(loadTimer);
-      loadTimer = setTimeout(handleLoadTimeout, 7000);
-      if (force) {
-        map = null;
+      function log(level, ...args) {
+        const message = args.map(String).join(' ');
+        notifyFlutter('log', { message }, level);
       }
-      pollSdkLoaded(force);
-    }
 
-    window.onload = function() {
-      mapOptions.enableClustering = ${enableClustering ? 'true' : 'false'};
-      redirectConsole();
-      loadKakaoMap(false);
-    };
+      function installConsoleProxy() {
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        console.log = function(...args) {
+          log('info', ...args);
+          originalLog.apply(console, args);
+        };
+        console.warn = function(...args) {
+          log('warn', ...args);
+          originalWarn.apply(console, args);
+        };
+        console.error = function(...args) {
+          log('error', ...args);
+          originalError.apply(console, args);
+        };
+      }
 
-    window.kakaoMap = {
-      moveTo: moveTo,
-      animateTo: animateTo,
-      zoomIn: zoomIn,
-      zoomOut: zoomOut,
-      fitBounds: fitBounds,
-      setMarkers: setMarkers,
-      clearMarkers: clearMarkers,
-      setPolylines: setPolylines,
-      clearPolylines: clearPolylines,
-      setMapType: setMapType,
-      reloadMap: function() { loadKakaoMap(true); },
-      get isReady() { return !!ready; }
-    };
+      function handleGlobalErrors() {
+        window.addEventListener('error', function(event) {
+          notifyFlutter('error', {
+            code: 'jsException',
+            message: event.message,
+            source: event.filename,
+            line: event.lineno,
+            column: event.colno,
+          }, 'error');
+        });
+        window.addEventListener('unhandledrejection', function(event) {
+          notifyFlutter('error', {
+            code: 'jsException',
+            message: event.reason ? String(event.reason) : 'Unhandled rejection',
+          }, 'error');
+        });
+      }
 
-    ${additionalScripts ?? ''}
+      function sendLoading(value) {
+        state.loading = value;
+        notifyFlutter('loading', { value });
+      }
+
+      function markerImage(options) {
+        if (!options || !options.url) return null;
+        const size = new kakao.maps.Size(options.width || 32, options.height || 32);
+        return new kakao.maps.MarkerImage(options.url, size);
+      }
+
+      function clearMarkers() {
+        state.markers.forEach(marker => marker.setMap(null));
+        state.markers = [];
+        if (state.clusterer) { state.clusterer.clear(); }
+      }
+
+      function clearPolylines() {
+        state.polylines.forEach(polyline => polyline.setMap(null));
+        state.polylines = [];
+      }
+
+      function createMarker(m) {
+        const position = new kakao.maps.LatLng(m.lat, m.lng);
+        const markerOptions = { position };
+        const image = markerImage(m.image);
+        if (image) { markerOptions.image = image; }
+        const marker = new kakao.maps.Marker(markerOptions);
+        const infoWindow = new kakao.maps.InfoWindow({
+          content: '<div style="padding:8px;font-size:13px;">' + m.title + '</div>'
+        });
+        kakao.maps.event.addListener(marker, 'click', function() {
+          infoWindow.open(state.map, marker);
+          notifyFlutter('marker', { id: m.id });
+        });
+        return marker;
+      }
+
+      function renderMarkers(targetMap) {
+        if (!Array.isArray(state.markerData)) return;
+        clearMarkers();
+        state.markerData.forEach(function(m) {
+          const marker = createMarker(m);
+          state.markers.push(marker);
+        });
+        if (state.clusterer) {
+          state.clusterer.addMarkers(state.markers);
+        } else {
+          state.markers.forEach(marker => marker.setMap(targetMap));
+        }
+      }
+
+      function renderPolylines(targetMap) {
+        if (!Array.isArray(state.polylineData)) return;
+        clearPolylines();
+        state.polylineData.forEach(function(p) {
+          const path = (p.path || []).map(function(point) {
+            return new kakao.maps.LatLng(point.lat, point.lng);
+          });
+          const polyline = new kakao.maps.Polyline({
+            path: path,
+            strokeWeight: p.strokeWeight || 4,
+            strokeColor: p.strokeColor || '#2E8B57',
+            strokeOpacity: p.strokeOpacity || 0.9,
+            strokeStyle: 'solid'
+          });
+          polyline.setMap(targetMap);
+          state.polylines.push(polyline);
+        });
+      }
+
+      function setMarkers(data) {
+        if (Array.isArray(data)) {
+          state.markerData = data;
+        }
+        if (!state.map) return;
+        renderMarkers(state.map);
+      }
+
+      function setPolylines(data) {
+        if (Array.isArray(data)) {
+          state.polylineData = data;
+        }
+        if (!state.map) return;
+        renderPolylines(state.map);
+      }
+
+      function moveTo(lat, lng, level) {
+        if (!state.map) return;
+        const latlng = new kakao.maps.LatLng(lat, lng);
+        state.map.setCenter(latlng);
+        if (typeof level === 'number') { state.map.setLevel(level); }
+      }
+
+      function animateTo(lat, lng, level) {
+        if (!state.map) return;
+        const latlng = new kakao.maps.LatLng(lat, lng);
+        state.map.panTo(latlng);
+        if (typeof level === 'number') { state.map.setLevel(level); }
+      }
+
+      function zoomIn() {
+        if (!state.map) return;
+        state.map.setLevel(state.map.getLevel() - 1);
+      }
+
+      function zoomOut() {
+        if (!state.map) return;
+        state.map.setLevel(state.map.getLevel() + 1);
+      }
+
+      function fitBounds(data) {
+        if (!state.map) return;
+        const points = Array.isArray(data) ? data : state.markerData;
+        if (!points || !points.length) return;
+        const bounds = new kakao.maps.LatLngBounds();
+        points.forEach(function(m) { bounds.extend(new kakao.maps.LatLng(m.lat, m.lng)); });
+        state.map.setBounds(bounds);
+      }
+
+      function setMapType(type) {
+        if (!state.map) return;
+        const mapping = {
+          'roadmap': kakao.maps.MapTypeId.ROADMAP,
+          'skyview': kakao.maps.MapTypeId.SKYVIEW,
+          'hybrid': kakao.maps.MapTypeId.HYBRID,
+          'terrain': kakao.maps.MapTypeId.TERRAIN
+        };
+        const target = mapping[type] || kakao.maps.MapTypeId.ROADMAP;
+        state.map.setMapTypeId(target);
+        notifyFlutter('map_type', { value: type });
+      }
+
+      function prepareClusterer(targetMap) {
+        if (!state.options || !state.enableClustering) return;
+        state.clusterer = new kakao.maps.MarkerClusterer({
+          map: targetMap,
+          averageCenter: true,
+          minLevel: 5,
+        });
+        kakao.maps.event.addListener(state.clusterer, 'clusterclick', function(cluster) {
+          const center = cluster.getCenter();
+          notifyFlutter('cluster', { lat: center.getLat(), lng: center.getLng() });
+        });
+      }
+
+      function initMap() {
+        const container = document.getElementById('map');
+        const options = {
+          center: new kakao.maps.LatLng(${center.lat}, ${center.lng}),
+          level: state.options.level || 6,
+          mapTypeId: kakao.maps.MapTypeId[(state.options.mapType || 'roadmap').toUpperCase()] || kakao.maps.MapTypeId.ROADMAP,
+        };
+        state.map = new kakao.maps.Map(container, options);
+        clearTimeout(state.loadTimer);
+        prepareClusterer(state.map);
+        renderMarkers(state.map);
+        renderPolylines(state.map);
+        setMapType(state.options.mapType || 'roadmap');
+        if (state.options.showZoomControl) {
+          const zoomControl = new kakao.maps.ZoomControl();
+          state.map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
+        }
+        if (state.options.showMapTypeControl) {
+          const mapTypeControl = new kakao.maps.MapTypeControl();
+          state.map.addControl(mapTypeControl, kakao.maps.ControlPosition.TOPRIGHT);
+        }
+        kakao.maps.event.addListener(state.map, 'click', function(mouseEvent) {
+          notifyFlutter('map', {
+            lat: mouseEvent.latLng.getLat(),
+            lng: mouseEvent.latLng.getLng()
+          });
+        });
+        state.ready = true;
+        sendLoading(false);
+        notifyFlutter('ready', {
+          center: { lat: ${center.lat}, lng: ${center.lng} },
+          attempt: state.loadAttempts,
+        });
+      }
+
+      function handleLoadTimeout() {
+        if (state.ready) return;
+        notifyFlutter('error', { code: 'timeout', attempt: state.loadAttempts }, 'error');
+      }
+
+      function pollSdkLoaded(force) {
+        if (window.kakao && kakao.maps && kakao.maps.load) {
+          kakao.maps.load(initMap);
+          return;
+        }
+        state.sdkPollCount += 1;
+        if (state.sdkPollCount > state.maxPolls) {
+          notifyFlutter('error', { code: 'sdkFail', attempt: state.loadAttempts, polls: state.sdkPollCount }, 'error');
+          if (state.loadAttempts <= state.maxReloads) {
+            loadKakaoMap(true);
+          }
+          return;
+        }
+        setTimeout(function() { pollSdkLoaded(force); }, 250);
+      }
+
+      function loadKakaoMap(force) {
+        state.ready = false;
+        sendLoading(true);
+        state.loadAttempts += 1;
+        state.sdkPollCount = 0;
+        clearTimeout(state.loadTimer);
+        state.loadTimer = setTimeout(handleLoadTimeout, 9000);
+        if (force) {
+          state.map = null;
+        }
+        pollSdkLoaded(force);
+      }
+
+      window.kakaoMap = {
+        moveTo: moveTo,
+        animateTo: animateTo,
+        zoomIn: zoomIn,
+        zoomOut: zoomOut,
+        fitBounds: fitBounds,
+        setMarkers: setMarkers,
+        clearMarkers: clearMarkers,
+        setPolylines: setPolylines,
+        clearPolylines: clearPolylines,
+        setMapType: setMapType,
+        reloadMap: function() { loadKakaoMap(true); },
+        get isReady() { return !!state.ready; },
+      };
+
+      function bootstrap() {
+        installConsoleProxy();
+        handleGlobalErrors();
+        loadKakaoMap(false);
+        notifyFlutter('log', { message: 'bootstrap' }, 'info');
+      }
+
+      window.onload = bootstrap;
+      ${additionalScripts ?? ''}
+    })();
   </script>
 </body>
 </html>
