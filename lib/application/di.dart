@@ -23,6 +23,8 @@ import '../core/network/app_dio.dart';
 // Local services
 import 'services/memo_repository.dart';
 
+import 'package:dio/dio.dart';
+
 /// SharedPreferences Provider
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences not initialized');
@@ -87,4 +89,3 @@ final memoRepositoryProvider = Provider<MemoRepository>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   return MemoRepository(prefs);
 });
-import 'package:dio/dio.dart';
