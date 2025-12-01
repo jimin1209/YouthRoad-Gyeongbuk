@@ -20,7 +20,6 @@ import '../ui/screens/region/region_select_screen.dart';
 import '../ui/screens/setting/setting_screen.dart';
 import '../ui/screens/setting/setting_v2_screen.dart';
 import '../features/policy/ui/policy_list_page.dart';
-import '../ui/screens/unity/unity_screen.dart';
 import '../ui/widgets/bottom_nav.dart';
 import '../ui/widgets/global_error_view.dart';
 import 'route_paths.dart';
@@ -115,11 +114,7 @@ class AppRouter {
         GoRoute(
           path: RoutePaths.compare,
           builder: (context, state) => const CompareScreen(),
-        ),
-        GoRoute(
-          path: RoutePaths.unity,
-          builder: (context, state) => const UnityScreen(),
-        ),
+        ),       
         GoRoute(
           path: RoutePaths.googleMap,
           builder: (context, state) => const KakaoMapScreen(),

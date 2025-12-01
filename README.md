@@ -1,316 +1,215 @@
-# 🧭 YouthRoad App (Flutter + Unity Integrated Project)
+📌 목적
 
-**YouthRoad App**은 Flutter 3.x 기반과 Unity 2022.3 LTS 엔진을 하나의 Mobile App 안에 통합한
-경북 청년 정책 플랫폼 프로젝트입니다.
-Flutter UI와 Unity 3D 씬을 Android 단에서 안정적으로 실행하도록 구성되어 있습니다.
+feature/no-unity-build 브랜치는 Unity 없이 Flutter만 빌드하기 위한 전용 브랜치입니다.
 
----
+회사 EC2 / CI에서 Unity 설치 없이 빌드됨
 
-# 📌 Project Information
+Unity 관련 모든 코드/플러그인 제거
 
-| 항목                    | 값                                        |
-| --------------------- | ---------------------------------------- |
-| **Flutter**           | 3.24.x                                   |
-| **Dart**              | 3.4.x                                    |
-| **Unity**             | 2022.3 LTS                               |
-| **Android SDK**       | compileSdk 36 / targetSdk 36 / minSdk 24 |
-| **Scripting Backend** | IL2CPP + ARM64                           |
-| **빌드 상태**             | ✔ Flutter + Unity 정상 빌드됨 *(현재 컨테이너에서는 SDK 부재로 재검증 불가)* |
-| **Platform 지원**       | Android, iOS, Web, Windows               |
+Android Gradle Plugin(AGP) 8.x 호환
 
-**Flutter는 UI와 정책 API 처리**
-**Unity는 지도/3D 시각화 기능 담당**
+main 브랜치의 Unity 기능은 유지
 
----
+언제든 main의 최신 변경을 merge하여 최신화 가능
 
-# 📁 Project Structure (2025-11-22 기준, 정상 빌드 버전)
+자동 패치 스크립트로 유지보수 부담 0%
 
-```
-youth_road_app/
- ├─ android/
- │   ├─ app/                     # Flutter Android module
- │   └─ unityLibrary/            # Unity Export Android Library
- │
- ├─ lib/                         # Flutter source (Riverpod / Router / API)
- ├─ assets/
- ├─ windows/
- ├─ web/
- ├─ build/
- ├─ pubspec.yaml
- └─ README.md
-```
+📌 브랜치 전략
+main
 
-Unity Export 후 포함되는 구조:
+Unity 포함
 
-```
-android/unityLibrary/
- ├─ build.gradle
- ├─ libs/unity-classes.jar
- ├─ src/main/AndroidManifest.xml
- ├─ src/main/jniLibs/arm64-v8a/
- └─ src/main/java/com/unity3d/player/*.java
-```
+flutter_unity_widget 포함
 
----
+unityLibrary 존재
 
-# 🛠️ Versions & Dependencies (현재 빌드 성공 버전)
+feature/no-unity-build
 
-## pubspec.yaml
+Unity 100% 제거
 
-```yaml
-name: youth_road_app
-description: YouthRoad Flutter + Unity integrated project
+flutter_unity_widget 비활성화
 
-publish_to: "none"
+Unity route 제거
 
-version: 1.0.0+1
+Gradle/AGP 패치 적용
 
-environment:
-  sdk: ">=3.4.0 <4.0.0"
+EC2 빌드 성공 보장
 
-dependencies:
-  flutter:
-    sdk: flutter
+1️⃣ settings.gradle 수정
+✔ Unity 제거
+// include(":unityLibrary")
+// project(":unityLibrary").projectDir = file("unityLibrary")
 
-  cupertino_icons: ^1.0.8
+✔ isar_flutter_libs 로컬 모듈 include
+include(":isar_flutter_libs")
+project(":isar_flutter_libs").projectDir = file("/home/ssm-user/.pub-cache/hosted/pub.dev/isar_flutter_libs-3.1.0+1/android")
 
-  flutter_riverpod: ^2.6.1
-  go_router: ^14.8.1
+2️⃣ isar_flutter_libs 패치
+📁 경로
+~/.pub-cache/hosted/pub.dev/isar_flutter_libs-3.1.0+1/android/
 
-  freezed_annotation: ^2.4.4
-  json_annotation: ^4.9.0
+✔ build.gradle 최종 버전
+group 'dev.isar.isar_flutter_libs'
+version '1.0'
 
-  retrofit: ^4.5.0
-  dio: ^5.7.0
-  shared_preferences: ^2.1.1
-
-  webview_flutter: ^4.10.0
-
-  # 현재 유일하게 빌드 성공하는 안정 버전
-  flutter_unity_widget: ^2022.1.1+5
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-
-  build_runner: ^2.4.13
-  freezed: ^2.5.7
-  retrofit_generator: ^8.2.1
-  json_serializable: ^6.9.0
-  flutter_lints: ^5.0.0
-
-flutter:
-  uses-material-design: true
-  assets:
-    - assets/
-```
-
----
-
-# 🛠️ Android (build.gradle — 정상 빌드된 최종본)
-
-```gradle
-plugins {
-    id "com.android.application"
-    id "org.jetbrains.kotlin.android"
-    id "dev.flutter.flutter-gradle-plugin"
-}
+apply plugin: 'com.android.library'
 
 android {
-    namespace = "com.youthroad.app"
-    compileSdk = 36
-
-    signingConfigs {
-        debug {
-            storeFile file("${rootDir}/debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
-        }
-    }
+    namespace "isar.flutter.libs"
+    compileSdkVersion 34
 
     defaultConfig {
-        applicationId = "com.youthroad.app"
-        minSdk = 24
-        targetSdk = 36
-
-        versionCode = 1
-        versionName = "1.0"
-
-        multiDexEnabled = true
-    }
-
-    buildTypes {
-        debug {
-            debuggable true
-            signingConfig signingConfigs.debug
-        }
-        release {
-            signingConfig signingConfigs.debug
-            minifyEnabled false
-            shrinkResources false
-        }
-    }
-
-    packagingOptions {
-        jniLibs.useLegacyPackaging = true
-        doNotStrip "*/arm64-v8a/*.so"
-
-        resources.pickFirsts += ['**/*.xml']
-        resources.pickFirsts += ['**/*.properties']
-        resources.pickFirsts += ['META-INF/*']
+        minSdkVersion 24
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
-
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-}
-
-afterEvaluate {
-    tasks.matching { it.name == "packageDebug" }.configureEach { t ->
-        t.doLast {
-            def fromApk = file("$projectDir/build/outputs/apk/debug/app-debug.apk")
-
-            def flutterDir = file("$rootDir/build/app/outputs/flutter-apk")
-            def backupDir = file("$rootDir/build")
-
-            if (fromApk.exists()) {
-                flutterDir.mkdirs()
-                copy { from fromApk into flutterDir }
-
-                backupDir.mkdirs()
-                copy { from fromApk into backupDir }
-
-                println("✔ APK copied successfully.")
-            } else {
-                println("✘ APK NOT FOUND at: ${fromApk}")
-            }
-        }
-    }
-}
-
-## 🔍 Build Verification (현재 컨테이너 상황)
-
-- Android Gradle 빌드에는 `android/local.properties`의 `flutter.sdk`/`sdk.dir` 값이 필요합니다.
-- 본 컨테이너에는 Flutter SDK와 Android SDK 경로가 비어 있어 Gradle wrapper 실행이 중단되었습니다.
-
-## ▶️ 앱 실행 엔트리포인트
-
-- 개발용: `flutter run -t lib/main_dev.dart`
-- 운영용(기본): `flutter run -t lib/main_prod.dart` 또는 기본 `lib/main.dart`
-- 로컬에서 확인 시 `android/local.properties.example`를 복사 후 실제 경로로 수정하면 `./gradlew assembleDebug`로 빌드 검증을 수행할 수 있습니다.
-
-flutter {
-    source = "../.."
-}
-
-dependencies {
-    implementation "androidx.multidex:multidex:2.0.1"
-    implementation project(":unityLibrary")
-}
-
-configurations.all {
-    exclude group: "com.unity3d.player"
-    exclude module: "unity-classes"
 }
 
 repositories {
-    flatDir {
-        dirs "${project(':unityLibrary').projectDir}/libs"
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation "androidx.startup:startup-runtime:1.1.1"
+}
+
+✔ AndroidManifest.xml
+
+삭제:
+
+package="dev.isar.isar_flutter_libs"
+
+3️⃣ flutter_unity_widget 제거
+
+pubspec.yaml:
+
+# flutter_unity_widget: 2022.2.1
+
+4️⃣ app/build.gradle — Unity 관련 코드 제거
+
+삭제해야 하는 예:
+
+implementation project(":unityLibrary")
+jniLibs.srcDirs += ['../unityLibrary/src/main/jniLibs']
+
+packagingOptions {
+    pickFirst '**/libunity.so'
+    pickFirst '**/libmain.so'
+}
+
+5️⃣ App Router Unity 제거
+
+파일: lib/navigation/app_router.dart
+
+import '../ui/screens/unity/unity_screen.dart'; // 삭제
+
+// Unity route block 삭제
+
+6️⃣ EC2 Flutter 빌드 명령어
+flutter build apk --debug --no-shrink \
+  --dart-define=YOUTH_API_KEY=xxxxx \
+  --dart-define=KAKAO_MAP_API_KEY=xxxxx \
+  --dart-define=CHAT_ENDPOINT=https://youthroad-chat-proxy.vercel.app/api/chat
+
+7️⃣ ⭐ 자동 패치 스크립트 (merge 후 실행)
+📁 위치 (추천)
+scripts/patch_no_unity.sh
+
+📄 스크립트 내용
+#!/bin/bash
+
+echo "==============================================="
+echo "🔥 YouthRoad — no-unity-build 자동 패치 스크립트 시작"
+echo "==============================================="
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$BRANCH" != "no-unity-build" ] && [ "$BRANCH" != "feature/no-unity-build" ]; then
+  echo "❌ 현재 브랜치: $BRANCH"
+  echo "⚠️ 이 스크립트는 no-unity-build 전용입니다."
+  exit 1
+fi
+
+echo "✔ 현재 브랜치: $BRANCH"
+echo "✔ Unity 관련 요소 자동 제거 시작..."
+
+sed -i '/flutter_unity_widget/d' pubspec.yaml
+sed -i '/unity_screen.dart/d' lib/navigation/app_router.dart
+sed -i '/UnityScreen/d' lib/navigation/app_router.dart
+sed -i '/unityLibrary/d' android/app/build.gradle
+sed -i '/libunity.so/d' android/app/build.gradle
+sed -i '/libmain.so/d' android/app/build.gradle
+sed -i '/jniLibs.srcDirs/d' android/app/build.gradle
+sed -i '/unityLibrary/d' android/settings.gradle
+
+ISAR_PATH=$(ls -d ~/.pub-cache/hosted/pub.dev/isar_flutter_libs-3.1.0+1/android 2>/dev/null)
+
+if [ -d "$ISAR_PATH" ]; then
+  sed -i '/package=/d' $ISAR_PATH/src/main/AndroidManifest.xml
+
+  cat > $ISAR_PATH/build.gradle <<EOF
+group 'dev.isar.isar_flutter_libs'
+version '1.0'
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace "isar.flutter.libs"
+    compileSdkVersion 34
+
+    defaultConfig {
+        minSdkVersion 24
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 }
-```
 
----
+repositories {
+    google()
+    mavenCentral()
+}
 
-# 🎮 Unity Integration Workflow (2022.3 LTS)
+dependencies {
+    implementation "androidx.startup:startup-runtime:1.1.1"
+}
+EOF
+fi
 
-Unity 설정은 아래처럼 작업해야 문제 없이 빌드됨:
-
-1. **Unity → Build Settings**
-
-   * Android
-   * Export Project 체크
-2. **Scripting Backend**
-
-   * IL2CPP
-3. **Architecture**
-
-   * ARM64
-4. **Export Path**
-
-   ```
-   android/unityLibrary/
-   ```
-5. 기존 Flutter Android와 자동 병합됨
-6. Flutter에서 `flutter_unity_widget`로 UnityView 렌더링
-7. 메시지 통신:
-
-   * Flutter → Unity: `postMessage`
-   * Unity → Flutter: `sendMessage`
-
----
-
-# 🚀 Running the Project (Debug & Release 검증)
-
-```bash
+echo "🧹 Flutter clean + pub get..."
 flutter clean
 flutter pub get
-flutter build apk --debug --no-shrink
 
-# 릴리스 빌드 (현재 debug.keystore 기반 서명, Shrink 미적용)
-flutter build apk --release --no-shrink
-```
+echo "==============================================="
+echo "🎉 자동 패치 완료 — Unity 없는 빌드 환경 준비됨!"
+echo "==============================================="
 
-APK 출력 경로:
+8️⃣ ⭐ main → no-unity-build 최신화 절차 (중요)
 
-```
-build/app/outputs/flutter-apk/app-debug.apk
-build/app/outputs/flutter-apk/app-release.apk
-```
+main에서 작업한 뒤 최신화가 필요할 때:
 
-> **Note**: `android/app/build.gradle`에서 `packageDebug`와 `packageRelease` 작업 완료 후
-> 생성된 APK를 Flutter가 읽는 디렉토리(`build/app/outputs/flutter-apk`)와 백업 디렉토리(`build/`)
-> 두 곳에 자동 복사하도록 후처리가 걸려 있습니다. Debug/Release 모두 동일하게 동작합니다.
+git checkout no-unity-build
+git fetch origin
+git merge origin/main --no-ff
+./scripts/patch_no_unity.sh
 
----
 
-# 🖼️ Flutter Screens (현재 계획)
+바로 빌드:
 
-* 앱 첫 로딩 화면 (애니메이션)
-* 지역 선택 화면
-* 정책 추천 Home
-* Unity Map/3D 인터랙션 화면
-* 마이페이지
+flutter build apk ...
 
----
-
-# 👩‍💻 Developer
-
-### **최지민 (ChoiDeborah)**
-
-Flutter × Unity × Oracle 기반의 YouthRoad App 개발자
-
----
-
-# 🛠 Tech Stack
-
-### Languages / Frameworks
-
-![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge\&logo=dart\&logoColor=white)
-![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge\&logo=flutter\&logoColor=white)
-![Unity](https://img.shields.io/badge/Unity-000000?style=for-the-badge\&logo=unity\&logoColor=white)
-
-### Tools
-
-![Android Studio](https://img.shields.io/badge/Android%20Studio-3DDC84?style=for-the-badge\&logo=androidstudio\&logoColor=white)
-![VS Code](https://img.shields.io/badge/VS%20Code-007ACC?style=for-the-badge\&logo=visualstudiocode\&logoColor=white)
-![Rider](https://img.shields.io/badge/JetBrains%20Rider-000000?style=for-the-badge\&logo=jetbrains\&logoColor=white)
-![Visual Studio](https://img.shields.io/badge/Visual%20Studio-5C2D91?style=for-the-badge\&logo=visualstudio\&logoColor=white)
-
----
+📌 빌드 상태 요약
+기능	상태
+Unity 기능	❌ 제거
+flutter_unity_widget	❌ 비활성화
+isar libs	✔ 패치됨
+Gradle/AGP	✔ 정상
+Kakao Map	✔ 정상
+Youth API	✔ 정상
+AI Chat	✔ 정상
+EC2 Build	완전 성공

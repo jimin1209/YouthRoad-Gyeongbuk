@@ -67,16 +67,16 @@ flutter {
 
 dependencies {
     implementation "androidx.multidex:multidex:2.0.1"
-    implementation project(":unityLibrary")
+//    implementation project(":unityLibrary")
 }
 
 configurations.all {
-    exclude group: "com.unity3d.player"
-    exclude module: "unity-classes"
+//    exclude group: "com.unity3d.player"
+//    exclude module: "unity-classes"
 }
 
 repositories {
-    flatDir {
-        dirs "${project(':unityLibrary').projectDir}/libs"
-    }
+//    flatDir {
+//        dirs "${project(':unityLibrary').projectDir}/libs"
+//    }
 }

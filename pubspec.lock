@@ -246,14 +246,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.0.0"
-  flutter_plugin_android_lifecycle:
-    dependency: transitive
-    description:
-      name: flutter_plugin_android_lifecycle
-      sha256: "1c2b787f99bdca1f3718543f81d38aa1b124817dfeb9fb196201bea85b6134bf"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.26"
   flutter_riverpod:
     dependency: "direct main"
     description:
@@ -267,14 +259,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_unity_widget:
-    dependency: "direct main"
-    description:
-      name: flutter_unity_widget
-      sha256: "91ed7166754f8c35358dfc92b8812d9ec5fbf1f6d67276a2462fda8ac6eef7f3"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2022.2.1"
   flutter_web_plugins:
     dependency: transitive
     description: flutter
@@ -865,10 +849,10 @@ packages:
     dependency: transitive
     description:
       name: vm_service
-      sha256: f652077d0bdf60abe4c1f6377448e8655008eef28f128bc023f7b5e8dfeb48fc
+      sha256: "5c5f338a667b4c644744b661f309fb8080bb94b18a7e91ef1dbd343bed00ed6d"
       url: "https://pub.dev"
     source: hosted
-    version: "14.2.4"
+    version: "14.2.5"
   watcher:
     dependency: transitive
     description:
@@ -925,14 +909,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.13.0"
-  webview_flutter_web:
-    dependency: transitive
-    description:
-      name: webview_flutter_web
-      sha256: "18a7ccc1c31dd9a5c759a1b7217a2a1e04bd8f65712714a4070bfac19a23ca9e"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.3+4"
   webview_flutter_wkwebview:
     dependency: transitive
     description:
