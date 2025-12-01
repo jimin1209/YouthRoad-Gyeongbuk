@@ -1,57 +1,63 @@
 workflows:
-  youthroad_ios:
-    name: YouthRoad iOS Build (Unsigned IPA for AltStore)
+  ios_unsigned_ipa:
+    name: Build iOS IPA (Unsigned) + Upload to GitHub Release
     max_build_duration: 60
     environment:
-      flutter: 3.24.5
-      xcode: latest
-      cocoapods: default
       vars:
-        YOUTH_API_KEY: $YOUTH_API_KEY
-        KAKAO_MAP_API_KEY: $KAKAO_MAP_API_KEY
-        CHAT_ENDPOINT: $CHAT_ENDPOINT
+        GITHUB_REPO: "jimin1209/YouthRoad-Gyeongbuk"
+      flutter: stable
+      xcode: latest
 
     scripts:
-      - name: Install Flutter dependencies
-        script: |
-          flutter clean
-          flutter pub get
+      # 1) Flutter clean
+      - name: Clean Flutter
+        script: flutter clean
 
-      - name: Install CocoaPods
-        script: |
-          cd ios
-          pod install --repo-update
-          cd ..
+      # 2) Install dependencies
+      - name: Install dependencies
+        script: flutter pub get
 
-      - name: Build .xcarchive (unsigned)
-        script: |
-          flutter build ipa \
-            --no-codesign \
-            --release \
-            --no-tree-shake-icons \
-            --dart-define=YOUTH_API_KEY=$YOUTH_API_KEY \
-            --dart-define=KAKAO_MAP_API_KEY=$KAKAO_MAP_API_KEY \
-            --dart-define=CHAT_ENDPOINT=$CHAT_ENDPOINT
+      # 3) iOS build (unsigned IPA)
+      - name: Build iOS (Unsigned IPA)
+        script: flutter build ipa --no-codesign
 
-      - name: Create unsigned IPA manually
+      # 4) Create GitHub Release
+      - name: Create GitHub Release
         script: |
+          TAG="ios-build-$(date +'%Y-%m-%d_%H-%M-%S')"
+          RELEASE_NAME="iOS Build $TAG"
           IPA_PATH="build/ios/ipa/Runner-unsigned.ipa"
-          ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
-          PAYLOAD_PATH="Payload"
 
-          echo "📦 Creating Payload directory"
-          rm -rf $PAYLOAD_PATH
-          mkdir -p $PAYLOAD_PATH
+          if [ ! -f "$IPA_PATH" ]; then
+            echo "❌ IPA not found: $IPA_PATH"
+            exit 1
+          fi
 
-          echo "📦 Copying app from archive"
-          cp -R "$ARCHIVE_PATH/Products/Applications/Runner.app" $PAYLOAD_PATH/
+          echo "📤 Creating GitHub Release for $TAG"
 
-          echo "📦 Zipping Payload → Unsigned IPA"
-          zip -r $IPA_PATH $PAYLOAD_PATH
+          RELEASE_RESPONSE=$(curl -s \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"$TAG\", \"name\":\"$RELEASE_NAME\", \"body\":\"Auto-generated unsigned IPA release.\"}" \
+            "https://api.github.com/repos/$GITHUB_REPO/releases")
 
-          echo "✅ Unsigned IPA created at: $IPA_PATH"
+          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
+
+          echo "✔ Release created with ID: $RELEASE_ID"
+
+          # 5) Upload IPA asset
+          UPLOAD_URL="https://uploads.github.com/repos/$GITHUB_REPO/releases/$RELEASE_ID/assets?name=Runner-unsigned-$TAG.ipa"
+
+          echo "📦 Uploading IPA to GitHub Release..."
+
+          curl -s \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$IPA_PATH" \
+            "$UPLOAD_URL"
+
+          echo "🎉 IPA Upload Complete!"
 
     artifacts:
-      - build/ios/ipa/*.ipa
-      - build/ios/archive/*.xcarchive
+      - build/ios/ipa/Runner-unsigned.ipa
 
