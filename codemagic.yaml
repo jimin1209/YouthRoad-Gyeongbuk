@@ -1,37 +1,33 @@
 workflows:
   youthroad_ios:
-    name: YouthRoad iOS Build
+    name: YouthRoad iOS Build (Unsigned for AltStore)
     max_build_duration: 60
     environment:
       flutter: 3.24.5
       xcode: latest
       cocoapods: default
-
-      # 🔥 Codemagic 환경변수 입력 필요
       vars:
         YOUTH_API_KEY: $YOUTH_API_KEY
         KAKAO_MAP_API_KEY: $KAKAO_MAP_API_KEY
         CHAT_ENDPOINT: $CHAT_ENDPOINT
 
     scripts:
-      # 1) 패키지 설치
       - name: Install dependencies
         script: |
           flutter clean
           flutter pub get
 
-      # 2) iOS 의존성 설치
       - name: Install CocoaPods
         script: |
           cd ios
           pod install --repo-update
           cd ..
 
-      # 3) iOS IPA 빌드
-      - name: Build iOS IPA
+      - name: Build unsigned IPA (no code signing)
         script: |
           flutter build ipa \
             --release \
+            --no-codesign \
             --no-tree-shake-icons \
             --dart-define=YOUTH_API_KEY=$YOUTH_API_KEY \
             --dart-define=KAKAO_MAP_API_KEY=$KAKAO_MAP_API_KEY \
@@ -39,11 +35,9 @@ workflows:
 
     artifacts:
       - build/ios/ipa/*.ipa
-      - build/ios/archive/*.xcarchive
-
 
   youthroad_android:
-    name: YouthRoad Android Build
+    name: YouthRoad Android Build (Release)
     max_build_duration: 45
     environment:
       flutter: 3.24.5
@@ -64,4 +58,3 @@ workflows:
 
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
-
