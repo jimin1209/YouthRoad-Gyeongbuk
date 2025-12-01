@@ -1,49 +1,5 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+// Deprecated wrapper kept for compatibility with feature-layer widgets.
+// New implementation lives in lib/application/policy/policy_prefetch_provider.dart
+// and follows the lazy-loading, cache-first strategy.
 
-import '../../../application/notifiers/policy_paging_notifier.dart'; // ← ★ 반드시 필요!!
-import '../../../application/providers.dart';
-import '../../../domain/repositories/policy_repository.dart';
-
-final policyPrefetchProvider =
-    AsyncNotifierProvider<PolicyPrefetchNotifier, void>(
-  PolicyPrefetchNotifier.new,
-);
-
-class PolicyPrefetchNotifier extends AsyncNotifier<void> {
-  PolicyRepository get _repository =>
-      ref.read(policyRepositoryInterfaceProvider);
-
-  PolicyPagingNotifier get _pagingNotifier =>
-      ref.read(policyPagingProvider.notifier); // ← 오류 해결됨!
-
-  @override
-  Future<void> build() async {}
-
-  Future<void> prefetchPolicies() async {
-    if (state.isLoading) return;
-    state = const AsyncValue.loading();
-
-    try {
-      final cached = await _repository.loadCachedPolicies(
-        filter: _pagingNotifier.currentFilter,
-      );
-      if (cached.isNotEmpty) {
-        _pagingNotifier.seedFromCache(cached);
-      }
-    } catch (e, st) {
-      debugPrint('[PolicyPrefetchNotifier] cache preload failed: $e\n$st');
-    }
-
-    try {
-      final remote = await _repository.refreshPolicies(
-        filter: _pagingNotifier.currentFilter,
-      );
-      _pagingNotifier.replaceWithFresh(remote);
-      state = const AsyncValue.data(null);
-    } catch (e, st) {
-      debugPrint('[PolicyPrefetchNotifier] remote prefetch failed: $e\n$st');
-      state = AsyncValue.error(e, st);
-    }
-  }
-}
+export '../../../application/policy/policy_prefetch_provider.dart';

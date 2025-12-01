@@ -7,12 +7,10 @@ import '../../../core/constants/env.dart';
 import '../../models/policy_filter.dart';
 import '../../models/policy_model.dart';
 
-/// 올바른 정책 API 기본 URL
-/// 실제 정책 리스트 엔드포인트 예:
-///   GET https://www.gbyouth.co.kr/openapi/policy/list.json
+/// 올바른 정책 API 기본 URL (오타 주의: gbyouth.co.kr)
 const String kPolicyApiBaseUrl = String.fromEnvironment(
   'POLICY_API_BASE_URL',
-  defaultValue: 'https://www.gbyouth.co.kr/openapi',
+  defaultValue: 'https://gbyouth.co.kr/openapi',
 );
 
 class PolicyRemoteSource {
@@ -33,6 +31,9 @@ class PolicyRemoteSource {
   final String _baseUrl;
 
   /// 정책 리스트 불러오기 (GET)
+  ///
+  /// - 기본은 페이징 비활성화(pagingYn=N) + recordCount=2000으로 전체를 받아온다.
+  /// - JSON 파싱은 compute()를 사용해 별도의 isolate에서 처리한다.
   Future<List<PolicyModel>> fetchPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
