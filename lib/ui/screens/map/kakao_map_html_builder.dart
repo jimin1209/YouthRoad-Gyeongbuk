@@ -1,22 +1,64 @@
+import 'dart:convert';
+
 class KakaoMapLatLng {
   const KakaoMapLatLng(this.lat, this.lng);
 
   final double lat;
   final double lng;
+
+  Map<String, dynamic> toJson() => {
+        'lat': lat,
+        'lng': lng,
+      };
+
+  @override
+  bool operator ==(Object other) {
+    return other is KakaoMapLatLng && other.lat == lat && other.lng == lng;
+  }
+
+  @override
+  int get hashCode => Object.hash(lat, lng);
 }
 
-class KakaoMapPolicyMarker {
-  const KakaoMapPolicyMarker({
+class KakaoMapMarker {
+  const KakaoMapMarker({
     required this.id,
     required this.title,
-    required this.lat,
-    required this.lng,
+    required this.position,
   });
 
   final String id;
   final String title;
-  final double lat;
-  final double lng;
+  final KakaoMapLatLng position;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': _escape(title),
+        ...position.toJson(),
+      };
+
+  KakaoMapMarker copyWith({
+    String? id,
+    String? title,
+    KakaoMapLatLng? position,
+  }) {
+    return KakaoMapMarker(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      position: position ?? this.position,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is KakaoMapMarker &&
+        other.id == id &&
+        other.title == title &&
+        other.position == position;
+  }
+
+  @override
+  int get hashCode => Object.hash(id, title, position);
 }
 
 class KakaoMapHtmlBuilder {
@@ -25,37 +67,16 @@ class KakaoMapHtmlBuilder {
   String build({
     required String apiKey,
     required KakaoMapLatLng center,
-    required List<KakaoMapPolicyMarker> markers,
-    String? bridgeName,
+    required List<KakaoMapMarker> markers,
+    String bridgeName = 'KakaoBridge',
   }) {
     if (apiKey.isEmpty) {
       return _missingApiKeyPage();
     }
 
-    final markerJson = markers
-        .map(
-          (m) => "{id: '${_escape(m.id)}', title: '${_escape(m.title)}', lat: ${m.lat}, lng: ${m.lng}}",
-        )
-        .join(',');
+    final markerJson = jsonEncode(markers.map((m) => m.toJson()).toList());
 
-    final safeBridgeName = bridgeName != null && bridgeName.isNotEmpty
-        ? bridgeName
-        : null;
-
-    final notifyFlutter = safeBridgeName != null
-        ? """
-            function notifyFlutter(message) {
-              try {
-                console.log('[WEBVIEW] notifyFlutter -> ' + message);
-                $safeBridgeName.postMessage(message);
-              } catch (e) {
-                console.error('[WEBVIEW] Bridge postMessage failed', e);
-              }
-            }
-          """
-        : "function notifyFlutter(message) {}";
-
-  return '''
+    return '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -69,46 +90,52 @@ class KakaoMapHtmlBuilder {
 <body>
   <div id="map"></div>
   <script>
-    console.log("HTML LOADED");
-    console.log("API KEY =", "$apiKey");
-
     var map;
     var markers = [];
-    var markerData = [$markerJson];
+    var markerData = $markerJson;
 
-    $notifyFlutter
+    function notifyFlutter(event) {
+      if (!event || !window.$bridgeName) { return; }
+      try {
+        window.$bridgeName.postMessage(JSON.stringify(event));
+      } catch (e) {
+        console.error('[WEBVIEW] Bridge postMessage failed', e);
+      }
+    }
 
-    function moveTo(lat, lng) {
+    function moveTo(lat, lng, level) {
       if (!map) return;
       var latlng = new kakao.maps.LatLng(lat, lng);
       map.setCenter(latlng);
+      if (typeof level === 'number') {
+        map.setLevel(level);
+      }
     }
 
     function clearMarkers() {
-      markers.forEach(function(marker) {
-        marker.setMap(null);
-      });
+      markers.forEach(function(marker) { marker.setMap(null); });
       markers = [];
     }
 
-    function renderMarkers(map) {
+    function renderMarkers(targetMap) {
+      if (!Array.isArray(markerData)) return;
       markerData.forEach(function(m) {
         var position = new kakao.maps.LatLng(m.lat, m.lng);
         var marker = new kakao.maps.Marker({ position: position });
-        marker.setMap(map);
+        marker.setMap(targetMap);
         markers.push(marker);
 
         var infoWindow = new kakao.maps.InfoWindow({
           content: '<div style="padding:8px;font-size:13px;">' + m.title + '</div>'
         });
         kakao.maps.event.addListener(marker, 'click', function() {
-          infoWindow.open(map, marker);
-          notifyFlutter('marker:' + m.id);
+          infoWindow.open(targetMap, marker);
+          notifyFlutter({ type: 'marker_tap', payload: { id: m.id } });
         });
       });
     }
 
-    function updateMarkers(data) {
+    function setMarkers(data) {
       if (Array.isArray(data)) {
         markerData = data;
       }
@@ -118,7 +145,6 @@ class KakaoMapHtmlBuilder {
     }
 
     function initMap() {
-      console.log("initMap START");
       var container = document.getElementById('map');
       var options = {
         center: new kakao.maps.LatLng(${center.lat}, ${center.lng}),
@@ -127,9 +153,12 @@ class KakaoMapHtmlBuilder {
       map = new kakao.maps.Map(container, options);
       renderMarkers(map);
       kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
-        notifyFlutter('region:' + mouseEvent.latLng.getLat() + ',' + mouseEvent.latLng.getLng());
+        notifyFlutter({
+          type: 'map_tap',
+          payload: { lat: mouseEvent.latLng.getLat(), lng: mouseEvent.latLng.getLng() }
+        });
       });
-      notifyFlutter('ready');
+      notifyFlutter({ type: 'ready' });
     }
 
     function loadKakaoMap() {
@@ -141,6 +170,13 @@ class KakaoMapHtmlBuilder {
     }
 
     window.onload = loadKakaoMap;
+
+    window.kakaoMap = {
+      moveTo: moveTo,
+      setMarkers: setMarkers,
+      clearMarkers: clearMarkers,
+      get isReady() { return !!map; }
+    };
   </script>
 </body>
 </html>
