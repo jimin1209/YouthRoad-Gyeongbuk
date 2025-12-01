@@ -1,6 +1,6 @@
 workflows:
   youthroad_ios:
-    name: YouthRoad iOS Build (Unsigned for AltStore)
+    name: YouthRoad iOS Build (Unsigned IPA for AltStore)
     max_build_duration: 60
     environment:
       flutter: 3.24.5
@@ -12,7 +12,7 @@ workflows:
         CHAT_ENDPOINT: $CHAT_ENDPOINT
 
     scripts:
-      - name: Install dependencies
+      - name: Install Flutter dependencies
         script: |
           flutter clean
           flutter pub get
@@ -23,38 +23,35 @@ workflows:
           pod install --repo-update
           cd ..
 
-      - name: Build unsigned IPA (no code signing)
+      - name: Build .xcarchive (unsigned)
         script: |
           flutter build ipa \
-            --release \
             --no-codesign \
+            --release \
             --no-tree-shake-icons \
             --dart-define=YOUTH_API_KEY=$YOUTH_API_KEY \
             --dart-define=KAKAO_MAP_API_KEY=$KAKAO_MAP_API_KEY \
             --dart-define=CHAT_ENDPOINT=$CHAT_ENDPOINT
+
+      - name: Create unsigned IPA manually
+        script: |
+          IPA_PATH="build/ios/ipa/Runner-unsigned.ipa"
+          ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
+          PAYLOAD_PATH="Payload"
+
+          echo "📦 Creating Payload directory"
+          rm -rf $PAYLOAD_PATH
+          mkdir -p $PAYLOAD_PATH
+
+          echo "📦 Copying app from archive"
+          cp -R "$ARCHIVE_PATH/Products/Applications/Runner.app" $PAYLOAD_PATH/
+
+          echo "📦 Zipping Payload → Unsigned IPA"
+          zip -r $IPA_PATH $PAYLOAD_PATH
+
+          echo "✅ Unsigned IPA created at: $IPA_PATH"
 
     artifacts:
       - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
 
-  youthroad_android:
-    name: YouthRoad Android Build (Release)
-    max_build_duration: 45
-    environment:
-      flutter: 3.24.5
-    scripts:
-      - name: Install dependencies
-        script: |
-          flutter clean
-          flutter pub get
-
-      - name: Build Android APK
-        script: |
-          flutter build apk \
-            --release \
-            --no-tree-shake-icons \
-            --dart-define=YOUTH_API_KEY=$YOUTH_API_KEY \
-            --dart-define=KAKAO_MAP_API_KEY=$KAKAO_MAP_API_KEY \
-            --dart-define=CHAT_ENDPOINT=$CHAT_ENDPOINT
-
-    artifacts:
-      - build/app/outputs/flutter-apk/*.apk
