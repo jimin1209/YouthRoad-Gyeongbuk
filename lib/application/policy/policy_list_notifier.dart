@@ -1,4 +1,10 @@
 // FILE: lib/application/policy/policy_list_notifier.dart
+// 정책 리스트는 "UI 우선"을 지향한다. 첫 렌더링 시 로딩 스피너로 화면을 막지 않고
+// 바로 화면을 그린 뒤, Isar 캐시를 즉시 반영하고 원격 데이터는 백그라운드에서
+// 갱신하도록 설계했다.
+
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -64,6 +70,8 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     final normalizedRegion = region?.trim() ?? '';
     debugPrint('[PolicyListNotifier] build() with region=$region');
 
+    // 초기 state는 isLoading=false로 두어 첫 프레임을 즉시 렌더링한다.
+    // 실제 로딩은 마이크로태스크로 밀어 UI 블로킹을 피한다.
     if (!_initialLoadScheduled) {
       _initialLoadScheduled = true;
       Future.microtask(() {
@@ -84,7 +92,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       debugPrint('[PolicyListNotifier] disposed');
     });
 
-    return const PolicyListState(isLoading: true);
+    return const PolicyListState();
   }
 
   PolicyFilter _buildFilter({required String region}) {
@@ -93,6 +101,8 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       searchRgnSe: normalizedRegion.isEmpty ? null : normalizedRegion,
       searchText: _lastQuery,
       availableOnly: true,
+      pagingYn: 'N',
+      recordCount: 2000,
     );
   }
 
@@ -113,6 +123,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       }
     }
 
+    // isLoading=true로 표시하되 UI는 이미 그려진 상태이므로 블로킹되지 않는다.
     state = state.copyWith(
       isLoading: true,
       error: null,
@@ -132,37 +143,45 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       state = state.copyWith(
         policies: result.policies,
         isLoading: false,
+        isRefreshing: false,
         isStale: shouldMarkStale,
         error: null,
       );
       debugPrint(
-        '[PolicyListNotifier] initial cache load done. count=${result.policies.length}',
+        '[PolicyListNotifier] cache load done. count=${result.policies.length}',
       );
 
       if (remoteFuture != null) {
-        remoteFuture.then((latest) {
-          state = state.copyWith(
-            policies: latest,
-            isStale: false,
-            error: null,
-          );
-          debugPrint(
-            '[PolicyListNotifier] remote refresh success. count=${latest.length}',
-          );
-        }).catchError((error, stack) {
-          debugPrint('[PolicyListNotifier] remote refresh failed: error=$error');
-          debugPrint('$stack');
-          state = state.copyWith(
-            error: error,
-            isStale: false,
-          );
-        });
+        unawaited(
+          remoteFuture.then((latest) {
+            if (!mounted) return;
+            state = state.copyWith(
+              policies: latest,
+              isStale: false,
+              isRefreshing: false,
+              error: null,
+            );
+            debugPrint(
+              '[PolicyListNotifier] remote refresh success. count=${latest.length}',
+            );
+          }).catchError((error, stack) {
+            if (!mounted) return;
+            debugPrint('[PolicyListNotifier] remote refresh failed: error=$error');
+            debugPrint('$stack');
+            state = state.copyWith(
+              error: error,
+              isStale: false,
+              isRefreshing: false,
+            );
+          }),
+        );
       }
     } catch (e, st) {
       debugPrint('[PolicyListNotifier] remote refresh failed: error=$e');
       debugPrint('$st');
       state = state.copyWith(
         isLoading: false,
+        isRefreshing: false,
         error: e,
         isStale: false,
       );
@@ -198,25 +217,29 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       );
 
       if (remoteFuture != null) {
-        await remoteFuture.then((latest) {
-          state = state.copyWith(
-            policies: latest,
-            isStale: false,
-            isRefreshing: false,
-            error: null,
-          );
-          debugPrint(
-            '[PolicyListNotifier] refresh remote success. count=${latest.length}',
-          );
-        }).catchError((error, stack) {
-          debugPrint('[PolicyListNotifier] refresh remote failed: error=$error');
-          debugPrint('$stack');
-          state = state.copyWith(
-            isRefreshing: false,
-            error: error,
-            isStale: false,
-          );
-        });
+        unawaited(
+          remoteFuture.then((latest) {
+            if (!mounted) return;
+            state = state.copyWith(
+              policies: latest,
+              isStale: false,
+              isRefreshing: false,
+              error: null,
+            );
+            debugPrint(
+              '[PolicyListNotifier] refresh remote success. count=${latest.length}',
+            );
+          }).catchError((error, stack) {
+            if (!mounted) return;
+            debugPrint('[PolicyListNotifier] refresh remote failed: error=$error');
+            debugPrint('$stack');
+            state = state.copyWith(
+              isRefreshing: false,
+              error: error,
+              isStale: false,
+            );
+          }),
+        );
       } else {
         state = state.copyWith(
           isRefreshing: false,

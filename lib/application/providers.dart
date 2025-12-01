@@ -10,10 +10,14 @@ import 'notifiers/policy_paging_notifier.dart';
 export 'di.dart';
 export 'repository_providers.dart';
 export 'notifiers/region_notifier.dart' show regionProvider, RegionNotifier;
-export 'policy/policy_list_notifier.dart'
-    show policyListNotifierProvider, PolicyListNotifier, PolicyListState;
-export '../features/policy/providers/policy_prefetch_provider.dart'
-    show policyPrefetchProvider, PolicyPrefetchNotifier;
+export 'policy/policy_providers.dart'
+    show
+        policyBootstrapProvider,
+        policyListNotifierProvider,
+        PolicyListNotifier,
+        PolicyListState,
+        policyPrefetchProvider,
+        PolicyPrefetchNotifier;
 
 final policyPagingProvider =
     NotifierProvider.autoDispose<PolicyPagingNotifier, PolicyPagingState>(
