@@ -49,6 +49,8 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
   ProviderSubscription<KakaoMapController>? _controllerSubscription;
   KakaoMapOptions? _lastOptions;
   bool? _lastClustering;
+  Timer? _readyTimeout;
+  static const _readyTimeoutDuration = Duration(seconds: 15);
 
   @override
   void initState() {
@@ -83,6 +85,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
   void dispose() {
     _eventSub?.cancel();
     _controllerSubscription?.close();
+    _readyTimeout?.cancel();
     super.dispose();
   }
 
@@ -92,6 +95,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     _fatalError = false;
     _errorCount = 0;
     _notifyLoading(true);
+    _scheduleReadyTimeout();
     _controller.load(
       center: widget.center,
       markers: widget.markers,
@@ -107,6 +111,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       case KakaoMapEventType.ready:
         _errorCount = 0;
         _fatalError = false;
+        _readyTimeout?.cancel();
         _notifyLoading(false);
         widget.onReady?.call();
         break;
@@ -150,6 +155,19 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       _loading = value;
     });
     widget.onLoadingChanged?.call(value);
+  }
+
+  void _scheduleReadyTimeout() {
+    _readyTimeout?.cancel();
+    _readyTimeout = Timer(_readyTimeoutDuration, () {
+      if (mounted && !_controller.isReady) {
+        setState(() {
+          _fatalError = true;
+          _loading = false;
+        });
+        widget.onError?.call('READY_TIMEOUT');
+      }
+    });
   }
 
   bool _markersEqual(List<KakaoMapMarker> a, List<KakaoMapMarker> b) {

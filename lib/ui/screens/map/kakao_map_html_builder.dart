@@ -157,7 +157,7 @@ class KakaoMapOptions {
         'mapType': mapType.name,
         'showZoomControl': showZoomControl,
         'showMapTypeControl': showMapTypeControl,
-        };
+      };
 
   @override
   bool operator ==(Object other) {
@@ -218,6 +218,9 @@ class KakaoMapHtmlBuilder {
     var ready = false;
     var loadTimer;
     var loadAttempts = 0;
+    var sdkPollCount = 0;
+    var maxPolls = 60;
+    var maxReloads = 2;
 
     function notifyFlutter(event) {
       if (!event || !window.$bridgeName) { return; }
@@ -228,8 +231,23 @@ class KakaoMapHtmlBuilder {
       }
     }
 
+    function redirectConsole() {
+      var originalLog = console.log;
+      var originalError = console.error;
+      console.log = function() {
+        var msg = Array.prototype.slice.call(arguments).join(' ');
+        notifyFlutter({ type: 'log', level: 'log', message: msg });
+        originalLog.apply(console, arguments);
+      };
+      console.error = function() {
+        var msg = Array.prototype.slice.call(arguments).join(' ');
+        notifyFlutter({ type: 'log', level: 'error', message: msg });
+        originalError.apply(console, arguments);
+      };
+    }
+
     function sendLoading(value) {
-      notifyFlutter({ type: 'loading', payload: { value: value } });
+      notifyFlutter({ type: 'loading', value: value });
     }
 
     function setMapType(type) {
@@ -242,7 +260,7 @@ class KakaoMapHtmlBuilder {
       };
       var target = mapping[type] || kakao.maps.MapTypeId.ROADMAP;
       map.setMapTypeId(target);
-      notifyFlutter({ type: 'map_type', payload: { value: type } });
+      notifyFlutter({ type: 'map_type', value: type });
     }
 
     function markerImage(options) {
@@ -273,7 +291,7 @@ class KakaoMapHtmlBuilder {
       });
       kakao.maps.event.addListener(marker, 'click', function() {
         infoWindow.open(map, marker);
-        notifyFlutter({ type: 'marker_tap', payload: { id: m.id } });
+        notifyFlutter({ type: 'marker', id: m.id });
       });
       return marker;
     }
@@ -369,7 +387,7 @@ class KakaoMapHtmlBuilder {
       });
       kakao.maps.event.addListener(clusterer, 'clusterclick', function(cluster) {
         var center = cluster.getCenter();
-        notifyFlutter({ type: 'cluster_tap', payload: { lat: center.getLat(), lng: center.getLng() } });
+        notifyFlutter({ type: 'cluster', lat: center.getLat(), lng: center.getLng() });
       });
     }
 
@@ -396,8 +414,9 @@ class KakaoMapHtmlBuilder {
       }
       kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
         notifyFlutter({
-          type: 'map_tap',
-          payload: { lat: mouseEvent.latLng.getLat(), lng: mouseEvent.latLng.getLng() }
+          type: 'map',
+          lat: mouseEvent.latLng.getLat(),
+          lng: mouseEvent.latLng.getLng()
         });
       });
       ready = true;
@@ -407,27 +426,41 @@ class KakaoMapHtmlBuilder {
 
     function handleLoadTimeout() {
       if (ready) return;
-      notifyFlutter({ type: 'error', payload: { code: 'sdk_load_timeout', attempt: loadAttempts } });
+      notifyFlutter({ type: 'error', code: 'SDK_LOAD_TIMEOUT', attempt: loadAttempts });
+    }
+
+    function pollSdkLoaded(force) {
+      if (window.kakao && kakao.maps && kakao.maps.load) {
+        kakao.maps.load(initMap);
+        return;
+      }
+      sdkPollCount += 1;
+      if (sdkPollCount > maxPolls) {
+        notifyFlutter({ type: 'error', code: 'SDK_LOAD_FAILED', attempt: loadAttempts, polls: sdkPollCount });
+        if (loadAttempts <= maxReloads) {
+          loadKakaoMap(true);
+        }
+        return;
+      }
+      setTimeout(function() { pollSdkLoaded(force); }, 250);
     }
 
     function loadKakaoMap(force) {
       ready = false;
       sendLoading(true);
       loadAttempts += 1;
+      sdkPollCount = 0;
       clearTimeout(loadTimer);
       loadTimer = setTimeout(handleLoadTimeout, 7000);
       if (force) {
         map = null;
       }
-      if (window.kakao && kakao.maps && kakao.maps.load) {
-        kakao.maps.load(initMap);
-      } else {
-        setTimeout(function() { loadKakaoMap(false); }, 200);
-      }
+      pollSdkLoaded(force);
     }
 
     window.onload = function() {
       mapOptions.enableClustering = ${enableClustering ? 'true' : 'false'};
+      redirectConsole();
       loadKakaoMap(false);
     };
 

@@ -27,6 +27,8 @@ class KakaoMapEvent {
 
   bool get loadingValue => payload['value'] == true;
   String? get errorCode => payload['code'] as String?;
+  String? get logLevel => payload['level'] as String?;
+  String? get logMessage => payload['message'] as String?;
 }
 
 class _LoadRequest {
@@ -244,23 +246,15 @@ class KakaoMapController {
       final decoded = jsonDecode(raw);
       if (decoded is Map<String, dynamic>) return decoded;
     } catch (_) {
-      // Fallback below
+      // Fallback handled below
     }
-
-    final separatorIndex = raw.indexOf(':');
-    if (separatorIndex != -1) {
-      final type = raw.substring(0, separatorIndex);
-      final value = raw.substring(separatorIndex + 1);
-      return {'type': type, 'payload': {'value': value}};
-    }
-
-    return {'type': 'log', 'payload': {'message': raw}};
+    return {'type': 'log', 'level': 'raw', 'message': raw};
   }
 
   void _handleMessage(JavaScriptMessage message) {
     final parsed = _parseMessage(message.message);
     final type = _mapType(parsed['type'] as String?);
-    final payload = (parsed['payload'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+    final payload = parsed.cast<String, dynamic>();
     final event = KakaoMapEvent(type, payload);
 
     if (type == KakaoMapEventType.ready) {
@@ -270,6 +264,7 @@ class KakaoMapController {
     }
 
     if (type == KakaoMapEventType.error && _reloadAttempts < 2) {
+      _reloadAttempts += 1;
       reloadMap();
     }
 
@@ -280,11 +275,11 @@ class KakaoMapController {
     switch (raw) {
       case 'ready':
         return KakaoMapEventType.ready;
-      case 'marker_tap':
+      case 'marker':
         return KakaoMapEventType.markerTap;
-      case 'map_tap':
+      case 'map':
         return KakaoMapEventType.mapTap;
-      case 'cluster_tap':
+      case 'cluster':
         return KakaoMapEventType.clusterTap;
       case 'loading':
         return KakaoMapEventType.loading;
