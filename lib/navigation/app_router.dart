@@ -22,6 +22,7 @@ import '../ui/screens/setting/setting_v2_screen.dart';
 import '../features/policy/ui/policy_list_page.dart';
 import '../ui/widgets/bottom_nav.dart';
 import '../ui/widgets/global_error_view.dart';
+import '../presentation/search/screens/search_screen.dart';
 import 'route_paths.dart';
 
 class AppRouter {
@@ -127,6 +128,10 @@ class AppRouter {
           path: RoutePaths.favorites,
           name: 'FavoritesScreen',
           builder: (context, state) => const FavoritesScreen(),
+        ),
+        GoRoute(
+          path: RoutePaths.search,
+          builder: (context, state) => const SearchScreen(),
         ),
         GoRoute(
           path: RoutePaths.instList,

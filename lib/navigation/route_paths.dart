@@ -14,6 +14,7 @@ class RoutePaths {
   static const policyCompare = '/policy/compare';
   static const compare = '/compare';
   static const favorites = '/favorites';
+  static const search = '/search';
   static const instList = '/inst/list';
   static const deptList = '/inst/:instNo/dept/list';
   static const policyWebview = '/policy/webview';
