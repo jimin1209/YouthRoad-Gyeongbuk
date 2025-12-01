@@ -36,7 +36,6 @@ class _PolicyWebviewPageState extends State<PolicyWebviewPage> {
 
     _controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..addJavaScriptChannel(DevtoolsWebViewBridge.channel())
       ..setOnConsoleMessage(DevtoolsWebViewBridge.forwardConsole)
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -46,6 +45,7 @@ class _PolicyWebviewPageState extends State<PolicyWebviewPage> {
         ),
       )
       ..loadRequest(uri);
+    DevtoolsWebViewBridge.attachTo(_controller);
   }
 
   @override

@@ -6,16 +6,19 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../devtools_provider.dart';
 
 class DevtoolsWebViewBridge {
-  const DevtoolsWebViewBridge._();
+  static const channelName = 'DevtoolsConsole';
 
-  static const channelName = 'DevToolsConsole';
-
-  static JavaScriptChannel channel() {
-    return JavaScriptChannel(
-      name: channelName,
+  static void attachTo(WebViewController controller) {
+    controller.addJavaScriptChannel(
+      channelName,
       onMessageReceived: (message) {
+        debugPrint('[WEBVIEW_CONSOLE] ${message.message}');
         DevtoolsBinding.instance.addWebViewConsole(
-          WebViewConsoleEntry(level: 'info', message: message.message, source: 'channel'),
+          WebViewConsoleEntry(
+            level: 'info',
+            message: message.message,
+            source: 'channel',
+          ),
         );
       },
     );

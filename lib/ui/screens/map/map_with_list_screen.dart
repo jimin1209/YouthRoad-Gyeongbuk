@@ -121,7 +121,6 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
         _bridgeName,
         onMessageReceived: _onMapEvent,
       )
-      ..addJavaScriptChannel(DevtoolsWebViewBridge.channel())
       ..setOnConsoleMessage(DevtoolsWebViewBridge.forwardConsole)
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -132,6 +131,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
           onPageFinished: (_) => setState(() => _isLoading = false),
         ),
       );
+
+    DevtoolsWebViewBridge.attachTo(_mapController);
 
     _reloadMap();
   }

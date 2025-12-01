@@ -93,6 +93,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         ),
         baseUrl: 'https://youthroad.co.kr',
       );
+    DevtoolsWebViewBridge.attachTo(_controller);
   }
 
   @override
