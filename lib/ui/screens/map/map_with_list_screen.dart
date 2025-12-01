@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/providers.dart';
 import '../../../core/constants/env.dart';
+import '../../../devtools/panels/webview_console_panel.dart';
 import '../../../domain/entities/policy.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
@@ -120,6 +121,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
         _bridgeName,
         onMessageReceived: _onMapEvent,
       )
+      ..addJavaScriptChannel(DevtoolsWebViewBridge.channel())
+      ..setOnConsoleMessage(DevtoolsWebViewBridge.forwardConsole)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (_) => setState(() {
