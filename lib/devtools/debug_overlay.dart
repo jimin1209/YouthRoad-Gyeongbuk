@@ -112,7 +112,7 @@ class _DevtoolsTabViewState extends State<_DevtoolsTabView>
             child: TabBarView(
               controller: _controller,
               physics: const BouncingScrollPhysics(),
-              children: const [
+              children: const <Widget>[
                 ProviderTrackerPanel(),
                 NetworkInspectorPanel(),
                 WebViewConsolePanel(),

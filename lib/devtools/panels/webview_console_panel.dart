@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../devtools_provider.dart';
@@ -9,8 +10,8 @@ class DevtoolsWebViewBridge {
 
   static const channelName = 'DevToolsConsole';
 
-  static JavascriptChannel channel() {
-    return JavascriptChannel(
+  static JavaScriptChannel channel() {
+    return JavaScriptChannel(
       name: channelName,
       onMessageReceived: (message) {
         DevtoolsBinding.instance.addWebViewConsole(
@@ -26,7 +27,7 @@ class DevtoolsWebViewBridge {
       WebViewConsoleEntry(
         level: message.level.name,
         message: message.message,
-        source: message.sourceId,
+        source: null,
       ),
     );
   }
