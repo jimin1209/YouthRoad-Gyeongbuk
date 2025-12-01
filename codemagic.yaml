@@ -1,0 +1,82 @@
+workflows:
+  youthroad_ios:
+    name: YouthRoad iOS Build
+    max_build_duration: 60
+    environment:
+      flutter: 3.24.5
+      xcode: latest
+      cocoapods: default
+
+      # 🔥 Codemagic 환경변수 입력 필요
+      vars:
+        YOUTH_API_KEY: $YOUTH_API_KEY
+        KAKAO_MAP_API_KEY: $KAKAO_MAP_API_KEY
+        CHAT_ENDPOINT: $CHAT_ENDPOINT
+
+    scripts:
+      # 1) 패키지 설치
+      - name: Install dependencies
+        script: |
+          flutter clean
+          flutter pub get
+
+      # 2) iOS 의존성 설치
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      # 3) iOS IPA 빌드
+      - name: Build iOS IPA
+        script: |
+          flutter build ipa \
+            --release \
+            --no-tree-shake-icons \
+            --dart-define=YOUTH_API_KEY=$YOUTH_API_KEY \
+            --dart-define=KAKAO_MAP_API_KEY=$KAKAO_MAP_API_KEY \
+            --dart-define=CHAT_ENDPOINT=$CHAT_ENDPOINT
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
+
+    publishing:
+      email:
+        recipients:
+          - $EMAIL_NOTIFY
+        notify:
+          success: true
+          failure: true
+
+
+  youthroad_android:
+    name: YouthRoad Android Build
+    max_build_duration: 45
+    environment:
+      flutter: 3.24.5
+    scripts:
+      - name: Install dependencies
+        script: |
+          flutter clean
+          flutter pub get
+
+      - name: Build Android APK
+        script: |
+          flutter build apk \
+            --release \
+            --no-tree-shake-icons \
+            --dart-define=YOUTH_API_KEY=$YOUTH_API_KEY \
+            --dart-define=KAKAO_MAP_API_KEY=$KAKAO_MAP_API_KEY \
+            --dart-define=CHAT_ENDPOINT=$CHAT_ENDPOINT
+
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+
+    publishing:
+      email:
+        recipients:
+          - $EMAIL_NOTIFY
+        notify:
+          success: true
+          failure: true
