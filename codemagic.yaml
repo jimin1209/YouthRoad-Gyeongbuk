@@ -9,20 +9,42 @@ workflows:
       xcode: latest
 
     scripts:
-      # 1) Flutter clean
       - name: Clean Flutter
         script: flutter clean
 
-      # 2) Install dependencies
       - name: Install dependencies
         script: flutter pub get
 
-      # 3) iOS build (unsigned IPA)
       - name: Build iOS (Unsigned IPA)
-        script: flutter build ipa --no-codesign
+        script: flutter build ios --release --no-codesign
 
-      # 4) Create GitHub Release
-      - name: Create GitHub Release
+      - name: Convert .xcarchive → Unsigned IPA
+        script: |
+          ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
+          IPA_DIR="build/ios/ipa"
+          IPA_PATH="$IPA_DIR/Runner-unsigned.ipa"
+
+          echo "🔍 Checking archive path..."
+          if [ ! -d "$ARCHIVE_PATH" ]; then
+            echo "❌ Archive not found at $ARCHIVE_PATH"
+            exit 1
+          fi
+
+          echo "📦 Creating IPA directory..."
+          mkdir -p "$IPA_DIR"
+
+          echo "📂 Copying Runner.app..."
+          mkdir -p Payload
+          cp -R "$ARCHIVE_PATH/Products/Applications/Runner.app" Payload/
+
+          echo "📦 Zipping Payload → IPA..."
+          zip -r "$IPA_PATH" Payload > /dev/null
+
+          rm -rf Payload
+
+          echo "🎉 Unsigned IPA created: $IPA_PATH"
+
+      - name: Create GitHub Release and Upload IPA
         script: |
           TAG="ios-build-$(date +'%Y-%m-%d_%H-%M-%S')"
           RELEASE_NAME="iOS Build $TAG"
@@ -33,22 +55,21 @@ workflows:
             exit 1
           fi
 
-          echo "📤 Creating GitHub Release for $TAG"
+          echo "📤 Creating GitHub Release ($TAG)..."
 
           RELEASE_RESPONSE=$(curl -s \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\":\"$TAG\", \"name\":\"$RELEASE_NAME\", \"body\":\"Auto-generated unsigned IPA release.\"}" \
+            -d "{\"tag_name\":\"$TAG\", \"name\":\"$RELEASE_NAME\", \"body\":\"Auto-generated unsigned IPA\"}" \
             "https://api.github.com/repos/$GITHUB_REPO/releases")
 
           RELEASE_ID=$(echo "$RELEASE_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
 
           echo "✔ Release created with ID: $RELEASE_ID"
 
-          # 5) Upload IPA asset
-          UPLOAD_URL="https://uploads.github.com/repos/$GITHUB_REPO/releases/$RELEASE_ID/assets?name=Runner-unsigned-$TAG.ipa"
-
           echo "📦 Uploading IPA to GitHub Release..."
+
+          UPLOAD_URL="https://uploads.github.com/repos/$GITHUB_REPO/releases/$RELEASE_ID/assets?name=Runner-unsigned-$TAG.ipa"
 
           curl -s \
             -H "Authorization: token $GITHUB_TOKEN" \
@@ -60,4 +81,3 @@ workflows:
 
     artifacts:
       - build/ios/ipa/Runner-unsigned.ipa
-
