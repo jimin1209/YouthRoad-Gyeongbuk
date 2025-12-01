@@ -5,23 +5,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'application/di.dart';
-import 'debug/debug_log_collector.dart';
-import 'debug/debug_provider_tracker.dart';
+import 'core/logging/app_log_level.dart';
+import 'devtools/devtools_provider.dart';
+import 'devtools/panels/provider_tracker_panel.dart';
 
 Future<void> mainCommon() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final observers = <ProviderObserver>[];
 
-  if (kDebugMode) {
+  if (!kReleaseMode) {
     final originalDebugPrint = debugPrint;
     debugPrint = (String? message, {int? wrapWidth}) {
       if (message != null) {
-        DebugLogCollector.instance.add(message);
+        DevtoolsBinding.instance.addLog(AppLogLevel.info, message);
       }
       originalDebugPrint(message, wrapWidth: wrapWidth);
     };
-    observers.add(DebugProviderObserver());
+    observers.add(AppProviderObserver());
   }
 
   runApp(

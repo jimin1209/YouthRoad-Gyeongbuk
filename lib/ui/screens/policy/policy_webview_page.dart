@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../../devtools/panels/webview_console_panel.dart';
+
 class PolicyWebviewPage extends StatefulWidget {
   const PolicyWebviewPage({super.key, required this.title, required this.url});
 
@@ -34,6 +36,8 @@ class _PolicyWebviewPageState extends State<PolicyWebviewPage> {
 
     _controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel(DevtoolsWebViewBridge.channel())
+      ..setOnConsoleMessage(DevtoolsWebViewBridge.forwardConsole)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) {
