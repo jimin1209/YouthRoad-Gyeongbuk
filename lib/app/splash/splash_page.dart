@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/policy/providers/policy_prefetch_provider.dart';
+import '../../application/policy/policy_prefetch_provider.dart';
 import '../../navigation/route_paths.dart';
 
 class SplashPage extends ConsumerStatefulWidget {
@@ -19,7 +19,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(policyPrefetchProvider.notifier).prefetchPolicies(); // ← ✔ 수정!
+      ref.read(policyPrefetchProvider.notifier).prefetchPolicies();
       if (mounted) {
         unawaited(_goHome());
       }

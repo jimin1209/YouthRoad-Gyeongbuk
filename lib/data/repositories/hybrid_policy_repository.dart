@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/policy.dart';
@@ -6,8 +8,10 @@ import '../local/isar/isar_service.dart';
 import '../local/isar/policy_isar_model.dart';
 import '../models/policy_filter.dart';
 import '../models/policy_model.dart';
-import '../../data/sources/remote/policy_remote_source.dart';
+import '../sources/remote/policy_remote_source.dart';
 
+/// Repository that prioritizes locally cached policies first and then refreshes
+/// from the remote API in the background (Stale-While-Revalidate).
 class HybridPolicyRepository implements PolicyRepository {
   HybridPolicyRepository(this._remoteSource, this._isarService);
 
@@ -19,11 +23,13 @@ class HybridPolicyRepository implements PolicyRepository {
     PolicyFilter filter = const PolicyFilter(),
     bool forceRefresh = false,
   }) async {
+    // 1) Always return cached data immediately for instant UI rendering.
     final cached = await _safeLoadCache(filter);
     debugPrint(
-      '[HybridPolicyRepository] returning cached policies count=${cached.length}',
+      '[HybridPolicyRepository] cached policies count=${cached.length}',
     );
 
+    // 2) Trigger remote refresh in the background without awaiting.
     final remoteFuture = _refreshFromRemote(
       filter: filter,
       replaceExisting: forceRefresh || _isDefaultFilter(filter),
@@ -46,6 +52,7 @@ class HybridPolicyRepository implements PolicyRepository {
   Future<List<Policy>> refreshPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
+    // Caller explicitly requested a refresh, so return the remote result.
     return _refreshFromRemote(
       filter: filter,
       replaceExisting: _isDefaultFilter(filter),
@@ -56,9 +63,7 @@ class HybridPolicyRepository implements PolicyRepository {
   Future<List<Policy>> fetchPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
-    return refreshPolicies(
-      filter: filter,
-    );
+    return refreshPolicies(filter: filter);
   }
 
   @override
@@ -70,7 +75,8 @@ class HybridPolicyRepository implements PolicyRepository {
       }
     } catch (e, st) {
       debugPrint(
-          '[HybridPolicyRepository] cache lookup failed for $id: $e\n$st');
+        '[HybridPolicyRepository] cache lookup failed for $id: $e\n$st',
+      );
     }
 
     final model = await _remoteSource.fetchPolicyById(id);
@@ -118,6 +124,7 @@ class HybridPolicyRepository implements PolicyRepository {
     return models.map((model) => model.toEntity()).toList();
   }
 
+  /// Loads cached policies safely, swallowing cache errors so UI is not blocked.
   Future<List<Policy>> _safeLoadCache(PolicyFilter filter) async {
     try {
       final cached = await _isarService.getPolicies(filter: filter);
@@ -140,6 +147,12 @@ class HybridPolicyRepository implements PolicyRepository {
     await _isarService.putAllPolicies(isarModels);
   }
 
+  /// Refreshes from the remote API and saves results to Isar.
+  ///
+  /// The returned [Future] resolves with the freshly fetched domain models but
+  /// must not be awaited by UI callers. Errors are propagated so that the
+  /// optional listeners (e.g., notifiers) can surface them without blocking the
+  /// initial cached render.
   Future<List<Policy>> _refreshFromRemote({
     required PolicyFilter filter,
     bool replaceExisting = false,
@@ -147,7 +160,11 @@ class HybridPolicyRepository implements PolicyRepository {
     try {
       final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
       await _persistPolicies(remoteModels, replaceExisting: replaceExisting);
-      return remoteModels.map((model) => model.toEntity()).toList();
+
+      // Reload from cache to keep filtering logic consistent with local-first
+      // behavior and to ensure Isar-derived fields are reflected.
+      final hydrated = await _safeLoadCache(filter);
+      return hydrated;
     } catch (e, st) {
       debugPrint('[HybridPolicyRepository] remote refresh failed: $e\n$st');
       rethrow;
