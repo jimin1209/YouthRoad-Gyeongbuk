@@ -73,10 +73,3 @@ workflows:
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
 
-    publishing:
-      email:
-        recipients:
-          - $EMAIL_NOTIFY
-        notify:
-          success: true
-          failure: true
