@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../application/providers.dart';
 import '../../../core/constants/env.dart';
+import '../../../devtools/panels/webview_console_panel.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import 'kakao_map_html_builder.dart';
@@ -62,6 +63,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..addJavaScriptChannel(_bridgeName, onMessageReceived: _onMapMessage)
       ..setOnConsoleMessage((JavaScriptConsoleMessage message) {
+        DevtoolsWebViewBridge.forwardConsole(message);
         debugPrint('[WEBVIEW][${message.level}] ${message.message}');
       })
       ..setNavigationDelegate(
@@ -90,6 +92,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         ),
         baseUrl: 'https://youthroad.co.kr',
       );
+    DevtoolsWebViewBridge.attachTo(_controller);
   }
 
   @override

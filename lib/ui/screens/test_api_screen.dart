@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/api/dto/policy_request_dto.dart';
 import '../../core/api/youth_api_service.dart';
+import '../../core/network/app_dio.dart';
 
 class TestApiScreen extends StatefulWidget {
   const TestApiScreen({super.key});
@@ -23,7 +23,7 @@ class _TestApiScreenState extends State<TestApiScreen> {
   }
 
   Future<void> _load() async {
-    final dio = Dio();
+    final dio = createAppDio();
     final api = YouthApiService(dio);
     try {
       final res =
