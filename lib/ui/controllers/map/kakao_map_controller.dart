@@ -6,7 +6,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../screens/map/kakao_map_html_builder.dart';
 
-enum KakaoMapEventType { ready, markerTap, mapTap, log, unknown }
+enum KakaoMapEventType { ready, markerTap, mapTap, clusterTap, loading, error, mapType, log, unknown }
 
 class KakaoMapEvent {
   const KakaoMapEvent(this.type, this.payload);
@@ -24,6 +24,27 @@ class KakaoMapEvent {
     }
     return null;
   }
+
+  bool get loadingValue => payload['value'] == true;
+  String? get errorCode => payload['code'] as String?;
+}
+
+class _LoadRequest {
+  const _LoadRequest({
+    required this.center,
+    required this.markers,
+    required this.polylines,
+    required this.options,
+    required this.enableClustering,
+    this.additionalScripts,
+  });
+
+  final KakaoMapLatLng center;
+  final List<KakaoMapMarker> markers;
+  final List<KakaoMapPolyline> polylines;
+  final KakaoMapOptions options;
+  final bool enableClustering;
+  final String? additionalScripts;
 }
 
 class KakaoMapController {
@@ -47,6 +68,8 @@ class KakaoMapController {
 
   late final WebViewController webViewController;
   bool _ready = false;
+  int _reloadAttempts = 0;
+  _LoadRequest? _lastLoadRequest;
 
   Stream<KakaoMapEvent> get events => _eventController.stream;
   bool get isReady => _ready;
@@ -54,14 +77,32 @@ class KakaoMapController {
   Future<void> load({
     required KakaoMapLatLng center,
     required List<KakaoMapMarker> markers,
+    List<KakaoMapPolyline> polylines = const [],
+    KakaoMapOptions options = const KakaoMapOptions(),
+    bool enableClustering = false,
+    String? additionalScripts,
   }) async {
+    _lastLoadRequest = _LoadRequest(
+      center: center,
+      markers: markers,
+      polylines: polylines,
+      options: options,
+      enableClustering: enableClustering,
+      additionalScripts: additionalScripts,
+    );
+
     final html = _builder.build(
       apiKey: _apiKey,
       center: center,
       markers: markers,
+      polylines: polylines,
+      options: options,
       bridgeName: bridgeName,
+      enableClustering: enableClustering,
+      additionalScripts: additionalScripts,
     );
 
+    _ready = false;
     await webViewController.loadHtmlString(html, baseUrl: baseUrl);
   }
 
@@ -74,6 +115,61 @@ class KakaoMapController {
     );
   }
 
+  Future<void> animateTo(KakaoMapLatLng center, {int? level}) {
+    final levelArg = level != null ? ', $level' : '';
+    return _runWhenReady(
+      () => webViewController.runJavaScript(
+        'window.kakaoMap && window.kakaoMap.animateTo(${center.lat}, ${center.lng}$levelArg);',
+      ),
+    );
+  }
+
+  Future<void> zoomIn() {
+    return _runWhenReady(
+      () => webViewController.runJavaScript('window.kakaoMap && window.kakaoMap.zoomIn();'),
+    );
+  }
+
+  Future<void> zoomOut() {
+    return _runWhenReady(
+      () => webViewController.runJavaScript('window.kakaoMap && window.kakaoMap.zoomOut();'),
+    );
+  }
+
+  Future<void> fitBounds(List<KakaoMapMarker> markers) {
+    final encoded = jsonEncode(markers.map((m) => m.toJson()).toList());
+    return _runWhenReady(
+      () => webViewController.runJavaScript(
+        'window.kakaoMap && window.kakaoMap.fitBounds($encoded);',
+      ),
+    );
+  }
+
+  Future<void> setMapType(KakaoMapType type) {
+    return _runWhenReady(
+      () => webViewController.runJavaScript(
+        "window.kakaoMap && window.kakaoMap.setMapType('${type.name}');",
+      ),
+    );
+  }
+
+  Future<void> reloadMap() async {
+    if (_lastLoadRequest != null) {
+      _reloadAttempts += 1;
+      return load(
+        center: _lastLoadRequest!.center,
+        markers: _lastLoadRequest!.markers,
+        polylines: _lastLoadRequest!.polylines,
+        options: _lastLoadRequest!.options,
+        enableClustering: _lastLoadRequest!.enableClustering,
+        additionalScripts: _lastLoadRequest!.additionalScripts,
+      );
+    }
+    return _runWhenReady(
+      () => webViewController.runJavaScript('window.kakaoMap && window.kakaoMap.reloadMap();'),
+    );
+  }
+
   Future<void> setMarkers(List<KakaoMapMarker> markers) {
     final encoded = jsonEncode(markers.map((m) => m.toJson()).toList());
     return _runWhenReady(
@@ -83,10 +179,27 @@ class KakaoMapController {
     );
   }
 
+  Future<void> setPolylines(List<KakaoMapPolyline> polylines) {
+    final encoded = jsonEncode(polylines.map((p) => p.toJson()).toList());
+    return _runWhenReady(
+      () => webViewController.runJavaScript(
+        'window.kakaoMap && window.kakaoMap.setPolylines($encoded);',
+      ),
+    );
+  }
+
   Future<void> clearMarkers() {
     return _runWhenReady(
       () => webViewController.runJavaScript(
         'window.kakaoMap && window.kakaoMap.clearMarkers();',
+      ),
+    );
+  }
+
+  Future<void> clearPolylines() {
+    return _runWhenReady(
+      () => webViewController.runJavaScript(
+        'window.kakaoMap && window.kakaoMap.clearPolylines();',
       ),
     );
   }
@@ -126,22 +239,38 @@ class KakaoMapController {
       );
   }
 
-  void _handleMessage(JavaScriptMessage message) {
-    final content = message.message;
-    Map<String, dynamic> parsed = {};
+  Map<String, dynamic> _parseMessage(String raw) {
     try {
-      parsed = jsonDecode(content) as Map<String, dynamic>;
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
     } catch (_) {
-      parsed = {'type': 'log', 'payload': {'message': content}};
+      // Fallback below
     }
 
+    final separatorIndex = raw.indexOf(':');
+    if (separatorIndex != -1) {
+      final type = raw.substring(0, separatorIndex);
+      final value = raw.substring(separatorIndex + 1);
+      return {'type': type, 'payload': {'value': value}};
+    }
+
+    return {'type': 'log', 'payload': {'message': raw}};
+  }
+
+  void _handleMessage(JavaScriptMessage message) {
+    final parsed = _parseMessage(message.message);
     final type = _mapType(parsed['type'] as String?);
     final payload = (parsed['payload'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
     final event = KakaoMapEvent(type, payload);
 
     if (type == KakaoMapEventType.ready) {
       _ready = true;
+      _reloadAttempts = 0;
       _flushPendingActions();
+    }
+
+    if (type == KakaoMapEventType.error && _reloadAttempts < 2) {
+      reloadMap();
     }
 
     _eventController.add(event);
@@ -155,6 +284,14 @@ class KakaoMapController {
         return KakaoMapEventType.markerTap;
       case 'map_tap':
         return KakaoMapEventType.mapTap;
+      case 'cluster_tap':
+        return KakaoMapEventType.clusterTap;
+      case 'loading':
+        return KakaoMapEventType.loading;
+      case 'error':
+        return KakaoMapEventType.error;
+      case 'map_type':
+        return KakaoMapEventType.mapType;
       case 'log':
         return KakaoMapEventType.log;
       default:

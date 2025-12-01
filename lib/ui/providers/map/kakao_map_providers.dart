@@ -8,6 +8,18 @@ final kakaoMapHtmlBuilderProvider = Provider<KakaoMapHtmlBuilder>(
   (ref) => const KakaoMapHtmlBuilder(),
 );
 
+final kakaoMapOptionsProvider = Provider<KakaoMapOptions>(
+  (_) => const KakaoMapOptions(),
+);
+
+final kakaoMapAdditionalScriptsProvider = Provider<String?>(
+  (_) => null,
+);
+
+final kakaoMapEnableClusteringProvider = Provider<bool>(
+  (_) => false,
+);
+
 final kakaoMapControllerProvider = Provider.autoDispose<KakaoMapController>((ref) {
   final builder = ref.watch(kakaoMapHtmlBuilderProvider);
   final controller = KakaoMapController(

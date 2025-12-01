@@ -13,18 +13,28 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
     super.key,
     required this.center,
     required this.markers,
+    this.polylines = const [],
+    this.enableClustering = false,
+    this.options = const KakaoMapOptions(),
+    this.additionalScripts,
     this.onMarkerTap,
     this.onMapTap,
     this.onReady,
     this.onLoadingChanged,
+    this.onError,
   });
 
   final KakaoMapLatLng center;
   final List<KakaoMapMarker> markers;
+  final List<KakaoMapPolyline> polylines;
+  final bool enableClustering;
+  final KakaoMapOptions options;
+  final String? additionalScripts;
   final void Function(String markerId)? onMarkerTap;
   final void Function(KakaoMapLatLng position)? onMapTap;
   final VoidCallback? onReady;
   final void Function(bool isLoading)? onLoadingChanged;
+  final void Function(String code)? onError;
 
   @override
   ConsumerState<KakaoMapWebView> createState() => _KakaoMapWebViewState();
@@ -34,7 +44,11 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
   late final KakaoMapController _controller;
   StreamSubscription<KakaoMapEvent>? _eventSub;
   bool _loading = true;
+  bool _fatalError = false;
+  int _errorCount = 0;
   ProviderSubscription<KakaoMapController>? _controllerSubscription;
+  KakaoMapOptions? _lastOptions;
+  bool? _lastClustering;
 
   @override
   void initState() {
@@ -45,17 +59,23 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       (_, __) {},
     );
     _eventSub = _controller.events.listen(_handleEvent);
-    _controller.load(center: widget.center, markers: widget.markers);
+    _loadMap();
   }
 
   @override
   void didUpdateWidget(covariant KakaoMapWebView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.center != oldWidget.center) {
-      _controller.moveTo(widget.center);
+      _controller.animateTo(widget.center);
     }
-    if (!_listEquals(widget.markers, oldWidget.markers)) {
+    if (!_markersEqual(widget.markers, oldWidget.markers)) {
       _controller.setMarkers(widget.markers);
+    }
+    if (!_polylinesEqual(widget.polylines, oldWidget.polylines)) {
+      _controller.setPolylines(widget.polylines);
+    }
+    if (widget.enableClustering != _lastClustering || widget.options != _lastOptions) {
+      _loadMap();
     }
   }
 
@@ -66,11 +86,32 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     super.dispose();
   }
 
+  void _loadMap() {
+    _lastOptions = widget.options;
+    _lastClustering = widget.enableClustering;
+    _fatalError = false;
+    _errorCount = 0;
+    _notifyLoading(true);
+    _controller.load(
+      center: widget.center,
+      markers: widget.markers,
+      polylines: widget.polylines,
+      options: widget.options,
+      enableClustering: widget.enableClustering,
+      additionalScripts: widget.additionalScripts,
+    );
+  }
+
   void _handleEvent(KakaoMapEvent event) {
     switch (event.type) {
       case KakaoMapEventType.ready:
+        _errorCount = 0;
+        _fatalError = false;
         _notifyLoading(false);
         widget.onReady?.call();
+        break;
+      case KakaoMapEventType.loading:
+        _notifyLoading(event.loadingValue);
         break;
       case KakaoMapEventType.markerTap:
         final markerId = event.markerId;
@@ -79,11 +120,24 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
         }
         break;
       case KakaoMapEventType.mapTap:
+      case KakaoMapEventType.clusterTap:
         final position = event.position;
         if (position != null) {
           widget.onMapTap?.call(position);
         }
         break;
+      case KakaoMapEventType.error:
+        _notifyLoading(false);
+        _errorCount += 1;
+        if (_errorCount > 2) {
+          setState(() {
+            _fatalError = true;
+          });
+        }
+        final code = event.errorCode ?? 'unknown';
+        widget.onError?.call(code);
+        break;
+      case KakaoMapEventType.mapType:
       case KakaoMapEventType.log:
       case KakaoMapEventType.unknown:
         break;
@@ -98,7 +152,17 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     widget.onLoadingChanged?.call(value);
   }
 
-  bool _listEquals(List<KakaoMapMarker> a, List<KakaoMapMarker> b) {
+  bool _markersEqual(List<KakaoMapMarker> a, List<KakaoMapMarker> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  bool _polylinesEqual(List<KakaoMapPolyline> a, List<KakaoMapPolyline> b) {
+    if (identical(a, b)) return true;
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
@@ -114,6 +178,37 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
         if (_loading)
           const Center(
             child: CircularProgressIndicator(),
+          ),
+        if (_fatalError)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black54,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text(
+                        '지도를 불러오지 못했습니다. 다시 시도해주세요.',
+                        style: TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _fatalError = false;
+                          _loading = true;
+                        });
+                        _controller.reloadMap();
+                      },
+                      child: const Text('다시 시도'),
+                    )
+                  ],
+                ),
+              ),
+            ),
           ),
       ],
     );

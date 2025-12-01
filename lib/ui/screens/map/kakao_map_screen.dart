@@ -19,6 +19,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   static const _defaultCenter = KakaoMapLatLng(36.4919, 128.8889);
 
   bool _loading = true;
+  String? _errorCode;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +28,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
     final center = _centerForRegion(regionName);
     final markers = _policyMarkers(center, policyState);
+    final polylines = _polylinesFromMarkers(markers);
+    final options = KakaoMapOptions(
+      level: 6,
+      mapType: KakaoMapType.roadmap,
+      showZoomControl: true,
+      showMapTypeControl: true,
+    );
 
     return Scaffold(
       appBar: const AppAppBar(title: '카카오맵 보기'),
@@ -35,13 +43,44 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           KakaoMapWebView(
             center: center,
             markers: markers,
+            polylines: polylines,
+            enableClustering: true,
+            options: options,
             onMarkerTap: (id) => context.push(RoutePaths.policyDetail(id)),
             onReady: () => _setLoading(false),
             onLoadingChanged: _setLoading,
+            onError: (code) => setState(() => _errorCode = code),
           ),
           if (_loading)
             const Center(
               child: CircularProgressIndicator(),
+            ),
+          if (_errorCode != null)
+            Positioned(
+              top: 16,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.65),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '지도 로딩 중 문제가 발생했습니다.',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '오류 코드: ${_errorCode ?? ''}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
             ),
           Positioned(
             left: 0,
@@ -71,6 +110,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         id: policy.id,
         title: policy.policyNm,
         position: offset,
+        image: index == 0
+            ? const KakaoMapMarkerImage(
+                url: 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
+                width: 24,
+                height: 35,
+              )
+            : null,
       );
     });
   }
@@ -80,6 +126,20 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     setState(() {
       _loading = value;
     });
+  }
+
+  List<KakaoMapPolyline> _polylinesFromMarkers(List<KakaoMapMarker> markers) {
+    if (markers.length < 2) return const [];
+    final path = markers.map((m) => m.position).toList();
+    return [
+      KakaoMapPolyline(
+        id: 'policy-path',
+        path: path,
+        strokeColor: '#3478f6',
+        strokeWeight: 5,
+        strokeOpacity: 0.8,
+      )
+    ];
   }
 
   List<KakaoMapLatLng> _markerOffsets(KakaoMapLatLng base) {
