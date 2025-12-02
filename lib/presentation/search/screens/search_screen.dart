@@ -1,6 +1,6 @@
 // FILE: lib/presentation/search/screens/search_screen.dart
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide SearchBar;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/search/controllers/search_controller.dart';

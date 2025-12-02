@@ -37,7 +37,7 @@ class SearchState {
     SearchStatus? status,
     bool? hasMore,
     bool? isLoadingMore,
-    String? errorMessage = _noUpdate,
+    Object? errorMessage = _noUpdate,
   }) {
     return SearchState(
       query: query ?? this.query,
@@ -45,7 +45,8 @@ class SearchState {
       status: status ?? this.status,
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      errorMessage: errorMessage == _noUpdate ? this.errorMessage : errorMessage,
+      errorMessage:
+          identical(errorMessage, _noUpdate) ? this.errorMessage : errorMessage as String?,
     );
   }
 

@@ -37,7 +37,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   bool _isMapUpdating = false;
   String? _selectedPolicyId;
   String? _lastMarkerTapId;
-  Map<String, KakaoMapPolicyMarker> _markerLookup = {};
+  Map<String, KakaoMapMarker> _markerLookup = {};
 
   @override
   void initState() {
@@ -204,7 +204,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     if (!_mapReady) return;
     final marker = _markerLookup[policyId];
     if (marker == null) return;
-    final script = 'moveTo(${marker.lat}, ${marker.lng});';
+    final script = 'moveTo(${marker.position.lat}, ${marker.position.lng});';
     _mapController.runJavaScript(script);
   }
 
@@ -279,8 +279,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   void _highlightNearestPolicy(double lat, double lng) {
     if (_markerLookup.isEmpty) return;
     final nearest = _markerLookup.values.reduce((a, b) {
-      final distA = _distance(lat, lng, a.lat, a.lng);
-      final distB = _distance(lat, lng, b.lat, b.lng);
+      final distA = _distance(lat, lng, a.position.lat, a.position.lng);
+      final distB = _distance(lat, lng, b.position.lat, b.position.lng);
       return distA <= distB ? a : b;
     });
     _highlightPolicy(nearest.id);
@@ -307,7 +307,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     }
   }
 
-  List<KakaoMapPolicyMarker> _policyMarkers(
+  List<KakaoMapMarker> _policyMarkers(
     KakaoMapLatLng center,
     PolicyListState state,
   ) {
@@ -320,11 +320,10 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     return List.generate(limitedPolicies.length, (index) {
       final policy = limitedPolicies[index];
       final offset = markerOffsets[index];
-      return KakaoMapPolicyMarker(
+      return KakaoMapMarker(
         id: policy.id,
         title: policy.policyNm,
-        lat: offset.lat,
-        lng: offset.lng,
+        position: offset,
       );
     });
   }
