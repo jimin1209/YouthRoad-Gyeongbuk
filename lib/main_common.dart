@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import 'app.dart';
+import 'app/app.dart';
+import 'app/bootstrap/bootstrap.dart';
 import 'application/di.dart';
 import 'core/logging/app_log_level.dart';
 import 'devtools/devtools_provider.dart';
@@ -33,5 +31,10 @@ Future<void> mainCommon() async {
       observers: observers,
       child: const App(),
     ),
+
+
+Future<void> mainCommon() async {
+  await bootstrap(
+    builder: () => const YouthRoadApp(),
   );
 }

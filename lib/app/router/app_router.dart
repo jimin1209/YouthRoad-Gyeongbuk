@@ -1,29 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:youth_road_app/app/splash/splash_page.dart';
-
-import '../ui/screens/category/category_screen.dart';
-import '../ui/screens/chatbot/chatbot_screen.dart';
-import '../ui/screens/home/home_screen.dart';
-import '../ui/screens/favorites/favorites_screen.dart';
-import '../ui/screens/institution/department_list_screen.dart';
-import '../ui/screens/institution/institution_list_screen.dart';
-import '../ui/screens/map/kakao_map_screen.dart';
-import '../ui/screens/map/map_with_list_screen.dart';
-import '../ui/screens/compare/compare_screen.dart';
-import '../ui/screens/policy/policy_compare_screen.dart';
-import '../ui/screens/policy/policy_detail_v2_screen.dart';
-import '../ui/screens/policy/policy_list_legacy_screen.dart';
-import '../ui/screens/policy/policy_webview_page.dart';
-import '../ui/screens/region/region_select_screen.dart';
-import '../ui/screens/setting/setting_screen.dart';
-import '../ui/screens/setting/setting_v2_screen.dart';
-import '../features/policy/ui/policy_list_page.dart';
-import '../ui/widgets/bottom_nav.dart';
-import '../ui/widgets/global_error_view.dart';
-import '../presentation/search/screens/search_screen.dart';
-import 'route_paths.dart';
+import '../../app/splash/splash_page.dart';
+import '../../features/policy/ui/policy_list_page.dart';
+import '../../navigation/route_paths.dart';
+import '../../ui/screens/category/category_screen.dart';
+import '../../ui/screens/chatbot/chatbot_screen.dart';
+import '../../ui/screens/compare/compare_screen.dart';
+import '../../ui/screens/favorites/favorites_screen.dart';
+import '../../ui/screens/home/home_screen.dart';
+import '../../ui/screens/institution/department_list_screen.dart';
+import '../../ui/screens/institution/institution_list_screen.dart';
+import '../../ui/screens/map/kakao_map_screen.dart';
+import '../../ui/screens/map/map_with_list_screen.dart';
+import '../../ui/screens/policy/policy_compare_screen.dart';
+import '../../ui/screens/policy/policy_detail_v2_screen.dart';
+import '../../ui/screens/policy/policy_list_legacy_screen.dart';
+import '../../ui/screens/policy/policy_webview_page.dart';
+import '../../ui/screens/region/region_select_screen.dart';
+import '../../ui/screens/setting/setting_screen.dart';
+import '../../ui/screens/setting/setting_v2_screen.dart';
+import '../../ui/widgets/bottom_nav.dart';
+import '../../ui/widgets/global_error_view.dart';
 
 class AppRouter {
   const AppRouter();
@@ -51,8 +49,10 @@ class AppRouter {
               bottomNavigationBar: BottomNav(
                 currentIndex: navigationShell.currentIndex,
                 onTap: (index) {
-                  navigationShell.goBranch(index,
-                      initialLocation: index == navigationShell.currentIndex);
+                  navigationShell.goBranch(
+                    index,
+                    initialLocation: index == navigationShell.currentIndex,
+                  );
                 },
               ),
             );
@@ -115,7 +115,7 @@ class AppRouter {
         GoRoute(
           path: RoutePaths.compare,
           builder: (context, state) => const CompareScreen(),
-        ),       
+        ),
         GoRoute(
           path: RoutePaths.googleMap,
           builder: (context, state) => const KakaoMapScreen(),
@@ -128,10 +128,6 @@ class AppRouter {
           path: RoutePaths.favorites,
           name: 'FavoritesScreen',
           builder: (context, state) => const FavoritesScreen(),
-        ),
-        GoRoute(
-          path: RoutePaths.search,
-          builder: (context, state) => const SearchScreen(),
         ),
         GoRoute(
           path: RoutePaths.instList,
@@ -163,8 +159,7 @@ class AppRouter {
               url = extra['url'] as String? ?? url;
             }
 
-            url =
-                url.isNotEmpty ? url : (state.uri.queryParameters['url'] ?? '');
+            url = url.isNotEmpty ? url : (state.uri.queryParameters['url'] ?? '');
 
             return PolicyWebviewPage(title: title, url: url);
           },
