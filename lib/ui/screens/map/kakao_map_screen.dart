@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../application/providers.dart';
+import '../../../core/constants/env.dart';
+import '../../../devtools/panels/webview_console_panel.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/map/kakao_map_webview.dart';
@@ -36,6 +38,48 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       showZoomControl: true,
       showMapTypeControl: true,
     );
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel(_bridgeName, onMessageReceived: _onMapMessage)
+      ..setOnConsoleMessage((JavaScriptConsoleMessage message) {
+        DevtoolsWebViewBridge.forwardConsole(message);
+        debugPrint('[WEBVIEW][${message.level}] ${message.message}');
+      })
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (_) {
+            setState(() {
+              _isLoading = true;
+              _mapReady = false;
+            });
+          },
+          onPageFinished: (_) {
+            // HTML은 적어도 로드 완료된 상태이므로 스피너는 끈다
+            if (!mounted) return;
+            setState(() {
+              _isLoading = false;
+            });
+          },
+        ),
+      )
+      ..loadHtmlString(
+        _htmlBuilder.build(
+          apiKey: Env.kakaoMapApiKey,
+          center: _lastCenter,
+          markers: _pendingMarkers,
+          bridgeName: _bridgeName,
+        ),
+        baseUrl: 'https://youthroad.co.kr',
+      );
+    DevtoolsWebViewBridge.attachTo(_controller);
+  }
+
+  @override
+  void dispose() {
+    _regionSubscription?.close();
+    _policySubscription?.close();
+    super.dispose();
+  }
 
     return Scaffold(
       appBar: const AppAppBar(title: '카카오맵 보기'),

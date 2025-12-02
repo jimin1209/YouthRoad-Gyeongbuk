@@ -1,12 +1,58 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../debug/debug_network_logger.dart';
 import '../error/app_exception.dart';
 import '../error/error_reporter.dart';
 import '../logging/app_logger.dart';
 import 'network_result.dart';
 import 'retry_policy.dart';
+import '../devtools/debug_network_logger.dart';
+
+Dio createAppDio() {
+  final dio = Dio();
+
+  if (!kReleaseMode) {
+    DebugNetworkLogger.instance.attachTo(dio);
+    dio.interceptors.add(_DevtoolsNetworkInterceptor());
+  }
+
+  return dio;
+}
+
+class _DevtoolsNetworkInterceptor extends Interceptor {
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    options.extra['_startTime'] = DateTime.now();
+    super.onRequest(options, handler);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    _record(response.requestOptions, response.statusCode, null);
+    super.onResponse(response, handler);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    _record(err.requestOptions, err.response?.statusCode, err);
+    super.onError(err, handler);
+  }
+
+  void _record(RequestOptions options, int? statusCode, DioException? error) {
+    final start = options.extra['_startTime'] as DateTime?;
+    final duration = start != null ? DateTime.now().difference(start) : null;
+
+    DevtoolsBinding.instance.addNetwork(
+      NetworkEvent(
+        method: options.method,
+        path: options.uri.path,
+        statusCode: statusCode,
+        duration: duration,
+        error: error,
+      ),
+    );
+  }
+}
 
 class AppDio {
   AppDio({
@@ -39,10 +85,12 @@ class AppDio {
       final response = await _retryPolicy.execute<Response<T>>((_) async {
         return request(dio);
       });
+
       final data = response.data;
       if (data is T) {
         return NetworkSuccess<T>(data);
       }
+
       final exception = UnexpectedException(
         debugMessage:
             'Invalid response type: expected $T but received ${data.runtimeType}',
@@ -71,6 +119,7 @@ class AppDio {
     String? description,
   ) {
     final baseMessage = description != null ? '$description: ' : '';
+
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.receiveTimeout:
@@ -79,6 +128,7 @@ class AppDio {
           debugMessage: '${baseMessage}Request timed out: ${error.message}',
           stackTrace: stackTrace,
         );
+
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode;
         if (statusCode != null && statusCode >= 500 && statusCode < 600) {
@@ -95,16 +145,20 @@ class AppDio {
           stackTrace: stackTrace,
           cause: error,
         );
+
       case DioExceptionType.connectionError:
       case DioExceptionType.badCertificate:
       case DioExceptionType.unknown:
         return NetworkException(
-          debugMessage: '${baseMessage}Network connectivity issue: ${error.message}',
+          debugMessage:
+              '${baseMessage}Network connectivity issue: ${error.message}',
           stackTrace: stackTrace,
         );
+
       case DioExceptionType.cancel:
         return UnexpectedException(
-          debugMessage: '${baseMessage}Request cancelled: ${error.message}',
+          debugMessage:
+              '${baseMessage}Request cancelled: ${error.message}',
           stackTrace: stackTrace,
         );
     }

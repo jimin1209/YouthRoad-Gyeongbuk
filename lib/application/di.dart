@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,11 +17,13 @@ import '../data/repositories/institution_repository.dart';
 // Domain abstraction
 import '../domain/repositories/policy_repository.dart';
 
-// Debugging
-import '../debug/debug_network_logger.dart';
+// Networking
+import '../core/network/app_dio.dart';
 
 // Local services
 import 'services/memo_repository.dart';
+
+import 'package:dio/dio.dart';
 
 /// SharedPreferences Provider
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
@@ -31,9 +32,7 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 
 /// Dio Provider (with Network Logger)
 final dioProvider = Provider<Dio>((ref) {
-  final dio = Dio();
-  DebugNetworkLogger.instance.attachTo(dio);
-  return dio;
+  return createAppDio();
 });
 
 /// IsarService Provider
