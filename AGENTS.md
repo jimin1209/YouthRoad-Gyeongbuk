@@ -190,6 +190,249 @@ Status: Open.
 '동일한 기능이 더 안정적이고 빠르게 작동하도록' 만드는 방향으로 리팩토링하라."
 
 
+---
+지민님 💙🩵
+지금 이 카카오맵 **sdkFail / bootstrap** 오류는 **WebView 초기 HTML 로딩 실패 + Kakao Map SDK 키 불일치 또는 CSP 차단**일 가능성이 거의 확실해요.
+
+지민님 프로젝트 전체 구조 유지하면서, **이슈 재발 방지 + 안정화 + 디버깅 로그 자동 수집 + SDK 초기화 보정**까지 한 번에 해결하는 **Codex 슈퍼명령어** 만들어드릴게요.
+
+아래 블록 그대로 복붙하면 지민님 레포에서 자동으로 KakaoMap 전체 문제(이슈 13) 해결하는 패치 생성됩니다.
+
+---
+
+
+## ISSUE 13
+# [fix/kakaomap-sdkfail] KakaoMap WebView 안정화 & sdkFail/bootstrap 오류 해결 패치
+
+## 🎯 목표
+- android 카카오맵 WebView에서 `sdkFail`, `bootstrap`, `지도 로딩 실패` 문제 완전 해결
+- WebView 초기 HTML 로딩을 안정적으로 만들고 CSP, 로딩 타이밍, API Key 불일치 문제 제거
+- Flutter ↔ JS 메시지 구조 정리
+- 전체 KakaoMap 모듈 재사용성·안정성 개선
+
+---
+
+## 📌 작업요약
+1) `/assets/kakaomap/index.html` 안정화  
+2) WebViewController 초기화 타이밍 재설계  
+3) API Key 오타/플랫폼 키 부정합 검사  
+4) Android WebChromeClient/Settings 보정  
+5) bootstrap 단계 로그 수집  
+6) Error 화면 UI 개선 + retry 로직 통합  
+7) KakaoMapController 분리 & 메시지 구조 표준화  
+8) App release 환경에서 네트워크 차단되는 문제 해결 (mixed content 허용 X → HTTPS 강제)
+
+---
+
+## 📁 수정 파일 목록
+- assets/kakaomap/index.html (신규 템플릿)
+- lib/features/map/widgets/kakaomap_webview.dart (핵심)
+- lib/features/map/controller/kakaomap_controller.dart (신규)
+- android/app/src/main/…/WebView 설정 보정
+- pubspec.yaml (assets 등록 확인)
+
+---
+
+## 🛠 코드 생성/수정 요청
+
+### 1) **새 HTML 템플릿 생성**
+`assets/kakaomap/index.html` 전체 파일 생성:
+
+```html
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' https://*.kakao.com https://dapi.kakao.com;
+                 script-src 'self' https://dapi.kakao.com 'unsafe-inline';
+                 style-src 'self' 'unsafe-inline';
+                 img-src * data:;
+                 connect-src *;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>YouthRoad KakaoMap</title>
+
+  <script type="text/javascript"
+          src="https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey={{API_KEY}}&libraries=services">
+  </script>
+
+  <script>
+    window.addEventListener("flutterInAppWebViewPlatformReady", function() {
+      kakao.maps.load(function() {
+        window.flutter_inappwebview.callHandler("bootstrap", { status: "ok" });
+
+        const container = document.getElementById("map");
+        window._map = new kakao.maps.Map(container, {
+          center: new kakao.maps.LatLng(36.080, 128.120),
+          level: 8
+        });
+
+        window.flutter_inappwebview.callHandler("mapReady", { status: "ready" });
+      });
+    });
+  </script>
+
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+    #map { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+</body>
+</html>
+```
+
+---
+
+### 2) **KakaoMapController 생성 (전체 파일)**  
+`lib/features/map/controller/kakaomap_controller.dart`
+
+```dart
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter/foundation.dart';
+
+class KakaoMapController {
+  KakaoMapController(this._controller);
+
+  final InAppWebViewController _controller;
+
+  Future<void> init() async {
+    debugPrint('[KakaoMap] Controller init');
+  }
+
+  Future<void> reload() async {
+    await _controller.reload();
+  }
+}
+```
+
+---
+
+### 3) **WebView 위젯 전체 교체**
+`lib/features/map/widgets/kakaomap_webview.dart`
+
+```dart
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import '../controller/kakaomap_controller.dart';
+import '../../../core/constants/env.dart';
+
+class KakaoMapWebView extends StatefulWidget {
+  const KakaoMapWebView({super.key});
+  @override
+  State<KakaoMapWebView> createState() => _KakaoMapWebViewState();
+}
+
+class _KakaoMapWebViewState extends State<KakaoMapWebView> {
+  InAppWebViewController? _webController;
+  KakaoMapController? _mapController;
+
+  bool loading = true;
+  String? lastLog;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        InAppWebView(
+          initialFile: "assets/kakaomap/index.html",
+          initialUserScripts: UnmodifiableListView([
+            UserScript(
+              source: "window.API_KEY = '${Env.kakaoMapJsKey}';",
+              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+            )
+          ]),
+          onWebViewCreated: (c) async {
+            _webController = c;
+            _mapController = KakaoMapController(c);
+
+            c.addJavaScriptHandler(
+              handlerName: "bootstrap",
+              callback: (args) {
+                lastLog = "bootstrap";
+                setState(() => loading = false);
+              },
+            );
+
+            c.addJavaScriptHandler(
+              handlerName: "mapReady",
+              callback: (args) {
+                lastLog = "mapReady";
+              },
+            );
+          },
+          onLoadError: (_, __, ___, ____) {
+            setState(() => loading = false);
+            lastLog = "loadError";
+          },
+          onLoadStop: (_, __) {
+            debugPrint('KakaoMap load completed');
+          },
+        ),
+
+        if (loading)
+          const Center(child: CircularProgressIndicator()),
+      ],
+    );
+  }
+}
+```
+
+---
+
+### 4) **Android WebView 설정 보정**
+`android/app/src/main/.../MainActivity.kt` 또는 `Application.kt` 수정:
+
+```kotlin
+WebView.setWebContentsDebuggingEnabled(true)
+
+val settings = webView.settings
+settings.javaScriptEnabled = true
+settings.domStorageEnabled = true
+settings.databaseEnabled = true
+settings.useWideViewPort = true
+settings.loadWithOverviewMode = true
+settings.allowFileAccess = true
+settings.javaScriptCanOpenWindowsAutomatically = true
+```
+
+---
+
+### 5) **pubspec.yaml assets 등록 확인**
+
+```yaml
+flutter:
+  assets:
+    - assets/kakaomap/
+```
+
+---
+
+## ✔ 필요 검증 체크리스트
+- Env.kakaoMapJsKey = **JavaScript 키**인지 확인 (네이티브 키 아님)
+- 네트워크 HTTPS 통신 가능 여부
+- index.html이 번들 안에 포함되는지 검사
+- WebView 로그 bootstrap → mapReady 순서로 출력되는지 확인
+
+---
+
+## 🧪 테스트 시나리오
+- 앱 실행 → KakaoMapView 진입 → 로딩 → 지도 정상 표시
+- API Key 잘못 넣으면 즉시 sdkFail 재현됨 (정상)
+- bootstrap 콜백 정상 수신되는지 확인
+- 뒤로가기 → 다시 들어왔을 때 WebView 재활용 문제 없는지 확인
+
+---
+
+# 완료 후 PR 제목
+**“fix: KakaoMap sdkFail & bootstrap 오류 해결 및 WebView 안정화 (#13)”**
+````
+## ISSUE 13 끝
+---
+
 
 
 ---
