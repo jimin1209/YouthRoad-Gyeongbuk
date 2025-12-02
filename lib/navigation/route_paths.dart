@@ -8,6 +8,7 @@ class RoutePaths {
   static const unity = '/map';
   static const googleMap = '/google_map';
   static const mapWithList = '/map_with_list';
+  static const mapTest = '/map/test';
   static const regionSelect = '/region/select';
   static const policyListV2 = '/policy/list/v2';
   static const policyLegacyList = '/policy/list';

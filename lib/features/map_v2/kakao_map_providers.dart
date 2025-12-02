@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/env.dart';
-import '../../controllers/map/kakao_map_controller.dart';
-import '../../screens/map/kakao_map_html_builder.dart';
+import '../../core/constants/env.dart';
+import 'kakao_map_controller.dart';
+import 'kakao_map_html_builder.dart';
 
 final kakaoMapHtmlBuilderProvider = Provider<KakaoMapHtmlBuilder>(
   (ref) => const KakaoMapHtmlBuilder(),

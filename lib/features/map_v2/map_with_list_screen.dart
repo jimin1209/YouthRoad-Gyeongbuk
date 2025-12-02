@@ -1,18 +1,21 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
-import '../../../application/providers.dart';
-import '../../../core/constants/env.dart';
-import '../../../devtools/panels/webview_console_panel.dart';
-import '../../../domain/entities/policy.dart';
-import '../../../navigation/route_paths.dart';
-import '../../widgets/app_appbar.dart';
-import '../../widgets/global_error_view.dart';
-import '../../widgets/policy_card_v2.dart';
+import '../../application/providers.dart';
+import '../../core/constants/env.dart';
+import '../../devtools/panels/webview_console_panel.dart';
+import '../../domain/entities/policy.dart';
+import '../../navigation/route_paths.dart';
+import '../../ui/widgets/app_appbar.dart';
+import '../../ui/widgets/global_error_view.dart';
+import '../../ui/widgets/policy_card_v2.dart';
 import 'kakao_map_html_builder.dart';
 
 class MapWithListScreen extends ConsumerStatefulWidget {
@@ -128,7 +131,17 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   }
 
   void _initWebView() {
-    _mapController = WebViewController()
+    final PlatformWebViewControllerCreationParams params;
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      );
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
+
+    final controller = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..addJavaScriptChannel(
         _bridgeName,
@@ -144,6 +157,22 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
           onPageFinished: (_) => setState(() => _isLoading = false),
         ),
       );
+
+    if (controller.platform is AndroidWebViewController) {
+      final androidController = controller.platform as AndroidWebViewController;
+      AndroidWebViewController.enableDebugging(kDebugMode);
+      androidController
+        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
+        ..setAllowContentAccess(true)
+        ..setAllowFileAccess(true)
+        ..setAllowFileAccessFromFileURLs(true)
+        ..setAllowUniversalAccessFromFileURLs(true)
+        ..setOnPlatformPermissionRequest((request) {
+          request.grant();
+        });
+    }
+
+    _mapController = controller;
 
     DevtoolsWebViewBridge.attachTo(_mapController);
 

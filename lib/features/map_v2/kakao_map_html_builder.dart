@@ -136,7 +136,8 @@ class KakaoMapPolyline {
   }
 
   @override
-  int get hashCode => Object.hash(id, strokeColor, strokeWeight, strokeOpacity, Object.hashAll(path));
+  int get hashCode =>
+      Object.hash(id, strokeColor, strokeWeight, strokeOpacity, Object.hashAll(path));
 }
 
 enum KakaoMapType { roadmap, skyview, hybrid, terrain }
@@ -213,7 +214,7 @@ class KakaoMapHtmlBuilder {
   <script>
     (() => {
       const ORIGIN = 'kakao-map-webview';
-      const SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=$apiKey&autoload=false&libraries=services$clusteringLibrary';
+      const SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=$apiKey&libraries=services$clusteringLibrary';
       const state = {
         ready: false,
         loading: false,
@@ -232,6 +233,7 @@ class KakaoMapHtmlBuilder {
         enableClustering: ${enableClustering ? 'true' : 'false'},
         sdkLoaded: false,
         sdkLoading: false,
+        scriptInjected: false,
       };
 
       const bridge = window.$bridgeName;
@@ -303,46 +305,47 @@ class KakaoMapHtmlBuilder {
         notifyFlutter('loading', { value });
       }
 
-      function ensureSdkLoaded(force) {
-        if (state.sdkLoaded && window.kakao && window.kakao.maps) {
-          pollSdkLoaded(force);
-          return;
+      function loadSdkScript(forceReload) {
+        const existing = document.querySelector('script[data-kakao-sdk="true"]');
+        if (forceReload && existing) {
+          existing.remove();
+          state.scriptInjected = false;
         }
-        if (!state.sdkLoading) {
+
+        if (!state.scriptInjected) {
+          const script = document.createElement('script');
+          script.src = SDK_URL;
+          script.async = true;
+          script.defer = true;
+          script.dataset.kakaoSdk = 'true';
+          script.onload = function() {
+            state.sdkLoaded = true;
+            state.sdkLoading = false;
+            notifyFlutter('bootstrap', { status: 'sdkLoaded', attempt: state.loadAttempts });
+            log('info', 'sdkLoaded');
+            pollSdkLoaded(forceReload);
+          };
+          script.onerror = function(event) {
+            state.sdkLoading = false;
+            log('error', 'sdkFail');
+            notifyFlutter('error', {
+              code: 'sdkFail',
+              message: 'Failed to load Kakao SDK',
+              detail: event && event.message ? String(event.message) : 'script load error',
+              url: SDK_URL,
+              attempt: state.loadAttempts,
+            }, 'error');
+            notifyFlutter('bootstrap', { status: 'sdkFail', attempt: state.loadAttempts }, 'error');
+          };
+          document.head.appendChild(script);
+          state.scriptInjected = true;
           state.sdkLoading = true;
           log('info', 'sdk-script-load-start');
-          const existing = document.querySelector('script[data-kakao-sdk="true"]');
-          if (!existing) {
-            const script = document.createElement('script');
-            script.src = SDK_URL;
-            script.async = true;
-            script.defer = true;
-            script.dataset.kakaoSdk = 'true';
-            script.onload = function() {
-              state.sdkLoaded = true;
-              state.sdkLoading = false;
-              notifyFlutter('bootstrap', { status: 'sdkLoaded', attempt: state.loadAttempts });
-              log('info', 'sdkLoaded');
-              pollSdkLoaded(force);
-            };
-            script.onerror = function(event) {
-              state.sdkLoading = false;
-              log('error', 'sdkFail');
-              notifyFlutter('error', {
-                code: 'sdkFail',
-                message: 'Failed to load Kakao SDK',
-                detail: event && event.message ? String(event.message) : 'script load error',
-              }, 'error');
-              notifyFlutter('bootstrap', { status: 'sdkFail', attempt: state.loadAttempts }, 'error');
-            };
-            document.head.appendChild(script);
-          } else {
-            state.sdkLoading = false;
-            state.sdkLoaded = !!(window.kakao && window.kakao.maps);
-            log('info', 'sdk-script-cache');
-          }
+        } else {
+          state.sdkLoading = false;
+          state.sdkLoaded = !!(window.kakao && window.kakao.maps);
+          log('info', 'sdk-script-cache');
         }
-        setTimeout(function() { pollSdkLoaded(force); }, 120);
       }
 
       function markerImage(options) {
@@ -560,7 +563,8 @@ class KakaoMapHtmlBuilder {
         }
         log('info', 'bootstrap-start', 'attempt', state.loadAttempts);
         notifyFlutter('bootstrap', { status: 'start', attempt: state.loadAttempts });
-        ensureSdkLoaded(force);
+        loadSdkScript(force);
+        setTimeout(function() { pollSdkLoaded(force); }, 120);
       }
 
       window.kakaoMap = {
