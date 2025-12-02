@@ -7,52 +7,14 @@ import '../../data/models/policy_filter.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../di.dart';
+import 'policy_paging_notifier.dart';
 import 'region_notifier.dart';
 
-class PolicyPagingState {
-  const PolicyPagingState({
-    required this.items,
-    required this.pageIndex,
-    required this.filter,
-    this.isLoading = false,
-    this.isLoadingMore = false,
-    this.hasMore = true,
-    this.error,
-  });
+class RecommendedPolicyNotifier
+    extends AutoDisposeNotifier<PolicyPagingState> {
+  PolicyRepository get _repository => ref.read(policyRepositoryInterfaceProvider);
 
-  final List<Policy> items;
-  final int pageIndex;
-  final PolicyFilter filter;
-  final bool isLoading;
-  final bool isLoadingMore;
-  final bool hasMore;
-  final String? error;
-
-  PolicyPagingState copyWith({
-    List<Policy>? items,
-    int? pageIndex,
-    PolicyFilter? filter,
-    bool? isLoading,
-    bool? isLoadingMore,
-    bool? hasMore,
-    String? error,
-  }) {
-    return PolicyPagingState(
-      items: items ?? this.items,
-      pageIndex: pageIndex ?? this.pageIndex,
-      filter: filter ?? this.filter,
-      isLoading: isLoading ?? this.isLoading,
-      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      hasMore: hasMore ?? this.hasMore,
-      error: error,
-    );
-  }
-}
-
-class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
-  PolicyRepository get _repo => ref.read(policyRepositoryInterfaceProvider);
-
-  static const String errorMessage = '정책을 불러오지 못했습니다. 다시 시도해 주세요.';
+  static const String errorMessage = '추천 정책을 불러오지 못했습니다. 다시 시도해 주세요.';
   static const int _pageSize = 10;
 
   bool _initialized = false;
@@ -60,18 +22,11 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
   int _requestId = 0;
   String? _inFlightKey;
 
-  PolicyFilter get currentFilter => state.filter;
-
   @override
   PolicyPagingState build() {
     if (!_initialized) {
       _initialized = true;
-      final filter = PolicyFilter(
-        searchRgnSe: ref.read(regionProvider),
-        pageIndex: 1,
-        recordCount: _pageSize,
-        pagingYn: 'Y',
-      );
+      final filter = _baseFilter();
       final initialState = PolicyPagingState(
         items: const [],
         pageIndex: 1,
@@ -81,18 +36,33 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
         hasMore: true,
       );
       state = initialState;
+      ref.listen<String?>(regionProvider, (previous, next) {
+        if (previous == next) return;
+        Future.microtask(() => loadInitial(_baseFilter()));
+      });
       if (!_initialLoadScheduled) {
         _initialLoadScheduled = true;
-        Future.microtask(() => loadInitial(initialState.filter));
+        Future.microtask(() => loadInitial(filter));
       }
       return initialState;
     }
     return state;
   }
 
-  Future<void> loadInitial(PolicyFilter filter) async {
-    final mergedFilter = _normalizeFilter(filter);
-    final requestKey = _buildRequestKey(mergedFilter);
+  PolicyFilter _baseFilter() {
+    final region = ref.read(regionProvider);
+    return PolicyFilter(
+      searchRgnSe: region,
+      availableOnly: true,
+      pageIndex: 1,
+      recordCount: _pageSize,
+      pagingYn: 'Y',
+    );
+  }
+
+  Future<void> loadInitial([PolicyFilter? filter]) async {
+    final normalizedFilter = _normalizeFilter(filter ?? _baseFilter());
+    final requestKey = _buildRequestKey(normalizedFilter);
     if (state.isLoading && requestKey == _inFlightKey) {
       return;
     }
@@ -101,15 +71,15 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
     state = state.copyWith(
       items: state.items,
       pageIndex: 1,
-      filter: mergedFilter,
+      filter: normalizedFilter,
       isLoading: true,
       isLoadingMore: false,
       hasMore: true,
       error: null,
     );
 
-    await _loadFromCache(mergedFilter);
-    await _fetch(pageIndex: 1, append: false, filter: mergedFilter);
+    await _loadFromCache(normalizedFilter);
+    await _fetch(pageIndex: 1, append: false, filter: normalizedFilter);
     _inFlightKey = null;
   }
 
@@ -119,12 +89,22 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
     await _fetch(pageIndex: nextPage, append: true, filter: state.filter);
   }
 
-  void updateFilter(PolicyFilter filter) {
-    final normalized = _normalizeFilter(filter);
-    loadInitial(normalized);
+  Future<void> retry() async {
+    await loadInitial(state.filter);
   }
 
-  Future<void> seedFromCache(List<Policy> policies) async {
+  Future<void> _loadFromCache(PolicyFilter filter) async {
+    try {
+      final cached = await _repository.loadCachedPolicies(filter: filter);
+      if (cached.isNotEmpty) {
+        await _seedFromCache(cached);
+      }
+    } catch (e, st) {
+      debugPrint('[RecommendedPolicyNotifier] cache fallback failed: $e\n$st');
+    }
+  }
+
+  Future<void> _seedFromCache(List<Policy> policies) async {
     final limited = policies.take(_pageSize).toList();
     state = state.copyWith(
       items: limited,
@@ -133,28 +113,6 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
       isLoading: state.isLoading,
       error: null,
     );
-  }
-
-  Future<void> replaceWithFresh(List<Policy> policies) async {
-    state = state.copyWith(
-      items: policies.take(_pageSize).toList(),
-      pageIndex: 1,
-      hasMore: policies.length >= _pageSize,
-      isLoading: false,
-      isLoadingMore: false,
-      error: null,
-    );
-  }
-
-  Future<void> _loadFromCache(PolicyFilter filter) async {
-    try {
-      final cached = await _repo.loadCachedPolicies(filter: filter);
-      if (cached.isNotEmpty) {
-        await seedFromCache(cached);
-      }
-    } catch (e, st) {
-      debugPrint('[PolicyPagingNotifier] cache fallback failed: $e\n$st');
-    }
   }
 
   Future<void> _fetch({
@@ -170,11 +128,12 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
     );
 
     try {
-      final policies = await _repo.refreshPolicies(
+      final policies = await _repository.refreshPolicies(
         filter: filter.copyWith(
           pageIndex: pageIndex,
           recordCount: _pageSize,
           pagingYn: 'Y',
+          availableOnly: true,
         ),
       );
 
@@ -193,7 +152,7 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
         error: null,
       );
     } catch (e, st) {
-      debugPrint('Failed to load policies: $e');
+      debugPrint('Failed to load recommended policies: $e');
       debugPrint('$st');
       if (requestId != _requestId) return;
       state = state.copyWith(
@@ -208,6 +167,7 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
     final region = filter.searchRgnSe ?? ref.read(regionProvider);
     return filter.copyWith(
       searchRgnSe: region,
+      availableOnly: true,
       pageIndex: 1,
       recordCount: _pageSize,
       pagingYn: 'Y',
@@ -218,15 +178,15 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
     final normalized = PolicyFilter(
       searchRgnSe: filter.searchRgnSe,
       searchPolicyType: filter.searchPolicyType,
-      searchPolicyNm: filter.searchPolicyNm,
-      searchText: filter.searchText,
+      searchPolicyNm: null,
+      searchText: null,
       category: filter.category,
       searchYear: filter.searchYear,
       instNo: filter.instNo,
       deptNo: filter.deptNo,
       startDate: filter.startDate,
       endDate: filter.endDate,
-      availableOnly: filter.availableOnly,
+      availableOnly: true,
       pageIndex: filter.pageIndex ?? 1,
       recordCount: filter.recordCount ?? _pageSize,
       pageSize: filter.pageSize,
@@ -237,3 +197,8 @@ class PolicyPagingNotifier extends AutoDisposeNotifier<PolicyPagingState> {
     return jsonEncode(normalized.toJson());
   }
 }
+
+final recommendedPolicyProvider =
+    NotifierProvider.autoDispose<RecommendedPolicyNotifier, PolicyPagingState>(
+  RecommendedPolicyNotifier.new,
+);
