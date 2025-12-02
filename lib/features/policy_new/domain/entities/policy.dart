@@ -18,16 +18,16 @@ class Policy {
   final int? minAge;
   final int? maxAge;
   final bool isForYouth;
-  final String incomeCondition;
-  final String educationCondition;
-  final String employmentCondition;
+  final String? incomeCondition;
+  final String? educationCondition;
+  final String? employmentCondition;
   final String applyUrl;
-  final String attachmentUrl;
+  final String? attachmentUrl;
   final String institution;
   final String department;
-  final String contact;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
+  final String? contact;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const Policy({
     required this.id,

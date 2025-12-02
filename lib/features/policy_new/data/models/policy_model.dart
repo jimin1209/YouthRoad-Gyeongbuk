@@ -1,7 +1,6 @@
 import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_region.dart';
-import '../../domain/values/policy_sort.dart';
 
 PolicyCategory _parseCategory(String? value) {
   switch (value) {
@@ -43,22 +42,22 @@ class PolicyModel {
   final String category;
   final List<String> tags;
   final List<String> keywords;
-  final String? startDate;
-  final String? endDate;
+  final String? applicationStartDate;
+  final String? applicationEndDate;
   final String? announceDate;
   final bool isOnline;
   final bool isOffline;
   final int? minAge;
   final int? maxAge;
   final bool isForYouth;
-  final String incomeCondition;
-  final String educationCondition;
-  final String employmentCondition;
+  final String? incomeCondition;
+  final String? educationCondition;
+  final String? employmentCondition;
   final String applyUrl;
-  final String attachmentUrl;
+  final String? attachmentUrl;
   final String institution;
   final String department;
-  final String contact;
+  final String? contact;
   final String? createdAt;
   final String? updatedAt;
 
@@ -71,22 +70,22 @@ class PolicyModel {
     required this.category,
     required this.tags,
     required this.keywords,
-    this.startDate,
-    this.endDate,
+    this.applicationStartDate,
+    this.applicationEndDate,
     this.announceDate,
     required this.isOnline,
     required this.isOffline,
     this.minAge,
     this.maxAge,
     required this.isForYouth,
-    required this.incomeCondition,
-    required this.educationCondition,
-    required this.employmentCondition,
+    this.incomeCondition,
+    this.educationCondition,
+    this.employmentCondition,
     required this.applyUrl,
-    required this.attachmentUrl,
+    this.attachmentUrl,
     required this.institution,
     required this.department,
-    required this.contact,
+    this.contact,
     this.createdAt,
     this.updatedAt,
   });
@@ -102,28 +101,37 @@ class PolicyModel {
       tags: (json['tags'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       keywords:
           (json['keywords'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-      startDate: json['application_start_date']?.toString(),
-      endDate: json['application_end_date']?.toString(),
+      applicationStartDate: json['application_start_date']?.toString(),
+      applicationEndDate: json['application_end_date']?.toString(),
       announceDate: json['announce_date']?.toString(),
       isOnline: json['is_online'] as bool? ?? true,
       isOffline: json['is_offline'] as bool? ?? true,
       minAge: json['min_age'] as int?,
       maxAge: json['max_age'] as int?,
       isForYouth: json['is_for_youth'] as bool? ?? true,
-      incomeCondition: json['income_condition']?.toString() ?? '',
-      educationCondition: json['education_condition']?.toString() ?? '',
-      employmentCondition: json['employment_condition']?.toString() ?? '',
+      incomeCondition: json['income_condition']?.toString(),
+      educationCondition: json['education_condition']?.toString(),
+      employmentCondition: json['employment_condition']?.toString(),
       applyUrl: json['apply_url']?.toString() ?? '',
-      attachmentUrl: json['attachment_url']?.toString() ?? '',
+      attachmentUrl: json['attachment_url']?.toString(),
       institution: json['institution']?.toString() ?? '',
       department: json['department']?.toString() ?? '',
-      contact: json['contact']?.toString() ?? '',
+      contact: json['contact']?.toString(),
       createdAt: json['created_at']?.toString(),
       updatedAt: json['updated_at']?.toString(),
     );
   }
 
   Policy toDomain() {
+    DateTime _parseRequiredDate(String? value) {
+      return _parseDate(value) ?? DateTime.now();
+    }
+
+    String? _normalizeString(String? value) {
+      if (value == null) return null;
+      return value.isNotEmpty ? value : null;
+    }
+
     return Policy(
       id: id,
       title: title,
@@ -133,24 +141,24 @@ class PolicyModel {
       category: _parseCategory(category),
       tags: tags,
       keywords: keywords,
-      applicationStartDate: _parseDate(startDate),
-      applicationEndDate: _parseDate(endDate),
+      applicationStartDate: _parseDate(applicationStartDate),
+      applicationEndDate: _parseDate(applicationEndDate),
       announceDate: _parseDate(announceDate),
       isOnline: isOnline,
       isOffline: isOffline,
       minAge: minAge,
       maxAge: maxAge,
       isForYouth: isForYouth,
-      incomeCondition: incomeCondition,
-      educationCondition: educationCondition,
-      employmentCondition: employmentCondition,
+      incomeCondition: _normalizeString(incomeCondition),
+      educationCondition: _normalizeString(educationCondition),
+      employmentCondition: _normalizeString(employmentCondition),
       applyUrl: applyUrl,
-      attachmentUrl: attachmentUrl,
+      attachmentUrl: _normalizeString(attachmentUrl),
       institution: institution,
       department: department,
-      contact: contact,
-      createdAt: _parseDate(createdAt),
-      updatedAt: _parseDate(updatedAt),
+      contact: _normalizeString(contact),
+      createdAt: _parseRequiredDate(createdAt),
+      updatedAt: _parseRequiredDate(updatedAt),
     );
   }
 }
