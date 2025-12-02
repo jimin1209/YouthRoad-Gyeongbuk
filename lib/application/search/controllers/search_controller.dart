@@ -56,6 +56,7 @@ class SearchState {
 class SearchController extends AutoDisposeNotifier<SearchState> {
   static const _debounceDuration = Duration(milliseconds: 350);
   Timer? _debounce;
+  bool _initialized = false;
 
   ExecuteSearch get _executeSearch => ref.read(executeSearchProvider);
   SaveSearchHistoryEntry get _saveHistory => ref.read(saveSearchHistoryProvider);
@@ -63,7 +64,14 @@ class SearchController extends AutoDisposeNotifier<SearchState> {
   @override
   SearchState build() {
     ref.onDispose(() => _debounce?.cancel());
+    Future.microtask(_initialize);
     return const SearchState();
+  }
+
+  void _initialize() {
+    if (_initialized) return;
+    _initialized = true;
+    unawaited(_runSearch(page: 1, allowEmpty: true));
   }
 
   void updateQuery(String query) {
@@ -106,9 +114,13 @@ class SearchController extends AutoDisposeNotifier<SearchState> {
     });
   }
 
-  Future<void> _runSearch({required int page, bool append = false}) async {
+  Future<void> _runSearch({
+    required int page,
+    bool append = false,
+    bool allowEmpty = false,
+  }) async {
     final targetQuery = state.query.copyWith(page: page);
-    if (targetQuery.isEmpty) {
+    if (targetQuery.isEmpty && !allowEmpty) {
       state = state.copyWith(
         status: SearchStatus.idle,
         results: const [],
