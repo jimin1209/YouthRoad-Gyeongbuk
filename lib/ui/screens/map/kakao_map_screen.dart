@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../application/providers.dart';
-import '../../../core/constants/env.dart';
-import '../../../devtools/panels/webview_console_panel.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/map/kakao_map_webview.dart';
@@ -32,54 +30,12 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     final center = _centerForRegion(regionName);
     final markers = _policyMarkers(center, policyState);
     final polylines = _polylinesFromMarkers(markers);
-    final options = KakaoMapOptions(
+    const options = KakaoMapOptions(
       level: 6,
       mapType: KakaoMapType.roadmap,
       showZoomControl: true,
       showMapTypeControl: true,
     );
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..addJavaScriptChannel(_bridgeName, onMessageReceived: _onMapMessage)
-      ..setOnConsoleMessage((JavaScriptConsoleMessage message) {
-        DevtoolsWebViewBridge.forwardConsole(message);
-        debugPrint('[WEBVIEW][${message.level}] ${message.message}');
-      })
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (_) {
-            setState(() {
-              _isLoading = true;
-              _mapReady = false;
-            });
-          },
-          onPageFinished: (_) {
-            // HTML은 적어도 로드 완료된 상태이므로 스피너는 끈다
-            if (!mounted) return;
-            setState(() {
-              _isLoading = false;
-            });
-          },
-        ),
-      )
-      ..loadHtmlString(
-        _htmlBuilder.build(
-          apiKey: Env.kakaoMapApiKey,
-          center: _lastCenter,
-          markers: _pendingMarkers,
-          bridgeName: _bridgeName,
-        ),
-        baseUrl: 'https://youthroad.co.kr',
-      );
-    DevtoolsWebViewBridge.attachTo(_controller);
-  }
-
-  @override
-  void dispose() {
-    _regionSubscription?.close();
-    _policySubscription?.close();
-    super.dispose();
-  }
 
     return Scaffold(
       appBar: const AppAppBar(title: '카카오맵 보기'),
@@ -126,10 +82,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                       style: const TextStyle(color: Colors.white70),
                     ),
                     if (_lastLog != null) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         '최근 로그: $_lastLog',
-                        style: const TextStyle(color: Colors.white60, fontSize: 12),
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
                   ],
@@ -145,6 +101,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         ],
       ),
     );
+  }
+
+  void _setLoading(bool value) {
+    if (_loading == value) return;
+    setState(() {
+      _loading = value;
+    });
   }
 
   List<KakaoMapMarker> _policyMarkers(
@@ -175,13 +138,6 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     });
   }
 
-  void _setLoading(bool value) {
-    if (_loading == value) return;
-    setState(() {
-      _loading = value;
-    });
-  }
-
   List<KakaoMapPolyline> _polylinesFromMarkers(List<KakaoMapMarker> markers) {
     if (markers.length < 2) return const [];
     final path = markers.map((m) => m.position).toList();
@@ -192,7 +148,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         strokeColor: '#3478f6',
         strokeWeight: 5,
         strokeOpacity: 0.8,
-      )
+      ),
     ];
   }
 
@@ -240,19 +196,17 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     }
 
     if (state.error != null && state.policies.isEmpty) {
-      return Center(
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.6),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Text(
-            '정책을 불러오지 못했습니다.',
-            style: TextStyle(color: Colors.white),
-            textAlign: TextAlign.center,
-          ),
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          '정책을 불러오지 못했습니다.',
+          style: TextStyle(color: Colors.white),
+          textAlign: TextAlign.center,
         ),
       );
     }

@@ -1,12 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../debug/debug_network_logger.dart';
+import '../../devtools/devtools_provider.dart';
 import '../error/app_exception.dart';
 import '../error/error_reporter.dart';
 import '../logging/app_logger.dart';
 import 'network_result.dart';
 import 'retry_policy.dart';
-import '../devtools/debug_network_logger.dart';
 
 Dio createAppDio() {
   final dio = Dio();
