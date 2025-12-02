@@ -205,13 +205,13 @@ class KakaoMapHtmlBuilder {
   <style>
     html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
   </style>
-  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=$apiKey&autoload=false&libraries=services$clusteringLibrary"></script>
 </head>
 <body>
   <div id="map"></div>
   <script>
     (() => {
       const ORIGIN = 'kakao-map-webview';
+      const SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=$apiKey&autoload=false&libraries=services$clusteringLibrary';
       const state = {
         ready: false,
         loading: false,
@@ -228,6 +228,8 @@ class KakaoMapHtmlBuilder {
         polylineData: $polylineJson,
         options: $optionsJson,
         enableClustering: ${enableClustering ? 'true' : 'false'},
+        sdkLoaded: false,
+        sdkLoading: false,
       };
 
       const bridge = window.$bridgeName;
@@ -295,6 +297,42 @@ class KakaoMapHtmlBuilder {
       function sendLoading(value) {
         state.loading = value;
         notifyFlutter('loading', { value });
+      }
+
+      function ensureSdkLoaded(force) {
+        if (state.sdkLoaded && window.kakao && window.kakao.maps) {
+          pollSdkLoaded(force);
+          return;
+        }
+        if (!state.sdkLoading) {
+          state.sdkLoading = true;
+          const existing = document.querySelector('script[data-kakao-sdk="true"]');
+          if (!existing) {
+            const script = document.createElement('script');
+            script.src = SDK_URL;
+            script.async = true;
+            script.defer = true;
+            script.dataset.kakaoSdk = 'true';
+            script.onload = function() {
+              state.sdkLoaded = true;
+              state.sdkLoading = false;
+              pollSdkLoaded(force);
+            };
+            script.onerror = function(event) {
+              state.sdkLoading = false;
+              notifyFlutter('error', {
+                code: 'sdkFail',
+                message: 'Failed to load Kakao SDK',
+                detail: event && event.message ? String(event.message) : 'script load error',
+              }, 'error');
+            };
+            document.head.appendChild(script);
+          } else {
+            state.sdkLoading = false;
+            state.sdkLoaded = !!(window.kakao && window.kakao.maps);
+          }
+        }
+        setTimeout(function() { pollSdkLoaded(force); }, 120);
       }
 
       function markerImage(options) {
@@ -480,6 +518,7 @@ class KakaoMapHtmlBuilder {
 
       function pollSdkLoaded(force) {
         if (window.kakao && kakao.maps && kakao.maps.load) {
+          state.sdkLoaded = true;
           kakao.maps.load(initMap);
           return;
         }
@@ -500,11 +539,11 @@ class KakaoMapHtmlBuilder {
         state.loadAttempts += 1;
         state.sdkPollCount = 0;
         clearTimeout(state.loadTimer);
-        state.loadTimer = setTimeout(handleLoadTimeout, 9000);
+        state.loadTimer = setTimeout(handleLoadTimeout, 12000);
         if (force) {
           state.map = null;
         }
-        pollSdkLoaded(force);
+        ensureSdkLoaded(force);
       }
 
       window.kakaoMap = {
@@ -529,7 +568,9 @@ class KakaoMapHtmlBuilder {
         notifyFlutter('log', { message: 'bootstrap' }, 'info');
       }
 
-      window.onload = bootstrap;
+      window.kakaoBootstrap = function() {
+        bootstrap();
+      };
       ${additionalScripts ?? ''}
     })();
   </script>
