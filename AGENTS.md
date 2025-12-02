@@ -1218,6 +1218,196 @@ return SearchV2Content(state);
 
 ---
 
+### ISSUE 12. 정책 화면(Search V2 / 정책 리스트 / 추천 정책) 전혀 로딩되지 않음 — 무한 “최신 정보를 준비하고 있습니다…” 상태
+
+#### 12-1. 배경 / 증상
+
+- Search V2 또는 정책 관련 화면 진입 시  
+  아래 메시지만 표시되고 **정책이 전혀 표시되지 않음**:
+
+```
+
+정책 로딩 중… 최신 정보를 준비하고 있습니다.
+
+````
+
+- skeleton UI는 보이지만 실제 데이터가 끝까지 오지 않음
+- 지역 필터 변경해도 변화 없음
+- 뒤로 갔다가 다시 와도 동일한 상태
+- Debug Provider 패널에서도 Search/Policy 관련 State가 `loading`에서 벗어나지 않거나  
+  event가 거의 없음 (init 실패 징후)
+
+➡️ 결론: **SearchV2Controller, PolicyRepository, RecommendedController 중 하나 이상이 초기화 실패하고 state가 갱신되지 않는 구조적 문제.**
+
+---
+
+#### 12-2. 목표
+
+- Search V2 + 추천 정책 + 정책 리스트가  
+  화면 진입 시 **정상적으로 초기화(initialize)** 되고  
+  Async loading → data 상태로 전환되도록 구조 복구.
+- 무한 로딩 상태를 완전히 해결.
+
+---
+
+#### 12-3. 상세 원인 범주 (점검해야 할 주요 영역)
+
+이 문제는 아래 중 **최소 1~3개 이상이 동시에 발생했을 가능성이 높음**.
+
+---
+
+### A. 초기화 함수(initialize or build)가 호출되지 않음
+- SearchV2Controller.build() 실행 중 throw 발생 → 다음 단계 진행 안 됨
+- 화면 진입 시 `ref.listen`, `initialize()` 호출이 누락됨
+- GoRouter navigation 과정에서 ProviderScope 재생성 실패
+
+---
+
+### B. PolicyRepository.fetchXXX 내부 예외(Exception) 숨김 처리
+- try-catch에서 error 재던지지 않고 삼키는 코딩 패턴
+- AsyncNotifier에서 error 상태를 반환하지 않아 UI는 계속 로딩 상태 유지
+
+---
+
+### C. race condition 때문에 마지막 fetch 결과가 UI에 반영되지 않음
+- 지역 변경 / Search V2 초기화 중 두 Fetch가 충돌
+- cancelToken 없이 여러 fetch 병렬 실행 → 마지막 요청이 실패해 loading 유지됨
+
+---
+
+### D. UI 로딩 조건이 잘못됨
+예:
+```dart
+if (state.isLoading || items.isEmpty) showLoading();
+````
+
+이럴 경우:
+
+* 데이터는 있는데 items가 비어 있으면 계속 loading 표시
+* 특히 추천 정책 lazy loading 도입 중 items 초기값이 []일 때 무한 로딩 발생
+
+---
+
+### E. Provider override 충돌
+
+* Search V2 구조 변경 중 Provider 파일 경로/override 순서 꼬임
+* override가 두 번 되거나, 최종 Provider가 null state에서 고정됨
+
+---
+
+#### 12-4. 해결 방향 (구조적 복구 플랜)
+
+---
+
+### 1) Search V2 초기화 강제 보장
+
+Search V2 화면 스크린:
+
+```dart
+@override
+void initState() {
+  super.initState();
+
+  Future.microtask(() {
+    ref.read(searchV2ControllerProvider.notifier).initialize();
+  });
+}
+```
+
+`initialize()` 내부:
+
+* 추천 정책 fetch
+* 기본 정책 fetch
+* 인기 검색어 fetch
+* 최근 검색 fetch
+* 지역 기반 정책 fetch
+  이 5개 모두 실행 확인
+
+---
+
+### 2) fetch 실패 시 에러 상태를 UI로 보내도록 수정
+
+```dart
+try {
+   final data = await repo.fetchPolicies(...);
+   return data;
+} catch (e, s) {
+   log.e(e);
+   return AsyncValue.error(e, s);
+}
+```
+
+AsyncValue.error가 UI까지 전달돼야 함.
+
+---
+
+### 3) 로딩 UI 조건식 정정
+
+```dart
+// 잘못된 패턴
+if (state.isLoading || items.isEmpty) { ... }
+
+// 개선안
+if (state.isLoading && items.isEmpty) { ... }
+```
+
+특히 Lazy Load 도입 후 필수.
+
+---
+
+### 4) recommended/page paging 구조 체크
+
+* page=1 load 성공했는지
+* items length > 0인지
+* hasMore=false라면 로딩 인디케이터 숨김
+
+---
+
+### 5) ProviderScope 구조 재점검
+
+* 앱 최상단 ProviderScope 내부에 Search V2 관련 Provider 선언
+* 화면별 Provider override 여부 점검
+* `ref.listen`을 init/build 외부에서 호출하지 말 것
+  (Issue #9 관련)
+
+---
+
+### 6) Debug 로그 대량 추가
+
+initialize() 시작/완료
+fetchPolicies 시작/완료/실패
+추천 정책 페이징 상태
+지역 필터 변경 시 이벤트
+state.isLoading, items.length 값
+→ 디버그 패널 Provider 탭에 표시되도록 강화
+
+---
+
+#### 12-5. 체크리스트
+
+* [ ] SearchV2Controller.initialize() 호출 확인됨
+* [ ] fetchPolicies / fetchRecommended / fetchPopularKeywords 정상 응답
+* [ ] AsyncValue.error가 UI에 제대로 전파됨
+* [ ] 로딩 조건식 수정됨
+* [ ] recommended lazy loading과 Search V2가 충돌하지 않음
+* [ ] 화면이 “최신 정보를 준비하고 있습니다…”에서 반드시 벗어남
+* [ ] 실제 정책 리스트가 표시됨
+* [ ] Debug Provider 탭에 load 이벤트가 찍힐 것
+
+---
+
+#### 12-6. 완료 기준
+
+* Search V2 / 추천 정책 / 정책 리스트 진입 시
+  **정상적으로 정책 목록이 표시됨**
+* “최신 정보를 준비하고 있습니다…” 무한 로딩 현상 완전 제거
+* 정책 초기화 및 데이터 로드 흐름이 명확하게 복구됨
+
+```
+
+---
+
+
 
 
 
