@@ -3989,3 +3989,413 @@ lib/features/policy_new/
 	•	추천 피드 UI는 job05의 ListView 구조를 그대로 따른다.
 
 ---
+좋아 지민님 💙🩵
+이번엔 진짜 말 그대로 job01 스타일 풀세트로,
+신청일자 알림 시스템을 job08로 잡아서 전체 설계할게요.
+
+컨셉은:
+
+job08 = 정책 신청일자 알림 / 리마인더 시스템 v1 전체 설계
+	•	정책 상세에서 “알림 신청”
+	•	마감 임박 전 알림
+	•	목록에서 “알림 설정됨” 뱃지
+	•	앱 내부에서 상태 일관성 유지
+	•	나중에 푸시/로컬 알림 플러그인 연결하기 쉬운 구조
+
+아래 블록은 AGENTS.md에 바로 들어가는 Codex용 스펙이고,
+지민님이 말한 항목(시스템 정의~Acceptance Criteria)을 전부 포함해놨어요.
+
+⸻
+
+
+@chatgpt-codex
+# job08 — PolicyNew 신청일자 알림(Reminder) 시스템 설계 & 구현
+
+## 0. 시스템 정의 (System Definition)
+
+시스템 이름:
+- **PolicyNew Application Reminder System v1**
+
+역할:
+- 정책의 **신청 마감일(applicationEndDate)** 기준으로,
+  사용자가 선택한 정책에 대해 **마감 이전 알림(Reminder)**을 설정/관리하는 서브 시스템.
+- “알림 설정된 정책 목록”을 UI에서 조회할 수 있고,
+  정책 카드/상세 화면에서 알림 상태를 일관되게 표시한다.
+- 알림 스케줄링은 **로컬 단말 기준(local notifications)**을 1차 목표로 하며,
+  백엔드 푸시 등은 향후 확장 포인트로만 고려한다.
+
+레이어 관점:
+- **Domain**: Reminder 도메인 모델, 상태 enum
+- **Data**: ReminderRepository 인터페이스 + 구현체(로컬 저장소)
+- **Application**: ReminderController, ReminderService(예약·취소·동기화)
+- **Presentation**: 정책 카드/상세 화면/전용 “알림 관리” 화면 + 상태 뱃지
+
+---
+
+## 1. 문제 정의 (Problem Definition)
+
+현 상태:
+- 사용자는 여러 청년 정책을 둘러보고 **“나중에 신청해야지”**라고 생각하지만,
+  실제로는 신청 마감일을 잊어버리는 경우가 많다.
+- 현재 PolicyNew 시스템에는:
+  - 신청 마감일을 보여주는 UI는 있지만,
+  - 마감일을 기준으로 **알림을 예약/관리하는 기능이 전혀 없음**.
+- 알림 기능 없이 단순 리스트/검색/추천만으로는
+  “실질적인 신청 행동”까지 연결되기 어렵다.
+
+해결해야 할 문제:
+1. 사용자가 관심 있는 정책에 대해:
+   - “마감 하루 전 / 3일 전 / 7일 전” 등
+   - 직관적인 시점으로 알림을 설정할 수 있어야 한다.
+2. 정책마다 알림 상태를:
+   - 카드(리스트)
+   - 상세 화면
+   에서 **같은 정보로** 보여줘야 한다.
+3. 알림 설정/취소/만료/삭제 등 상태 변화가
+   다른 화면들에 자연스럽게 반영되어야 한다.
+4. Flutter/멀티 플랫폼 구조에서,
+   **알림 예약 로직 vs UI/Repository vs 플랫폼 플러그인 연결**을 분리해야 한다.
+
+---
+
+## 2. 요구사항 분석 (Requirements Analysis)
+
+### 2.1 기능 요구사항 (Functional)
+
+1. 알림 설정/변경/삭제
+   - 정책 상세 화면에서:
+     - “알림 설정” 버튼 / 토글 제공
+     - 사용자는 기본 옵션 선택:
+       - 마감 하루 전
+       - 마감 3일 전
+       - 마감 7일 전
+     - 선택 즉시 해당 정책에 대한 Reminder가 생성/업데이트 되어야 한다.
+   - 이미 설정된 정책은:
+     - “설정됨” 상태로 표시되고,
+     - 눌렀을 때 옵션 변경/해제 가능해야 한다.
+
+2. 알림 목록 조회
+   - “내 알림 관리” 화면에서:
+     - 알림 설정된 정책 리스트를 볼 수 있어야 한다.
+     - 리스트에는:
+       - 정책 제목
+       - 마감일
+       - 알림 예정 시점
+       - 알림 상태(예정/만료/취소)
+     - 항목을 눌러 상세 화면으로 이동 가능.
+
+3. 상태 표시
+   - 정책 카드(PolicyCard)에서:
+     - 알림이 설정된 정책은 작은 아이콘/뱃지로 표시 (예: 🔔)
+   - 정책 상세 바텀 시트에서:
+     - 알림 설정/변경용 버튼 + 현재 설정 상태 표시.
+
+4. 알림 만료 처리
+   - 마감일이 지난 정책에 대해:
+     - 해당 Reminder는 상태가 “만료(Expired)”로 전환되며,
+     - UI에는 “만료됨” 뱃지 또는 비활성 상태로 표시.
+
+5. 플랫폼 알림 연동 준비
+   - 실제 기기 알림(푸시/로컬)을 위해:
+     - `ReminderScheduler` 인터페이스 설계
+     - 기본 구현은 “no-op”(실제 스케줄러 없음)으로 둔다.
+     - 이후 job에서 flutter_local_notifications / FCM 등 연결 가능.
+
+---
+
+### 2.2 비기능 요구사항 (Non-functional)
+
+1. 일관성:
+   - 단 하나의 ReminderRepository가 모든 알림 정보를 관리하고,
+     모든 화면이 이 정보를 참조해야 한다.
+
+2. 확장성:
+   - 나중에 “다음 회차 모집 알림” 같은 기능을 추가할 수 있도록,
+     모델/레포 구조를 유연하게 정의할 것.
+
+3. 독립성:
+   - Policy Repository, Domain을 수정하지 않고,
+     Reminder 시스템은 **정책 ID와 마감일만**을 기반으로 동작하게 설계.
+
+4. 성능:
+   - 알림 목록/조회는 전체 정책 리스트와 별도 저장소 사용(로컬 DB/캐시)로 빠르게 동작.
+
+---
+
+## 3. 아키텍처 설계 (Architecture Design)
+
+### 3.1 주요 컴포넌트
+
+- Domain
+  - `PolicyReminder`
+  - `PolicyReminderStatus` (enum)
+
+- Data
+  - `PolicyReminderRepository` (interface)
+  - `PolicyReminderLocalRepository` (implementation; e.g. Isar/SharedPreferences 기반)
+
+- Application
+  - `PolicyReminderService`
+    - UI/Controller 요청을 받아 Repository + Scheduler 호출
+  - `PolicyReminderController`
+    - 개별 정책 + 리스트에 대한 상태 제공
+  - `PolicyReminderListController`
+    - “내 알림 관리” 화면용 리스트 상태 제공
+  - `ReminderScheduler`
+    - 실제 플랫폼 알림 스케줄러 인터페이스 (기본 구현은 no-op)
+
+- Presentation
+  - `PolicyReminderBadge` (카드용 뱃지 위젯)
+  - `PolicyReminderButton` (상세 화면용 버튼)
+  - `PolicyReminderListScreen` (내 알림 관리 화면)
+
+---
+
+### 3.2 의존성 방향
+
+- Presentation → Application (Controller/Service) → Data (Repository) → (Local storage)
+- Application → Domain
+- ReminderScheduler는 Application 레이어에 주입
+
+---
+
+## 4. 데이터 파이프라인 / 흐름도 (Data Pipeline / Flows)
+
+### 4.1 알림 설정 플로우 (상세 화면에서)
+
+1. 사용자가 정책 상세 바텀시트에서 “알림 설정” 탭
+2. UI → `PolicyReminderController.setReminder(...)`
+3. Controller → `PolicyReminderService.upsertReminder(policyId, endDate, option)`
+4. Service:
+   - `PolicyReminderRepository.upsert(...)` 호출 (로컬에 저장)
+   - `ReminderScheduler.schedule(reminder)` 호출 (플랫폼 수준 예약)
+5. 완료 후:
+   - Controller state 업데이트
+   - EventBus에 `PolicyReminderEvent.changed(policyId)` 발행
+6. 정책 카드/리스트/알림 목록 화면이 EventBus를 구독하여 상태 갱신
+
+---
+
+### 4.2 알림 취소 플로우
+
+1. UI: “알림 취소” 선택
+2. Controller → Service.cancelReminder(policyId)
+3. Service:
+   - Repository.delete(policyId)
+   - Scheduler.cancel(policyId)
+4. EventBus에 `PolicyReminderEvent.changed(policyId)` 발행
+
+---
+
+### 4.3 알림 목록 조회 플로우
+
+1. “내 알림 관리” 화면 진입
+2. `PolicyReminderListController.loadAllReminders()`
+3. Repository에서 모든 Reminder 로드
+4. 상태에 따라 정렬(마감 임박순) 후 UI에 표시
+5. 각 항목 클릭 시 상세 화면으로 이동
+
+---
+
+### 4.4 만료 처리 플로우
+
+1. 앱 시작 시 or 알림 목록 진입 시:
+   - `PolicyReminderService.cleanupExpiredReminders(now)`
+2. Repository에서 모든 Reminder 조회
+3. applicationEndDate < now인 항목들:
+   - status를 `expired`로 업데이트
+4. UI에는 expired 상태 반영
+
+---
+
+## 5. Provider / Controller 상호작용 규칙
+
+### 5.1 Provider 정의
+
+```dart
+// Repository
+final policyReminderRepositoryProvider = Provider<PolicyReminderRepository>(
+  (ref) => PolicyReminderLocalRepository(ref.read),
+);
+
+// Scheduler (기본 no-op 구현)
+final reminderSchedulerProvider = Provider<ReminderScheduler>(
+  (ref) => NoOpReminderScheduler(),
+);
+
+// Service
+final policyReminderServiceProvider = Provider<PolicyReminderService>(
+  (ref) => PolicyReminderService(
+    repository: ref.read(policyReminderRepositoryProvider),
+    scheduler: ref.read(reminderSchedulerProvider),
+  ),
+);
+
+// 개별 정책용 Controller (policyId 단위)
+final policyReminderControllerProvider =
+    StateNotifierProvider.family<PolicyReminderController, PolicyReminderState, String>(
+  (ref, policyId) => PolicyReminderController(
+    policyId: policyId,
+    service: ref.read(policyReminderServiceProvider),
+    eventBus: ref.read(policyEventBusProvider),
+  ),
+);
+
+// 알림 목록용 Controller
+final policyReminderListControllerProvider =
+    StateNotifierProvider<PolicyReminderListController, PolicyReminderListState>(
+  (ref) => PolicyReminderListController(
+    service: ref.read(policyReminderServiceProvider),
+    eventBus: ref.read(policyEventBusProvider),
+  ),
+);
+
+
+⸻
+
+5.2 Controller 규칙
+	•	PolicyReminderController(policyId):
+	•	상태: PolicyReminderState
+	•	status: none | scheduled | expired
+	•	selectedOption: enum(1일 전/3일 전/7일 전)
+	•	scheduledAt: DateTime?
+	•	메서드:
+	•	load() — 초기 로딩
+	•	setOption(ReminderOption) — 설정/변경
+	•	cancel() — 알림 취소
+	•	PolicyReminderListController:
+	•	상태: PolicyReminderListState
+	•	목록: List<PolicyReminder>
+	•	로딩/에러 상태
+	•	메서드:
+	•	loadAll() — 전체 알림 목록 조회
+	•	refresh() — 다시 로딩
+	•	EventBus와 연동:
+	•	PolicyReminderEvent 타입 추가
+	•	정책 카드/상세/목록에서 PolicyReminderEvent를 통해 부분 업데이트
+
+⸻
+
+6. UI 상태도 (UI State)
+
+6.1 개별 정책 상세 화면의 Reminder 상태
+
+상태 다이어그램 (텍스트):
+	•	NONE (알림 없음)
+	•	→ [사용자: 옵션 선택 후 “설정”] → SCHEDULED
+	•	SCHEDULED
+	•	→ [사용자: 옵션 변경] → SCHEDULED(옵션만 변경)
+	•	→ [사용자: 취소] → NONE
+	•	→ [시간 경과, 마감일 지나감] → EXPIRED
+	•	EXPIRED
+	•	→ [사용자: 새 알림 설정] → SCHEDULED (새 시점 기준)
+
+UI 표현:
+	•	NONE: “알림 설정” 버튼
+	•	SCHEDULED: “알림 설정됨 · (예: 마감 3일 전)” + “변경/취소” 액션
+	•	EXPIRED: “마감된 정책입니다 · 알림 재설정” (재설정이 가능하면)
+
+⸻
+
+6.2 알림 목록 화면 상태
+	•	loading → data(reminders) 또는 error
+	•	data 상태:
+	•	reminders 비어 있음 → “설정된 알림이 없습니다” 문구
+	•	존재함 → 마감 임박순 정렬
+
+⸻
+
+7. 이벤트 흐름 (Event Flow)
+
+7.1 EventBus 이벤트 타입
+
+PolicyEventType에 아래 값 추가 (enum 확장):
+	•	reminderChanged — 특정 policyId의 Reminder 상태 변경
+	•	reminderBulkUpdated — cleanup/일괄 변경 등
+
+PolicyEvent payload:
+	•	type: PolicyEventType
+	•	policyId: String?
+	•	기타 필요한 데이터
+
+7.2 발행 지점
+	•	PolicyReminderService.upsertReminder(...) 완료 후:
+	•	PolicyEventType.reminderChanged + policyId
+	•	PolicyReminderService.cancelReminder(policyId) 완료 후:
+	•	PolicyEventType.reminderChanged + policyId
+	•	cleanupExpiredReminders로 여러 건 변경 시:
+	•	PolicyEventType.reminderBulkUpdated
+
+7.3 구독 지점
+	•	PolicyReminderController:
+	•	자기 policyId에 해당하는 이벤트 수신 시 load() 재실행
+	•	PolicyFeedListView / PolicyCard:
+	•	개별 카드가 직접 EventBus를 구독하기보다는,
+해당 화면 진입 시 PolicyReminderController가 초기 로딩해 뱃지를 표시하는 것을 우선.
+	•	필요 시 job09에서 “카드 레벨 최적화 구독” 고려.
+
+⸻
+
+8. 파일 구조 (File Structure)
+
+job08에서 새로 추가/수정해야 하는 파일들:
+
+lib/features/policy_new/
+  domain/
+    entities/
+      policy_reminder.dart            # PolicyReminder, ReminderStatus, ReminderOption
+  data/
+    repositories/
+      policy_reminder_repository.dart # 인터페이스
+    sources/
+      policy_reminder_local_source.dart (선택) # 로컬 저장소 접근
+    repositories_impl/
+      policy_reminder_local_repository.dart # 구현체
+  application/
+    services/
+      policy_reminder_service.dart    # 비즈니스 로직
+    controllers/
+      policy_reminder_controller.dart       # 개별 정책용
+      policy_reminder_list_controller.dart  # 알림 목록용
+    schedulers/
+      reminder_scheduler.dart         # 인터페이스 + NoOp 구현
+  presentation/
+    reminder/
+      policy_reminder_badge.dart      # 카드용 뱃지 (🔔 등)
+      policy_reminder_button.dart     # 상세 화면 버튼
+      policy_reminder_list_screen.dart# “내 알림 관리” 화면
+
+기존 파일(Policy, PolicyRepository 등)은 수정 금지.
+단, PolicyEventType enum과 EventBus 타입은 job08에서 확장 가능.
+
+⸻
+
+9. Acceptance Criteria (수용 기준)
+	•	PolicyReminder Domain 엔티티와 ReminderStatus, ReminderOption enum이 정의되어 있다.
+	•	PolicyReminderRepository 인터페이스와 PolicyReminderLocalRepository 구현체가 존재하며,
+최소한 아래 메서드를 제공한다:
+- Future<void> upsert(PolicyReminder reminder)
+- Future<void> delete(String policyId)
+- Future<PolicyReminder?> getByPolicyId(String policyId)
+- Future<List<PolicyReminder>> getAll()
+	•	ReminderScheduler 인터페이스 및 NoOpReminderScheduler 구현이 존재한다.
+	•	PolicyReminderService가 Repository + Scheduler를 사용해
+upsert/cancel/cleanupExpired 기능을 제공한다.
+	•	policyReminderControllerProvider(policyId)가 개별 정책의 reminder 상태를 관리하고,
+setOption/cancel/load 메서드를 제공한다.
+	•	policyReminderListControllerProvider가 “알림 관리 화면”을 위한 목록 상태를 제공한다.
+	•	정책 상세 바텀시트에 PolicyReminderButton이 추가되어,
+- 현재 알림 상태를 표시하고
+- 알림 설정/변경/취소 UI를 제공한다.
+	•	정책 카드에 PolicyReminderBadge가 추가되어,
+알림 설정된 정책에 🔔 같은 아이콘을 일관되게 표시한다.
+	•	PolicyEventType에 reminder 관련 이벤트가 추가되고,
+PolicyReminderService에서 알맞게 이벤트를 발행한다.
+	•	빌드시 타입 에러/순환 참조/Provider 충돌이 없어야 한다.
+	•	플러터 앱을 실행했을 때,
+- 정책 상세에서 알림을 설정/취소할 수 있고,
+- “내 알림 관리” 화면에서 설정된 목록을 볼 수 있으며,
+- 마감일이 지난 정책은 expired 상태로 보이는 것까지 동작한다
+(실제 OS 레벨 알림 팝업은 NoOp로 처리해도 무방).
+
+---
