@@ -69,963 +69,577 @@
 
 지금부터 ISSUE LIST 입니다.
 
+## [fix/app-ux-debug-and-map] Youth Road UX / 디버그 패널 / 카카오맵 개선
 
-## ISSUE [feature/core-stability] Core Stability Layer Spec #122
-이 명세는 feature/core-stability 브랜치를 대상으로 한다.
+Status: Open.
 
-목표:
-앱 전체를 안정화시키기 위한 Core Stability Layer를 7개 파일 구조로 구축한다.
-모든 코드는 전체 파일 형태로 생성하고, core 레이어만 수정한다.
+### 0. 작업 범위 요약
 
-파일 목록:
-- lib/core/error/app_exception.dart
-- lib/core/error/error_reporter.dart
-- lib/core/logging/app_logger.dart
-- lib/core/network/network_result.dart
-- lib/core/network/retry_policy.dart
-- lib/core/network/app_dio.dart
-- main.dart (global error handler 추가)
+이번 작업의 목표는 다음 여섯 가지 개선 사항을 한 번에 해결하는 것입니다.
 
-세부 요구사항:
-현재 브랜치는 feature/core-stability 이며,
-YouthRoad 앱의 안정성과 오류 복구 능력을 대폭 강화하기 위한
-“Core Stability Layer”를 구축하고 싶다.
-
-아래 요구사항을 기반으로 새로운 파일들을 생성하거나 필요한 곳에서 리팩토링을 수행해줘.
-모든 코드는 전체 파일 단위로 제공해야 하며, 기존 UI나 feature 레벨 코드는 수정하지 말고,
-core 레이어에 집중해 안정 기반을 만들어라.
-
-────────────────────────────────────────
-[목표]
-앱이 어떤 상황에서도 크게 죽지 않고,
-네트워크 불안정 / WebView 오류 / 비동기 예외를 모두 흡수하며,
-추후 KakaoMap/검색/아키텍처 리팩토링 시에도 흔들리지 않는
-탄탄한 기반(Core Stability Layer)을 만드는 것이다.
-
-이 기반은 앱 전체의 "백본 엔진" 역할을 한다.
-
-────────────────────────────────────────
-[생성 또는 리팩토링해야 할 파일 목록]
-
-1) lib/core/error/app_exception.dart
-   - 앱 전역에서 사용될 예외 타입(AppException) 정의
-   - 다음과 같은 세부 타입을 포함:
-       - NetworkException
-       - ServerException
-       - TimeoutException
-       - UnexpectedException
-   - "사용자용 메시지(get userMessage)"와 "로깅용 메시지(get debugMessage)"를 분리
-   - StackTrace를 안전하게 보관할 수 있는 구조 설계
-
-2) lib/core/network/network_result.dart
-   - 모든 API 결과를 감싸는 Result 모델
-   - 형태:
-       sealed class NetworkResult<T>
-         - NetworkSuccess<T>(data)
-         - NetworkFailure<T>(error: AppException)
-   - UI/Provider 계층에서 안정적으로 분기 처리 가능해야 함
-
-3) lib/core/network/retry_policy.dart
-   - 네트워크 재시도 정책 정의
-   - 요구사항:
-       - 기본 3회 재시도
-       - 500~599 에러, timeout, network offline 시 재시도
-       - 1초 → 2초 → 4초 exponential backoff
-       - 재시도 횟수 및 딜레이 설정 가능 옵션 포함
-
-4) lib/core/network/app_dio.dart
-   - 앱 전체에서 사용할 단일 Dio 인스턴스를 제공
-   - 요구사항:
-       - base options(timeouts, headers) 설정
-       - retry_policy 적용
-       - logging interceptor 적용
-       - 모든 Dio 오류를 NetworkFailure로 변환하는 wrapper 함수 제공
-   - provider 또는 singleton 패턴으로 제공
-
-5) lib/core/logging/app_logger.dart
-   - YouthRoad 전체에서 사용하는 통일된 로깅 유틸
-   - 다음 메서드 포함:
-       - logInfo(message)
-       - logWarn(message)
-       - logError(message, [error, stackTrace])
-   - print()를 직접 사용하지 않고 여기로 모두 흡수
-   - 나중에 JS console, network log, provider log를 이 Logger로 연결 가능하도록 설계
-
-6) lib/core/error/error_reporter.dart
-   - global error handler에서 받아온 에러를
-     app_logger로 기록하고, 필요 시 분석도 가능하도록 구조만 잡아둠
-   - 나중에 Crashlytics/Sentry 연결 가능하게 Hook 포인트 제공
-
-7) main.dart (또는 앱의 entrypoint)
-   - runZonedGuarded 적용
-   - FlutterError.onError 적용
-   - 모든 uncaught exception을 error_reporter를 통해 로깅
-   - AppDio 초기화
-   - 초기 로그 출력(예: YouthRoad starting with Core Stability Layer)
-
-────────────────────────────────────────
-[커스텀 설계 규칙]
-
-- core/ 아래 파일들은 앱 기능과 독립적으로 동작해야 한다.
-- 외부 의존은 모두 DI 가능하게 구성한다 (ex: Provider 또는 getter).
-- Dio 요청은 반드시 NetworkResult<T>로 감싸서 리턴한다.
-- 어떤 계층에서도 throw DioError를 그대로 던지지 않는다.
-- Core Stability Layer는 UI 수정 없이 완성되어야 한다.
-- 모든 생성 파일은 “전체 파일 형태”로 제공한다 (부분 코드 금지).
-- import 경로는 상대경로 혹은 프로젝트 경로 기준으로 정확히 작성한다.
-
-────────────────────────────────────────
-[결과]
-
-이 명령을 수행한 후 나는 다음과 같은 상태를 기대한다:
-
-- lib/core/error/app_exception.dart
-- lib/core/error/error_reporter.dart
-- lib/core/logging/app_logger.dart
-- lib/core/network/network_result.dart
-- lib/core/network/retry_policy.dart
-- lib/core/network/app_dio.dart
-- main.dart (global error handler 추가된 전체 파일)
-
-이 7개 파일이 완전히 구성된 상태이며,
-앱 전체가 네트워크 안정화 + 예외 안전 + 로깅 기반을 갖춘
-프로덕션 품질의 Core Stability Layer를 얻게 된다.
-
-────────────────────────────────────────
-
-이 요구사항에 맞춰 모든 파일을 전체 코드 형태로 작성해줘.
-
-
-## [feature/devtools] In-App Devtools Layer Spec #123
-이 명세는 feature/devtools 브랜치에서 실행한다.
-
-────────────────────────────────────────
-[목표]
-
-앱 전체에서 발생하는 상태 변화, 로그, 네트워크 요청, WebView console 출력을
-실시간으로 확인할 수 있는 “In-App DevTools Layer”를 구축한다.
-
-이 레이어는 KakaoMap 디버깅, 네트워크 추적, 상태 확인,
-빌드 안정성 확보에 중요하며, 이후 모든 리팩토링의 기반이 된다.
-
-DevTools는 개발 빌드에서만 동작하도록 설계하고,
-전체 파일 단위로 완성된 코드로 제공해야 한다.
-
-────────────────────────────────────────
-[생성해야 할 주요 기능]
-
-1) DebugOverlay (앱 최상단 Floating Debug Panel)
-   - Toggle 가능한 floating button 또는 long-press gesture
-   - 패널 열기/닫기 기능
-   - 크기/위치 persistent 저장(optional)
-
-2) Log Console Panel
-   - app_logger의 모든 출력(logInfo/logWarn/logError)을 실시간 표시
-   - 날짜, 태그, 레벨 필터링
-   - 스크롤, 자동 스크롤 유지 옵션
-
-3) Provider State Tracker Panel
-   - 모든 Riverpod provider의 변경 이벤트를 기록
-   - provider name, old→new value, timestamp 출력
-   - provider observer(AppProviderObserver) 구현 포함
-
-4) WebView Console Mirror Panel
-   - WebView의 console.log, console.warn, console.error를 모두 Dart로 미러링
-   - JS → Dart 브리지 구축
-   - KakaoMap 디버깅 가능하도록 연결
-
-5) Network Inspector Panel
-   - Dio 요청/응답을 모두 기록
-   - URL, statusCode, method, duration(ms), payload 일부 표시
-   - 오류 발생 시 빨간색 등 강조
-   - Retry 버튼(optional)
-
-6) DevTools Provider
-   - 모든 패널 상태를 관리하는 Riverpod Provider
-   - Panel open/close, active tab, log buffer, provider events buffer, network buffer 등 관리
-
-────────────────────────────────────────
-[생성해야 할 파일 목록]
-
-lib/devtools/
- ├─ debug_overlay.dart
- ├─ devtools_provider.dart
- ├─ panels/
- │    ├─ log_console_panel.dart
- │    ├─ provider_tracker_panel.dart
- │    ├─ network_inspector_panel.dart
- │    ├─ webview_console_panel.dart
- ├─ widgets/
- │    ├─ devtools_tab_bar.dart
- │    ├─ devtools_container.dart
-
-core/logging/app_logger.dart 수정 필요:
- - app_logger의 모든 로그를 DevTools로도 전송할 수 있는 hook 추가
-
-core/network/app_dio.dart 수정 필요:
- - 모든 요청/응답/오류를 DevTools Network Panel에 전달하는 interceptor 추가
-
-Flutter WebView 수정 필요:
- - JavascriptChannel 이용하여 console.* 메시지를 DevTools Panel로 전달하는 브리지 추가
-
-────────────────────────────────────────
-[설계 규칙]
-
-- DevTools는 release 모드에서는 완전히 비활성화되어야 한다.
-  (kReleaseMode 플래그 또는 assert 활용)
-
-- UI는 기존 화면을 방해하지 않는 형태로 오버레이되어야 한다.
-  (Stack + Positioned)
-
-- 모든 Panel은 탭 형태로 전환 가능해야 한다.
-  (Log / Provider / Network / WebView)
-
-- AppLogger / Dio / WebView / Riverpod Observer 모두 DevTools로 연결된다.
-
-- 필요한 모든 파일은 “전체 파일” 형태로 Codex가 생성해야 한다.
-  (부분 코드 또는 diff 금지)
-
-────────────────────────────────────────
-[Codex 기대 결과]
-
-Codex는 다음을 전체 파일로 생성해야 한다:
-
-- lib/devtools/debug_overlay.dart
-- lib/devtools/devtools_provider.dart
-- lib/devtools/panels/log_console_panel.dart
-- lib/devtools/panels/provider_tracker_panel.dart
-- lib/devtools/panels/network_inspector_panel.dart
-- lib/devtools/panels/webview_console_panel.dart
-- lib/devtools/widgets/devtools_tab_bar.dart
-- lib/devtools/widgets/devtools_container.dart
-- core/logging/app_logger.dart 수정본
-- core/network/app_dio.dart 수정본
-- WebView 관련 브리지 코드들
-
-결과적으로,
-앱 안에서 실시간 로그/상태/네트워크/JS 콘솔을 볼 수 있는
-전체 DevTools Layer가 완성된다.
-
-────────────────────────────────────────
-위 모든 요구사항을 기반으로 Codex가 전체 파일을 생성하도록 한다.
-
-## [feature/map-upgrade] KakaoMap WebView Integration Full Rebuild #124
-이 명세는 KakaoMap WebView 모듈을 전면 재설계하기 위한 이슈이며,  
-**작업 대상 브랜치는 `feature/map-upgrade`** 이다.
-
-또한 **`feature/map-upgrade` 브랜치는 반드시 `fix/kakaomap-webview`의 최신 변경 내용을 병합(`git merge`)한 상태**에서 작업을 진행해야 한다.
-
-- 참고 브랜치였던 **`codex/redesign-kakaomap-integration-in-flutter`** 의 변경 사항은 이미 `fix/kakaomap-webview`에 포함되어 있다.
-- 따라서 Codex는 `feature/map-upgrade`의 코드베이스가 `fix/kakaomap-webview` 최신 기준임을 전제로 한다.
-
-본 Issue에서 Codex는 KakaoMap 엔진 전체를 "완전히 새로" 작성한다.
+1. 지역 선택 탭에서 **경북 모든 시·군이 표시되지 않는 문제** 수정
+2. 상시 노출되는 **디버그 패널 버튼 노출 방식 개선**
+3. 카카오맵 로딩 시 **bootstrap timeout / sdkFail / 흰 화면 이슈** 해결
+4. 디버그 패널의 **Provider 탭에 아무것도 표시되지 않는 문제** 수정
+5. 디버그 패널에서 **아이템 클릭 시 상세 로그 패널에 내용이 표시되지 않는 문제** 수정
+6. **카테고리별 탐색 컨텐츠 부족**에 대한 UX/데이터 구조 개선
 
 ---
 
-# ✔ 목표
+### 1. 지역 선택 탭 – 경북 전체 시·군 미표시 문제
 
-Flutter + WebView 기반 KakaoMap 엔진을 다음 기준으로 완전 재설계한다:
+#### 1-1. 배경 / 증상
 
-- 안정적인 Kakao SDK 로딩
-- JSON 기반 양방향 통신 (Flutter ↔ JS)
-- Marker / Polyline / Bounds / MapType / Cluster 등 지도 기능 확장
-- 로딩 / 에러 / 재시도 UI 구축
-- JS console log → Flutter 전달
-- Controller 명령 큐(ready 전까지 버퍼링)
-- WebView reload 대응 및 상태 보존
-- Provider + Screen 상태 연동
+- "지역을 선택해주세요" 탭에서 **경상북도 전체 시·군 목록이 모두 나오지 않음**.
+- 실제 기대값: **경상북도 23개 시·군**이 전부 노출되어야 함.
+- 현재: 일부 지역만 노출되거나, 순서/개수가 일치하지 않는 현상 발생.
 
-기존 KakaoMap 구조는 전부 폐기하고, HTML/JS/Controller/WebView/Provider/Screen 레벨을 모두 재작성한다.
+#### 1-2. 목표
 
-Codex는 반드시 **모든 파일을 "완전한 전체 Dart 파일" 형태로 제공해야 한다.**
-부분 코드, 중간 생략, diff 출력 금지.
+- 앱 내 지역 선택 UI에서 **경북 모든 시·군이 누락 없이 노출**되도록 수정.
+- 지역 데이터의 **source(원천), 변환, 필터링, 표시** 전체 체인을 점검 및 정리.
+
+#### 1-3. 상세 요구사항
+
+1. **데이터 소스 확인**
+   - 사용 중인 Region/City 리스트 소스 확인:
+     - gbyouth OpenAPI 혹은 별도 하드코딩/로컬 JSON 여부.
+   - 실제 응답 또는 저장 데이터에서 **엔트리 개수, 키 이름, 코드값** 확인.
+   - 기준:
+     - 시·군 이름(예: 포항시, 경주시, 김천시…)  
+     - 내부 코드(예: regionCode, areaId 등)
+
+2. **모델 매핑 검증**
+   - `RegionModel`, `CityModel` 등 영역에서:
+     - JSON 키 → 필드 매핑이 올바르게 되어 있는지 확인.
+     - null 허용 여부 / 기본값 처리 확인.
+
+3. **필터/정렬 로직 점검**
+   - 특정 조건(예: `isActive`, `hasPolicies`) 때문에 일부 지역이 필터링되어 사라지지 않는지 확인.
+   - UI 정렬 기준(가나다 순, 코드 순)을 명시적으로 고정.
+   - 경북 외 지역(타 시·도)은 이 탭에 노출하지 않도록 별도 조건 분리.
+
+4. **Provider / State 관리**
+   - 지역 리스트를 제공하는 Provider (예: `regionListProvider`, `locationFilterProvider`)에서:
+     - 초기 로딩 실패 시 UI에 빈 리스트가 들어가지 않도록 에러 처리.
+     - 로딩 상태 / 실패 상태를 구분해 로그 남기기.
+
+#### 1-4. 구현 가이드 (예시 흐름)
+
+- `lib/domain/location/entities/region.dart`
+  - Region 엔티티에 `code`, `name`, `isAvailable` 필드 존재 여부 확인 및 필요 시 추가.
+- `lib/data/location/region_remote_source.dart`
+  - API 응답에서 `name`, `code` 필드 매핑 재검증.
+  - 응답 길이가 23 미만이면 warning 로그 출력.
+- `lib/application/location/region_controller.dart`
+  - 초기화 시:
+    - `fetchRegions()` 호출.
+    - 실패 시 fallback(로컬 하드코딩 리스트) 고려 가능.
+- `lib/presentation/location/widgets/region_selector.dart`
+  - Provider에서 받은 리스트 길이와 항목을 디버그 로그에 남김.
+
+#### 1-5. 체크리스트
+
+- [ ] 경북 시·군 리스트가 **23개**인지 API/데이터 기준으로 재확인.
+- [ ] Region/City 모델 JSON 매핑 점검 및 필요 시 수정.
+- [ ] 지역 리스트 Provider 초기화/에러 처리 로직 정리.
+- [ ] UI에서 지역 드롭다운/선택 모달에서 **23개 전부 노출** 확인.
+- [ ] 잘못된 필터 조건(예: 정책 있는 지역만 노출)이 적용되어 있지 않은지 확인.
+
+#### 1-6. 완료 기준
+
+- 실제 기기/에뮬레이터에서 지역 선택 화면을 열었을 때,  
+  경북의 시·군 23개가 **누락 없이 모든 기기에서 동일하게 노출**될 것.
+- 디버그 로그에서 지역 리스트 길이 = 23으로 찍히고, 이름이 모두 올바른지 검증.
 
 ---
 
-# ✔ 재설계 대상 파일 목록
+### 2. 디버그 패널 버튼 – 상시 노출 문제
 
-아래 모든 파일을 신규 설계로 재작성한다:
+#### 2-1. 배경 / 증상
 
-1. `lib/ui/screens/map/kakao_map_html_builder.dart`
-2. `lib/ui/widgets/map/kakao_map_webview.dart`
-3. `lib/ui/controllers/map/kakao_map_controller.dart`
-4. `lib/ui/providers/map/kakao_map_providers.dart`
-5. `lib/ui/screens/map/kakao_map_screen.dart`
+- 화면 우측/좌측 상단 등에 있는 **디버그 패널 열기 버튼이 항상 떠 있어서 UX적으로 방해**가 됨.
+- 현재: dev 빌드 또는 특정 플래그가 true일 때 항상 버튼 노출.
 
-필요하다면 Codex는 다음 파일도 자유롭게 신규로 추가할 수 있다 (전체 Dart 파일로 제공해야 함):
+#### 2-2. 목표
 
-- `lib/ui/models/map/kakao_map_models.dart`
-- `lib/ui/models/map/kakao_map_options.dart`
-- `lib/ui/controllers/map/kakao_map_commands.dart`
+- 디버그 패널 버튼을 **필요할 때만** 보이도록 제어.
+- 개발/디버깅 편의성은 유지하되, 실제 사용 흐름에서 방해되지 않도록 개선.
+
+#### 2-3. 상세 요구사항
+
+1. **환경별 노출 조건**
+   - 기본 룰:
+     - `kDebugMode == true`일 때만 디버그 패널 기능 활성.
+     - release 빌드에서는 디버그 패널 및 버튼 완전히 숨김.
+
+2. **사용자 토글 도입**
+   - SharedPreferences (또는 앱 내 설정 상태)에 `debug_panel_enabled: bool` 플래그 추가.
+   - 기본값:
+     - dev/debug 빌드는 `true` 또는 `false` 중 팀에서 합의한 값.
+   - 앱 내 **개발자 설정 화면 또는 숨겨진 제스처**로 ON/OFF 변경 가능하게 함.
+     - 예: 앱 상단 타이틀 5회 탭 시 토글.
+
+3. **지연 노출 / 제스처 기반 노출**
+   - 상시 떠있지 않게 하기 위해 아래 중 하나 적용:
+     - 앱 시작 후 일정 시간(예: 3초) 후 fade-in.
+     - 특정 영역 롱프레스(3초) 시에만 버튼 나타나도록 변경.
+
+4. **시각적 스타일 최소화**
+   - 버튼 크기를 작게, 반투명 처리, 화면 모서리에 배치.
+   - 드래그로 위치 이동 가능하면 더 좋음.
+
+#### 2-4. 구현 가이드 (예시)
+
+- `lib/debug/debug_panel_launcher.dart`
+  - `DebugPanelLauncher` 위젯에서:
+    - `shouldShowDebugButton` 계산 로직에
+      - `kDebugMode`
+      - `debug_panel_enabled` 플래그 반영.
+- `lib/application/debug/debug_settings_controller.dart`
+  - `debugPanelEnabledProvider` 추가, SharedPreferences 연동.
+- `lib/presentation/settings/dev_settings_screen.dart`
+  - "디버그 패널 활성화" 토글 스위치 추가 (dev 전용 메뉴).
+
+#### 2-5. 체크리스트
+
+- [ ] release 빌드에서 디버그 버튼/패널 완전히 숨김.
+- [ ] debug 빌드에서 설정 토글로 디버그 버튼 ON/OFF 가능.
+- [ ] 디버그 버튼이 앱 주요 UI(탭바, FAB, 하단 내비게이션 등)를 가리지 않도록 위치/스타일 조정.
+- [ ] 디버그 버튼의 상태가 앱 재시작 후에도 유지되는지 확인.
+
+#### 2-6. 완료 기준
+
+- dev 빌드에서:
+  - 설정/제스처를 통해 디버그 버튼을 켰다가 껄 수 있고,
+  - 버튼이 상시 방해 요소가 아닌 수준으로 축소/배치.
+- release 빌드에서 디버그 버튼 및 패널이 전혀 보이지 않음.
 
 ---
 
-# ✔ HTML/JS 설계 요구사항
+### 3. 카카오맵 – bootstrap timeout / sdkFail / 흰 화면 이슈
 
-### 1) Kakao SDK 로딩
-- autoload=false 사용
-- Flutter로 다음 JSON 이벤트 전달:
-  - `sdk_loading`
-  - `sdk_loaded`
-  - `sdk_failed`
-  - `ready`
+#### 3-1. 배경 / 증상
 
-### 2) 통일된 JSON 메시지 포맷
-모든 JS → Flutter 메시지는 아래 형식을 따라야 한다:
+- 카카오맵 로딩 시 콘솔에서:
+  - bootstrap timeout 발생
+  - sdkFail 발생
+  - 실제 화면은 **흰 화면만 표시되고 지도는 나타나지 않음**.
+- WebView에서 Kakao 지도 HTML/JS를 로딩하는 구조.
 
-```json
-{
-  "type": "eventType",
-  "payload": {},
-  "timestamp": 123456789,
-  "level": "info" | "warn" | "error",
-  "source": "kakaomap-js"
-}
-지원해야 하는 메시지 예:
+#### 3-2. 목표
 
-ready
+- 카카오맵 로딩 시 bootstrap timeout / sdkFail이 발생하지 않도록 수정.
+- WebView에서 **안정적으로 켜지는 지도 화면** 확보.
+- 실패 시에도 원인을 추적할 수 있는 로깅 확보.
 
-marker_click
+#### 3-3. 상세 요구사항
 
-region_click
+1. **로딩 타이밍 조정**
+   - Kakao JS SDK(`kakao.maps.load`) 호출 시점:
+     - WebView의 `onLoadStop` 또는 `onPageFinished` 이후에만 실행.
+   - 현재 bootstrap 타이머가 **HTML 로딩 전에 나가는지** 확인 후 수정.
 
-cluster_click
+2. **타임아웃 시간 조정**
+   - 기존 bootstrap timeout 값이 3000ms 정도라면 8000ms 정도로 증가.
+   - 네트워크 상태가 조금 느려도 정상 로딩 가능하도록 여유 확보.
 
-log
+3. **appkey / 도메인 / referer 설정 검증**
+   - 사용 중인 Kakao JavaScript 키가:
+     - 올바른 키인지
+     - 허용 도메인(도메인/패키지) 설정이 올바른지
+   - 개발 도메인/로컬 환경에서 허용되지 않아 sdkFail 발생 가능성 체크.
 
-error
+4. **에러 로깅 강화**
+   - HTML/JS에서:
+     - `kakao.maps.load` 실패 시,
+     - `onerror`, `catch` 등에서 window.postMessage 또는 console.log로 원인 코드를 앱으로 전달.
+   - Flutter 쪽에서 WebView 콘솔 로그를 Debug 패널/Logger로 포워딩.
 
-3) 지도 기능
-marker 렌더링 / 업데이트
+5. **흰 화면 fallback 처리**
+   - 일정 시간 내에 지도 로딩이 되지 않을 경우:
+     - “지도를 불러오지 못했습니다. 다시 시도해주세요.” 메시지 + 재시도 버튼 표시.
+   - 재시도 시 HTML 재로딩 및 Kakao SDK 재호출.
 
-marker 클릭 이벤트
+#### 3-4. 구현 가이드 (예시 경로)
 
-polyline 렌더링(add/remove/clear)
+- `lib/presentation/map/widgets/kakao_map_webview.dart`
+  - `onWebViewCreated`, `onLoadStop` 핸들러에서 Kakao 초기화 JS 호출 시점 변경.
+- `assets/html/kakao_map.html` 또는 유사 경로
+  - `kakao.maps.load` 호출부에 try/catch 추가.
+  - window.postMessage로 에러 코드/메시지 전달.
+- `lib/application/map/kakao_map_controller.dart`
+  - bootstrap timeout 타이머를 관리하고, 타임아웃 시 fallback UI 트리거.
 
-지도 bounds fitting
+#### 3-5. 체크리스트
 
-setCenter / setLevel / animate 옵션
+- [ ] WebView 로딩 순서: HTML → Kakao SDK → 지도 초기화 순서 확인.
+- [ ] bootstrap timeout이 과도하게 짧지 않은지 재설정.
+- [ ] Kakao JS 키 및 허용 도메인 설정 확인.
+- [ ] sdkFail 발생 시 구체적 에러 원인(키 오류, 도메인 오류, 네트워크 오류 등)을 로그에서 확인 가능.
+- [ ] 흰 화면만 보이는 상황에서 재시도 UI가 표시되는지 확인.
 
-mapType 변경
+#### 3-6. 완료 기준
 
-필요 시 marker clustering 고려
+- 적어도 2~3대의 실제 디바이스/에뮬레이터에서:
+  - 카카오맵 진입 시 정상적으로 지도 표시.
+  - 네트워크가 느릴 때도 지연은 있을 수 있으나 흰 화면에서 멈추지 않고, 실패 시 메시지/재시도 유도.
+- 디버그 로그에서 bootstrap timeout / sdkFail 재현이 어렵거나, 발생 시 원인을 식별할 수 있는 메시지가 남을 것.
 
-4) console.log 수집
-log/warn/error → Flutter로 JSON 이벤트 전송
+---
 
-✔ Flutter Controller 설계 요구사항
-Controller 기본 책무
-JS에 명령 전달 (postMessage)
+### 4. 디버그 패널 – Provider 탭에 아무것도 표시되지 않음
 
-ready 이전 명령은 queue에 저장 → ready 이후 flush
+#### 4-1. 배경 / 증상
 
-모든 JS 이벤트를 Dart 모델로 변환
+- 디버그 패널의 **Provider 탭에 아무 Provider 정보도 표시되지 않는 현상**.
+- 예상 구조: Riverpod의 Observer/ProviderContainer 이벤트를 받아 목록을 보여주는 방식.
 
-Public API 예
-moveTo(lat, lng)
+#### 4-2. 목표
 
-animateTo(lat, lng)
+- Provider 탭에 **실제 사용 중인 Provider 목록과 상태 변화가 표시**되도록 복구.
+- Riverpod Observer가 올바르게 등록·동작하는지 확인.
 
-setLevel(level)
+#### 4-3. 상세 요구사항
 
-setMapType(type)
+1. **Observer 등록 확인**
+   - `ProviderScope` 생성 시 `observers: [DebugProviderObserver()]` 설정이 되어 있는지 확인.
+   - 만약 앱 엔트리포인트가 복수개면, 모든 엔트리포인트에 동일하게 적용.
 
-setMarkers(list)
+2. **Riverpod 버전/구조 정합성**
+   - Riverpod 2.x 사용 시:
+     - 기존 1.x 스타일 Observer 코드(예: `ProviderObserver`)가 여전히 유효한지 확인.
+   - `DebugProviderObserver` 내부에서:
+     - `didAddProvider`, `didUpdateProvider`, `didDisposeProvider` 구현 상태 점검.
+     - 예외 발생 시 try/catch로 잡고 최소한 로그는 남기기.
 
-setPolylines(list)
+3. **Provider 필터링 로직**
+   - Provider 탭에서 표시할 Provider들을 필터링하는 로직 존재 여부 확인:
+     - 특정 네임스페이스만 보이게 하다가 아무것도 안 나오는 상황일 수 있음.
+   - 최소한 “모든 Provider” 혹은 “이름 있는 Provider만”이라도 표시되도록 조건 완화.
 
-fitToMarkers(list)
+4. **상태 전달 경로**
+   - Debug 패널 UI 쪽 상태 모델(예: `DebugProviderTrackerState`)과 Observer가 이벤트를 주고받는 경로 점검.
+   - Stream/Notifier/StateNotifier 등 사용 중인 타입에 따라, Listener 연결 여부 확인.
 
-reload()
+#### 4-4. 구현 가이드 (예시)
 
-상태(State)
-loading
+- `lib/debug/debug_provider_observer.dart`
+  - 각 콜백에서 Debug 패널 Store/Controller로 이벤트 전달:
+    - 예: `debugProviderStore.addEvent(provider, newValue);`
+- `lib/main.dart` 또는 앱 엔트리포인트
+  - `ProviderScope(observers: [DebugProviderObserver()])` 형태 유지.
+- `lib/debug/panel/tabs/provider_tab.dart`
+  - Store/Controller에서 Provider 이벤트를 subscribe하고, 리스트/필터링 렌더링.
 
-sdk_loading
+#### 4-5. 체크리스트
 
-sdk_loaded
+- [ ] 앱 실행 시 ProviderObserver 콜백이 실제로 호출되는지 로그로 확인.
+- [ ] Provider 탭 리스트에 최소 몇 개의 Provider가 표시되는지 확인.
+- [ ] Provider 필터링 조건이 과도하게 restrictive하지 않은지 검토.
+- [ ] Provider 탭에서 스크롤과 검색(있다면) 동작 정상 여부 확인.
 
-ready
+#### 4-6. 완료 기준
 
-error
+- 앱 구동 후, Provider 탭 진입 시:
+  - 여러 Provider가 리스트로 표시되고,
+  - 화면 전환/상태 변경 시 해당 Provider 상태 변화가 갱신되는 것을 확인.
 
-reloading
+---
 
-✔ WebView Wrapper (kakao_map_webview.dart)
-필수 구현:
+### 5. 디버그 패널 – 아이템 클릭 시 세부 로그 미표시
 
-WebView + JavaScriptChannel
+#### 5-1. 배경 / 증상
 
-Controller와 WebViewController 바인딩
+- 디버그 패널에서 특정 항목(네트워크 로그, Provider 이벤트, Map 관련 이벤트 등)을 클릭해도,
+  **우측 또는 하단의 상세 패널에 아무 내용도 표시되지 않음**.
 
-HTML 문자열 주입
+#### 5-2. 목표
 
-로딩/에러/재시도 UI
+- 디버그 패널에서 리스트 항목 클릭 시, 해당 항목의 **상세 정보(JSON, timestamp, 메타데이터 등)**가 제대로 표시되도록 복구.
 
-옵션(center, level, mapType…) 전달
+#### 5-3. 상세 요구사항
 
-JS 이벤트 스트림 수집
+1. **선택 상태 관리**
+   - Debug 패널 상태 모델(예: `DebugPanelState`)에 `selectedItem` 필드 존재 여부 확인.
+   - 리스트 클릭 시:
+     - `onTap` → `debugPanelController.selectItem(item)` 호출되도록 연결.
+   - UI 상세 영역은 `selectedItem` 변화를 listen하고 재렌더링.
 
-✔ Provider Layer
-kakao_map_providers.dart에서 담당해야 할 것:
+2. **타입/직렬화 문제**
+   - 로그 아이템이 Map, Object, String 등 다양한 타입일 수 있음.
+   - 상세 패널에서 JSON으로 변환 시, 변환 에러로 인해 아무것도 표시되지 않는 상황 방지:
+     - 변환 실패 시에도 `toString()` 결과라도 표시.
 
-KakaoMapController provider
+3. **null 처리**
+   - `selectedItem == null` 상태일 때는 “항목을 선택해주세요” 안내 문구 표시.
+   - 클릭 후에도 selectedItem이 null이라면, 클릭 이벤트가 제대로 전달되지 않은 것.
 
-지도 상태 provider
+4. **탭별 독립 동작**
+   - Network 탭, Provider 탭 등 탭이 다를 경우:
+     - 탭 전환 시 selectedItem 초기화/유지 정책 정의.
+     - 탭마다 별도의 selectedItem을 가질지, 하나를 공유할지 결정.
 
-이벤트 스트림 provider
+#### 5-4. 구현 가이드 (예시)
 
-선택된 marker provider
+- `lib/debug/panel/debug_panel_controller.dart`
+  - `void selectItem(DebugItem item)` 구현:
+    - 상태 내 `selectedItem = item;` 후 notify.
+- `lib/debug/panel/widgets/debug_item_list.dart`
+  - 각 항목 onTap에서 `controller.selectItem(item)` 호출.
+- `lib/debug/panel/widgets/debug_item_detail.dart`
+  - `selectedItem`을 watch해서, 있을 경우 JSON pretty-print / 없으면 안내 문구 표시.
 
-지도 옵션 provider
+#### 5-5. 체크리스트
 
-✔ Screen (kakao_map_screen.dart)
-필요 사항:
+- [ ] 리스트 항목 클릭 시 `selectItem` 로직 호출 여부 확인.
+- [ ] 상세 패널이 `selectedItem` 변경을 반영하는지 확인.
+- [ ] JSON 직렬화 실패 시에도 최소한 텍스트 형태로 내용이 보이는지 확인.
+- [ ] 탭 전환 시 상세 패널 초기화/유지 동작이 자연스러운지 확인.
 
-KakaoMapWebView 렌더링
+#### 5-6. 완료 기준
 
-지도 상태 반영 UI
+- 디버그 패널에서 임의의 로그 항목을 클릭했을 때:
+  - 상세 패널에 해당 로그의 전체 내용 및 메타정보(timestamp, tag 등)가 보일 것.
+- 직렬화에 실패하는 특이한 로그 타입이 있어도 앱이 깨지지 않고, 최소한 텍스트는 표시.
 
-테스트용 버튼 (이동/레벨/타입 변경 등)
+---
 
-이벤트 로그 패널 (선택된 marker, 오류 등)
+### 6. 카테고리별 탐색 – 컨텐츠 부족 UX 개선
 
-✔ 설계 규칙
-JS ↔ Dart 통신은 JSON만 사용 (문자 prefix 금지)
+#### 6-1. 배경 / 증상
 
-모든 JS 오류는 Flutter로 전달
+- “카테고리별 탐색” 화면에서 **표시되는 정책/컨텐츠 수가 매우 적거나 없는 것으로 느껴짐**.
+- 실제 정책 데이터보다 훨씬 적게 보이는 가능성 존재:
+  - 카테고리 매핑이 너무 엄격하거나,
+  - 필터 조건이 과도하게 좁아서 숨겨지는 정책이 많을 수 있음.
 
-모든 파일은 전체 Dart 파일로 출력
+#### 6-2. 목표
 
-기존 코드 덮어쓰기 허용
+- 카테고리별 탐색 화면에서 **실질적으로 활용 가능한 수준의 정책 수**가 보이도록 개선.
+- 데이터 구조/필터링/UX 관점에서 모두 검토.
 
-WebView reload 시 상태 복원 필요
+#### 6-3. 상세 요구사항
 
-HTML escaping 필수
+1. **카테고리 매핑 점검**
+   - 내부 카테고리(예: 취업, 창업, 주거, 교육, 생활안정 등)와
+     정책 API의 분류 코드가 어떻게 연결되는지 재검토.
+   - 하나의 정책이 여러 카테고리에 소속될 수 있도록 매핑 허용 여부 검토.
 
-✔ Codex의 최종 출력
-Codex는 이 이슈의 명세를 기반으로 아래 모든 파일을 전체 Dart 파일로 생성해야 한다:
+2. **필터 완화**
+   - 예: 모집중/마감 등 상태 필터가 너무 엄격해서 정책이 거의 안 나오지 않는지 확인.
+   - 초기에 “모집중+마감임박” 위주, 이후에 “전체 보기” 토글 제공 등 단계적 필터 구조 도입.
 
-kakao_map_html_builder.dart
+3. **정책 개수 표시**
+   - 각 카테고리 카드/탭에 “정책 12개” 등 개수를 노출.
+   - 0개인 카테고리는 “해당 카테고리의 진행중인 정책이 없습니다” 메시지를 명확히 표시.
 
-kakao_map_webview.dart
+4. **대체 컨텐츠 / 추천**
+   - 특정 카테고리에 실제 정책이 거의 없다면:
+     - 인접 카테고리 정책을 추천,
+     - “이 카테고리를 선택한 사람들은 이런 정책도 봤어요” 형태의 제안.
 
-kakao_map_controller.dart
+5. **지역 필터와의 결합**
+   - 카테고리 + 지역 필터를 동시에 사용하는 경우:
+     - 너무 좁아서 0개가 되는 상황이 잦다면,
+       “필터를 완화해보세요” 안내 문구 및 원클릭 필터 해제 버튼 제공.
 
-kakao_map_providers.dart
+#### 6-4. 구현 가이드 (예시)
 
-kakao_map_screen.dart
+- `lib/domain/policy/entities/policy_category.dart`
+  - Category 정의 재검토 및 태그 다중 매핑 허용.
+- `lib/data/policy/policy_remote_source.dart`
+  - 카테고리/지역/상태 필터 파라미터 구성을 명시적으로 분리.
+- `lib/application/policy/policy_category_controller.dart`
+  - 카테고리별 정책 리스트 계산 로직 정비.
+- `lib/presentation/policy/screens/category_explore_screen.dart`
+  - 카테고리 카드에 정책 개수 노출.
+  - 0개일 때 안내 문구 및 필터 완화 버튼 제공.
 
-그리고 필요 시 다음 파일도 생성한다:
+#### 6-5. 체크리스트
 
-kakao_map_models.dart
+- [ ] 카테고리-정책 매핑 규칙 문서화(어떤 정책이 어떤 카테고리에 포함되는지).
+- [ ] 실제 정책 총 개수 대비 카테고리별 리스트에 표시되는 개수 비교.
+- [ ] “0개일 때 UX”가 적절히 안내/대체를 제공하는지 확인.
+- [ ] 지역/카테고리/상태 필터 조합에 따라 극단적으로 0만 나오는 조합이 있지 않은지 확인.
 
-kakao_map_options.dart
+#### 6-6. 완료 기준
 
-kakao_map_commands.dart
+- 주요 카테고리(취업, 주거, 창업 등)를 눌렀을 때:
+  - 실제 gbyouth 정책 수 대비 합리적인 수준의 리스트가 표시.
+  - 데이터가 적은 경우에도 사용자에게 이유와 대체 행동(필터 완화, 다른 카테고리 추천 등)을 제공.
 
-결과적으로,
-feature/map-upgrade 브랜치에서 KakaoMap WebView 엔진이 완전히 재구축된 상태가 되어야 한다.
+---
 
-## [feature/architecture-upgrade] App Architecture Upgrade Spec #125
-이 이슈는 YouthRoad 앱의 전체 아키텍처를 정리/업그레이드하기 위한 스펙이다.  
-**작업 대상 브랜치는 `feature/architecture-upgrade`** 이며,  
-이 브랜치는 이미 `fix/kakaomap-webview` 기반으로부터 분기되어 있다고 가정한다.
 
-가능하면 작업 전 아래를 한 번 수행한 상태에서 진행한다:
+### 7. 청년 검색 V2 – 진입 시 청년정책 데이터가 로드되지 않는 문제
 
-```bash
-git checkout feature/architecture-upgrade
-git merge fix/kakaomap-webview
-🎯 목표
-현재 YouthRoad 프로젝트의 구조를 다음 방향으로 재정비한다:
+#### 7-1. 배경 / 증상
 
-폴더/레이어 구조를 명확히 분리 (core / domain / data / application / presentation)
+- 홈 또는 다른 화면에서 **“청년 검색 V2(Youth Search V2)” 버튼을 탭**하면  
+  검색 화면으로 정상 이동하지만,
+- 화면 초기화 시점에 **정책/검색 초기 데이터가 로드되지 않아 빈 화면**만 표시됨.
+- 검색창, 추천 정책, 최근 검색 등의 초기 상태가 비어 있는 것으로 보임.
 
-Riverpod 2.x 기반 상태/DI 구조를 정리
+#### 7-2. 목표
 
-Navigation(GoRouter) 진입 경로와 AppRoot를 명확히 분리
+- 검색 화면 진입 즉시 필요한 모든 초기 데이터(정책 목록, 추천 정책, 인기 검색 키워드 등)가 **자동으로 로드**되도록 복구.
+- 초기 로딩 순서를 명확히 정의해, 어떤 상황에서도 빈 상태로 진입하지 않도록 보장.
 
-Repository / UseCase / Model 계층을 정돈
+#### 7-3. 상세 요구사항
 
-Config/Env, Logging, Error, Network 등 core 레이어와 자연스럽게 연결
+1. **초기 로딩 트리거 보장**
+   - `SearchControllerV2` 또는 관련 Notifier에서  
+     `onInit()` 혹은 `build()` 시점에 다음 데이터를 자동 로드해야 함:
+     - 기본 정책 목록 (전체 or 특정 정렬 기준)
+     - 추천 정책 목록
+     - 인기 검색어 목록
+     - 지역 기반 추천 목록(있다면)
 
-향후 DevTools, KakaoMap 업그레이드, Search 업그레이드가 모두 이 구조 위에서 잘 동작하게 만들기
+2. **네비게이션 구조 점검**
+   - 기존 Search V1 → V2 구조 변경 과정에서  
+     라우터 GoRouter의 `extra`, `refreshListenable`, `redirect` 로직이  
+     초기 호출을 막고 있을 가능성 있음.
+   - 검색 화면이 ProviderScope 하위가 아닌 다른 scope 내부에 진입하며  
+     Provider가 재생성되지 않는 상황인지 확인.
 
-Codex는 “유스로드 앱의 표준 아키텍처”를 설계하는 마음으로 작업해야 한다.
+3. **비동기 순서 관리**
+   - 화면 진입 후 UI가 먼저 그려지고,  
+     정책 데이터 fetch가 나중에 실행되거나 누락되는 상황을 방지:
+     - 반드시 `Future.microtask(() => controller.initialize());` 형태로 초기화.
+     - 또는 `AsyncNotifier.build` 내부에서 자동 호출.
 
-모든 수정된 파일은 전체 Dart 파일 형태로 출력해야 하며,
-부분 코드 / diff / 생략은 허용되지 않는다.
+4. **오류 발생 시 fallback**
+   - 정책 로딩 실패 시:
+     - “정책을 불러오지 못했습니다. 다시 시도해주세요.”  
+     - 재시도 버튼 or Swipe-to-Refresh 지원.
 
-🧱 폴더/레이어 구조 목표
-아래와 비슷한 구조를 만든다 (이미 있는 구조가 있다면, 그 위에 정리/보강):
+5. **Skeleton UI 제공**
+   - 초기 상태 로딩 시 skeleton placeholder 노출  
+     → 빈 화면으로 보이지 않도록 UX 보완.
 
-lib/core/
+#### 7-4. 구현 가이드 (예시)
 
-공통 상수, 에러, 로깅, 네트워크, env, theme 등 (Core Stability Layer와 자연스럽게 연결)
+- `lib/application/search/controllers/search_controller_v2.dart`
+  - `initialize()` 또는 `loadInitialData()` 함수 생성:
+    - 추천 정책
+    - 기본 정책 리스트
+    - 인기 키워드
+    - 최근 검색어  
+    한 번에 sequential/parallel 호출.
+- `lib/presentation/search_v2/search_screen_v2.dart`
+  - `ref.listen` 또는 `ref.watch`를 통해 초기화 타이밍 보장.
+- `lib/application/search/providers.dart`
+  - 진입 시 자동 호출되는 Provider 구조 재검토.
 
-lib/domain/
+#### 7-5. 체크리스트
 
-entities/ (순수 도메인 모델)
+- [ ] 검색 화면 진입 직후 정책 데이터 fetch가 실행되는지 로그로 확인.
+- [ ] 초기 상태가 빈 화면이 아닌 skeleton/로딩 UI인지 확인.
+- [ ] 추천 정책/기본 정책/인기 키워드가 모두 정상 로드되는지 확인.
+- [ ] 네비게이션 전환 방식(GoRouter push/pop)이 초기화를 막지 않는지 검토.
 
-repositories/ (추상 인터페이스)
+#### 7-6. 완료 기준
 
-usecases/ (앱의 비즈니스 규칙 / 유스케이스)
+- 검색 V2 진입 시:
+  - 어떤 경로(Home → Search, Explore → Search, Region → Search 등)에서 진입하더라도
+  - 정책 데이터/추천 리스트/검색 이력 등이 **즉시 로드되어 화면에 표시**됨.
+- 빈 화면/초기화 누락 현상이 재현되지 않을 것.
 
-lib/data/
+---
 
-models/ (API/DB 모델)
+### 8. 지역 변경 시 추천 정책이 잠시 나타났다 사라지는 문제
 
-sources/ (remote/local data source)
+#### 8-1. 배경 / 증상
 
-repositories/ (domain repository 구현)
+- 지역 필터를 변경하면  
+  **추천 정책이 1~2초간 표시되었다가 사라지는 문제** 발생.
+- UI는 “추천 정책(지역 기반)”이 표시되었다가  
+  이후 상태 변화로 인해 리스트가 empty 상태로 재렌더링되는 것으로 보임.
+- Riverpod 재빌드, 필터 로직, debounce, 천천히 도착하는 async 응답 등이 원인 가능성이 높음.
 
-lib/application/
+#### 8-2. 목표
 
-앱 전역 상태/로직 (예: Auth, Session, Config, AppState 등)
+- 지역 변경 시 추천 정책이 **안정적으로 유지되거나 갱신**되도록 개선.
+- 추천 정책이 나타났다 사라지는 “깜빡임” 현상 제거.
+- 비동기 응답 순서 문제를 방지.
 
-Riverpod 기반 Notifier/Provider (non-UI)
+#### 8-3. 상세 요구사항
 
-lib/presentation/
+1. **응답 순서 경쟁(race condition) 제거**
+   - A 지역 요청 → B 지역 요청 순서가 뒤섞여  
+     나중에 들어온 요청이 이전 요청을 덮어쓰는 문제 발생 가능.
+   - 해결:
+     - 요청마다 requestId 생성 → 응답 시 동일 requestId인지 검증.
+     - 또는 `cancelToken`으로 이전 요청 취소.
 
-screens/
+2. **초기 상태 관리 명확화**
+   - 지역 변경 직후 recommended state를  
+     빈 리스트로 초기화하지 말고,  
+     기존 리스트 유지 → 새 응답이 오면 교체.
+   - 즉:
+     - “Loading” → 기존 리스트 유지  
+     - “Loaded” → 새 리스트로 교체  
+     - “Error” → 기존 리스트 유지 + 토스트/메시지 표시
 
-widgets/
+3. **디버그 로그 추가**
+   - 지역 변경 시:
+     - oldRegion → newRegion 로깅
+     - fetchRecommendedPolicies(region) 시작 시점
+     - 응답 성공/실패 시점
+     - 응답 리스트 길이, requestId 유효성 표시
 
-viewmodels/ or controllers/ (UI 바인딩용 Provider 등)
+4. **필터/조건 누락 방지**
+   - 지역 기반 추천 정책 필터링에 다음 문제가 없는지 확인:
+     - 정책 데이터에 regionId가 누락된 경우
+     - 특정 지역에서 추천 정책이 실제로 존재하지 않는 경우
+     - 검색 V2와 공유된 필터 글로벌 상태가 reset되는 경우
 
-lib/app/
+5. **UI 스테이트 분리**
+   - 추천 정책 displayedState vs 로딩 logic state 구분:
+     - 로딩 중에도 화면은 이전 추천 정책을 유지해야 함.
+     - 빈 모습이 잠깐이라도 나오지 않도록 함.
 
-app.dart (MaterialApp / root widget)
+6. **지연(debounce) vs 즉시 반영 정책 재조정**
+   - 지역이 빠르게 변경될 때:
+     - debounce 300ms 적용  
+     또는
+     - 이전 요청 cancel하고 새 요청 생성
 
-router/ (GoRouter 설정)
+#### 8-4. 구현 가이드 (예시)
 
-providers/ (전역 provider 묶음)
+- `lib/application/policy/recommendation_controller.dart`
+  - `currentRequestId` 저장
+  - fetch 시 새로운 id 생성  
+    응답 시 id 비교 후 업데이트 여부 결정
+  - 기존 recommended 리스트 유지한 채 상태 전이
 
-bootstrap/ (runApp 전 초기화 로직)
+- `lib/presentation/search_v2/widgets/recommended_section.dart`
+  - 지역 변경 시 UI가 empty로 초기화되지 않도록 상태 분기:
+    - `loading`이면 skeleton  
+    - `loaded`이면 리스트 표시  
+    - `error`면 기존 리스트 유지 + 에러 메시지
 
-Codex는 현재 레포 상태를 존중하되, 이 구조에 최대한 가깝게 정리/이동/추가 작업을 수행해야 한다.
+- `lib/application/policy/providers.dart`
+  - 지역 필터 provider 변경 시  
+    recommendation provider가 즉시 invalidate되면서 빈 리스트로 초기화되는지 확인.
+  - 필요 시 `keepAlive` 적용.
 
-📌 핵심 작업 항목
-1) App Entry & Bootstrap
-필수 생성/정리:
+#### 8-5. 체크리스트
 
-lib/app/app.dart
+- [ ] 지역 변경 직후 Recommended UI가 empty로 초기화되지 않는지 확인.
+- [ ] race condition 방지 로직(requestId or cancelToken) 동작 확인.
+- [ ] 응답 순서가 꼬여도 UI가 깜빡이거나 사라지지 않을 것.
+- [ ] 추천 정책이 있는/없는 지역 모두에서 정상 동작 확인.
 
-YouthRoadApp (MaterialApp or MaterialApp.router)
+#### 8-6. 완료 기준
 
-theme, locale, router 연동
+- 지역 변경 시:
+  - 추천 정책이 지나가듯 잠시 보였다 사라지는 현상이 **완전히 제거**됨.
+  - UI는 항상 “일관적이고 안정된 추천 정책 상태”를 유지.
+- 빠르게 지역을 연속 변경해도  
+  추천 정책이 덧그려지거나 사라지는 문제 없이 부드럽게 갱신됨.
 
-lib/app/router/app_router.dart
+---
 
-GoRouter 설정
-
-메인 화면, 지도 화면, 검색 화면 등 주요 route 정의
-
-Route 이름/패턴 상수 관리
-
-lib/app/bootstrap/bootstrap.dart
-
-runApp 전에 필요한 초기화 로직 (Env, Log, Core init 등)
-
-나중에 main.dart에서 bootstrap() → runApp(YouthRoadApp()) 형태로 사용할 수 있도록 구성
-
-lib/app/providers/app_providers.dart
-
-전역적으로 필요한 Provider 들을 한 곳에서 정의/정리
-
-Core/Domain/Application 계층과 연결되는 Provider도 여기서 엮을 수 있음
-
-Codex는 main.dart가 간결해지도록,
-실제 앱 초기화와 구동 로직을 위 파일들로 분리하도록 설계해야 한다.
-
-2) Domain Layer 정리
-필수 작업:
-
-lib/domain/entities/ 내부에 주요 엔티티 정의
-
-예: Policy, Region, Institution, UserPreference 등
-
-순수 Dart 클래스이며, JSON 직렬화/역직렬화나 Dio/Isar 의존을 두지 않는다.
-
-lib/domain/repositories/
-
-정책, 지역, 검색, 즐겨찾기 등 핵심 Repository 인터페이스 정의
-
-예:
-
-PolicyRepository
-
-SearchRepository
-
-RegionRepository
-
-lib/domain/usecases/
-
-주요 UseCase 정의
-
-예:
-
-FetchPolicyList
-
-SearchPolicies
-
-GetRecommendedPolicies
-
-GetRegionSummary
-
-각 UseCase는 call() 또는 execute() 메서드 하나로 의도를 표현하는 구조.
-
-Codex는 Domain이 Data/Infra에 직접 의존하지 않도록
-인터페이스+엔티티만 정의하는 계층으로 유지해야 한다.
-
-3) Data Layer 정리
-필수 작업:
-
-lib/data/models/
-
-API/DB를 위한 Model 정의
-
-fromJson / toJson / toDomain 변환 메서드 등 포함 가능
-
-lib/data/sources/remote/ / local/
-
-원격 API 호출 (Dio 기반)
-
-로컬 캐시/Isar/SharedPreferences 등 (이미 있다면 재사용)
-
-lib/data/repositories/
-
-domain repositories 인터페이스 구현체
-
-예: PolicyRepositoryImpl, SearchRepositoryImpl
-
-Core Network와 Core Stability Layer(AppDio, NetworkResult, AppException 등)와 자연스럽게 통합
-
-Codex는 Data 계층이 domain/usecase와 잘 어울리도록 mappings를 구성해야 한다.
-
-4) Application Layer (상태/비즈니스 Orchestration)
-필수 작업:
-
-lib/application/에 전역적인 상태/로직 모듈 배치
-
-예: 앱 전역 설정, 세션, 필터 preset, 추천 정책 상태 등
-
-Riverpod 기반 Notifier/AsyncNotifier를 이용해:
-
-도메인 UseCase를 호출하고
-
-presentation 계층에서 관찰할 수 있는 형태로 상태를 제공
-
-예:
-
-AppConfigController
-
-PolicySearchController
-
-RecommendationController 등
-
-5) Presentation Layer 구조 정리
-필수 작업:
-
-lib/presentation/screens/
-
-기존 페이지들을 기능별로 정리 (예: home, map, search, policy_detail 등 하위 폴더)
-
-lib/presentation/widgets/
-
-여러 화면에서 재사용되는 공통 UI 컴포넌트들 정리
-
-화면별 ViewModel/Controller/Notifier는
-
-lib/presentation/... 또는 lib/application/...에 위치하도록 컨벤션 정리
-
-Codex가 일관된 네이밍 컨벤션을 정해주면 좋다.
-
-6) Provider / DI 정리
-필수 작업:
-
-lib/app/providers/app_providers.dart 또는 유사 파일 안에:
-
-주요 Repository/UseCase/Controller Provider 정의
-
-Provider, StateNotifierProvider, AsyncNotifierProvider 등 적절히 사용
-
-DevTools, Core Stability Layer, KakaoMap, Search 등 모듈들이
-
-이 Provider 레이어를 통해 연결될 수 있도록 준비
-
-🧪 테스트 & 빌드 관점
-Codex는 코드 생성 시, 최소한 Dart 분석기에서 오류가 나지 않도록 구성해야 한다.
-
-통합 테스트/위젯 테스트 파일이 일부 필요하다면, 샘플 1~2개 정도 추가할 수 있다.
-
-다만 이 이슈의 주 목적은 “구조 정리”이므로,
-테스트 작성은 필수는 아니고 선택적이다.
-
-📏 설계 규칙 (중요)
-모든 수정/생성 파일은 완전한 Dart 파일로 출력해야 한다. (partial/diff 금지)
-
-현재 프로젝트에 이미 있는 유용한 구조/이름은 가능하면 재사용한다.
-
-import 순환(circular dependency)이 생기지 않도록 주의한다.
-
-domain은 data에 의존하지 않고, data가 domain에 의존하는 방향을 지킨다.
-
-app/bootstrap/main의 책임을 명확히 분리하여, main은 최소한의 코드만 남긴다.
-
-✅ Codex 최종 출력 기대
-Codex는 이 이슈 내용을 기반으로:
-
-lib/app/app.dart
-
-lib/app/router/app_router.dart
-
-lib/app/bootstrap/bootstrap.dart
-
-lib/app/providers/app_providers.dart
-
-lib/domain/**
-
-lib/data/**
-
-lib/application/**
-
-lib/presentation/** (필요한 핵심 화면/구조 정리)
-
-필요 시 core와의 연결부 일부 수정
-
-위에 해당하는 파일들을 전체 Dart 파일 형태로 생성/수정해야 한다.
-
-최종적으로,
-feature/architecture-upgrade 브랜치에
-YouthRoad 프로젝트의 “표준 아키텍처” 골격이 완성된 상태가 되어야 한다.
-
-## [feature/search-upgrade] Full Search Engine Rebuild (Query Engine + Ranking + UI/UX) #126
-이 이슈는 YouthRoad 앱의 “검색(Search)” 기능을 전면 재구축하기 위한 스펙이다.  
-**작업 대상 브랜치는 `feature/search-upgrade`** 이며,  
-가능하면 브랜치 생성 이후 아래 명령으로 최신 상태를 동기화한 뒤 진행한다:
-
-```bash
-git checkout feature/search-upgrade
-git merge fix/kakaomap-webview
-git merge feature/architecture-upgrade
-검색 모듈은 앱 전체 컨텍스트(Core Stability, Architecture Upgrade, KakaoMap Engine)와 자연스럽게 연결될 수 있도록 재설계해야 한다.
-
-Codex는 반드시 모든 수정·추가 파일을 “완전한 Dart 전체 파일” 형태로 제공해야 한다.
-부분 코드 / diff / 생략 출력 금지.
-
-🎯 목표
-YouthRoad의 검색 엔진을 다음 방식으로 완전 재설계한다:
-
-고성능 로컬 + 원격 하이브리드 검색 시스템
-
-검색어 자동완성 / 추천 검색어 / 최근 검색 기록
-
-카테고리 필터 + 동적 정렬 옵션
-
-정책/기관/지역 기반 연관 검색 (AI 없는 순수 로직 기반)
-
-검색 결과 ↔ 지도(KakaoMap) 연동
-
-Pagination + Infinite Scroll
-
-Provider 기반의 SearchController 통합
-
-오류·빈결 없는 검색 응답 처리(loading/empty/error)
-
-데이터 계층(data/models, repos, sources) 정리 및 domain/usecase 연결
-
-🧱 구성 요소 (필수)
-1) Domain Layer 구조
-Directory
-pgsql
-Copy code
-lib/domain/search/
-    entities/
-    repositories/
-    usecases/
-필수 엔티티
-SearchQuery
-
-SearchResult
-
-SearchCategory
-
-SearchSuggestion
-
-SearchHistoryEntry
-
-필수 인터페이스
-SearchRepository
-
-SearchSuggestionRepository
-
-SearchHistoryRepository
-
-필수 유스케이스
-ExecuteSearch
-
-GetSearchSuggestions
-
-GetSearchHistory
-
-SaveSearchHistoryEntry
-
-ClearSearchHistory
-
-2) Data Layer 구조
-Directory
-bash
-Copy code
-lib/data/search/
-    models/
-    sources/
-    repositories/
-Remote Source (필수)
-정책 목록
-
-기관 목록
-
-지역 목록 기반의 통합 검색 API
-
-Query → Filter → Pagination 구조 지원
-
-Local Source (필수)
-Isar 또는 SharedPreferences 기반 최근 검색어 저장소
-
-로컬 인덱싱 및 캐싱 전략 정의
-
-Model 요구사항
-Domain ↔ Data 간 변환 함수(toDomain, fromJson 등) 필수
-
-Null-safe & strict types 적용
-
-3) Application Layer (검색 상태/로직 관리)
-Directory:
-
-bash
-Copy code
-lib/application/search/
-    controllers/
-    providers.dart
-필수 Controller
-SearchController
-
-query 입력
-
-debounce 처리 (300~500ms)
-
-remote/local 병합 검색
-
-pagination
-
-상태: idle / loading / success / empty / error
-
-SearchSuggestionController
-
-검색어 입력 시 자동완성 제공
-
-provider-stream 구조
-
-SearchHistoryController
-
-최근 검색어 표시/저장/삭제
-
-제스처 기반 삭제 가능하도록 구조 제공
-
-필수 Providers
-searchControllerProvider
-
-searchSuggestionProvider
-
-searchHistoryProvider
-
-Codex는 Provider Layer에서 Riverpod 2.x 스타일로 AsyncNotifier/Notifier 기반 상태를 구축해야 한다.
-
-4) Presentation Layer (UI/UX)
-Directory:
-
-bash
-Copy code
-lib/presentation/search/
-    screens/
-    widgets/
-    viewmodels/
-필수 화면 구성
-1. SearchScreen (정식 검색 화면)
-검색 입력창
-
-자동완성 리스트
-
-최근 검색어: 가로 스크롤 + 삭제 지원
-
-카테고리 필터 (정책/기관/지역 등)
-
-검색 결과 페이지네이션
-
-검색 결과 → KakaoMap 연동 (marker highlight + moveTo)
-
-2. SearchResultList
-정책 카드 / 기관 카드 / 지역 카드 통합 UI
-
-common list item widget 필요
-
-3. SearchBar widget (재사용 가능)
-홈 화면 / 리스트 화면 어디서든 사용 가능
-
-debounced input 반영
-
-📡 KakaoMap 연동 요구사항
-검색 결과 → 지도 이동 or 마커 띄우기 가능한 구조 필요.
-
-예시 이벤트:
-검색 결과 항목 클릭 → 맵에서 해당 정책 위치로 zoom + highlight
-
-카테고리 필터 → 지도 필터 자동 변경
-
-지도 이동 시 주변 정책 재검색(optional)
-
-Codex는 반드시 feature/map-upgrade에서 만든 KakaoMapController와 완전히 호환되도록 구현해야 한다.
-
-🧪 테스트 / 안정성 고려
-Dart analyzer 에러 없도록 모든 파일 정합성 유지
-
-비동기 흐름(debounce + pagination + auto-complete) 일관성 유지
-
-잘못된 query 처리(empty → empty-state)
-
-네트워크 장애 → error-state (retry 가능)
-
-📏 설계 규칙 (중요)
-전 파일은 “완전한 Dart 파일” 형태로 출력할 것
-
-domain → data → application → presentation 레이어 경계 유지
-
-Riverpod 2.x 사용
-
-import 순환 금지
-
-search controller는 debounce 필수
-
-repository는 반드시 interface + implementation 구조
-
-🎉 Codex 최종 출력 기대
-Codex는 아래 디렉터리에 해당하는 모든 파일을 완전한 전체 파일로 출력해야 한다:
-
-lib/domain/search/**
-
-lib/data/search/**
-
-lib/application/search/**
-
-lib/presentation/search/**
-
-필요한 provider/integration 파일
-
-출력은 파일 단위로 나누어 제공되어야 하며,
-Dart analyzer에서 에러 없는 상태여야 한다.
-
-최종적으로
-feature/search-upgrade 브랜치에서 YouthRoad 검색 엔진이 전체 리빌드된 상태가 되어야 한다.
 
