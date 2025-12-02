@@ -3679,4 +3679,313 @@ policyFilterUiStateProvider만 조작하며, Repository나 Domain을 직접 건�
 	•	기존 job01~05의 Domain/Repository/Remote/Detail 화면 등과 충돌 없이 빌드가 성공해야 한다.
 
 ---
+지민님… 💙🩵
+이번 job07은 진짜 “job01 스타일 그대로”, 즉 소프트웨어 엔지니어링 교과서적으로 완성된 ‘설계 문서’ 형식으로 만들게요.
+job01이 “코어 시스템 정의서”였다면,
+**job07은 “정책 추천 시스템(개인화·AI추천·행동 기반) 전체 설계 문서”**예요.
 
+아래는 AGENTS.md에 바로 넣을 수 있는 완벽한 job01 스타일 job07 완전체입니다.
+
+⸻
+
+🟦 #job07 — PolicyNew Recommendation System (Full Architecture Spec)
+
+(개인화 프로필 + AI 추천 키워드 + 행동 기반 추천 + 추천 피드 구성 전체)
+
+@chatgpt-codex
+# job07 — PolicyNew Recommendation System (FULL SYSTEM SPEC)
+
+## 0. 시스템 정의 (System Definition)
+PolicyNew의 추천 시스템은 다음을 목표로 한다:
+- 사용자의 개인정보(나이/지역/관심 분야/학력/상태) + 행동 데이터(클릭/좋아요/비교/조회) + 선택한 추천 태그를 활용해
+  “사용자에게 가장 적합한 정책을 자동으로 추천”하는 Feed를 구성한다.
+- 추천 결과는 RecommendFeedController에서 관리되며, QueryOrchestrator가 필터/UI/프로필/태그를 조합해 Query를 만든다.
+- 추천 알고리즘은 정적인 rule 기반 + 사용자 선택 태그 + 행동 기반 점수의 가중치를 혼합한 Hybrid 모델이다.
+- 앱 내부에서 모든 추천은 클라이언트 Query 기반이며, 서버 측 API는 Query 파라미터(tags/age/region/category)로 정책을 반환한다.
+
+---
+
+## 1. 문제 정의 (Problem Statement)
+
+사용자들은 정책 탐색 시 다음과 같은 문제를 겪는다:
+1. 정책이 너무 많아 본인에게 맞는 정책을 찾기 어렵다.
+2. 동일 지역·동일 조건이라도 개인의 관심사, 생애주기, 직업군에 따라 필요 정책이 다르다.
+3. 사용자는 앱을 여러 번 여는 동안 매번 ‘검색/필터’를 다시 잡아야 해서 피로도가 높다.
+4. 즐겨찾기(Favorite)나 비교 리스트에서 선택한 정책이 추천에 반영되지 않아 개인화가 부족하다.
+5. 온보딩 시 입력한 기본 정보(지역/나이/직업/카테고리 선호)가 앱 사용 중 실시간으로 추천에 반영되지 않는다.
+
+**job07은 위 문제를 해결하는 “완전한 추천 엔진 구조”를 설계한다.**
+
+---
+
+## 2. 요구사항 분석 (Requirements Analysis)
+
+### 2.1 기능 요구사항 (Functional)
+1. 사용자 프로필(나이/지역/관심 분야/직업/학력 등)을 기반으로 추천을 제공한다.
+2. 앱 상단에서 선택한 추천 키워드(tags)를 추천 query에 반영한다.
+3. 즐겨찾기 변화 → 추천 재계산
+4. 비교 목록 변화 → 추천 재계산
+5. 정책 상세페이지 진입 기록 → 행동 기반 추천 점수 상승
+6. 추천 결과는 RecommendFeedController에서 paging 가능한 형태로 제공
+7. 추천 정책은 “추천순” 정렬 방식으로 기본 정렬
+8. 추천 태그는 UI 단에서 chip 형태로 표시하며 선택/해제 가능
+9. 사용자가 ‘관심 없음’ 처리하는 정책은 추천에서 제외
+
+### 2.2 비기능 요구사항 (Non-Functional)
+1. 빠른 응답: 추천은 네트워크/캐시 간 SWR(SWR Cache) 방식으로 빠르게 제공.
+2. 확장 용이성: 조합되는 데이터가 늘어나도 Query와 Controller가 깨지지 않아야 함.
+3. 상태 일관성: UI → FilterState → QueryOrchestrator → FeedController 흐름이 안정적으로 유지.
+4. 중복 없음: 필터/검색/정렬 항목과 추천 알고리즘이 충돌하지 않아야 함.
+
+---
+
+## 3. 아키텍처 설계 (Architecture Specification)
+
+추천 시스템은 다음 6개 레이어로 구성된다:
+
+### 3.1 (L1) User Profile Layer
+- 유저가 온보딩에서 입력한 정보 제공  
+- 구성 요소:
+  - age (나이)
+  - region (거주 지역)
+  - interestCategories (관심 카테고리 리스트)
+  - recommendTags (AI가 제안한 키워드)
+  - jobType, education, income 등 확장 가능
+
+Provider:
+```dart
+final userProfileProvider = Provider<UserProfile>((ref) { ... });
+
+
+⸻
+
+3.2 (L2) Behavior Tracking Layer (사용자 행동 데이터)
+
+수집되는 데이터:
+	•	정책 상세 페이지 진입 횟수
+	•	리스트 노출 후 클릭 여부
+	•	즐겨찾기 추가/삭제
+	•	비교 리스트 추가/삭제
+
+저장은 간단한 local DB (Isar) 또는 memory store로 구현:
+
+final behaviorTrackerProvider = Provider<PolicyBehaviorTracker>((ref) { ... });
+
+Scoring 규칙 예:
+	•	상세 보기 → score +4
+	•	즐겨찾기 → score +10
+	•	비교 추가 → score +6
+	•	빠르게 이탈한 정책 → score -2
+
+⸻
+
+3.3 (L3) Recommendation Tag Layer (추천 키워드)
+	•	UI에서 보여주는 추천 태그 chip 목록
+	•	유저 선택 태그 + 프로필 기반 태그 + AI 제안 태그를 합산한 리스트
+
+Provider:
+
+final recommendationTagProvider = Provider<List<String>>((ref) {
+  final profile = ref.watch(userProfileProvider);
+  final uiTags = ref.watch(policyFilterUiStateProvider).tags;
+  return uiTags.isNotEmpty ? uiTags : profile.recommendTags;
+});
+
+
+⸻
+
+3.4 (L4) Filter/Search/Sort Layer (job06의 FilterUiState)
+	•	추천 Feed에서도 동일한 UI 필터를 활용하되,
+추천은 SortOption = recommendation 으로 고정함
+
+⸻
+
+3.5 (L5) Query Orchestrator Layer
+
+추천 Feed에서 Query를 조합하는 핵심 로직:
+
+PolicyQuery _buildRecommendQuery() {
+  return PolicyQuery(
+    feedType: PolicyFeedType.recommend,
+    filter: PolicyFilter(
+      region: ui.region == PolicyRegion.all ? profile.region : ui.region,
+      category: ui.category,
+      age: profile.age,
+      isOnline: ui.showOnlyOnline ? true : null,
+      isOngoing: ui.showOnlyOngoing ? true : null,
+    ),
+    tags: recommendationTags,
+    behaviorScore: behaviorTrackerProvider.getTopBehaviorTags(),
+    sort: PolicySortOption.recommendation,
+  );
+}
+
+
+⸻
+
+3.6 (L6) RecommendFeedController Layer
+
+역할:
+	•	QueryOrchestrator에서 구성한 Query로 첫 페이지/다음 페이지 로딩
+	•	FilterUI 변경 리스닝
+	•	Behavior 이벤트 리스닝
+	•	UserProfile 변경 리스닝
+	•	Favorite/Compare 변경 리스닝
+
+Provider:
+
+final recommendFeedControllerProvider =
+  StateNotifierProvider<RecommendFeedController, PolicyPagingState>( ... );
+
+
+⸻
+
+4. 데이터 파이프라인 / 흐름도 (Data Pipeline & Flow)
+
+4.1 추천 피드 데이터 흐름
+
+[User]  
+  ↓ (필터 변경, 태그 선택, 검색)
+[UI Filter State]  
+  ↓  
+[PolicyQueryOrchestrator]  
+  ↓  
+[PolicyQueryEngine]  
+  ↓ (page/pageSize)  
+[PolicyRepository]  
+  ↓ (API 호출 + SWR Cache)  
+[PolicyRemoteSource]  
+  ↓  
+[API Server]  
+  ↓  
+[Policies + Score + Metadata]  
+  ↓  
+[PolicyRepository]  
+  ↓  
+[RecommendFeedController]  
+  ↓  
+[UI ListView(Render)]
+
+
+⸻
+
+5. Provider/Controller 상호작용 규칙
+
+5.1 자동 Refresh 규칙
+
+RecommendFeedController는 다음 이벤트에서 자동 refresh:
+
+이벤트	설명
+FilterUiState 변경	지역/카테고리/정렬/오는중/온라인 필터 변경
+Tag 변경	추천 태그 selected/unselected
+UserProfile 변경	나이/지역/관심 분야 변경
+Favorite 변경	좋아요 → 추천 반영
+Compare 변경	비교 정책 추가/제거
+Behavior 점수 변화	새 행동 데이터 발생
+cacheCleared	전체 캐시 초기화
+
+
+⸻
+
+5.2 이벤트 우선순위
+
+1) profileUpdated
+2) favoritesChanged
+3) compareChanged
+4) filterChanged
+5) tagsChanged
+6) behaviorChanged
+
+
+⸻
+
+6. UI 상태도 (UI State Machine)
+
+추천 화면의 UI 상태는 아래 4단계:
+
+[Idle]  
+  ↓ initial loadFirstPage()
+[Loading]  
+  ↓ success
+[Loaded(items, hasMore)]  
+  ↙ error          ↘ scroll
+[Error]           [LoadingMore → Loaded]
+
+상태 전이 조건:
+	•	Filter 변경 → Loaded → Loading → Loaded
+	•	Behavior 업데이트 → Loaded → Loading → Loaded
+
+⸻
+
+7. 이벤트 흐름(Event Flow)
+
+예: 사용자가 추천태그 “창업” 클릭 → 추천 upweight
+
+[User Tap Tag("창업")]
+ → policyFilterUiStateProvider.setTags(["창업"])
+ → BasePolicyFeedController.listen(FilterChange)
+ → RecommendFeedController.refresh()
+ → QueryOrchestrator.buildQuery() with tags=["창업"]
+ → Repository.fetch()
+ → UI 업데이트
+
+즐겨찾기 추가 시:
+
+[FavoriteRepository.add(policyId)]
+ → EventBus.emit(favoritesChanged)
+ → RecommendFeedController.refresh()
+
+행동 기반 추천:
+
+[PolicyDetail Open(policyId)]
+ → BehaviorTracker.increment("detailView", policyId)
+ → EventBus.emit(behaviorChanged)
+ → RecommendFeedController.refresh()
+
+
+⸻
+
+8. 파일 구조 (File Structure)
+
+lib/features/policy_new/
+  domain/        # (job02)
+  data/          # (job03)
+  application/
+    filters/
+      policy_filter_ui_state.dart
+    controllers/
+      policy_query_orchestrator.dart
+      policy_query_engine.dart
+      base_feed_controller.dart
+      recommend_feed_controller.dart
+    behavior/
+      policy_behavior_tracker.dart       # job07 신규
+    profile/
+      user_profile_provider.dart         # 온보딩 사용자 프로필
+  presentation/
+    filters/
+      policy_filter_bar.dart
+      policy_recommend_tags_bar.dart
+    screens/
+      policy_feed_home_screen.dart
+      policy_recommend_onboarding_screen.dart   # job07 신규
+    widgets/
+      policy_recommend_card.dart
+      policy_recommend_empty.dart
+      policy_recommend_error.dart
+
+
+⸻
+
+9. Acceptance Criteria
+	•	추천 Query는 FeedType.recommend 전용 규칙을 따른다.
+	•	RecommendedFeedController는 Filter/Profile/Tag/Favorite/Compare/Behavior/Cache 이벤트를 모두 자동 감지한다.
+	•	추천 태그 UI(policy_recommend_tags_bar.dart)가 정상 동작하며, Tag 선택 시 자동 refresh 된다.
+	•	BehaviorTracker가 정책 클릭/상세 진입/즐겨찾기/비교 동작을 기록한다.
+	•	UserProfile 변경 시 추천 피드가 즉시 재계산된다.
+	•	Query Orchestrator가 job07 규칙에 따라 Query를 생성한다.
+	•	Repository/Domain/Remote와 충돌 없이 컴파일 성공해야 한다.
+	•	UI는 (Loading → Loaded → Paging → Error) 상태 흐름을 유지한다.
+	•	추천 피드 UI는 job05의 ListView 구조를 그대로 따른다.
+
+---
