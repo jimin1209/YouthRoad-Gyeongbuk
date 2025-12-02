@@ -642,4 +642,136 @@ Status: Open.
 
 ---
 
+### ISSUE 9. ref.listen 오류 – ConsumerWidget 빌드 외부에서 ref.listen 호출됨
+
+#### 9-1. 배경 / 증상
+
+- 앱 실행 중 다음과 같은 붉은 에러 화면이 나타남:
+
+```
+
+ref.listen can only be used within the build method of a ConsumerWidget
+Failed assertion: 'debugDoingBuild'
+
+````
+
+- 즉, Riverpod의 `ref.listen()`이 **ConsumerWidget의 build() 안에서 호출되지 않거나**,  
+  **build 타이밍 이후/이전의 부적절한 시점에서 호출되고 있음.**
+
+- 대표적인 잘못된 호출 위치:
+  - initState / dispose  
+  - onTap, onPressed 등 콜백 내부  
+  - Future, Timer, microtask 내부  
+  - StatelessWidget + hook 없이 ref.listen 호출  
+  - 화면 진입 시 side effect로 ref.listen을 잘못 호출하는 컨트롤러/위젯
+
+#### 9-2. 목표
+
+- 모든 ref.listen 호출을 Riverpod 규칙에 맞게  
+  **ConsumerWidget의 build() 혹은 ConsumerState의 initState→ref.listenManual()** 형태로 재구조화.
+- 검색 V2, 추천 정책, 지도 초기화 등 ref.listen을 사용하는 모든 부분을 안전하게 재배치하여  
+  붉은 에러 화면이 재발하지 않도록 구조 확립.
+
+#### 9-3. 상세 요구사항
+
+1. **ref.listen 호출 위치 전체 점검**
+   - 프로젝트 전역에서 `ref.listen(` 텍스트 검색.
+   - 각 호출부가 다음 조건을 충족하는지 점검:
+     - ConsumerWidget의 build 내부에서 호출되는가  
+     - 또는 ConsumerState의 initState에서 `ref.listenManual`로 사용되는가
+   - StatefulWidget이나 stateless 코드, 콜백 내부 등 잘못된 위치에 listen이 있는지 전수 조사.
+
+2. **잘못된 ref.listen 패턴 제거**
+   - `initState`에서 `ref.listen()` 직접 호출 → 100% 에러  
+     → 해결: `ref.listenManual` 사용 또는 build 사용
+   - 버튼 / 제스처 / Future / Timer / async 내부 ref.listen 호출 금지
+   - StatelessWidget에서 ref.listen 사용 절대 금지  
+     → ConsumerWidget 또는 ConsumerStatefulWidget으로 변환
+
+3. **Side Effect 분리**
+   - ‘상태 변경 시 특정 동작 수행’과 같은 사이드이펙트 로직은  
+     build에서 ref.listen 사용하거나  
+     혹은 AsyncNotifier 내부 상태 전이에 묶어서 처리하도록 구조 정리.
+   - 화면 로드시 필요한 초기 데이터 fetch는 controller.initialize() 또는 build 내부에서 관리.
+
+4. **Search V2 관련 오류 해결**
+   - 검색 화면 진입 시 추천 정책·인기 키워드·필터 초기화 과정에서  
+     ref.listen이 build 외부에서 호출된 부분이 없는지 점검.
+   - 기존 SearchControllerV2 구조에서 screen init 시점 동기화 문제를 함께 점검.
+
+5. **동작 테스트**
+   - 앱을 다양한 화면 전환 흐름으로 테스트:
+     - 홈 → 검색  
+     - 지역 변경 → 검색  
+     - 탐색 화면 → 검색  
+     - 앱 재시작 후 즉시 검색  
+   - 어떤 경로에서도 에러가 발생하지 않는지 검사.
+
+#### 9-4. 구현 가이드 (예시)
+
+**(A) ConsumerState + initState에서 ref.listenManual 사용**
+
+```dart
+class MyScreen extends ConsumerStatefulWidget {
+  const MyScreen({super.key});
+
+  @override
+  ConsumerState<MyScreen> createState() => _MyScreenState();
+}
+
+class _MyScreenState extends ConsumerState<MyScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    ref.listenManual(someProvider, (prev, next) {
+      // 안전한 시점에서 실행되는 listener
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(someProvider);
+    return ...
+  }
+}
+````
+
+**(B) ref.listen을 ConsumerWidget의 build 내부로 이동**
+
+```dart
+@override
+Widget build(BuildContext context, WidgetRef ref) {
+  ref.listen(someProvider, (prev, next) {
+    // UI 기준으로 안전한 side-effect
+  });
+
+  final state = ref.watch(someProvider);
+  return ...
+}
+```
+
+**(C) StatelessWidget에서는 ref.listen 사용 금지**
+
+* 반드시 ConsumerWidget 또는 ConsumerStatefulWidget으로 변환하여 구조 정리.
+
+#### 9-5. 체크리스트
+
+* [ ] 모든 ref.listen 호출 위치가 규칙에 맞는지 100% 점검됨
+* [ ] initState에서 listen이 필요한 경우 ref.listenManual 사용
+* [ ] StatelessWidget에서 ref.listen 호출 없음
+* [ ] Search V2 / 추천 정책 / 지역 기반 추천 로직 전부 점검
+* [ ] 앱 내 어떠한 화면에서도 붉은 에러 화면이 더 이상 발생하지 않음
+
+#### 9-6. 완료 기준
+
+* 앱 실행 후 여러 네비게이션 경로에서
+  **“ref.listen can only be used within the build method…”** 에러가 재발하지 않을 것.
+* ref.listen이 프로젝트 전체에서 Riverpod 2.x 규칙에 맞게 재배치됨.
+* Search V2 및 추천 정책 기능 모두 정상 작동하며, 안정적인 상태 변화를 보장.
+
+```
+
+---
+
 
