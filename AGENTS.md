@@ -1222,3 +1222,149 @@ return SearchV2Content(state);
 
 
 
+
+
+
+
+
+
+
+---
+
+## ISSUE 99. 전체 리팩토링 마스터 이슈 – 프로젝트 전반 구조 유지 & 품질 개선
+
+#### 99-1. 목적
+
+Youth Road App 전체 코드베이스에 대해  
+**구조를 유지하면서 품질을 끌어올리는 대규모 리팩토링 작업**을 수행한다.
+
+이슈 #100 ~ #104를 포함한 **전체 Refactor Package**는 아래 목표를 따른다:
+
+- 기존 아키텍처(도메인/데이터/애플리케이션/프레젠테이션 구조) 유지
+- 기능 변경 없음 (기능 삭제·UI 변경 금지)
+- 중복된 기능/코드 제거
+- 컨트롤러/Provider 네이밍·역할 정리
+- Dead Code / Legacy 코드 제거
+- 불필요한 util/log/assert 제거
+- UI 위젯 공통화 및 중복 위젯 통합
+- 비즈니스 로직 단일화
+- Lint 규칙 및 best practice 준수
+
+이슈 #100~104 작업은 순차적으로 진행해야 하며,  
+각 Issue 작업은 반드시 **브랜치 단위로 Codex Super Command로 실행**한다.
+
+---
+
+## ISSUE 100. UI/위젯 구조 정리 및 공통 컴포넌트 통합
+
+### 100-1. 목표
+- 정책 카드, 버튼, 스켈레톤, 리스트 아이템 등 **중복 위젯 통합**
+- 스타일·여백·텍스트 크기 규칙 표준화
+- Search V1의 남아 있는 UI 조각 완전 제거
+- PolicyCard, TagChip, PageSectionHeader 등 핵심 UI 위젯 통합
+
+### 100-2. 상세 작업
+- `/presentation/widgets/common` 디렉토리 생성
+- PolicyCard가 3~4 곳에서 다르게 구현된 부분 하나로 통합
+- Skeleton UI 중복 제거 → `PolicySkeleton`, `ListSkeleton` 단일화
+- Button 스타일: PrimaryButton / SecondaryButton 공통화
+- Search V2 전용 위젯을 `/search_v2/widgets`로 정리
+- 올바르지 않은 padding/margin을 레이아웃 가이드에 맞게 통일
+
+### 100-3. 완료 기준
+- UI 중복 위젯 완전 제거
+- 공통 PolicyCard 1개만 존재
+- 스켈레톤, 버튼, 섹션 헤더 중복 삭제
+- 어떤 화면도 레이아웃 깨짐 없이 동일 규칙으로 렌더링
+
+---
+
+## ISSUE 101. Provider / Controller 구조 정리 및 중복 상태 제거
+
+### 101-1. 목표
+- 역할이 겹치는 Provider/Controller 통합
+- 이름 규칙 통일: `SomethingController`, `SomethingState`
+- ref.listen 문제, state duplication 제거
+- Search V2 관련 Provider 정리
+
+### 101-2. 상세 작업
+- 검색 관련 Provider 중 중복 기능(검색 결과/추천/인기 키워드) 통합
+- 추천 정책 Provider를 Lazy Loading 기반으로 재구조화
+- 지역 변경 관련 Provider의 race condition 제거
+- Controller의 init/refresh 기능 명확하게 분리
+
+### 101-3. 완료 기준
+- Provider 이름/파일 경로 명확화
+- Search V2 전용 Provider와 V1 잔재 완전 분리
+- 상태가 2중 관리되는 곳 제거
+- Debug Provider 탭에서 Provider 구조가 명확하게 보임
+
+---
+
+## ISSUE 102. 네트워크/레포지토리 중복 제거 및 fetch 구조 통일
+
+### 102-1. 목표
+- PolicyRepository 내부 fetch 함수 중복 제거
+- RemoteSource → Repository → Controller 흐름 일관성 유지
+- 정책/기관/부서 API 호출 규칙 표준화
+
+### 102-2. 상세 작업
+- `fetchPolicies`, `fetchPolicyList`, `fetchPolicyV2` 등 중복 함수 제거하고 단일화
+- 공통 error mapping 모듈로 통합
+- Dio 요청 옵션 통일 (timeout, headers, interceptors)
+- API 파라미터 가변타입 방식 개선
+
+### 102-3. 완료 기준
+- fetch 함수 중복 없음
+- 모든 네트워크 요청 경로가 하나로 통일됨
+- 에러 메시지/로그 형식 통일
+
+---
+
+## ISSUE 103. Common Util / Helper / Logger 정리
+
+### 103-1. 목표
+- 날짜 포맷, 문자열 정리, 숫자 formatting, URL builder 등 중복 util 제거
+- Logger를 DebugLogger로 통합
+- JS 통신 관련 메시지 포맷 통일
+
+### 103-2. 상세 작업
+- `/core/utils/` 내부 util을 재정리  
+  (예: date_utils.dart / string_utils.dart / number_utils.dart)
+- 동일한 기능의 util이 여러 파일에 퍼져 있으면 하나로 통합
+- Logger를 debug, error, warning 유형별로 통일
+- WebView JS messaging 포맷 정리
+
+### 103-3. 완료 기준
+- util 중복 없음
+- 모든 파일이 동일한 formatting 방식 사용
+- Flutter → WebView JS call 형식 통일됨
+
+---
+
+## ISSUE 104. Dead Code · Search V1 · Map V1 · Legacy 제거
+
+### 104-1. 목표
+- 더 이상 사용되지 않는 파일·모델·위젯 정리
+- Search V1, Map V1 관련 잔여 파일 완전 삭제
+- KakaoMap V2 로직만 유지
+- Build warning 제거
+
+### 104-2. 상세 작업
+- `search/old`, `map/old`, `v1`, `deprecated` 폴더 존재 시 전체 제거
+- 안 쓰는 Provider/StateNotifier/Model 제거
+- Search V1 관련 route 완전 제거
+- KakaoMap V1 html/js 제거
+- 오래된 테스트 파일 무효라면 삭제
+
+### 104-3. 완료 기준
+- IDE 검색 시 “v1” 관련 파일 0개
+- Dead code / unused import / unused variable 경고 제거
+- 전체 빌드 시 warning 최소화
+
+---
+
+
+
+
+
