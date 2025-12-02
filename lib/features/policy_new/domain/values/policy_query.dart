@@ -32,4 +32,32 @@ class PolicyQuery {
       feedType: feedType ?? this.feedType,
     );
   }
+
+  /// Repository에서 캐시 scope 구분용으로 사용될 키
+  String get cacheScopeKey {
+    final buffer = StringBuffer()
+      ..write(feedType.name)
+      ..write('|')
+      ..write(filter.region.name)
+      ..write('|')
+      ..write(filter.category?.name ?? 'all')
+      ..write('|')
+      ..write(filter.age?.toString() ?? 'any')
+      ..write('|')
+      ..write(filter.isOnline?.toString() ?? 'any')
+      ..write('|')
+      ..write(filter.isOffline?.toString() ?? 'any')
+      ..write('|')
+      ..write(filter.isOngoing?.toString() ?? 'any')
+      ..write('|')
+      ..write(sort.name)
+      ..write('|')
+      ..write(keyword ?? '')
+      ..write('|')
+      ..write(tags.join(','))
+      ..write('|')
+      ..write(filter.tags.join(','));
+
+    return buffer.toString();
+  }
 }
