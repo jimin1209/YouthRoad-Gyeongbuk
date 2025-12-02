@@ -5,7 +5,7 @@
 Write-Host "📦 1) Starting Flutter APK build..." -ForegroundColor Cyan
 flutter build apk --debug --no-shrink `
   --dart-define=YOUTH_API_KEY=yAlMhwGFZps7vHtbsjnbsL6Cpha6bHqaPDSScV6pgU0 `
-  --dart-define=KAKAO_MAP_API_KEY=e56be9363d2fd5a9cecd3264a29d40fc `
+  --dart-define=KAKAO_MAP_API_KEY=aa0f9f3d74d04efb792ef3af8fb1029a `
   --dart-define=CHAT_ENDPOINT=https://youthroad-chat-proxy.vercel.app/api/chat
 
 # APK path
@@ -31,6 +31,6 @@ Write-Host "🚀 3) Launching Flutter with custom APK..." -ForegroundColor Cyan
 flutter run `
   --use-application-binary="$apkTarget" `
   --dart-define=YOUTH_API_KEY=yAlMhwGFZps7vHtbsjnbsL6Cpha6bHqaPDSScV6pgU0 `
-  --dart-define=KAKAO_MAP_API_KEY=e56be9363d2fd5a9cecd3264a29d40fc `
+  --dart-define=KAKAO_MAP_API_KEY=aa0f9f3d74d04efb792ef3af8fb1029a `
   --dart-define=CHAT_ENDPOINT=https://youthroad-chat-proxy.vercel.app/api/chat
 
