@@ -25,6 +25,7 @@ class DevtoolsOverlay extends ConsumerStatefulWidget {
 class _DevtoolsOverlayState extends ConsumerState<DevtoolsOverlay> {
   bool _buttonVisible = false;
   Timer? _revealTimer;
+  ProviderSubscription<bool>? _debugPanelSubscription;
 
   @override
   void initState() {
@@ -33,7 +34,8 @@ class _DevtoolsOverlayState extends ConsumerState<DevtoolsOverlay> {
     if (enabled) {
       _scheduleReveal();
     }
-    ref.listen<bool>(debugPanelEnabledProvider, (previous, next) {
+    _debugPanelSubscription =
+        ref.listenManual<bool>(debugPanelEnabledProvider, (previous, next) {
       if (!next) {
         _revealTimer?.cancel();
         if (mounted) {
@@ -48,6 +50,7 @@ class _DevtoolsOverlayState extends ConsumerState<DevtoolsOverlay> {
   @override
   void dispose() {
     _revealTimer?.cancel();
+    _debugPanelSubscription?.close();
     super.dispose();
   }
 
