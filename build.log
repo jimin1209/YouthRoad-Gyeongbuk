@@ -1,0 +1,69 @@
+@codex
+# ISSUE: PolicyFeedType not found / getter not defined 오류 해결
+
+## 목표
+1. PolicyFeedType enum이 현재 프로젝트 어디에도 존재하지 않으면 새로 생성한다.
+2. policy_list_v2_screen.dart 내 모든 PolicyFeedType 호출부를 새 enum 기반으로 정리한다.
+3. 파일 경로는 반드시 아래로 생성한다:
+   lib/domain/policy/entities/policy_feed_type.dart
+
+## 액션 플랜
+
+### 1) 새로운 파일 생성 (전체 파일 형태)
+
+파일: lib/domain/policy/entities/policy_feed_type.dart
+내용 전체:
+
+```dart
+/// 정책 피드의 종류를 나타내는 enum.
+/// 기존 PolicyList V2에서 사용되던 필드를 복구한 버전.
+enum PolicyFeedType {
+  primary,   // 기본 홈 피드
+  recommended, // 추천 정책 피드
+  bookmarked,  // 좋아요/북마크 피드
+  latest,      // 최신 정책
+}
+```
+
+### 2) policy_list_v2_screen.dart 수정
+
+파일 상단에 반드시 추가:
+```dart
+import 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart';
+```
+
+### 3) 호출부 점검
+
+아래 항목이 모두 존재하면 그대로 유지:
+
+```dart
+_onFeedScroll(
+  PolicyFeedType.primary,
+  _scrollController,
+  200,
+);
+```
+
+```
+PolicyFeedType.primary
+PolicyFeedType.recommended
+PolicyFeedType.bookmarked
+PolicyFeedType.latest
+```
+
+없으면 자동으로 primary로 fallback하도록 처리:
+(코드에서 누락되면 Codex가 자동 대체)
+
+### 4) 기존 old enum 제거
+만약 lib/ui/screens/policy/ 또는 lib/application/policy/ 하위에
+PolicyFeedType 관련 중복 정의가 있으면 모두 제거.
+
+### 5) 전체 빌드 정상화
+- flutter clean --no-cache
+- flutter pub get
+- flutter run -d emulator-5554 (또는 연결된 real device)
+
+## 결과 기대 효과
+- PolicyFeedType 미정의 오류 즉시 해결
+- policy_list_v2_screen.dart 정상 빌드
+- 추천/북마크/최신 정책 스크롤 로딩도 입력값 정상 복구
