@@ -30,31 +30,55 @@ class HomeScreen extends ConsumerWidget {
     } else {
       body = RefreshIndicator(
         onRefresh: notifier.refresh,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _RegionBanner(region: region),
-            const SizedBox(height: 12),
-            _QuickActions(),
-            const SizedBox(height: 16),
-            Text('추천 정책', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            if (state.isStale)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Text('캐시된 데이터 표시 중... 최신 정보를 불러오는 중입니다.'),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            final metrics = notification.metrics;
+            if (metrics.maxScrollExtent <= 0) return false;
+            if (metrics.pixels >= metrics.maxScrollExtent * 0.9) {
+              notifier.loadNextPage();
+            }
+            return false;
+          },
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _RegionBanner(region: region),
+              const SizedBox(height: 12),
+              _QuickActions(),
+              const SizedBox(height: 16),
+              Text('추천 정책', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              if (state.isStale)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text('캐시된 데이터 표시 중... 최신 정보를 불러오는 중입니다.'),
+                ),
+              ListView.separated(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemBuilder: (_, i) {
+                  if (i >= policies.length) {
+                    if (!state.hasMore) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Center(child: Text('마지막 정책까지 모두 확인했습니다.')),
+                      );
+                    }
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return PolicyCardV2(
+                    policy: policies[i],
+                    onTap: () => context.push(RoutePaths.policyDetail(policies[i].id)),
+                  );
+                },
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemCount: policies.length + (state.isLoadingMore || state.hasMore ? 1 : 0),
               ),
-            ListView.separated(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemBuilder: (_, i) => PolicyCardV2(
-                policy: policies[i],
-                onTap: () => context.push(RoutePaths.policyDetail(policies[i].id)),
-              ),
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemCount: policies.length,
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }

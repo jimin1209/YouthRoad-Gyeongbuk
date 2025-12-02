@@ -14,6 +14,9 @@ class PolicyListState {
     this.policies = const [],
     this.isLoading = false,
     this.isRefreshing = false,
+    this.isLoadingMore = false,
+    this.hasMore = true,
+    this.page = 1,
     this.error,
     this.isStale = false,
   });
@@ -21,6 +24,9 @@ class PolicyListState {
   final List<Policy> policies;
   final bool isLoading;
   final bool isRefreshing;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final int page;
   final Object? error;
   final bool isStale;
 
@@ -28,6 +34,9 @@ class PolicyListState {
     List<Policy>? policies,
     bool? isLoading,
     bool? isRefreshing,
+    bool? isLoadingMore,
+    bool? hasMore,
+    int? page,
     Object? error = _noUpdate,
     bool? isStale,
   }) {
@@ -35,6 +44,9 @@ class PolicyListState {
       policies: policies ?? this.policies,
       isLoading: isLoading ?? this.isLoading,
       isRefreshing: isRefreshing ?? this.isRefreshing,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      page: page ?? this.page,
       error: error == _noUpdate ? this.error : error,
       isStale: isStale ?? this.isStale,
     );
@@ -50,6 +62,7 @@ final policyListNotifierProvider =
 
 class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
   static const String errorMessage = '정책을 불러오지 못했습니다.';
+  static const int _pageSize = 10;
 
   String? _lastQuery;
   bool _initialLoadScheduled = false;
@@ -73,6 +86,8 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
           region: normalizedRegion,
           forceRefresh: false,
           isUserRefresh: false,
+          page: 1,
+          append: false,
         );
       });
     }
@@ -86,6 +101,8 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
         region: (next ?? '').trim(),
         forceRefresh: false,
         isUserRefresh: false,
+        page: 1,
+        append: false,
       );
     });
 
@@ -96,12 +113,18 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     return const PolicyListState(isLoading: true);
   }
 
-  PolicyFilter _buildFilter({required String region}) {
+  PolicyFilter _buildFilter({
+    required String region,
+    required int page,
+  }) {
     final normalizedRegion = region.trim();
     return PolicyFilter(
       searchRgnSe: normalizedRegion.isEmpty ? null : normalizedRegion,
       searchText: _lastQuery,
       availableOnly: true,
+      pageIndex: page,
+      recordCount: _pageSize,
+      pagingYn: 'Y',
     );
   }
 
@@ -113,6 +136,8 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     required String region,
     required bool forceRefresh,
     required bool isUserRefresh,
+    required int page,
+    required bool append,
   }) async {
     if (kDebugMode) {
       try {
@@ -128,92 +153,135 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     }
 
     final requestId = _nextRequestId();
+    if (append &&
+        (state.isLoadingMore || state.isLoading || !state.hasMore || page <= 1)) {
+      return;
+    }
+
     final previousPolicies = state.policies;
     final normalizedRegion = region.trim();
+    final filter = _buildFilter(region: normalizedRegion, page: page);
 
     debugPrint(
       '[PolicyListNotifier][#$requestId] load start | '
       'region="$normalizedRegion" forceRefresh=$forceRefresh refresh=$isUserRefresh '
-      'prevPolicies=${previousPolicies.length}',
+      'page=$page append=$append prevPolicies=${previousPolicies.length}',
     );
 
     state = state.copyWith(
-      isLoading: isUserRefresh ? state.isLoading : true,
+      isLoading: append ? state.isLoading : !isUserRefresh,
       isRefreshing: isUserRefresh,
+      isLoadingMore: append,
+      hasMore: append ? state.hasMore : true,
+      page: append ? state.page : page,
       error: null,
-      isStale: previousPolicies.isNotEmpty,
+      isStale: append ? state.isStale : previousPolicies.isNotEmpty,
     );
 
     try {
-      final filter = _buildFilter(region: normalizedRegion);
-      final result = await _repo.getPolicies(
-        filter: filter,
-        forceRefresh: forceRefresh,
-      );
+      if (append) {
+        final policies = await _repo.refreshPolicies(filter: filter);
 
-      if (!_isLatestRequest(requestId)) {
-        debugPrint(
-          '[PolicyListNotifier][#$requestId] stale cache result discarded '
-          '(latest=#$_requestCounter)',
-        );
-        return;
-      }
-
-      final remoteFuture = result.remoteRefresh;
-      final hasInitialPolicies = result.policies.isNotEmpty;
-      final shouldKeepPrevious = !hasInitialPolicies && remoteFuture != null;
-      final policiesToApply = shouldKeepPrevious ? previousPolicies : result.policies;
-      final shouldMarkStale =
-          remoteFuture != null && (hasInitialPolicies || previousPolicies.isNotEmpty);
-
-      state = state.copyWith(
-        policies: policiesToApply,
-        isLoading: false,
-        isRefreshing: isUserRefresh && remoteFuture != null,
-        isStale: shouldMarkStale,
-        error: null,
-      );
-      debugPrint(
-        '[PolicyListNotifier][#$requestId] cache applied: '
-        'count=${policiesToApply.length} stale=$shouldMarkStale '
-        'keptPrevious=$shouldKeepPrevious',
-      );
-
-      remoteFuture?.then((latest) {
         if (!_isLatestRequest(requestId)) {
           debugPrint(
-            '[PolicyListNotifier][#$requestId] remote result discarded '
+            '[PolicyListNotifier][#$requestId] stale append result discarded '
             '(latest=#$_requestCounter)',
           );
           return;
         }
 
+        final merged = [...previousPolicies, ...policies];
         state = state.copyWith(
-          policies: latest,
-          isStale: false,
+          policies: merged,
+          isLoadingMore: false,
+          isLoading: false,
           isRefreshing: false,
+          hasMore: policies.length >= _pageSize,
+          page: page,
+          error: null,
+          isStale: false,
+        );
+        debugPrint(
+          '[PolicyListNotifier][#$requestId] append success: '
+          'received=${policies.length} total=${merged.length} hasMore=${state.hasMore}',
+        );
+      } else {
+        final result = await _repo.getPolicies(
+          filter: filter,
+          forceRefresh: forceRefresh,
+        );
+
+        if (!_isLatestRequest(requestId)) {
+          debugPrint(
+            '[PolicyListNotifier][#$requestId] stale cache result discarded '
+            '(latest=#$_requestCounter)',
+          );
+          return;
+        }
+
+        final remoteFuture = result.remoteRefresh;
+        final hasInitialPolicies = result.policies.isNotEmpty;
+        final shouldKeepPrevious = !hasInitialPolicies && remoteFuture != null;
+        final policiesToApply = shouldKeepPrevious ? previousPolicies : result.policies;
+        final shouldMarkStale =
+            remoteFuture != null && (hasInitialPolicies || previousPolicies.isNotEmpty);
+
+        state = state.copyWith(
+          policies: policiesToApply,
+          isLoading: false,
+          isRefreshing: isUserRefresh && remoteFuture != null,
+          isLoadingMore: false,
+          isStale: shouldMarkStale,
+          hasMore: policiesToApply.length >= _pageSize,
+          page: page,
           error: null,
         );
         debugPrint(
-          '[PolicyListNotifier][#$requestId] remote refresh success. count=${latest.length}',
+          '[PolicyListNotifier][#$requestId] cache applied: '
+          'count=${policiesToApply.length} stale=$shouldMarkStale '
+          'keptPrevious=$shouldKeepPrevious hasMore=${state.hasMore}',
         );
-      }).catchError((error, stack) {
-        if (!_isLatestRequest(requestId)) {
-          debugPrint(
-            '[PolicyListNotifier][#$requestId] remote error discarded '
-            '(latest=#$_requestCounter)',
-          );
-          return;
-        }
 
-        debugPrint('[PolicyListNotifier][#$requestId] remote refresh failed: error=$error');
-        debugPrint('$stack');
-        state = state.copyWith(
-          error: error,
-          isStale: false,
-          isRefreshing: false,
-        );
-      });
+        remoteFuture?.then((latest) {
+          if (!_isLatestRequest(requestId)) {
+            debugPrint(
+              '[PolicyListNotifier][#$requestId] remote result discarded '
+              '(latest=#$_requestCounter)',
+            );
+            return;
+          }
+
+          state = state.copyWith(
+            policies: latest,
+            isStale: false,
+            isRefreshing: false,
+            isLoadingMore: false,
+            hasMore: latest.length >= _pageSize,
+            page: page,
+            error: null,
+          );
+          debugPrint(
+            '[PolicyListNotifier][#$requestId] remote refresh success. count=${latest.length} hasMore=${state.hasMore}',
+          );
+        }).catchError((error, stack) {
+          if (!_isLatestRequest(requestId)) {
+            debugPrint(
+              '[PolicyListNotifier][#$requestId] remote error discarded '
+              '(latest=#$_requestCounter)',
+            );
+            return;
+          }
+
+          debugPrint('[PolicyListNotifier][#$requestId] remote refresh failed: error=$error');
+          debugPrint('$stack');
+          state = state.copyWith(
+            error: error,
+            isStale: false,
+            isRefreshing: false,
+            isLoadingMore: false,
+          );
+        });
+      }
     } catch (e, st) {
       if (!_isLatestRequest(requestId)) {
         debugPrint(
@@ -227,6 +295,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       state = state.copyWith(
         isLoading: false,
         isRefreshing: false,
+        isLoadingMore: false,
         error: e,
         isStale: false,
       );
@@ -239,7 +308,25 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     final region = (ref.read(regionProvider) ?? '').trim();
     debugPrint('[PolicyListNotifier] refresh() start with region=$region');
 
-    await _loadPolicies(region: region, forceRefresh: true, isUserRefresh: true);
+    await _loadPolicies(
+      region: region,
+      forceRefresh: true,
+      isUserRefresh: true,
+      page: 1,
+      append: false,
+    );
+  }
+
+  Future<void> loadNextPage() async {
+    final region = (ref.read(regionProvider) ?? '').trim();
+    final nextPage = state.page + 1;
+    await _loadPolicies(
+      region: region,
+      forceRefresh: true,
+      isUserRefresh: false,
+      page: nextPage,
+      append: true,
+    );
   }
 
   Future<void> search(String query) async {
@@ -261,6 +348,9 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       '[PolicyListNotifier][$where] '
       'isLoading=${state.isLoading}, '
       'isRefreshing=${state.isRefreshing}, '
+      'isLoadingMore=${state.isLoadingMore}, '
+      'page=${state.page}, '
+      'hasMore=${state.hasMore}, '
       'isStale=${state.isStale}, '
       'policies=${state.policies.length}, '
       'error=${state.error}',
