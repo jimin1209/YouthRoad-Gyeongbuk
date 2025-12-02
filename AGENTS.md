@@ -1407,6 +1407,180 @@ state.isLoading, items.length 값
 
 ---
 
+### ISSUE 13. 카카오맵 로딩 실패 — sdkFail / bootstrap 오류로 지도 표시 불가
+
+#### 13-1. 배경 / 증상
+
+- “카카오맵 보기” 화면에서 지도가 전혀 로딩되지 않고  
+  아래 오류가 표시됨:
+
+```
+
+지도 로딩 중 문제가 발생했습니다.
+오류 코드: sdkFail
+최근 로그: bootstrap
+
+````
+
+- 새로고침 버튼을 눌러도 동일한 오류 반복
+- WebView 화면이 회색 배경에서 멈춤
+- bootstrap 단계에서 Kakao JS SDK 초기화 실패
+
+➡️ 결론: **HTML 내부의 Kakao SDK 로딩 실패 또는 Flutter → WebView 초기화 타이밍 오류**
+
+---
+
+#### 13-2. 목표
+
+- KakaoMap WebView가 진입 시 **항상 정상적으로 지도 SDK를 불러오고**,  
+  bootstrap → sdkReady → 지도 표시 순서가 정확히 실행되도록 복구.
+- sdkFail / bootstrap 오류가 더 이상 나타나지 않도록 전체 로딩 경로 안정화.
+
+---
+
+#### 13-3. 주요 원인 분석
+
+sdkFail + bootstrap 오류는 아래 5개 중 하나일 가능성이 매우 높음:
+
+---
+
+### A. Kakao JS SDK script 로딩 실패  
+- HTML 내부에서 JS SDK URL을 불러오지 못함
+- 앱키(appkey) 오류
+- HTML CSP 문제
+- 인터넷 연결 순간차단(가능성 낮음)
+- referer 정책과 Android WebView의 origin 불일치
+
+---
+
+### B. WebView 준비 전에 Flutter에서 bootstrap JS를 먼저 inject  
+- 페이지 로딩 완료 전에 kakao.maps.load() 실행됨  
+  → sdkFail 즉시 발생
+
+---
+
+### C. HTML 내부 오류  
+- script 지역 오타  
+- async/defer 순서 충돌  
+- kakao.maps.load 콜백 미작동  
+- window.postMessage가 Flutter 쪽으로 전달되지 않음
+
+---
+
+### D. Flutter-side timeout이 너무 짧음  
+- Kakao SDK가 1~2초 늦게 로드되면  
+  bootstrap timeout으로 실패 처리
+
+---
+
+### E. race condition  
+- WebView reload와 bootstrap invoke가 동시에 발생  
+- JS Eval 호출이 HTML 로딩 이전 시점에 실행됨
+
+---
+
+#### 13-4. 해결 방향 (구체적 수정 작업)
+
+---
+
+### 1) HTML 내부 Kakao SDK 로딩 방식을 안전하게 재구성
+
+**(반드시 필요)**  
+- `<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=...&autoload=false">`  
+  형태로 autoload=false 설정
+- 스크립트 로드 완료 시 window.postMessage로 “sdkLoaded” 전송
+- 오류 발생 시 window.postMessage로 `sdkFail` 전송
+
+예시:
+
+```html
+<script>
+  const script = document.createElement("script");
+  script.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=APP_KEY&autoload=false";
+  script.onload = () => window.flutter_inappwebview.callHandler('log', 'sdkLoaded');
+  script.onerror = () => window.flutter_inappwebview.callHandler('log', 'sdkFail');
+  document.head.appendChild(script);
+</script>
+````
+
+---
+
+### 2) Flutter → WebView bootstrap 호출 타이밍 정확화
+
+* HTML의 `onLoadStop` 이벤트 이후에만
+  다음 JS 실행:
+
+```dart
+controller.evaluateJavascript(source: """
+  kakao.maps.load(function() {
+     window.flutter_inappwebview.callHandler('log', 'bootstrap');
+     initKakaoMap();
+  });
+""");
+```
+
+* onLoadStart 또는 create 시점에는 **절대 호출 금지**
+
+---
+
+### 3) Flutter-side timeout 확장
+
+* bootstrap timeout을 기존 3000ms → 최소 7000~8000ms로 확장
+* 느린 환경에서 sdkReady 신호가 늦게 오면 무조건 실패로 처리되던 문제 해결
+
+---
+
+### 4) WebView reload 로직 점검
+
+* 새로고침 시:
+
+  * HTML을 완전히 reload
+  * pageFinished 이후 bootstrap 재호출
+  * 기존 bootstrap 타이머는 반드시 cancel
+
+---
+
+### 5) Debug 로그 확장
+
+* HTML → Flutter log 핸들러에 다음 단계 로그 추가:
+
+```
+html-loaded
+sdk-script-load-start
+sdkLoaded
+sdkFail
+bootstrap-start
+bootstrap-end
+init-start
+init-end
+```
+
+이 로그가 Debug 패널에 보여야 함.
+
+---
+
+#### 13-5. 체크리스트
+
+* [ ] HTML 내 SDK script 로딩 성공 여부 확인(sdkLoaded 로그 찍힘)
+* [ ] sdkFail이 발생하면 Flutter 측에서 즉시 에러 추적 로그 확보
+* [ ] bootstrap 타이밍이 onLoadStop 이후에만 실행
+* [ ] 화면 새로고침 시 정상적으로 재시도
+* [ ] KakaoMapController 상태가 loading → ready로 전환
+* [ ] 실제 지도가 표시됨
+* [ ] 더 이상 회색 화면 + sdkFail 발생하지 않음
+
+---
+
+#### 13-6. 완료 기준
+
+* Kakao 맵 화면 진입 시 **지도 정상 표시**
+* sdkFail / bootstrap 오류 완전 제거
+* 여러 기기(안드로이드/에뮬레이터 포함)에서 안정적으로 로딩
+* HTML/JS/Flutter 간 로딩 순서가 완전 정렬됨
+
+```
+
+
 
 
 
