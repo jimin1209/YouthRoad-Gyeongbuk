@@ -36,4 +36,24 @@ class PolicyQueryController extends StateNotifier<PolicyQuery> {
     if (state.sort == sort) return;
     state = state.copyWith(sort: sort);
   }
+
+  void setIsOnline(bool? isOnline) {
+    if (state.filter.isOnline == isOnline) return;
+    state = state.copyWith(filter: state.filter.copyWith(isOnline: isOnline));
+  }
+
+  void setIsOffline(bool? isOffline) {
+    if (state.filter.isOffline == isOffline) return;
+    state = state.copyWith(filter: state.filter.copyWith(isOffline: isOffline));
+  }
+
+  void setIsOngoing(bool? isOngoing) {
+    if (state.filter.isOngoing == isOngoing) return;
+    state = state.copyWith(filter: state.filter.copyWith(isOngoing: isOngoing));
+  }
+
+  void setAge(int? age) {
+    if (state.filter.age == age) return;
+    state = state.copyWith(filter: state.filter.copyWith(age: age));
+  }
 }
