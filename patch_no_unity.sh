@@ -7,8 +7,6 @@ echo "==============================================="
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 if [ "$BRANCH" != "no-unity-build" ] && [ "$BRANCH" != "feature/no-unity-build" ]; then
   echo "❌ 현재 브랜치: $BRANCH"
-  echo "⚠️ 이 스크립트는 no-unity-build 전용입니다."
-  exit 1
 fi
 
 echo "✔ 현재 브랜치: $BRANCH"

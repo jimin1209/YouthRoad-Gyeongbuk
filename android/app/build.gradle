@@ -4,10 +4,22 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+//
+// 🔵 Release 서명 정보 불러오기
+//
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('app/key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.youthroad.app"
     compileSdk = 36
 
+    //
+    // 🔵 서명 설정 (debug + release)
+    //
     signingConfigs {
         debug {
             storeFile file("${rootDir}/debug.keystore")
@@ -15,16 +27,20 @@ android {
             keyAlias "androiddebugkey"
             keyPassword "android"
         }
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+        }
     }
 
     defaultConfig {
         applicationId = "com.youthroad.app"
         minSdk = 24
         targetSdk = 36
-
         versionCode = 1
         versionName = "1.0"
-
         multiDexEnabled = true
     }
 
@@ -33,9 +49,11 @@ android {
             debuggable true
             signingConfig signingConfigs.debug
         }
-
         release {
-            signingConfig signingConfigs.debug
+            //
+            // 🔵 핵심: release APK는 release keystore로 서명해야 설치됨
+            //
+            signingConfig signingConfigs.release
             minifyEnabled false
             shrinkResources false
         }
@@ -50,7 +68,6 @@ android {
         resources.pickFirsts += ['META-INF/*']
     }
 
-    // 🔵 Java/Kotlin 1.8로 명확히 고정 (Unity + 플러그인 호환)
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -67,16 +84,4 @@ flutter {
 
 dependencies {
     implementation "androidx.multidex:multidex:2.0.1"
-//    implementation project(":unityLibrary")
-}
-
-configurations.all {
-//    exclude group: "com.unity3d.player"
-//    exclude module: "unity-classes"
-}
-
-repositories {
-//    flatDir {
-//        dirs "${project(':unityLibrary').projectDir}/libs"
-//    }
 }
