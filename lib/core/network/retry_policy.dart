@@ -50,7 +50,7 @@ class RetryPolicy {
 
   Duration delayFor(int attempt) {
     if (attempt <= 0) return initialDelay;
-    final factor = backoffFactor <= 0 ? 1 : backoffFactor;
+    final double factor = backoffFactor <= 0 ? 1 : backoffFactor;
     final multiplier = factor == 1 ? attempt - 1 : (factor).pow(attempt - 1);
     final delayMillis = initialDelay.inMilliseconds * multiplier;
     return Duration(milliseconds: delayMillis.toInt());

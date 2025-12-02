@@ -24,7 +24,7 @@ class SearchQuery {
     SearchCategory? category,
     int? page,
     int? pageSize,
-    String? region = _noValue,
+    Object? region = _noValue,
     bool? useLocalIndex,
   }) {
     return SearchQuery(
@@ -32,7 +32,7 @@ class SearchQuery {
       category: category ?? this.category,
       page: page ?? this.page,
       pageSize: pageSize ?? this.pageSize,
-      region: region == _noValue ? this.region : region,
+      region: identical(region, _noValue) ? this.region : region as String?,
       useLocalIndex: useLocalIndex ?? this.useLocalIndex,
     );
   }

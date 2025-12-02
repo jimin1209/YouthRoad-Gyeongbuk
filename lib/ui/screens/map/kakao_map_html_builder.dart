@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+String _escape(String value) => const HtmlEscape().convert(value);
+
 class KakaoMapLatLng {
   const KakaoMapLatLng(this.lat, this.lng);
 
