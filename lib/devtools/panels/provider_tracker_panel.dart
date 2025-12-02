@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,44 +63,62 @@ class ProviderTrackerPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final entries = ref.watch(devtoolsProvider.select((s) => s.providerEvents));
+    final state = ref.watch(devtoolsProvider);
+    final notifier = ref.read(devtoolsProvider.notifier);
+    final entries = state.providerEvents;
+    final selected = state.selectedProviderEvent;
     if (entries.isEmpty) {
       return const _EmptyView(message: 'No provider events captured yet.');
     }
 
     final reversed = entries.reversed.toList();
-    return ListView.separated(
-      itemCount: reversed.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
-      itemBuilder: (context, index) {
-        final entry = reversed[index];
-        final isError = entry.error != null || entry.state == 'error';
-        final subtitle = entry.error != null
-            ? 'STATE: ${entry.state.toUpperCase()} • ${entry.error}'
-            : 'STATE: ${entry.state.toUpperCase()}';
-        return ListTile(
-          dense: true,
-          title: Text(
-            entry.providerName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: isError ? const Color(0xFFDC2626) : const Color(0xFF0F172A),
-              fontWeight: isError ? FontWeight.w700 : FontWeight.w600,
-            ),
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: ListView.separated(
+            itemCount: reversed.length,
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            itemBuilder: (context, index) {
+              final entry = reversed[index];
+              final isError = entry.error != null || entry.state == 'error';
+              final subtitle = entry.error != null
+                  ? 'STATE: ${entry.state.toUpperCase()} • ${entry.error}'
+                  : 'STATE: ${entry.state.toUpperCase()}';
+              return ListTile(
+                dense: true,
+                selected: selected == entry,
+                selectedTileColor: const Color(0xFFE2E8F0),
+                title: Text(
+                  entry.providerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isError ? const Color(0xFFDC2626) : const Color(0xFF0F172A),
+                    fontWeight: isError ? FontWeight.w700 : FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Text(
+                  _formatTimestamp(entry.timestamp),
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                ),
+                onTap: () => notifier.selectProviderEvent(entry),
+              );
+            },
           ),
-          subtitle: Text(
-            subtitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: Text(
-            _formatTimestamp(entry.timestamp),
-            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-          ),
-          onTap: () => _showDetail(context, entry),
-        );
-      },
+        ),
+        const VerticalDivider(width: 1, color: Color(0xFFE2E8F0)),
+        Expanded(
+          flex: 2,
+          child: _ProviderDetailView(entry: selected),
+        ),
+      ],
     );
   }
 
@@ -108,41 +128,75 @@ class ProviderTrackerPanel extends ConsumerWidget {
     final s = time.second.toString().padLeft(2, '0');
     return '$h:$m:$s';
   }
+}
 
-  void _showDetail(BuildContext context, ProviderEventEntry entry) {
-    final buffer = StringBuffer('State: ${entry.state.toUpperCase()}');
-    if (entry.error != null) {
-      buffer.writeln('\nError: ${entry.error}');
-    }
-    if (entry.stackTrace != null) {
-      buffer.writeln('\nStackTrace:\n${entry.stackTrace}');
+class _ProviderDetailView extends StatelessWidget {
+  const _ProviderDetailView({required this.entry});
+
+  final ProviderEventEntry? entry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entry == null) {
+      return const _EmptyDetail(message: '항목을 선택해주세요.');
     }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    entry.providerName,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(_formatTimestamp(entry.timestamp)),
-                  const SizedBox(height: 12),
-                  SelectableText(buffer.toString()),
-                ],
-              ),
+    final payload = {
+      'provider': entry!.providerName,
+      'state': entry!.state,
+      'error': entry!.error?.toString(),
+      'stackTrace': entry!.stackTrace?.toString(),
+      'timestamp': entry!.timestamp.toIso8601String(),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              entry!.providerName,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 8),
+            Text(_formatTimestamp(entry!.timestamp)),
+            const SizedBox(height: 12),
+            SelectableText(_prettyPrint(payload)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _prettyPrint(Map<String, dynamic> data) {
+    try {
+      return const JsonEncoder.withIndent('  ').convert(data);
+    } catch (_) {
+      return data.toString();
+    }
+  }
+
+  String _formatTimestamp(DateTime time) {
+    final h = time.hour.toString().padLeft(2, '0');
+    final m = time.minute.toString().padLeft(2, '0');
+    final s = time.second.toString().padLeft(2, '0');
+    return '$h:$m:$s';
+  }
+}
+
+class _EmptyDetail extends StatelessWidget {
+  const _EmptyDetail({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        message,
+        style: const TextStyle(color: Color(0xFF94A3B8)),
+      ),
     );
   }
 }
