@@ -258,6 +258,8 @@ class KakaoMapHtmlBuilder {
         notifyFlutter('log', { message }, level);
       }
 
+      log('info', 'html-loaded');
+
       function installConsoleProxy() {
         const originalLog = console.log;
         const originalWarn = console.warn;
@@ -306,6 +308,7 @@ class KakaoMapHtmlBuilder {
         }
         if (!state.sdkLoading) {
           state.sdkLoading = true;
+          log('info', 'sdk-script-load-start');
           const existing = document.querySelector('script[data-kakao-sdk="true"]');
           if (!existing) {
             const script = document.createElement('script');
@@ -316,10 +319,12 @@ class KakaoMapHtmlBuilder {
             script.onload = function() {
               state.sdkLoaded = true;
               state.sdkLoading = false;
+              log('info', 'sdkLoaded');
               pollSdkLoaded(force);
             };
             script.onerror = function(event) {
               state.sdkLoading = false;
+              log('error', 'sdkFail');
               notifyFlutter('error', {
                 code: 'sdkFail',
                 message: 'Failed to load Kakao SDK',
@@ -330,6 +335,7 @@ class KakaoMapHtmlBuilder {
           } else {
             state.sdkLoading = false;
             state.sdkLoaded = !!(window.kakao && window.kakao.maps);
+            log('info', 'sdk-script-cache');
           }
         }
         setTimeout(function() { pollSdkLoaded(force); }, 120);
@@ -477,6 +483,7 @@ class KakaoMapHtmlBuilder {
       }
 
       function initMap() {
+        log('info', 'init-start');
         const container = document.getElementById('map');
         const options = {
           center: new kakao.maps.LatLng(${center.lat}, ${center.lng}),
@@ -509,6 +516,7 @@ class KakaoMapHtmlBuilder {
           center: { lat: ${center.lat}, lng: ${center.lng} },
           attempt: state.loadAttempts,
         });
+        log('info', 'init-end');
       }
 
       function handleLoadTimeout() {
@@ -519,11 +527,13 @@ class KakaoMapHtmlBuilder {
       function pollSdkLoaded(force) {
         if (window.kakao && kakao.maps && kakao.maps.load) {
           state.sdkLoaded = true;
+          log('info', 'bootstrap-ready');
           kakao.maps.load(initMap);
           return;
         }
         state.sdkPollCount += 1;
         if (state.sdkPollCount > state.maxPolls) {
+          log('error', 'sdkFail');
           notifyFlutter('error', { code: 'sdkFail', attempt: state.loadAttempts, polls: state.sdkPollCount }, 'error');
           if (state.loadAttempts <= state.maxReloads) {
             loadKakaoMap(true);
@@ -543,6 +553,7 @@ class KakaoMapHtmlBuilder {
         if (force) {
           state.map = null;
         }
+        log('info', 'bootstrap-start', 'attempt', state.loadAttempts);
         ensureSdkLoaded(force);
       }
 
@@ -564,8 +575,9 @@ class KakaoMapHtmlBuilder {
       function bootstrap() {
         installConsoleProxy();
         handleGlobalErrors();
+        notifyFlutter('log', { message: 'bootstrap-start' }, 'info');
         loadKakaoMap(false);
-        notifyFlutter('log', { message: 'bootstrap' }, 'info');
+        notifyFlutter('log', { message: 'bootstrap-end' }, 'info');
       }
 
       window.kakaoBootstrap = function() {
