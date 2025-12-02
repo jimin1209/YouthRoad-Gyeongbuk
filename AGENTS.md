@@ -5041,3 +5041,406 @@ lib/features/policy_new/
 
 
 ---
+좋아 지민님, 이번엔 진짜 “job01 스타일 그대로”로 제대로 한 번 박아볼게요 💙🩵
+지금까지 안 다룬 것 중 **가장 실용적이고, 청년 정책 서비스스럽고, 지민님이 직접 쓰면 좋을 것 같은 기능** 하나 골라서 job11로 잡을게요.
+
+👉 **job11 = “신청일자 알림 + 알림 센터 시스템”**
+(정책 신청 마감일 기준 D-7 / D-3 / D-1 / 당일 알림 + 내 알림 모아보기)
+
+---
+
+# 🟦 #job11 — Policy Application Reminder & Notification Center
+
+> **“신청일자 놓쳐서 뒤늦게 후회하는 경험을 없애는 시스템”**
+
+이 문서는 **AGENTS.md에 그대로 붙여넣고 Codex에게 시킬 수 있는 설계서**예요.
+job01 스타일 요구사항 전부 포함해서 정리할게요.
+
+---
+
+````md
+@chatgpt-codex
+# job11 — Policy Application Reminder & Notification Center
+# (신청일자 알림 + 알림센터 + EventBus 연동)
+
+---
+
+## 1. 시스템 정의 (System Definition)
+
+### 1.1 시스템 이름
+- 이름: **Policy Application Reminder & Notification Center**
+- 약칭: **PolicyReminderSystem**
+
+### 1.2 담당 역할
+- 각 정책의 **신청 마감일(applicationEndDate)** 을 기준으로:
+  - 사용자가 원하는 시점(D-7, D-3, D-1, 당일 특정 시간)에 **로컬 알림**을 예약한다.
+  - 이미 지난 정책/마감된 정책에 대한 알림은 자동으로 **무시 or 정리**한다.
+- “내가 알림을 걸어둔 정책들”을 한 화면에서 모아볼 수 있는 **알림 센터 화면**을 제공한다.
+- 전체 앱에서 알림 상태 변경(추가/삭제/만료)이 발생했을 때  
+  다른 피드/화면(예: 상세 페이지, 즐겨찾기 탭)이 **일관된 상태**를 볼 수 있도록 EventBus로 통합한다.
+
+### 1.3 경계 (Scope)
+- job11은 **알림 예약/저장/표시/상태 관리**까지 담당하고,
+- 실제 OS-level 푸시 구현(예: flutter_local_notifications)은
+  - **NotificationGateway 인터페이스**로 추상화만 한다.
+  - 실제 플러그인 연결/플랫폼 별 구현은 job12 이후의 책임으로 둔다.
+
+---
+
+## 2. 문제 정의 (Problem Definition)
+
+### 2.1 현재 문제
+- 사용자가 정책을 둘러보다가 “오 이거 나중에 신청해야지” 하고 넘어가면,  
+  며칠 뒤에는 **마감일이 기억나지 않거나 이미 지남**.
+- 앱 자체에는 “기억 장치”가 없어서,
+  - 사용자가 직접 캘린더에 적거나,
+  - 스크린샷만 남겨놓고,
+  - 결국 마감일을 놓치게 된다.
+- 정책 앱으로서 가장 중요한 경험 중 하나인  
+  **“기회를 놓치지 않게 해주는 기능”** 이 부재한 상태.
+
+### 2.2 해결하고 싶은 것
+- 정책 상세에서 **1~2번 터치로 알림을 걸고**,  
+  “내 알림” 화면에서 **한 번에 관리**할 수 있게 한다.
+- 알림이 실제로 울릴 때, 사용자가:
+  - “어떤 정책이 곧 마감인지” 바로 알 수 있고,
+  - 바로 정책 상세/신청 페이지로 이동할 수 있게 만든다.
+
+---
+
+## 3. 요구사항 분석 (Requirements Analysis)
+
+### 3.1 기능 요구사항 (Functional)
+
+1. **알림 설정**
+   - 정책 상세 화면에서 “알림 설정” 버튼을 통해 알림을 추가할 수 있다.
+   - 제공 옵션 (기본값):
+     - D-7, D-3, D-1, 당일(0일) + 특정 시간(기본 09:00)
+   - 마감일이 없는 정책(applicationEndDate == null)은 알림을 설정할 수 없다 (비활성/경고).
+
+2. **알림 관리**
+   - 사용자 한 정책에 대해 **여러 개의 알림**을 둘 수 있다 (예: D-7, D-1).
+   - 이미 지난 시점(현재 시각보다 과거인 알림)은 생성 시점에 자동으로 **무시 or 등록 불가**로 처리한다.
+   - 사용자는 알림 센터에서 알림 개별 삭제, 정책 단위 전체 삭제가 가능하다.
+
+3. **알림 센터 화면**
+   - “내 알림” 탭 또는 화면에서:
+     - 앞으로 울릴 예정인 알림 목록
+     - 이미 지난 알림(옵션에 따라 숨김 or ‘지난 알림’ 섹션) 표시
+   - 각 알림을 탭하면 해당 정책 상세(PolicyDetailBottomSheet)로 이동.
+
+4. **알림 트리거**
+   - 알림이 OS에서 울릴 때:
+     - 알림 터치 → 앱 열기 → 해당 정책 상세로 이동 (policyId 기반 deep link / 라우팅).
+   - 앱이 포그라운드 상태에서 알림 발생 시,  
+     상단 토스트/스낵바 형태로도 표시 가능 (선택 항목, job11에서는 설계만).
+
+5. **상태 연동**
+   - 알림을 설정/삭제할 때:
+     - PolicyDetail UI의 “알림 설정됨/해제됨” 상태가 즉시 반영.
+     - 알림 센터 화면의 목록도 자동 업데이트.
+
+### 3.2 비기능 요구사항 (Non-functional)
+
+1. **안정성**
+   - 앱 재시작 후에도 알림이 유지되어야 함 (로컬 저장 필수).
+2. **성능**
+   - 알림 개수가 많아져도(수십 개) Policy 리스트/피드 성능을 해치지 않도록 별도의 저장소/Provider에서 관리.
+3. **플랫폼 독립성**
+   - Notification 플러그인 flutter_local_notifications 등을 사용하되,
+     코드 상에서는 **NotificationGateway** 인터페이스만 의존.
+
+---
+
+## 4. 아키텍처 설계 (Architecture Design)
+
+### 4.1 주요 컴포넌트
+
+- **Domain**
+  - `PolicyReminder`
+  - `ReminderTimeKind` (DAYS_BEFORE_DEADLINE, CUSTOM_DATETIME)
+- **Repository**
+  - `ReminderRepository` (Domain 인터페이스)
+  - `ReminderRepositoryImpl` (로컬 저장소 구현, e.g. shared_preferences or Isar / 추상화)
+- **Notification**
+  - `NotificationGateway` (알림 예약/취소 인터페이스)
+  - `LocalNotificationGateway` (실제 플러그인 사용 구현은 추후 job에서)
+- **Application**
+  - `ReminderController` (알림 추가/삭제/조회)
+  - `NotificationCenterController` (알림 센터 화면용 상태)
+- **Presentation**
+  - Policy 상세 바텀시트에 “알림 설정” UI
+  - 알림 센터 화면 (`PolicyReminderCenterScreen`)
+
+### 4.2 레이어 간 의존성
+
+- Presentation → Application(Controller) → Repository/NotificationGateway → Local storage + OS notification
+- Domain 모델(`PolicyReminder`)은 어디서나 사용되지만, **Data 레이어의 저장 구조는 도메인에 노출하지 않는다.**
+
+---
+
+## 5. 데이터 파이프라인 / 흐름도 (Data Pipeline / Flow)
+
+### 5.1 알림 설정 플로우
+
+1. 사용자: 정책 상세 바텀시트에서 "알림 설정" 버튼 탭
+2. UI: 옵션 BottomSheet 표시 (D-7 / D-3 / D-1 / 당일 / 사용자 지정)
+3. 사용자: 옵션 선택 후 "저장"
+4. UI → `ReminderController.addReminder(policy, option)` 호출
+5. `ReminderController`:
+   - 정책의 `applicationEndDate` 확인
+   - 선택 옵션 → 실제 `scheduledAt: DateTime` 계산
+   - `PolicyReminder` Domain 객체 생성
+   - `ReminderRepository.save(reminder)` 호출
+   - `NotificationGateway.scheduleNotification(reminder)` 호출
+   - `PolicyEventBus`에 `reminderAdded` 이벤트 발행
+6. UI:
+   - 해당 상세 화면의 "알림 설정됨" 상태로 즉시 갱신
+   - 알림 센터 화면에서는 EventBus 수신 후 목록 리로드
+
+### 5.2 알림 삭제 플로우
+
+1. 사용자: 알림 센터 화면에서 X 버튼 탭 or 상세 화면에서 "알림 해제"
+2. UI → `ReminderController.removeReminder(reminderId)` 호출
+3. `ReminderController`:
+   - `ReminderRepository.delete(reminderId)`
+   - `NotificationGateway.cancelNotification(reminderId)` 호출
+   - `PolicyEventBus`에 `reminderRemoved` 이벤트 발행
+4. UI:
+   - 알림 센터 / 상세 화면 상태 즉시 반영
+
+### 5.3 알림 트리거 플로우 (OS 알림 클릭)
+
+1. OS: 예약된 시간에 로컬 알림 표시
+2. 사용자가 알림을 탭
+3. 앱 런처 → 초기 route 수신 → `NotificationGateway`의 클릭 payload(예: policyId, reminderId) 전달
+4. 앱 라우터:
+   - 해당 policyId로 Policy 상세 화면/바텀시트로 이동
+5. `ReminderController`:
+   - 필요 시 `ReminderRepository`에서 해당 알림 상태를 "triggered"로 변경 (선택 사항)
+
+---
+
+## 6. Provider / Controller 상호작용 규칙
+
+### 6.1 Provider 목록
+
+```dart
+// Domain repository
+final reminderRepositoryProvider = Provider<ReminderRepository>((ref) {
+  final storage = ref.read(localStorageProvider);
+  final gateway = ref.read(notificationGatewayProvider);
+  return ReminderRepositoryImpl(storage: storage, notificationGateway: gateway);
+});
+
+// Controllers
+final reminderControllerProvider =
+    StateNotifierProvider<ReminderController, ReminderState>(
+  (ref) => ReminderController(
+    repository: ref.read(reminderRepositoryProvider),
+    eventBus: ref.read(policyEventBusProvider),
+  ),
+);
+
+final notificationCenterControllerProvider =
+    StateNotifierProvider<NotificationCenterController, NotificationCenterState>(
+  (ref) => NotificationCenterController(
+    repository: ref.read(reminderRepositoryProvider),
+  ),
+);
+````
+
+### 6.2 Controller 책임
+
+* `ReminderController`
+
+  * 알림 추가/삭제/업데이트 책임
+  * EventBus에 reminder 관련 이벤트 송출
+* `NotificationCenterController`
+
+  * "내 알림" 화면에서 사용할 리스트/필터/정렬 책임
+  * repository에서 현재/과거 알림 조회
+
+---
+
+## 7. UI 상태도 (UI State Model)
+
+### 7.1 ReminderState
+
+```dart
+@immutable
+class ReminderState {
+  final bool isProcessing;               // 알림 추가/삭제 중 여부
+  final List<PolicyReminder> reminders;  // 현재 정책에 설정된 알림 목록 (상세 화면용)
+  final PolicyFailure? failure;          // 알림 저장/삭제 과정의 에러
+
+  const ReminderState({
+    required this.isProcessing,
+    required this.reminders,
+    required this.failure,
+  });
+
+  const ReminderState.initial()
+      : isProcessing = false,
+        reminders = const [],
+        failure = null;
+}
+```
+
+### 7.2 NotificationCenterState
+
+```dart
+@immutable
+class NotificationCenterState {
+  final bool isLoading;
+  final List<PolicyReminder> upcoming;   // 앞으로 울릴 알림
+  final List<PolicyReminder> past;       // 이미 지난 알림(선택 표시)
+  final PolicyFailure? failure;
+
+  const NotificationCenterState({
+    required this.isLoading,
+    required this.upcoming,
+    required this.past,
+    required this.failure,
+  });
+
+  const NotificationCenterState.initial()
+      : isLoading = false,
+        upcoming = const [],
+        past = const [],
+        failure = null;
+}
+```
+
+---
+
+## 8. 이벤트 흐름 (Event Flow)
+
+### 8.1 EventBus 이벤트 타입 확장
+
+`PolicyEventType`에 다음 항목 추가:
+
+* `reminderAdded`
+* `reminderRemoved`
+* `reminderUpdated`
+
+`PolicyEvent` payload 예시:
+
+```dart
+class PolicyEvent {
+  final PolicyEventType type;
+  final String? policyId;
+  final String? reminderId;
+
+  const PolicyEvent({
+    required this.type,
+    this.policyId,
+    this.reminderId,
+  });
+}
+```
+
+### 8.2 구독 규칙
+
+* 정책 상세 화면:
+
+  * `reminderAdded` / `reminderRemoved` 이벤트 수신 시
+    해당 policyId가 현재 상세 policyId와 같다면, ReminderState 리프레시.
+* 알림 센터 화면:
+
+  * `reminderAdded` / `reminderRemoved` / `reminderUpdated` 시 전체 리프레시.
+* 다른 피드(추천/전체/즐겨찾기 등)는
+
+  * 알림 여부 표시가 필요하다면, PolicyCard에서 ReminderController의 `reminders`를 참조 (선택).
+
+---
+
+## 9. 파일 구조 (File Structure)
+
+```txt
+lib/features/policy_new/
+  domain/
+    entities/
+      policy_reminder.dart               # PolicyReminder 도메인 엔티티
+    repositories/
+      reminder_repository.dart           # ReminderRepository 인터페이스
+
+  data/
+    repositories/
+      reminder_repository_impl.dart      # 로컬 저장소 + NotificationGateway 연동 구현
+    sources/
+      reminder_local_source.dart         # 실제 저장소(shared_prefs/Isar 등에 대한 추상화)
+
+  application/
+    controllers/
+      reminder_controller.dart           # 알림 추가/삭제/조회
+      notification_center_controller.dart# 알림 센터 상태
+    filters/
+      (기존 filter/search 관련 파일 그대로)
+
+  infrastructure/
+    notification/
+      notification_gateway.dart          # schedule/cancel 인터페이스
+      local_notification_gateway.dart    # 플러그인 래핑 구현 (stub 가능)
+
+  presentation/
+    screens/
+      policy_reminder_center_screen.dart # "내 알림" 화면
+    widgets/
+      policy_reminder_badge.dart         # 카드/상세에서 '알림 O' 표시용 작은 UI
+      policy_reminder_options_sheet.dart # D-7/D-3/D-1/당일 선택 바텀시트
+```
+
+---
+
+## 10. Acceptance Criteria (수용 기준)
+
+1. **Domain & Repository**
+
+   * [ ] `PolicyReminder` 엔티티가 id, policyId, scheduledAt, createdAt, timeKind(D-7 등) 필드를 가진다.
+   * [ ] `ReminderRepository` 인터페이스에 아래 메서드가 정의된다:
+
+     * `Future<List<PolicyReminder>> getRemindersForPolicy(String policyId)`
+     * `Future<List<PolicyReminder>> getAllReminders()`
+     * `Future<void> saveReminder(PolicyReminder reminder)`
+     * `Future<void> deleteReminder(String reminderId)`
+   * [ ] `ReminderRepositoryImpl`이 위 메서드들을 로컬 저장소 + NotificationGateway 호출로 구현한다.
+
+2. **Notification Gateway**
+
+   * [ ] `NotificationGateway`에 최소 아래 메서드가 정의된다:
+
+     * `Future<void> scheduleReminder(PolicyReminder reminder)`
+     * `Future<void> cancelReminder(String reminderId)`
+   * [ ] 구현체(LocalNotificationGateway)는 stub 형태라도 존재하며,
+     실제 플러그인 호출은 job12에서 구현 가능하도록 구조만 갖춘다.
+
+3. **Controllers**
+
+   * [ ] `ReminderController`가 알림 추가/삭제 시:
+
+     * Repository 호출
+     * NotificationGateway 호출
+     * EventBus에 `reminderAdded` / `reminderRemoved` 이벤트 발행
+   * [ ] `NotificationCenterController`가 전체 알림을 불러와
+     upcoming/past로 구분된 `NotificationCenterState`를 구성한다.
+
+4. **UI**
+
+   * [ ] Policy 상세 바텀시트에 "알림 설정" 버튼과 현재 알림 요약(예: “D-3, 당일 09:00 알림 설정됨”)이 표시된다.
+   * [ ] "알림 설정" 버튼 탭 시, 옵션 선택 바텀시트가 표시되고, 선택 후 ReminderController를 통해 알림이 생성된다.
+   * [ ] "내 알림" 화면에서 앞으로 울릴 알림 리스트가 표시되며, 각 항목을 탭하면 해당 정책 상세로 이동한다.
+   * [ ] 알림 삭제 시 리스트에서 즉시 사라지고, 상세 화면 상태도 갱신된다.
+
+5. **이벤트 & 일관성**
+
+   * [ ] 알림 추가/삭제 후, 관련된 화면(상세/알림 센터)에서 상태가 즉시 갱신된다.
+   * [ ] 앱 재시작 후에도 알림 목록이 유지된다.
+   * [ ] 알림 예약 시간이 이미 과거인 경우, 생성 시점에 저장/예약되지 않고 사용자에게 적절히 처리된다(저장하지 않거나, 에러 메시지).
+
+6. **빌드 안정성**
+
+   * [ ] 위 작업 적용 후 전체 프로젝트가 빌드시 타입 에러/참조 에러 없이 통과한다.
+   * [ ] job01~job10에서 정의된 구조와 충돌하는 import/네이밍 없이 작동한다.
+
+---
