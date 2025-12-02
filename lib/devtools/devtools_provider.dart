@@ -9,6 +9,7 @@ const _maxLogCount = 400;
 const _maxProviderCount = 200;
 const _maxNetworkCount = 200;
 const _maxWebViewCount = 200;
+const Object _sentinel = Object();
 
 class DevLogEntry {
   DevLogEntry({
@@ -80,6 +81,10 @@ class DevtoolsState {
     this.providerEvents = const [],
     this.networkEvents = const [],
     this.webViewEvents = const [],
+    this.selectedLog,
+    this.selectedProviderEvent,
+    this.selectedNetworkEvent,
+    this.selectedWebViewEvent,
   });
 
   final bool isOpen;
@@ -88,6 +93,10 @@ class DevtoolsState {
   final List<ProviderEventEntry> providerEvents;
   final List<NetworkEvent> networkEvents;
   final List<WebViewConsoleEntry> webViewEvents;
+  final DevLogEntry? selectedLog;
+  final ProviderEventEntry? selectedProviderEvent;
+  final NetworkEvent? selectedNetworkEvent;
+  final WebViewConsoleEntry? selectedWebViewEvent;
 
   DevtoolsState copyWith({
     bool? isOpen,
@@ -96,6 +105,10 @@ class DevtoolsState {
     List<ProviderEventEntry>? providerEvents,
     List<NetworkEvent>? networkEvents,
     List<WebViewConsoleEntry>? webViewEvents,
+    Object? selectedLog = _sentinel,
+    Object? selectedProviderEvent = _sentinel,
+    Object? selectedNetworkEvent = _sentinel,
+    Object? selectedWebViewEvent = _sentinel,
   }) {
     return DevtoolsState(
       isOpen: isOpen ?? this.isOpen,
@@ -104,6 +117,18 @@ class DevtoolsState {
       providerEvents: providerEvents ?? this.providerEvents,
       networkEvents: networkEvents ?? this.networkEvents,
       webViewEvents: webViewEvents ?? this.webViewEvents,
+      selectedLog: identical(selectedLog, _sentinel)
+          ? this.selectedLog
+          : selectedLog as DevLogEntry?,
+      selectedProviderEvent: identical(selectedProviderEvent, _sentinel)
+          ? this.selectedProviderEvent
+          : selectedProviderEvent as ProviderEventEntry?,
+      selectedNetworkEvent: identical(selectedNetworkEvent, _sentinel)
+          ? this.selectedNetworkEvent
+          : selectedNetworkEvent as NetworkEvent?,
+      selectedWebViewEvent: identical(selectedWebViewEvent, _sentinel)
+          ? this.selectedWebViewEvent
+          : selectedWebViewEvent as WebViewConsoleEntry?,
     );
   }
 }
@@ -179,28 +204,64 @@ class DevtoolsNotifier extends StateNotifier<DevtoolsState>
     state = state.copyWith(activeTab: index);
   }
 
+  void selectLog(DevLogEntry? log) {
+    state = state.copyWith(selectedLog: log);
+  }
+
+  void selectProviderEvent(ProviderEventEntry? entry) {
+    state = state.copyWith(selectedProviderEvent: entry);
+  }
+
+  void selectNetworkEvent(NetworkEvent? event) {
+    state = state.copyWith(selectedNetworkEvent: event);
+  }
+
+  void selectWebViewEvent(WebViewConsoleEntry? event) {
+    state = state.copyWith(selectedWebViewEvent: event);
+  }
+
   @override
   void addLog(AppLogLevel level, String message) {
     final updated = <DevLogEntry>[...state.logs, DevLogEntry(level: level, message: message)];
-    state = state.copyWith(logs: _keepTail(updated, _maxLogCount));
+    final trimmed = _keepTail(updated, _maxLogCount);
+    final selectedLog = trimmed.contains(state.selectedLog) ? state.selectedLog : null;
+    state = state.copyWith(logs: trimmed, selectedLog: selectedLog);
   }
 
   @override
   void addProviderEvent(ProviderEventEntry entry) {
     final updated = <ProviderEventEntry>[...state.providerEvents, entry];
-    state = state.copyWith(providerEvents: _keepTail(updated, _maxProviderCount));
+    final trimmed = _keepTail(updated, _maxProviderCount);
+    final selectedProviderEvent =
+        trimmed.contains(state.selectedProviderEvent) ? state.selectedProviderEvent : null;
+    state = state.copyWith(
+      providerEvents: trimmed,
+      selectedProviderEvent: selectedProviderEvent,
+    );
   }
 
   @override
   void addNetwork(NetworkEvent event) {
     final updated = <NetworkEvent>[...state.networkEvents, event];
-    state = state.copyWith(networkEvents: _keepTail(updated, _maxNetworkCount));
+    final trimmed = _keepTail(updated, _maxNetworkCount);
+    final selectedNetworkEvent =
+        trimmed.contains(state.selectedNetworkEvent) ? state.selectedNetworkEvent : null;
+    state = state.copyWith(
+      networkEvents: trimmed,
+      selectedNetworkEvent: selectedNetworkEvent,
+    );
   }
 
   @override
   void addWebViewConsole(WebViewConsoleEntry entry) {
     final updated = <WebViewConsoleEntry>[...state.webViewEvents, entry];
-    state = state.copyWith(webViewEvents: _keepTail(updated, _maxWebViewCount));
+    final trimmed = _keepTail(updated, _maxWebViewCount);
+    final selectedWebViewEvent =
+        trimmed.contains(state.selectedWebViewEvent) ? state.selectedWebViewEvent : null;
+    state = state.copyWith(
+      webViewEvents: trimmed,
+      selectedWebViewEvent: selectedWebViewEvent,
+    );
   }
 
   List<T> _keepTail<T>(List<T> items, int max) {
