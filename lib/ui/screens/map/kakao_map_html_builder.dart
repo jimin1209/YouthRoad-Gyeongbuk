@@ -198,10 +198,12 @@ class KakaoMapHtmlBuilder {
 
     return '''
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' https://*.kakao.com https://dapi.kakao.com; script-src 'self' https://dapi.kakao.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src * data:; connect-src *;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
   </style>
@@ -319,6 +321,7 @@ class KakaoMapHtmlBuilder {
             script.onload = function() {
               state.sdkLoaded = true;
               state.sdkLoading = false;
+              notifyFlutter('bootstrap', { status: 'sdkLoaded', attempt: state.loadAttempts });
               log('info', 'sdkLoaded');
               pollSdkLoaded(force);
             };
@@ -330,6 +333,7 @@ class KakaoMapHtmlBuilder {
                 message: 'Failed to load Kakao SDK',
                 detail: event && event.message ? String(event.message) : 'script load error',
               }, 'error');
+              notifyFlutter('bootstrap', { status: 'sdkFail', attempt: state.loadAttempts }, 'error');
             };
             document.head.appendChild(script);
           } else {
@@ -516,6 +520,7 @@ class KakaoMapHtmlBuilder {
           center: { lat: ${center.lat}, lng: ${center.lng} },
           attempt: state.loadAttempts,
         });
+        notifyFlutter('mapReady', { status: 'ready', attempt: state.loadAttempts });
         log('info', 'init-end');
       }
 
@@ -554,6 +559,7 @@ class KakaoMapHtmlBuilder {
           state.map = null;
         }
         log('info', 'bootstrap-start', 'attempt', state.loadAttempts);
+        notifyFlutter('bootstrap', { status: 'start', attempt: state.loadAttempts });
         ensureSdkLoaded(force);
       }
 

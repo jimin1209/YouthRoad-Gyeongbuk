@@ -361,6 +361,9 @@ class KakaoMapController {
         return KakaoMapEventType.mapType;
       case 'log':
         return KakaoMapEventType.log;
+      case 'bootstrap':
+      case 'mapReady':
+        return KakaoMapEventType.log;
       case 'heartbeat':
         return KakaoMapEventType.heartbeat;
       default:
