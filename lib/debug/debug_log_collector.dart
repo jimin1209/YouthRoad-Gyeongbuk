@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../core/constants/env.dart';
+
 class DebugLogEntry {
   DebugLogEntry({required this.timestamp, required this.message});
 
@@ -35,41 +37,82 @@ class DebugLogPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<List<DebugLogEntry>>(
-      valueListenable: DebugLogCollector.instance.entries,
-      builder: (context, entries, _) {
-        if (entries.isEmpty) {
-          return const Center(
-            child: Text(
-              'No logs yet.',
-              style: TextStyle(color: Colors.white70),
-            ),
-          );
-        }
+    final apiKeyLabel = _maskApiKey(Env.kakaoMapApiKey);
 
-        final reversed = entries.reversed.toList();
-        return ListView.separated(
-          itemCount: reversed.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final log = reversed[index];
-            final preview = log.message.split('\n').first;
-            return ListTile(
-              title: Text(
-                preview,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white),
-              ),
-              subtitle: Text(
-                _formatTimestamp(log.timestamp),
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-              onTap: () => _showLogDetail(context, log),
-            );
-          },
-        );
-      },
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0x1AFFFFFF),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0x33FFFFFF)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Kakao Map API Key',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  apiKeyLabel,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: ValueListenableBuilder<List<DebugLogEntry>>(
+            valueListenable: DebugLogCollector.instance.entries,
+            builder: (context, entries, _) {
+              if (entries.isEmpty) {
+                return const Center(
+                  child: Text(
+                    'No logs yet.',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                );
+              }
+
+              final reversed = entries.reversed.toList();
+              return ListView.separated(
+                itemCount: reversed.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final log = reversed[index];
+                  final preview = log.message.split('\n').first;
+                  return ListTile(
+                    title: Text(
+                      preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      _formatTimestamp(log.timestamp),
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    onTap: () => _showLogDetail(context, log),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -121,5 +164,17 @@ class DebugLogPanel extends StatelessWidget {
         );
       },
     );
+  }
+
+  String _maskApiKey(String key) {
+    if (key.isEmpty) {
+      return '<empty>'; 
+    }
+    if (key.length <= 6) {
+      return '${key[0]}***${key[key.length - 1]}';
+    }
+    final prefix = key.substring(0, 3);
+    final suffix = key.substring(key.length - 4);
+    return '$prefix***$suffix (len:${key.length})';
   }
 }

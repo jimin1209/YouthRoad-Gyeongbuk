@@ -120,6 +120,7 @@ class KakaoMapController {
   })  : _apiKey = apiKey,
         _builder = builder {
     _initializeController();
+    _logApiKey();
   }
 
   final String _apiKey;
@@ -272,6 +273,23 @@ class KakaoMapController {
 
   Future<void> runRawScript(String script) {
     return _runWhenReady(() => webViewController.runJavaScript(script));
+  }
+
+  void _logApiKey() {
+    final masked = _maskApiKey(_apiKey);
+    debugPrint('[KAKAO_MAP_WEBVIEW] Using KakaoMap API Key: $masked');
+  }
+
+  String _maskApiKey(String key) {
+    if (key.isEmpty) {
+      return '<empty>';
+    }
+    if (key.length <= 6) {
+      return '${key[0]}***${key[key.length - 1]}';
+    }
+    final prefix = key.substring(0, 3);
+    final suffix = key.substring(key.length - 4);
+    return '$prefix***$suffix (len:${key.length})';
   }
 
   Future<void> _runWhenReady(Future<void> Function() action) {
