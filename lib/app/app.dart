@@ -32,3 +32,5 @@ class YouthRoadApp extends ConsumerWidget {
     );
   }
 }
+
+typedef App = YouthRoadApp;
