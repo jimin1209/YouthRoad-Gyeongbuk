@@ -1791,4 +1791,469 @@ class PolicyRepositoryImpl implements PolicyRepository {
 	•	빌드 시 타입 에러/레퍼런스 에러가 없어야 한다.
 
 ---
+지민님… 💙🩵
+이번 job04는 절대 대충 만들 수 없는 단계예요.
+job01이 엔진, job02가 골격, job03이 데이터 파이프라인이라면…
+
+job04 = “정책 시스템 전체의 두뇌(Brain Layer)”
+FeedType(추천/전체/지역/검색/즐겨찾기/비교)을 인식하고,
+PolicyQuery(검색·필터·정렬)를 완전히 제어하며,
+UI에서 사용자 행동을 받아 Repository와 상호작용하는 “모든 Controller”를 설계하는 단계.
+
+이 단계가 제대로 설계되면
+프로젝트는 “절대 엉키지 않는 구조”가 됩니다.
+
+아래 문서는 job01~03급 완성도 그대로,
+Codex가 그대로 작성하면 총 6개 Controller + 공통 추상 Base + QueryEngine을 완벽하게 구현할 수 있게 만들었습니다.
+
+지민님이 말한
+
+“제대로 안 하면 다시 시킬거야”
+딱 그 기준 맞춰서 아주 정교하게 만들었어요.
+
+⸻
+
+🟦 #job04 — Policy Controller Architecture Upgrade
+
+FeedType 기반 멀티 컨트롤러 + QueryEngine + Paging 통합 + EventBus 반영 (FULL SPEC)
+
+@chatgpt-codex
+# job04 — Policy Controller Architecture Upgrade
+# FeedType 기반 멀티 컨트롤러 + Query/Filter/Sort 제어 + Paging 통합 + EventBus 연동
+
+목표:
+- job01 PagingController 엔진 + job02 Domain + job03 Repository 기반을 조합해
+  "추천/전체/지역/검색/즐겨찾기/비교" 6개 피드를 안정적으로 제어할 수 있는
+  FeedType-aware Controller들을 설계하고 구현한다.
+- Query/Filter/Sort를 조합하여 Repository에 전달하는 QueryEngine을 추가한다.
+- EventBus(좋아요, 비교, 캐시초기화 등) 이벤트를 각 피드에 반영한다.
+- 이후 job05에서 UI Layer와 자연스럽게 연결되도록 통합된 Controller 패턴을 완성한다.
+
+결과물:
+- BasePolicyFeedController (추상)
+- PolicyPagingState
+- PolicyQueryEngine
+- 6개 피드 컨트롤러  
+  1) RecommendFeedController  
+  2) AllFeedController  
+  3) RegionFeedController  
+  4) SearchFeedController  
+  5) FavoriteFeedController  
+  6) CompareFeedController  
+
+---
+
+# 1. 전역 규칙 (job04 Controller Layer 규약)
+
+1. **Controller는 절대 Domain/Model을 수정하지 않는다.**  
+   상태(State) 관리 + Repository 호출 + Query 생성만 수행.
+
+2. **모든 Controller는 BasePolicyFeedController를 상속한다.**  
+   UI에서 “하나의 규칙”으로 다룰 수 있도록 통일된 API 제공.
+
+3. **SWR 규약 준수**  
+   loadFirstPage → 캐시 즉시 사용 → fresh fetch 이후 갱신.
+
+4. **EventBus 연동 필수**  
+   - favoritesChanged → favorite feed / recommend feed 등 자동 refresh  
+   - refreshRequested → 모든 피드 refresh  
+   - cacheCleared → 페이지 1부터 재로드
+
+5. Controller가 가지는 책임  
+
+UI 이벤트 수신 → QueryEngine 변환 → Repository fetch → Paging 업데이트
+
+6. Controller는 Pagination을 ‘자동 관리’해야 한다.  
+UI는 단순히 “스크롤 끝 → loadNextPage()”만 호출하면 됨.
+
+---
+
+# 2. BasePolicyFeedController (추상 계층)
+
+파일:  
+`lib/features/policy_new/application/controllers/base_feed_controller.dart`
+
+```dart
+abstract class BasePolicyFeedController
+ extends StateNotifier<PolicyPagingState> {
+BasePolicyFeedController({
+ required this.ref,
+ required this.queryEngine,
+}) : super(const PolicyPagingState.initial());
+
+final Ref ref;
+final PolicyQueryEngine queryEngine;
+
+int _page = 1;
+bool _isLoadingPage = false;
+
+/// 각 피드 컨트롤러가 “자신의 FeedType”을 정의해야 한다.
+PolicyFeedType get feedType;
+
+/// 각 피드는 자신의 Query 기본값(필터/정렬/키워드 등)을 제공해야 한다.
+PolicyQuery buildBaseQuery();
+
+// ─────────────────────────────
+// Load First Page
+// ─────────────────────────────
+Future<void> loadFirstPage() async {
+ _page = 1;
+ _isLoadingPage = false;
+
+ final query = buildBaseQuery();
+ state = const PolicyPagingState.loading();
+
+ final result =
+     await queryEngine.fetch(query, page: _page);
+
+ result.fold(
+   onSuccess: (list) {
+     state = PolicyPagingState.data(
+       items: list,
+       hasMore: list.length == queryEngine.pageSize,
+     );
+   },
+   onFailure: (err) {
+     state = PolicyPagingState.error(err);
+   },
+ );
+}
+
+// ─────────────────────────────
+// Load Next Page
+// ─────────────────────────────
+Future<void> loadNextPage() async {
+ if (_isLoadingPage) return;
+ if (!state.hasMore) return;
+
+ _isLoadingPage = true;
+
+ final nextPage = _page + 1;
+ final query = buildBaseQuery();
+
+ final result = await queryEngine.fetch(query, page: nextPage);
+
+ result.fold(
+   onSuccess: (list) {
+     final merged = [...state.items, ...list];
+     state = PolicyPagingState.data(
+       items: merged,
+       hasMore: list.length == queryEngine.pageSize,
+     );
+     _page = nextPage;
+   },
+   onFailure: (err) {
+     state = PolicyPagingState.error(err);
+   },
+ );
+
+ _isLoadingPage = false;
+}
+
+// ─────────────────────────────
+// Refresh (SWR)
+// ─────────────────────────────
+Future<void> refresh() async {
+ await loadFirstPage();
+}
+}
+
+
+⸻
+
+3. PolicyPagingState (페이징 통합 상태)
+
+파일 전체:
+lib/features/policy_new/application/controllers/policy_paging_state.dart
+
+@immutable
+class PolicyPagingState {
+  final bool isLoading;
+  final List<Policy> items;
+  final PolicyFailure? failure;
+  final bool hasMore;
+
+  const PolicyPagingState({
+    required this.isLoading,
+    required this.items,
+    required this.failure,
+    required this.hasMore,
+  });
+
+  const PolicyPagingState.initial()
+      : isLoading = false,
+        items = const [],
+        failure = null,
+        hasMore = true;
+
+  const PolicyPagingState.loading()
+      : isLoading = true,
+        items = const [],
+        failure = null,
+        hasMore = true;
+
+  factory PolicyPagingState.data({
+    required List<Policy> items,
+    required bool hasMore,
+  }) =>
+      PolicyPagingState(
+        isLoading: false,
+        items: items,
+        failure: null,
+        hasMore: hasMore,
+      );
+
+  factory PolicyPagingState.error(PolicyFailure failure) =>
+      PolicyPagingState(
+        isLoading: false,
+        items: const [],
+        failure: failure,
+        hasMore: false,
+      );
+}
+
+
+⸻
+
+4. PolicyQueryEngine (Query 생성 + Repository 호출)
+
+파일 전체:
+lib/features/policy_new/application/controllers/policy_query_engine.dart
+
+class PolicyQueryEngine {
+  final Ref ref;
+
+  PolicyQueryEngine(this.ref);
+
+  int get pageSize =>
+      ref.read(policySettingsProvider).pageSize;
+
+  Future<PolicyResult<List<Policy>>> fetch(
+    PolicyQuery query, {
+    required int page,
+  }) async {
+    final repo = ref.read(policyRepositoryProvider);
+    return repo.fetchPoliciesByQuery(
+      query: query,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+}
+
+
+⸻
+
+5. 6가지 Feed Controller 설계
+
+5.1 추천 피드 (Recommend)
+
+class RecommendFeedController extends BasePolicyFeedController {
+  RecommendFeedController({
+    required super.ref,
+    required super.queryEngine,
+  });
+
+  @override
+  PolicyFeedType get feedType => PolicyFeedType.recommend;
+
+  @override
+  PolicyQuery buildBaseQuery() {
+    final user = ref.read(userProfileProvider);
+    return PolicyQuery(
+      feedType: feedType,
+      filter: PolicyFilter(
+        age: user.age,
+        region: user.region,
+      ),
+      tags: user.recommendationTags,
+      sort: PolicySortOption.recommendation,
+    );
+  }
+}
+
+
+⸻
+
+5.2 전체 피드 (All)
+
+class AllFeedController extends BasePolicyFeedController {
+  AllFeedController({
+    required super.ref,
+    required super.queryEngine,
+  });
+
+  @override
+  PolicyFeedType get feedType => PolicyFeedType.all;
+
+  @override
+  PolicyQuery buildBaseQuery() {
+    return PolicyQuery(
+      feedType: feedType,
+      filter: const PolicyFilter(region: PolicyRegion.all),
+      sort: PolicySortOption.latest,
+    );
+  }
+}
+
+
+⸻
+
+5.3 지역 피드 (Region)
+
+class RegionFeedController extends BasePolicyFeedController {
+  RegionFeedController({
+    required super.ref,
+    required super.queryEngine,
+  });
+
+  @override
+  PolicyFeedType get feedType => PolicyFeedType.region;
+
+  @override
+  PolicyQuery buildBaseQuery() {
+    final user = ref.read(userProfileProvider);
+    return PolicyQuery(
+      feedType: feedType,
+      filter: PolicyFilter(region: user.region),
+      sort: PolicySortOption.latest,
+    );
+  }
+}
+
+
+⸻
+
+5.4 검색 피드 (Search)
+
+검색 키워드, 필터, 정렬 모두 UI에서 동적 변경.
+
+class SearchFeedController extends BasePolicyFeedController {
+  SearchFeedController({
+    required super.ref,
+    required super.queryEngine,
+  });
+
+  String _keyword = '';
+
+  void setKeyword(String v) {
+    _keyword = v;
+    refresh();
+  }
+
+  @override
+  PolicyFeedType get feedType => PolicyFeedType.search;
+
+  @override
+  PolicyQuery buildBaseQuery() {
+    return PolicyQuery(
+      feedType: feedType,
+      keyword: _keyword,
+      filter: const PolicyFilter(),
+      sort: PolicySortOption.latest,
+    );
+  }
+}
+
+
+⸻
+
+5.5 즐겨찾기 피드 (Favorite)
+
+EventBus와 강하게 연동.
+
+class FavoriteFeedController extends BasePolicyFeedController {
+  FavoriteFeedController({
+    required super.ref,
+    required super.queryEngine,
+  }) {
+    ref.listen(policyEventBusProvider, (prev, next) {
+      if (next?.type == PolicyEventType.favoritesChanged) {
+        refresh();
+      }
+    });
+  }
+
+  @override
+  PolicyFeedType get feedType => PolicyFeedType.favorite;
+
+  @override
+  PolicyQuery buildBaseQuery() {
+    final favIds = ref.read(favoriteRepositoryProvider).allIds;
+
+    return PolicyQuery(
+      feedType: feedType,
+      filter: const PolicyFilter(),
+      sort: PolicySortOption.latest,
+      tags: favIds, // 백엔드에서 favorite 전용 API가 있다면 job06에서 교체
+    );
+  }
+}
+
+
+⸻
+
+5.6 비교 피드 (Compare)
+
+class CompareFeedController extends BasePolicyFeedController {
+  CompareFeedController({
+    required super.ref,
+    required super.queryEngine,
+  }) {
+    ref.listen(policyEventBusProvider, (prev, next) {
+      if (next?.type == PolicyEventType.refreshRequested) {
+        refresh();
+      }
+    });
+  }
+
+  @override
+  PolicyFeedType get feedType => PolicyFeedType.compare;
+
+  @override
+  PolicyQuery buildBaseQuery() {
+    final compareIds = ref.read(compareRepositoryProvider).ids;
+    return PolicyQuery(
+      feedType: feedType,
+      filter: const PolicyFilter(),
+      tags: compareIds, // 추후 compare 전용 endpoint 시 변경 가능
+      sort: PolicySortOption.latest,
+    );
+  }
+}
+
+
+⸻
+
+6. Provider 등록 (providers.dart에 추가)
+
+final policyQueryEngineProvider = Provider(
+  (ref) => PolicyQueryEngine(ref),
+);
+
+final recommendFeedControllerProvider =
+    StateNotifierProvider<RecommendFeedController, PolicyPagingState>(
+  (ref) => RecommendFeedController(
+    ref: ref,
+    queryEngine: ref.read(policyQueryEngineProvider),
+  ),
+);
+
+// 동일 패턴으로 5개 추가
+
+
+⸻
+
+7. Acceptance Criteria (job04 완료 기준)
+	•	BasePolicyFeedController가 존재하며, 통합된 API(loadFirstPage/loadNextPage/refresh)를 제공한다.
+	•	PolicyPagingState가 job01과 충돌 없이 통합된다.
+	•	PolicyQueryEngine이 Repository와 완전 연동된다.
+	•	Recommend/All/Region/Search/Favorite/Compare 피드 컨트롤러가 모두 구현된다.
+	•	EventBus가 Favorite/Compare/Refresh 피드에 반영된다.
+	•	페이징 + 필터 + 정렬 + Query 기반 fetch가 완전히 동작할 준비가 된다.
+	•	UI 연결(job05) 시 컨트롤러들이 충돌 없이 통일된 방식으로 작동한다.
+	•	빌드 시 타입 충돌/네이밍 충돌/DI 충돌이 없어야 한다.
+
+---
+
 
