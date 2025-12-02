@@ -65,17 +65,6 @@ class SearchV2Controller extends AutoDisposeNotifier<SearchV2State> {
     );
   }
 
-  PolicyFilter _recommendationFilter(PolicyFilter base) {
-    final region = base.searchRgnSe ?? ref.read(regionProvider);
-    return PolicyFilter(
-      searchRgnSe: region,
-      availableOnly: true,
-      pageIndex: 1,
-      recordCount: 10,
-      pagingYn: 'Y',
-    );
-  }
-
   String _buildRequestKey(PolicyFilter filter) {
     final normalized = filter.copyWith(
       pageIndex: 1,
@@ -97,15 +86,13 @@ class SearchV2Controller extends AutoDisposeNotifier<SearchV2State> {
       lastRequestKey: nextKey,
     );
 
-    final pagingNotifier = ref.read(policyPagingProvider.notifier);
-    final recommendedNotifier = ref.read(recommendedPolicyProvider.notifier);
+    final feedsNotifier = ref.read(policyPagingProvider.notifier);
 
     final result = await AsyncValue.guard(() async {
       await Future.wait([
-        recommendedNotifier.loadInitial(_recommendationFilter(targetFilter)),
+        feedsNotifier.refreshAll(targetFilter),
         ref.refresh(searchHistoryListProvider.future),
         ref.refresh(popularSearchKeywordListProvider.future),
-        pagingNotifier.loadInitial(targetFilter),
       ]);
     });
 

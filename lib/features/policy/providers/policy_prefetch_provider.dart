@@ -16,7 +16,7 @@ class PolicyPrefetchNotifier extends AsyncNotifier<void> {
   PolicyRepository get _repository =>
       ref.read(policyRepositoryInterfaceProvider);
 
-  PolicyPagingNotifier get _pagingNotifier =>
+  PolicyFeedsNotifier get _pagingNotifier =>
       ref.read(policyPagingProvider.notifier); // ← 오류 해결됨!
 
   PolicyListNotifier get _listNotifier => ref.read(policyListProvider.notifier);

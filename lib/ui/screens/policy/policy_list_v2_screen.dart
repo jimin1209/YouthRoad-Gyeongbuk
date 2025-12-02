@@ -60,11 +60,22 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
   }
 
   void _onScroll() {
-    final state = ref.read(policyPagingProvider);
+    final state = ref.read(policyPagingProvider).primary;
     if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
     final position = _scrollController.position;
     if (position.pixels >= position.maxScrollExtent - 200) {
-      ref.read(policyPagingProvider.notifier).loadMore();
+      ref.read(policyPagingProvider.notifier).loadMore(PolicyFeedType.primary);
+    }
+  }
+
+  void _onRecommendedScroll() {
+    final state = ref.read(policyPagingProvider).recommended;
+    if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
+    final position = _recommendedScrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 160) {
+      ref
+          .read(policyPagingProvider.notifier)
+          .loadMore(PolicyFeedType.recommended);
     }
   }
 
@@ -117,9 +128,10 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
 
   @override
   Widget build(BuildContext context) {
-    final pagingState = ref.watch(policyPagingProvider);
+    final feedsState = ref.watch(policyPagingProvider);
+    final pagingState = feedsState.primary;
     final searchState = ref.watch(searchV2ControllerProvider);
-    final recommendedState = ref.watch(recommendedPolicyProvider);
+    final recommendedState = feedsState.recommended;
     final history = ref.watch(searchHistoryListProvider);
     final popularKeywords = ref.watch(popularSearchKeywordListProvider);
     final compareCount = ref.watch(
@@ -252,8 +264,8 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
           child: GlobalErrorView(
             message: recommendedState.error!,
             onRetry: () => ref
-                .read(recommendedPolicyProvider.notifier)
-                .loadInitial(_buildRecommendationFilter()),
+                .read(policyPagingProvider.notifier)
+                .loadInitial(PolicyFeedType.recommended),
           ),
         );
       }
@@ -368,8 +380,8 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
               actions: [
                 TextButton(
                   onPressed: () => ref
-                      .read(recommendedPolicyProvider.notifier)
-                      .loadInitial(_buildRecommendationFilter()),
+                      .read(policyPagingProvider.notifier)
+                      .loadInitial(PolicyFeedType.recommended),
                   child: const Text('다시 시도'),
                 ),
               ],
