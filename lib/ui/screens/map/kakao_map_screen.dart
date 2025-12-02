@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../application/providers.dart';
+import '../../../debug/debug_settings_provider.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/map/kakao_map_webview.dart';
@@ -26,6 +28,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   Widget build(BuildContext context) {
     final regionName = ref.watch(regionProvider);
     final policyState = ref.watch(policyListNotifierProvider);
+    final debugPanelEnabled = ref.watch(debugPanelEnabledProvider);
 
     final center = _centerForRegion(regionName);
     final markers = _policyMarkers(center, policyState);
@@ -52,7 +55,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             onLoadingChanged: _setLoading,
             onError: (code) => setState(() => _errorCode = code),
             onLog: (event) => setState(() => _lastLog = event.logMessage),
-            showDebugPanel: true,
+            showDebugPanel: kDebugMode && debugPanelEnabled,
           ),
           if (_loading)
             const Center(
