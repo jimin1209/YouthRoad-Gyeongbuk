@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/policy_filter.dart';
 import '../../domain/entities/policy.dart';
+import 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../di.dart';
 import 'region_notifier.dart';
@@ -49,8 +50,6 @@ class PolicyPagingState {
   }
 }
 
-enum PolicyFeedType { primary, recommended }
-
 class PolicyFeedsState {
   const PolicyFeedsState({
     required this.primary,
@@ -91,6 +90,12 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
   PolicyPagingState get _recommended => state.recommended;
 
   PolicyFilter get currentFilter => _primary.filter;
+
+  PolicyFeedType _effectiveFeed(PolicyFeedType feed) {
+    return feed == PolicyFeedType.recommended
+        ? PolicyFeedType.recommended
+        : PolicyFeedType.primary;
+  }
 
   @override
   PolicyFeedsState build() {
@@ -138,7 +143,8 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
   }
 
   Future<void> loadInitial(PolicyFeedType feed, [PolicyFilter? filter]) async {
-    switch (feed) {
+    final normalizedFeed = _effectiveFeed(feed);
+    switch (normalizedFeed) {
       case PolicyFeedType.primary:
         return _loadInitialPrimary(filter ?? _defaultFilter());
       case PolicyFeedType.recommended:
@@ -205,7 +211,8 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
   }
 
   Future<void> loadMore(PolicyFeedType feed) async {
-    switch (feed) {
+    final normalizedFeed = _effectiveFeed(feed);
+    switch (normalizedFeed) {
       case PolicyFeedType.primary:
         if (_primary.isLoadingMore || _primary.isLoading || !_primary.hasMore) {
           return;
@@ -274,10 +281,11 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
   }
 
   Future<void> _loadFromCache(PolicyFilter filter, PolicyFeedType feed) async {
+    final normalizedFeed = _effectiveFeed(feed);
     try {
       final cached = await _repo.loadCachedPolicies(filter: filter);
       if (cached.isNotEmpty) {
-        await _seedFeedFromCache(feed, cached);
+        await _seedFeedFromCache(normalizedFeed, cached);
       }
     } catch (e, st) {
       debugPrint('[PolicyFeedsNotifier] cache fallback failed: $e\n$st');
@@ -288,8 +296,9 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
     PolicyFeedType feed,
     List<Policy> policies,
   ) async {
+    final normalizedFeed = _effectiveFeed(feed);
     final limited = policies.take(_pageSize).toList();
-    switch (feed) {
+    switch (normalizedFeed) {
       case PolicyFeedType.primary:
         state = state.copyWith(
           primary: _primary.copyWith(
@@ -321,19 +330,20 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
     required bool append,
     required PolicyFilter filter,
   }) async {
-    final requestId = feed == PolicyFeedType.primary
+    final normalizedFeed = _effectiveFeed(feed);
+    final requestId = normalizedFeed == PolicyFeedType.primary
         ? ++_primaryRequestId
         : ++_recommendedRequestId;
 
     state = state.copyWith(
-      primary: feed == PolicyFeedType.primary
+      primary: normalizedFeed == PolicyFeedType.primary
           ? _primary.copyWith(
               isLoading: !append,
               isLoadingMore: append,
               error: null,
             )
           : _primary,
-      recommended: feed == PolicyFeedType.recommended
+      recommended: normalizedFeed == PolicyFeedType.recommended
           ? _recommended.copyWith(
               isLoading: !append,
               isLoadingMore: append,
@@ -348,18 +358,18 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
           pageIndex: pageIndex,
           recordCount: _pageSize,
           pagingYn: 'Y',
-          availableOnly: feed == PolicyFeedType.recommended
+          availableOnly: normalizedFeed == PolicyFeedType.recommended
               ? true
               : filter.availableOnly,
         ),
       );
 
       final mergedItems = append
-          ? [...(feed == PolicyFeedType.primary ? _primary.items : _recommended.items), ...policies]
+          ? [...(normalizedFeed == PolicyFeedType.primary ? _primary.items : _recommended.items), ...policies]
           : policies;
       final hasMore = policies.length >= _pageSize;
 
-      if (feed == PolicyFeedType.primary) {
+      if (normalizedFeed == PolicyFeedType.primary) {
         if (requestId != _primaryRequestId) return;
         state = state.copyWith(
           primary: _primary.copyWith(
@@ -389,7 +399,7 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
     } catch (e, st) {
       debugPrint('Failed to load policies: $e');
       debugPrint('$st');
-      if (feed == PolicyFeedType.primary) {
+      if (normalizedFeed == PolicyFeedType.primary) {
         if (requestId != _primaryRequestId) return;
         state = state.copyWith(
           primary: _primary.copyWith(
@@ -456,18 +466,21 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
   }
 
   String _buildRequestKey(PolicyFilter filter, PolicyFeedType feed) {
+    final normalizedFeed = _effectiveFeed(feed);
     final normalized = PolicyFilter(
       searchRgnSe: filter.searchRgnSe,
       searchPolicyType: filter.searchPolicyType,
-      searchPolicyNm: feed == PolicyFeedType.recommended ? null : filter.searchPolicyNm,
-      searchText: feed == PolicyFeedType.recommended ? null : filter.searchText,
+      searchPolicyNm:
+          normalizedFeed == PolicyFeedType.recommended ? null : filter.searchPolicyNm,
+      searchText: normalizedFeed == PolicyFeedType.recommended ? null : filter.searchText,
       category: filter.category,
       searchYear: filter.searchYear,
       instNo: filter.instNo,
       deptNo: filter.deptNo,
       startDate: filter.startDate,
       endDate: filter.endDate,
-      availableOnly: feed == PolicyFeedType.recommended ? true : filter.availableOnly,
+      availableOnly:
+          normalizedFeed == PolicyFeedType.recommended ? true : filter.availableOnly,
       pageIndex: filter.pageIndex ?? 1,
       recordCount: filter.recordCount ?? _pageSize,
       pageSize: filter.pageSize,
