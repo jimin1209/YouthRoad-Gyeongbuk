@@ -1,3 +1,4 @@
+
 lib/application/notifiers/policy_paging_notifier.dart:147:13: Error: The type 'PolicyFeedType' is not exhaustively matched by the switch cases since it doesn't match 'PolicyFeedType.bookmarked'.
  - 'PolicyFeedType' is from 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart' ('lib/domain/policy/entities/policy_feed_type.dart').
 Try adding a default case or cases that match 'PolicyFeedType.bookmarked'.
@@ -14,3 +15,10 @@ Try adding a default case or cases that match 'PolicyFeedType.bookmarked'.
     switch (normalizedFeed) {
             ^
 Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
