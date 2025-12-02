@@ -66,8 +66,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['is_ongoing'] = filter.isOngoing! ? 'Y' : 'N';
     }
 
-    if (query.tags.isNotEmpty) {
-      params['tags'] = query.tags.join(',');
+    final effectiveTags = query.tags.isNotEmpty ? query.tags : filter.tags;
+    if (effectiveTags.isNotEmpty) {
+      params['tags'] = effectiveTags.join(',');
     }
 
     // feedType에 따라 backend에서 다른 endpoint를 사용한다면 힌트 전달
@@ -83,7 +84,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
   }) async {
     // 기본 Query: 전체 탭, 기본 지역/정렬
     final defaultFilter = PolicyFilter(
-      region: PolicyRegion.all,
+      region: settings.defaultRegion,
     );
 
     final defaultQuery = PolicyQuery(

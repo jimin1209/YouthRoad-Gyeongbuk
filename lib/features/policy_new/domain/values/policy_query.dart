@@ -42,9 +42,21 @@ class PolicyQuery {
       ..write('|')
       ..write(filter.category?.name ?? 'all')
       ..write('|')
+      ..write(filter.age?.toString() ?? 'any')
+      ..write('|')
+      ..write(filter.isOnline?.toString() ?? 'any')
+      ..write('|')
+      ..write(filter.isOffline?.toString() ?? 'any')
+      ..write('|')
+      ..write(filter.isOngoing?.toString() ?? 'any')
+      ..write('|')
       ..write(sort.name)
       ..write('|')
-      ..write(keyword ?? '');
+      ..write(keyword ?? '')
+      ..write('|')
+      ..write(tags.join(','))
+      ..write('|')
+      ..write(filter.tags.join(','));
 
     return buffer.toString();
   }
