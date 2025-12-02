@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
-import '../../screens/map/kakao_map_html_builder.dart';
+import 'kakao_map_html_builder.dart';
 
 enum KakaoMapEventType {
   ready,
@@ -75,6 +78,7 @@ class KakaoMapMessage {
 
   bool get loadingValue => payload['value'] == true;
   String? get errorCode => payload['code']?.toString();
+  String? get errorDetail => payload['detail']?.toString();
   String? get logMessage => payload['message']?.toString();
 }
 
@@ -232,6 +236,7 @@ class KakaoMapController {
         additionalScripts: _lastLoadRequest!.additionalScripts,
       );
     }
+    _reloadAttempts += 1;
     return _runWhenReady(
       () => webViewController.runJavaScript('window.kakaoMap && window.kakaoMap.reloadMap();'),
     );
@@ -309,8 +314,19 @@ class KakaoMapController {
   }
 
   void _initializeController() {
-    webViewController = WebViewController()
+    final PlatformWebViewControllerCreationParams params;
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      );
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
+
+    final controller = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.transparent)
       ..addJavaScriptChannel(
         bridgeName,
         onMessageReceived: _handleMessage,
@@ -328,6 +344,22 @@ class KakaoMapController {
       ..setOnConsoleMessage(
         (message) => debugPrint('[KAKAO_MAP_WEBVIEW][${message.level}] ${message.message}'),
       );
+
+    if (controller.platform is AndroidWebViewController) {
+      final androidController = controller.platform as AndroidWebViewController;
+      AndroidWebViewController.enableDebugging(kDebugMode);
+      androidController
+        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
+        ..setAllowContentAccess(true)
+        ..setAllowFileAccess(true)
+        ..setAllowFileAccessFromFileURLs(true)
+        ..setAllowUniversalAccessFromFileURLs(true)
+        ..setOnPlatformPermissionRequest((request) {
+          request.grant();
+        });
+    }
+
+    webViewController = controller;
   }
 
   void _handleMessage(JavaScriptMessage message) {
@@ -342,19 +374,44 @@ class KakaoMapController {
     }
 
     if (type == KakaoMapEventType.error) {
-      _handleErrorCode(parsed.errorCode);
+      _handleErrorCode(parsed.errorCode, parsed.errorDetail);
+    }
+
+    if (type == KakaoMapEventType.error &&
+        (parsed.errorCode?.toLowerCase().contains('sdkfail') ?? false)) {
+      final detail = parsed.errorDetail ?? parsed.logMessage ?? 'sdkFail detected';
+      _pushDebugLog('[sdkFail] $detail (attempt: $_reloadAttempts)', level: 'error');
     }
 
     _eventController.add(event);
   }
 
-  void _handleErrorCode(String? code) {
+  void _handleErrorCode(String? code, [String? detail]) {
     if (code == null) return;
     final lower = code.toLowerCase();
-    if (_reloadAttempts >= maxAutoReloads) return;
+    if (_reloadAttempts >= maxAutoReloads) {
+      _pushDebugLog('Kakao map reload limit reached for $code');
+      return;
+    }
+
     if (lower.contains('sdkfail') || lower.contains('timeout')) {
+      final delay = Duration(milliseconds: 500 * (_reloadAttempts + 1));
       _reloadAttempts += 1;
-      reloadMap();
+      _pushDebugLog('Retrying map load for $code in ${delay.inMilliseconds}ms. detail=${detail ?? 'n/a'}', level: 'warn');
+      Future.delayed(delay, () {
+        if (_lastLoadRequest != null) {
+          load(
+            center: _lastLoadRequest!.center,
+            markers: _lastLoadRequest!.markers,
+            polylines: _lastLoadRequest!.polylines,
+            options: _lastLoadRequest!.options,
+            enableClustering: _lastLoadRequest!.enableClustering,
+            additionalScripts: _lastLoadRequest!.additionalScripts,
+          );
+        } else {
+          webViewController.reload();
+        }
+      });
     }
   }
 
@@ -400,6 +457,18 @@ class KakaoMapController {
         debugPrint('[KAKAO_MAP_WEBVIEW] Pending action failed: $e\n$s');
       }
     }
+  }
+
+  void _pushDebugLog(String message, {String level = 'info'}) {
+    final logMessage = KakaoMapMessage(
+      type: 'log',
+      payload: {'message': message},
+      logLevel: level,
+      raw: message,
+      timestamp: DateTime.now(),
+      origin: 'kakao-map-controller',
+    );
+    _eventController.add(KakaoMapEvent(KakaoMapEventType.log, logMessage));
   }
 
   void dispose() {

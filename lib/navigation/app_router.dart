@@ -9,8 +9,9 @@ import '../ui/screens/home/home_screen.dart';
 import '../ui/screens/favorites/favorites_screen.dart';
 import '../ui/screens/institution/department_list_screen.dart';
 import '../ui/screens/institution/institution_list_screen.dart';
-import '../ui/screens/map/kakao_map_screen.dart';
-import '../ui/screens/map/map_with_list_screen.dart';
+import '../features/map_v2/kakao_map_screen.dart';
+import '../features/map_v2/kakao_map_test_page.dart';
+import '../features/map_v2/map_with_list_screen.dart';
 import '../ui/screens/compare/compare_screen.dart';
 import '../ui/screens/policy/policy_compare_screen.dart';
 import '../ui/screens/policy/policy_detail_v2_screen.dart';
@@ -123,6 +124,10 @@ class AppRouter {
         GoRoute(
           path: RoutePaths.mapWithList,
           builder: (context, state) => const MapWithListScreen(),
+        ),
+        GoRoute(
+          path: RoutePaths.mapTest,
+          builder: (context, state) => const KakaoMapTestPage(),
         ),
         GoRoute(
           path: RoutePaths.favorites,

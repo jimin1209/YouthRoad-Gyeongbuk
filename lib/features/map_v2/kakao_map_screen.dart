@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../application/providers.dart';
-import '../../../debug/debug_settings_provider.dart';
-import '../../../navigation/route_paths.dart';
-import '../../widgets/app_appbar.dart';
-import '../../widgets/map/kakao_map_webview.dart';
+import '../../application/providers.dart';
+import '../../debug/debug_settings_provider.dart';
+import '../../navigation/route_paths.dart';
+import '../../ui/widgets/app_appbar.dart';
 import 'kakao_map_html_builder.dart';
+import 'kakao_map_webview.dart';
 
 class KakaoMapScreen extends ConsumerStatefulWidget {
   const KakaoMapScreen({super.key});

@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-import '../../controllers/map/kakao_map_controller.dart';
-import '../../providers/map/kakao_map_providers.dart';
-import '../../screens/map/kakao_map_html_builder.dart';
+import 'kakao_map_controller.dart';
+import 'kakao_map_html_builder.dart';
+import 'kakao_map_providers.dart';
 
 class KakaoMapWebView extends ConsumerStatefulWidget {
   const KakaoMapWebView({
@@ -120,6 +120,18 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
         _readyTimeout?.cancel();
         _notifyLoading(false);
         widget.onReady?.call();
+        _recordLog(
+          KakaoMapEvent(
+            KakaoMapEventType.log,
+            KakaoMapMessage(
+              type: 'log',
+              payload: {'message': 'map-ready'},
+              logLevel: 'info',
+              timestamp: DateTime.now(),
+              origin: 'kakao-map-webview',
+            ),
+          ),
+        );
         break;
       case KakaoMapEventType.loading:
         _notifyLoading(event.loadingValue);
@@ -146,14 +158,11 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
           });
         }
         final code = event.errorCode ?? 'unknown';
+        _recordLog(_logFromError(event, code));
         widget.onError?.call(code);
         break;
       case KakaoMapEventType.log:
-        _logs.add(event);
-        widget.onLog?.call(event);
-        if (_logs.length > 50) {
-          _logs.removeAt(0);
-        }
+        _recordLog(event);
         break;
       case KakaoMapEventType.mapType:
       case KakaoMapEventType.heartbeat:
@@ -168,6 +177,31 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       _loading = value;
     });
     widget.onLoadingChanged?.call(value);
+  }
+
+  KakaoMapEvent _logFromError(KakaoMapEvent event, String code) {
+    final detail = event.message.payload['message'] ?? event.message.payload['detail'];
+    final message = '[error:$code] ${detail ?? 'kakao-map error'} (reloads:${_controller.reloadAttempts})';
+    final logMessage = KakaoMapMessage(
+      type: 'log',
+      payload: {'message': message},
+      logLevel: 'error',
+      timestamp: DateTime.now(),
+      origin: 'kakao-map-webview',
+      raw: event.message.raw,
+    );
+    return KakaoMapEvent(KakaoMapEventType.log, logMessage);
+  }
+
+  void _recordLog(KakaoMapEvent event) {
+    _logs.add(event);
+    if (_logs.length > 80) {
+      _logs.removeAt(0);
+    }
+    widget.onLog?.call(event);
+    if (widget.showDebugPanel && mounted) {
+      setState(() {});
+    }
   }
 
   void _scheduleReadyTimeout() {
@@ -260,7 +294,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       top: 12,
       child: Container(
         width: 260,
-        constraints: const BoxConstraints(maxHeight: 240),
+        constraints: const BoxConstraints(maxHeight: 260),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface.withOpacity(0.92),
