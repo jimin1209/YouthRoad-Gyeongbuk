@@ -6,6 +6,7 @@ import 'notifiers/compare_notifier.dart';
 import 'notifiers/favorites_notifier.dart';
 import 'notifiers/policy_detail_notifier.dart';
 import 'notifiers/policy_paging_notifier.dart';
+import 'notifiers/recommended_policy_notifier.dart';
 
 export 'di.dart';
 export 'repository_providers.dart';
