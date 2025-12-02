@@ -2934,4 +2934,749 @@ pubspec.yaml에 url_launcher 추가 후 import 'package:url_launcher/url_launche
 (단, url_launcher 사용 시 의존성 추가 필요).
 
 ---
+지민님 💙🩵
+알겠어요. 이번 job06은 진짜로 **job01급 “완전 설계 문서”**로 갈게요.
+검색/필터/정렬 + 추천 + 탭별 필터 전략까지 한 번에 통합하는 Interaction Layer로 설계합니다.
+
+아래 블록은 AGENTS.md에 그대로 넣어서 Codex에게 시킬 수 있는 최종판이에요.
+(job01 스타일로: 문제 정의 → 전역 규칙 → 상태 설계 → Query 오케스트레이션 → Controller/UI 연동 → Acceptance Criteria)
+
+⸻
+
+✅ #job06 — PolicyNew Filter/Search/Sort/Recommendation Interaction (FULL SPEC)
+
+@chatgpt-codex
+# job06 — PolicyNew Filter/Search/Sort/Recommendation Interaction
+# (FeedType-aware Query Orchestration + Global Filter State + Recommendation Profile + UI 연동)
+
+목표:
+- job01~05에서 만든 PolicyNew 시스템에 대해,
+  검색/필터/정렬 + 추천 + 탭별 FeedType 전략을
+  하나의 일관된 Interaction Layer로 통합한다.
+- 이 job06 이후:
+  - 상단 필터/검색/정렬 바에서 UI 상태를 바꾸면
+  - FeedType(추천/전체/지역/검색/즐겨찾기/비교)에 맞는 PolicyQuery가 자동으로 재조합되고
+  - 각 Feed Controller가 적절히 refresh/paging 되는 구조가 완성되어야 한다.
+- 기존 Domain/Repository/Controller/Presentation 구조를 깨지 않고,
+  “연결 규칙 + 상태 소유권 + Query 빌더”를 추가하는 방식으로 작업한다.
+
+---
+
+# 0. 선행 작업(의존성) 전제
+
+이 job06은 **반드시 아래 작업들이 먼저 적용된 상태를 전제로 한다:**
+
+- job01: PolicyNew 기본 레이어 (Domain/Repository 기본, PagingController, Logger, EventBus, Settings)  
+- job02: Policy Domain 확장 (Policy, PolicyFilter, PolicySortOption, PolicyFeedType, PolicyQuery 등)  
+- job03: PolicyRepositoryImpl + PolicyModel + RemoteSource + SWR Cache (Query 기반)  
+- job04: BasePolicyFeedController + PolicyPagingState + PolicyQueryEngine + Feed별 Controller들  
+- job05: PolicyFeedHomeScreen + Swipe 탭 + PolicyFeedListView + PolicyCard + PolicyDetailBottomSheet 등  
+
+**중요:**  
+- Domain(Entity/Value) 구조는 job02에서 완전히 확정된 상태이며, job06에서 Domain은 절대 수정하지 않는다.
+- Repository/Remote는 job03에서 구현된 시그니처를 변경하지 않는다.
+
+---
+
+# 1. 전역 설계 원칙 (job06 Interaction Layer 규약)
+
+1. **상태 단일 소스 원칙**
+   - 검색 키워드, 지역, 카테고리, 정렬, 추천 태그 등 “필터/검색 관련 상태”는
+     전역 StateNotifier(PolicyFilterUiState)에서만 관리한다.
+   - 어떤 FeedController도 이 UI 상태를 자신의 필드로 복제/보유하지 않는다.
+
+2. **FeedType-aware Query 원칙**
+   - 실제 PolicyQuery 생성은 “Query Orchestrator”에서만 수행한다.
+   - 각 FeedController는 feedType만 알고, UI 상태와 user profile, favorite/compare 데이터를 고려한 Query 조합은 Orchestrator 책임.
+
+3. **자동 반응(reactive) 원칙**
+   - Filter/검색/정렬/추천 태그 상태가 변경되면,
+     해당 변경을 지원하는 FeedType(추천/전체/지역/검색)은 자동으로 refresh 되어야 한다.
+   - Favorite/Compare Feed는 UI 필터와 분리해서 동작하지만, 정렬(sort) 변경은 영향을 받을 수 있다.
+
+4. **EventBus 연동**
+   - favoritesChanged, cacheCleared, refreshRequested 같은 이벤트는
+     각 FeedController가 수신해 refresh 또는 캐시 clear를 수행해야 한다.
+   - job06에서 EventBus 사용 규칙을 명시하고, Controller에 반영한다.
+
+5. **UI와 로직 분리**
+   - UI(위젯)는 오직 FilterUiState/FeedController/DetailProvider에만 의존한다.
+   - Repository/Remote/Domain에 직접 접근하지 않는다.
+
+---
+
+# 2. 디렉토리 및 파일 구조
+
+job06에서 추가/수정되는 파일 구조는 다음과 같다.
+
+```txt
+lib/features/policy_new/
+  application/
+    filters/
+      policy_filter_ui_state.dart            # 필터/검색/정렬/추천 태그에 대한 전역 UI 상태
+    controllers/
+      policy_query_orchestrator.dart        # FeedType + UI 상태 + Profile + Favorite/Compare를 조합해 PolicyQuery 생성
+      base_feed_controller.dart             # (job06 버전으로 전체 교체) Orchestrator 사용
+  presentation/
+    filters/
+      policy_filter_bar.dart                # 상단 검색/필터/정렬 Bar
+      policy_sort_bottom_sheet.dart         # 정렬 옵션 선택 바텀시트
+      policy_filter_bottom_sheet.dart       # 지역/카테고리/온/오프라인 등의 필터 시트
+      policy_keyword_sheet.dart             # 검색 키워드 입력용 시트
+      policy_recommend_tags_bar.dart        # 추천 키워드(chip 리스트) UI
+    screens/
+      policy_feed_home_screen.dart          # (job06 버전으로 상단 필터 바 + 탭 통합) 전체 교체
+
+규칙:
+	•	기존 Domain 레이어 파일은 이 job06에서 절대 건드리지 않는다.
+	•	기존 Repository/RemoteSource 파일도 시그니처 변경 없이 사용한다.
+	•	BasePolicyFeedController와 PolicyQueryEngine 관련 파일은 job06 버전으로 “전체 교체”한다.
+
+⸻
+
+3. Application: Filter UI 상태 모델 (PolicyFilterUiState)
+
+3.1 파일: application/filters/policy_filter_ui_state.dart
+
+@immutable
+class PolicyFilterUiState {
+  final PolicyRegion region;             // UI에서 선택한 지역
+  final PolicyCategory? category;        // UI에서 선택한 카테고리
+  final PolicySortOption sort;           // 정렬 기준
+  final String keyword;                  // 검색어
+  final List<String> tags;               // 추천 태그 (AI 추천 키워드)
+  final bool showOnlyOnline;             // 온라인만 보기
+  final bool showOnlyOngoing;            // 모집중만 보기
+
+  const PolicyFilterUiState({
+    this.region = PolicyRegion.all,
+    this.category,
+    this.sort = PolicySortOption.latest,
+    this.keyword = '',
+    this.tags = const [],
+    this.showOnlyOnline = false,
+    this.showOnlyOngoing = false,
+  });
+
+  PolicyFilterUiState copyWith({
+    PolicyRegion? region,
+    PolicyCategory? category,
+    PolicySortOption? sort,
+    String? keyword,
+    List<String>? tags,
+    bool? showOnlyOnline,
+    bool? showOnlyOngoing,
+  }) {
+    return PolicyFilterUiState(
+      region: region ?? this.region,
+      category: category ?? this.category,
+      sort: sort ?? this.sort,
+      keyword: keyword ?? this.keyword,
+      tags: tags ?? this.tags,
+      showOnlyOnline: showOnlyOnline ?? this.showOnlyOnline,
+      showOnlyOngoing: showOnlyOngoing ?? this.showOnlyOngoing,
+    );
+  }
+}
+
+class PolicyFilterUiStateNotifier
+    extends StateNotifier<PolicyFilterUiState> {
+  PolicyFilterUiStateNotifier() : super(const PolicyFilterUiState());
+
+  void setRegion(PolicyRegion region) =>
+      state = state.copyWith(region: region);
+
+  void setCategory(PolicyCategory? category) =>
+      state = state.copyWith(category: category);
+
+  void setSort(PolicySortOption sort) =>
+      state = state.copyWith(sort: sort);
+
+  void setKeyword(String keyword) =>
+      state = state.copyWith(keyword: keyword);
+
+  void setTags(List<String> tags) =>
+      state = state.copyWith(tags: tags);
+
+  void toggleOnlineOnly() =>
+      state = state.copyWith(showOnlyOnline: !state.showOnlyOnline);
+
+  void toggleOngoingOnly() =>
+      state = state.copyWith(showOnlyOngoing: !state.showOnlyOngoing);
+
+  void resetAll() => state = const PolicyFilterUiState();
+}
+
+final policyFilterUiStateProvider =
+    StateNotifierProvider<PolicyFilterUiStateNotifier, PolicyFilterUiState>(
+  (ref) => PolicyFilterUiStateNotifier(),
+);
+
+
+⸻
+
+4. Application: PolicyQueryOrchestrator (핵심)
+
+4.1 파일: application/controllers/policy_query_orchestrator.dart
+
+목표:
+	•	FeedType + FilterUiState + 유저 프로필 + Favorite/Compare 정보로부터
+Domain의 PolicyQuery를 만들어주는 단일 진입점.
+	•	QueryEngine(Repository 호출 담당)과 분리하여 “Query 생성 책임”만 담당한다.
+
+class PolicyQueryOrchestrator {
+  PolicyQueryOrchestrator(this.ref);
+
+  final Ref ref;
+
+  PolicyFilterUiState get _ui => ref.read(policyFilterUiStateProvider);
+
+  UserProfile get _profile => ref.read(userProfileProvider);
+  // userProfileProvider는 job04 또는 별도 작업에서 정의되었다고 가정 (age, region, recommendTags 등)
+
+  List<String> get _favoriteIds =>
+      ref.read(favoriteRepositoryProvider).allIds;
+
+  List<String> get _compareIds =>
+      ref.read(compareRepositoryProvider).ids;
+
+  PolicyQuery buildQuery(PolicyFeedType feedType) {
+    switch (feedType) {
+      case PolicyFeedType.recommend:
+        return _buildRecommendQuery();
+      case PolicyFeedType.all:
+        return _buildAllQuery();
+      case PolicyFeedType.region:
+        return _buildRegionQuery();
+      case PolicyFeedType.search:
+        return _buildSearchQuery();
+      case PolicyFeedType.favorite:
+        return _buildFavoriteQuery();
+      case PolicyFeedType.compare:
+        return _buildCompareQuery();
+    }
+  }
+
+  PolicyQuery _buildRecommendQuery() {
+    final filter = PolicyFilter(
+      region: _ui.region == PolicyRegion.all ? _profile.region : _ui.region,
+      category: _ui.category,
+      age: _profile.age,
+      isOnline: _ui.showOnlyOnline ? true : null,
+      isOngoing: _ui.showOnlyOngoing ? true : null,
+    );
+
+    // 추천 태그: UI에서 선택한 태그가 있으면 우선, 없으면 프로필 기반 recommendTags
+    final tags = _ui.tags.isNotEmpty
+        ? _ui.tags
+        : _profile.recommendTags;
+
+    return PolicyQuery(
+      feedType: PolicyFeedType.recommend,
+      filter: filter,
+      tags: tags,
+      sort: PolicySortOption.recommendation,
+    );
+  }
+
+  PolicyQuery _buildAllQuery() {
+    final filter = PolicyFilter(
+      region: _ui.region,
+      category: _ui.category,
+      isOnline: _ui.showOnlyOnline ? true : null,
+      isOngoing: _ui.showOnlyOngoing ? true : null,
+    );
+
+    return PolicyQuery(
+      feedType: PolicyFeedType.all,
+      filter: filter,
+      sort: _ui.sort,
+    );
+  }
+
+  PolicyQuery _buildRegionQuery() {
+    final region = _ui.region == PolicyRegion.all
+        ? _profile.region
+        : _ui.region;
+
+    final filter = PolicyFilter(
+      region: region,
+      category: _ui.category,
+      isOnline: _ui.showOnlyOnline ? true : null,
+      isOngoing: _ui.showOnlyOngoing ? true : null,
+    );
+
+    return PolicyQuery(
+      feedType: PolicyFeedType.region,
+      filter: filter,
+      sort: _ui.sort,
+    );
+  }
+
+  PolicyQuery _buildSearchQuery() {
+    final filter = PolicyFilter(
+      region: _ui.region,
+      category: _ui.category,
+      isOnline: _ui.showOnlyOnline ? true : null,
+      isOngoing: _ui.showOnlyOngoing ? true : null,
+    );
+
+    return PolicyQuery(
+      feedType: PolicyFeedType.search,
+      keyword: _ui.keyword.isEmpty ? null : _ui.keyword,
+      filter: filter,
+      tags: _ui.tags,
+      sort: _ui.sort,
+    );
+  }
+
+  PolicyQuery _buildFavoriteQuery() {
+    final filter = PolicyFilter(
+      isOnline: _ui.showOnlyOnline ? true : null,
+      isOngoing: _ui.showOnlyOngoing ? true : null,
+    );
+
+    return PolicyQuery(
+      feedType: PolicyFeedType.favorite,
+      filter: filter,
+      tags: _favoriteIds, // 백엔드에서 favorite용 파라미터로 해석
+      sort: _ui.sort,
+    );
+  }
+
+  PolicyQuery _buildCompareQuery() {
+    final filter = PolicyFilter(
+      isOnline: _ui.showOnlyOnline ? true : null,
+      isOngoing: _ui.showOnlyOngoing ? true : null,
+    );
+
+    return PolicyQuery(
+      feedType: PolicyFeedType.compare,
+      filter: filter,
+      tags: _compareIds,
+      sort: _ui.sort,
+    );
+  }
+}
+
+
+⸻
+
+5. Application: PolicyQueryEngine 업그레이드
+
+5.1 파일: application/controllers/policy_query_engine.dart (전체 교체)
+
+QueryEngine은 Repository 호출 담당이며, Orchestrator를 통해 Query를 받는다.
+
+class PolicyQueryEngine {
+  PolicyQueryEngine(this.ref);
+
+  final Ref ref;
+
+  int get pageSize =>
+      ref.read(policySettingsProvider).pageSize;
+
+  PolicyQueryOrchestrator get _orchestrator =>
+      ref.read(policyQueryOrchestratorProvider);
+
+  Future<PolicyResult<List<Policy>>> fetch(
+    PolicyFeedType feedType, {
+    required int page,
+  }) async {
+    final query = _orchestrator.buildQuery(feedType);
+    final repo = ref.read(policyRepositoryProvider);
+
+    return repo.fetchPoliciesByQuery(
+      query: query,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+}
+
+final policyQueryEngineProvider = Provider<PolicyQueryEngine>(
+  (ref) => PolicyQueryEngine(ref),
+);
+
+final policyQueryOrchestratorProvider = Provider<PolicyQueryOrchestrator>(
+  (ref) => PolicyQueryOrchestrator(ref),
+);
+
+
+⸻
+
+6. Application: BasePolicyFeedController 업그레이드 (job06 버전)
+
+6.1 파일: application/controllers/base_feed_controller.dart (전체 교체)
+
+abstract class BasePolicyFeedController
+    extends StateNotifier<PolicyPagingState> {
+  BasePolicyFeedController({
+    required this.ref,
+    required this.feedType,
+    required this.queryEngine,
+  }) : super(const PolicyPagingState.initial()) {
+    // UI 필터 상태 변경 시 자동 refresh
+    ref.listen<PolicyFilterUiState>(
+      policyFilterUiStateProvider,
+      (previous, next) {
+        if (supportsFilterAutoApply) {
+          refresh();
+        }
+      },
+    );
+
+    // EventBus 연동 (즐겨찾기, 비교, 캐시 초기화 등)
+    ref.listen<PolicyEvent?>(
+      policyEventBusProvider,
+      (previous, next) {
+        if (next == null) return;
+        switch (next.type) {
+          case PolicyEventType.cacheCleared:
+            _resetPaging();
+            break;
+          case PolicyEventType.refreshRequested:
+            refresh();
+            break;
+          case PolicyEventType.favoritesChanged:
+            if (feedType == PolicyFeedType.favorite ||
+                feedType == PolicyFeedType.recommend) {
+              refresh();
+            }
+            break;
+          case PolicyEventType.profileUpdated:
+            if (feedType == PolicyFeedType.recommend ||
+                feedType == PolicyFeedType.region) {
+              refresh();
+            }
+            break;
+        }
+      },
+    );
+  }
+
+  final Ref ref;
+  final PolicyFeedType feedType;
+  final PolicyQueryEngine queryEngine;
+
+  int _page = 1;
+  bool _isLoading = false;
+
+  bool get supportsFilterAutoApply =>
+      feedType == PolicyFeedType.recommend ||
+      feedType == PolicyFeedType.all ||
+      feedType == PolicyFeedType.region ||
+      feedType == PolicyFeedType.search;
+
+  void _resetPaging() {
+    _page = 1;
+    _isLoading = false;
+    state = const PolicyPagingState.initial();
+  }
+
+  Future<void> loadFirstPage() async {
+    _page = 1;
+    _isLoading = true;
+    state = const PolicyPagingState.loading();
+
+    final result = await queryEngine.fetch(feedType, page: _page);
+
+    result.fold(
+      onSuccess: (list) {
+        state = PolicyPagingState.data(
+          items: list,
+          hasMore: list.length == queryEngine.pageSize,
+        );
+      },
+      onFailure: (failure) {
+        state = PolicyPagingState.error(failure);
+      },
+    );
+
+    _isLoading = false;
+  }
+
+  Future<void> loadNextPage() async {
+    if (_isLoading || !state.hasMore) return;
+
+    _isLoading = true;
+    final nextPage = _page + 1;
+
+    final result = await queryEngine.fetch(feedType, page: nextPage);
+
+    result.fold(
+      onSuccess: (list) {
+        final merged = [...state.items, ...list];
+        state = PolicyPagingState.data(
+          items: merged,
+          hasMore: list.length == queryEngine.pageSize,
+        );
+        _page = nextPage;
+      },
+      onFailure: (failure) {
+        state = PolicyPagingState.error(failure);
+      },
+    );
+
+    _isLoading = false;
+  }
+
+  Future<void> refresh() async {
+    await loadFirstPage();
+  }
+}
+
+
+⸻
+
+7. Application: Feed Controller 구현 (job06 규약 적용)
+
+각 Feed Controller는 이제 BasePolicyFeedController를 상속하면서,
+생성자에서 feedType만 넘기면 된다.
+
+예시 (나머지도 동일 패턴):
+
+class RecommendFeedController extends BasePolicyFeedController {
+  RecommendFeedController({
+    required Ref ref,
+    required PolicyQueryEngine queryEngine,
+  }) : super(
+          ref: ref,
+          feedType: PolicyFeedType.recommend,
+          queryEngine: queryEngine,
+        );
+}
+
+나머지 All/Region/Search/Favorite/Compare도 같은 방식으로 구현한다.
+
+Provider 등록 예시:
+
+final recommendFeedControllerProvider =
+    StateNotifierProvider<RecommendFeedController, PolicyPagingState>(
+  (ref) => RecommendFeedController(
+    ref: ref,
+    queryEngine: ref.read(policyQueryEngineProvider),
+  ),
+);
+
+
+⸻
+
+8. Presentation: Filter/Search/Sort UI 연동 (상단 바)
+
+8.1 파일: presentation/filters/policy_filter_bar.dart
+
+이 바는 job05의 PolicyFeedHomeScreen AppBar 아래에 위치한다.
+
+class PolicyFilterBar extends ConsumerWidget {
+  const PolicyFilterBar({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ui = ref.watch(policyFilterUiStateProvider);
+
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          // 검색창
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _openKeywordSheet(context),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search, size: 18),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        ui.keyword.isEmpty ? '검색어를 입력하세요' : ui.keyword,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: ui.keyword.isEmpty
+                              ? Colors.grey
+                              : Colors.black,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // 정렬 버튼
+          _chipButton(
+            context,
+            label: _sortLabel(ui.sort),
+            icon: Icons.swap_vert,
+            onTap: () => _openSortSheet(context),
+          ),
+          const SizedBox(width: 6),
+
+          // 필터 버튼
+          _chipButton(
+            context,
+            label: '필터',
+            icon: Icons.filter_alt_outlined,
+            onTap: () => _openFilterSheet(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chipButton(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16),
+            const SizedBox(width: 4),
+            Text(label, style: const TextStyle(fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _sortLabel(PolicySortOption sort) {
+    switch (sort) {
+      case PolicySortOption.latest:
+        return '최신순';
+      case PolicySortOption.deadline:
+        return '마감 임박';
+      case PolicySortOption.popularity:
+        return '인기순';
+      case PolicySortOption.recommendation:
+        return '추천순';
+    }
+  }
+
+  void _openKeywordSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const PolicyKeywordSheet(),
+    );
+  }
+
+  void _openSortSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => const PolicySortBottomSheet(),
+    );
+  }
+
+  void _openFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => const PolicyFilterBottomSheet(),
+    );
+  }
+}
+
+
+⸻
+
+9. Presentation: Filter/Search/Sort 시트들 (요약 규격)
+
+각 시트는 다음 규칙을 따른다:
+	•	PolicyKeywordSheet
+	•	TextField로 keyword 입력
+	•	확인 시 policyFilterUiStateProvider.notifier.setKeyword(...) 호출
+	•	닫히면 자동으로 Search Feed 등에서 refresh 발생 (BaseController에서 listen)
+	•	PolicySortBottomSheet
+	•	PolicySortOption 리스트를 보여주고 선택 시 setSort(...) 호출
+	•	PolicyFilterBottomSheet
+	•	지역(PolicyRegion) + 카테고리(PolicyCategory) + 온라인/모집중 토글 UI 제공
+	•	변경 시 각각 setRegion, setCategory, toggleOnlineOnly, toggleOngoingOnly 호출
+	•	“초기화” 버튼으로 resetAll() 호출 가능
+
+각 컴포넌트는 policyFilterUiStateProvider만 조작하며,
+FeedController는 이 상태 변경을 자동으로 감지해 Query 재조합 + refresh를 수행한다.
+
+⸻
+
+10. Presentation: PolicyFeedHomeScreen 상단에 FilterBar 추가
+
+job05에서 정의한 PolicyFeedHomeScreen을 아래 구조로 업데이트한다.
+
+핵심: 상단 구조를 Column(AppBar 영역 안의 TabBar) + PolicyFilterBar + Expanded(TabView) 로 구성.
+
+(여기서는 전체 파일 교체 지시가 아니라, 상단 구조를 다음처럼 구성할 것을 명시한다.)
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('정책 탐색'),
+      bottom: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        tabs: _tabs.map((e) => Tab(text: e.label)).toList(),
+      ),
+    ),
+    body: Column(
+      children: [
+        const PolicyFilterBar(),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            physics: const BouncingScrollPhysics(),
+            children: _tabs
+                .map((tab) => PolicyFeedListView(feedType: tab.type))
+                .toList(),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+
+⸻
+
+11. Acceptance Criteria (job06 완료 기준)
+	•	PolicyFilterUiState 및 policyFilterUiStateProvider가 생성되어 있으며,
+region/category/keyword/sort/tags/onlineOnly/ongoingOnly 상태를 관리한다.
+	•	PolicyQueryOrchestrator가 FeedType + FilterUiState + UserProfile + Favorite/Compare를 입력으로 받아
+PolicyQuery를 생성하는 로직을 모두 포함한다.
+	•	PolicyQueryEngine이 fetch(feedType, page) 형태로 동작하며,
+내부에서 Orchestrator로부터 Query를 받는다.
+	•	BasePolicyFeedController가 job06 버전으로 교체되어,
+- FilterUiState 변경 시 자동 refresh,
+- EventBus 이벤트에 따른 refresh/cache reset 동작,
+- 페이징(loadFirstPage/loadNextPage/refresh) 로직을 포함한다.
+	•	Recommend/All/Region/Search/Favorite/Compare Feed Controller가
+BasePolicyFeedController를 상속하고 feedType만 지정하도록 구현된다.
+	•	PolicyFilterBar 및 하위 시트(Keyword/Sort/Filter)가
+policyFilterUiStateProvider만 조작하며, Repository나 Domain을 직접 건드리지 않는다.
+	•	PolicyFeedHomeScreen 상단에 PolicyFilterBar가 추가되며,
+탭 전환, 스와이프, 필터/검색/정렬 변경이 모두 자연스럽게 동작한다.
+	•	Filter/Search/Sort 변경 시, 각 FeedType에 맞는 정책 피드가 자동으로 재조회된다.
+	•	기존 job01~05의 Domain/Repository/Remote/Detail 화면 등과 충돌 없이 빌드가 성공해야 한다.
+
+---
 
