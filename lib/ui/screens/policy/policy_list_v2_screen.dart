@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../application/notifiers/policy_paging_notifier.dart';
 import '../../../application/providers.dart';
+import '../../../application/search/providers.dart';
 import '../../../data/models/policy_filter.dart';
 import '../../../data/sources/local/search_history_source.dart';
 import '../../../navigation/route_paths.dart';
@@ -24,6 +25,9 @@ class PolicyListV2Screen extends ConsumerStatefulWidget {
 class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
   late final TextEditingController _controller;
   late final ScrollController _scrollController;
+  late final ScrollController _recommendedScrollController;
+  late final VoidCallback _primaryScrollListener;
+  late final VoidCallback _recommendedScrollListener;
   late final ProviderSubscription<String?> _regionSubscription;
   String? _selectedCategory;
   String? _selectedYear;
@@ -35,14 +39,20 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     super.initState();
     _controller = TextEditingController();
     _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
+    _recommendedScrollController = ScrollController();
+    _primaryScrollListener =
+        () => _onFeedScroll(PolicyFeedType.primary, _scrollController, 200);
+    _recommendedScrollListener = () =>
+        _onFeedScroll(PolicyFeedType.recommended, _recommendedScrollController, 160);
+    _scrollController.addListener(_primaryScrollListener);
+    _recommendedScrollController.addListener(_recommendedScrollListener);
     _regionSubscription = ref.listenManual<String?>(regionProvider, (prev, next) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _applyFilterDebounced();
       });
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(policyPagingProvider.notifier).loadInitial(_buildFilter());
+      ref.read(searchV2ControllerProvider.notifier).initialize(_buildFilter());
     });
   }
 
@@ -50,17 +60,25 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
   void dispose() {
     _debounce?.cancel();
     _regionSubscription.close();
+    _scrollController.removeListener(_primaryScrollListener);
+    _recommendedScrollController.removeListener(_recommendedScrollListener);
     _scrollController.dispose();
+    _recommendedScrollController.dispose();
     _controller.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
-    final state = ref.read(policyPagingProvider);
+  void _onFeedScroll(
+    PolicyFeedType feed,
+    ScrollController controller,
+    double threshold,
+  ) {
+    final feeds = ref.read(policyPagingProvider);
+    final state = feed == PolicyFeedType.primary ? feeds.primary : feeds.recommended;
     if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
-    final position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 200) {
-      ref.read(policyPagingProvider.notifier).loadMore();
+    final position = controller.position;
+    if (position.pixels >= position.maxScrollExtent - threshold) {
+      ref.read(policyPagingProvider.notifier).loadMore(feed);
     }
   }
 
@@ -79,7 +97,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
   }
 
   void _applyFilter() {
-    ref.read(policyPagingProvider.notifier).updateFilter(_buildFilter());
+    ref.read(searchV2ControllerProvider.notifier).applyFilter(_buildFilter());
   }
 
   void _applyFilterDebounced() {
@@ -87,30 +105,34 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     _debounce = Timer(const Duration(milliseconds: 150), _applyFilter);
   }
 
-  Future<void> _performSearch(PolicyPagingNotifier notifier) async {
+  Future<void> _performSearch() async {
     _applyFilterDebounced();
   }
 
   @override
   Widget build(BuildContext context) {
-    final pagingState = ref.watch(policyPagingProvider);
-    final pagingNotifier = ref.read(policyPagingProvider.notifier);
+    final feedsState = ref.watch(policyPagingProvider);
+    final pagingState = feedsState.primary;
+    final searchState = ref.watch(searchV2ControllerProvider);
+    final recommendedState = feedsState.recommended;
     final history = ref.watch(searchHistoryListProvider);
+    final popularKeywords = ref.watch(popularSearchKeywordListProvider);
     final compareCount = ref.watch(
       compareProvider.select((value) => value.valueOrNull?.length ?? 0),
     );
 
     Widget buildList() {
-      if (pagingState.error != null && pagingState.items.isEmpty) {
+      if ((pagingState.error != null || searchState.errorMessage != null) &&
+          pagingState.items.isEmpty) {
         return GlobalErrorView(
-          message: pagingState.error!,
-          onRetry: () => pagingNotifier.loadInitial(_buildFilter()),
+          message: pagingState.error ?? searchState.errorMessage!,
+          onRetry: () => ref.read(searchV2ControllerProvider.notifier).retry(),
         );
       }
 
       if (pagingState.items.isEmpty) {
         return RefreshIndicator(
-          onRefresh: () => pagingNotifier.loadInitial(_buildFilter()),
+          onRefresh: () => ref.read(searchV2ControllerProvider.notifier).retry(),
           child: ListView(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
@@ -125,10 +147,9 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
       }
 
       return RefreshIndicator(
-        onRefresh: () => pagingNotifier.loadInitial(_buildFilter()),
+        onRefresh: () => ref.read(searchV2ControllerProvider.notifier).retry(),
         child: ListView.separated(
           controller: _scrollController,
-          padding: const EdgeInsets.all(16),
           itemBuilder: (_, i) {
             if (i >= pagingState.items.length) {
               if (!pagingState.hasMore) {
@@ -187,6 +208,103 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
       );
     }
 
+    Widget buildPopularKeywords() {
+      return popularKeywords.when(
+        data: (keywords) {
+          if (keywords.isEmpty) return const SizedBox.shrink();
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: keywords
+                  .map(
+                    (keyword) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        label: Text(keyword),
+                        onPressed: () {
+                          _controller.text = keyword;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _applyFilterDebounced();
+                          });
+                        },
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          );
+        },
+        loading: () => const SizedBox.shrink(),
+        error: (_, __) => const SizedBox.shrink(),
+      );
+    }
+
+    Widget buildRecommendations() {
+      if (recommendedState.error != null && recommendedState.items.isEmpty) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: GlobalErrorView(
+            message: recommendedState.error!,
+            onRetry: () => ref
+                .read(policyPagingProvider.notifier)
+                .loadInitial(PolicyFeedType.recommended),
+          ),
+        );
+      }
+
+      if (recommendedState.isLoading && recommendedState.items.isEmpty) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: LinearProgressIndicator(minHeight: 2),
+        );
+      }
+
+      if (recommendedState.items.isEmpty) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text('현재 지역 기준 추천 정책이 없습니다.'),
+          ),
+        );
+      }
+
+      return SizedBox(
+        height: 240,
+        child: ListView.separated(
+          controller: _recommendedScrollController,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          scrollDirection: Axis.horizontal,
+          itemBuilder: (_, index) {
+            if (index >= recommendedState.items.length) {
+              if (!recommendedState.hasMore) {
+                return const SizedBox(
+                  width: 120,
+                  child: Center(child: Text('모든 추천을 불러왔습니다.')),
+                );
+              }
+              return const SizedBox(
+                width: 120,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final policy = recommendedState.items[index];
+            return SizedBox(
+              width: 320,
+              child: PolicyCardV2(
+                policy: policy,
+                onTap: () => context.push(RoutePaths.policyDetail(policy.id)),
+              ),
+            );
+          },
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemCount: recommendedState.items.length +
+              (recommendedState.isLoadingMore || recommendedState.hasMore ? 1 : 0),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppAppBar(
         title: '정책 목록',
@@ -214,8 +332,43 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
             ),
       body: Column(
         children: [
-          if (pagingState.isLoading)
+          if ((pagingState.isLoading || searchState.isInitializing) &&
+              pagingState.items.isNotEmpty)
             const LinearProgressIndicator(minHeight: 2),
+          if (searchState.errorMessage != null && pagingState.items.isNotEmpty)
+            MaterialBanner(
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+              content: Text(
+                searchState.errorMessage!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => ref.read(searchV2ControllerProvider.notifier).retry(),
+                  child: const Text('다시 시도'),
+                ),
+              ],
+            ),
+          if (recommendedState.error != null && recommendedState.items.isNotEmpty)
+            MaterialBanner(
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+              content: Text(
+                recommendedState.error!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => ref
+                      .read(policyPagingProvider.notifier)
+                      .loadInitial(PolicyFeedType.recommended),
+                  child: const Text('다시 시도'),
+                ),
+              ],
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
@@ -224,10 +377,10 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
                 hintText: '정책명을 입력하세요',
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.search),
-                  onPressed: () => _performSearch(pagingNotifier),
+                  onPressed: _performSearch,
                 ),
               ),
-              onSubmitted: (_) => _performSearch(pagingNotifier),
+              onSubmitted: (_) => _performSearch(),
             ),
           ),
           Padding(
@@ -307,12 +460,76 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
               ),
             ),
           ),
+          buildPopularKeywords(),
           buildHistory(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '추천 정책',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+          ),
+          buildRecommendations(),
           const Divider(height: 1),
           Expanded(
-            child: pagingState.isLoading && pagingState.items.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+            child: (pagingState.isLoading || searchState.isInitializing) &&
+                    pagingState.items.isEmpty
+                ? const _InitialLoadingList()
                 : buildList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InitialLoadingList extends StatelessWidget {
+  const _InitialLoadingList();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemBuilder: (_, __) => const _PolicyPlaceholderCard(),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemCount: 6,
+    );
+  }
+}
+
+class _PolicyPlaceholderCard extends StatelessWidget {
+  const _PolicyPlaceholderCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 16,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 12,
+            width: 180,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
         ],
       ),

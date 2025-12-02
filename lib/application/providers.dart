@@ -14,10 +14,9 @@ export 'policy/policy_list_notifier.dart'
     show policyListNotifierProvider, PolicyListNotifier, PolicyListState;
 export '../features/policy/providers/policy_prefetch_provider.dart'
     show policyPrefetchProvider, PolicyPrefetchNotifier;
-
 final policyPagingProvider =
-    NotifierProvider.autoDispose<PolicyPagingNotifier, PolicyPagingState>(
-  PolicyPagingNotifier.new,
+    NotifierProvider.autoDispose<PolicyFeedsNotifier, PolicyFeedsState>(
+  PolicyFeedsNotifier.new,
 );
 
 final policyDetailProvider =

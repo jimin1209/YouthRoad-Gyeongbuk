@@ -25,6 +25,7 @@ import '../di.dart';
 import 'controllers/search_controller.dart';
 import 'controllers/search_history_controller.dart';
 import 'controllers/search_suggestion_controller.dart';
+import 'controllers/search_v2_controller.dart';
 
 // Sources
 final instSearchRemoteSourceProvider = Provider<InstRemoteSource>((ref) {
@@ -109,4 +110,9 @@ final searchSuggestionControllerProvider =
 final searchHistoryControllerProvider =
     AutoDisposeNotifierProvider<SearchHistoryController, SearchHistoryState>(
   SearchHistoryController.new,
+);
+
+final searchV2ControllerProvider =
+    AutoDisposeNotifierProvider<SearchV2Controller, SearchV2State>(
+  SearchV2Controller.new,
 );
