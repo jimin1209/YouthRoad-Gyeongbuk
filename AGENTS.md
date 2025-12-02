@@ -432,6 +432,24 @@ flutter:
 ````
 ## ISSUE 13 끝
 ---
+# ISSUE 14
+lib/application/notifiers/policy_paging_notifier.dart:147:13: Error: The type 'PolicyFeedType' is not exhaustively matched by the switch cases since it doesn't match 'PolicyFeedType.bookmarked'.
+ - 'PolicyFeedType' is from 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart' ('lib/domain/policy/entities/policy_feed_type.dart').
+Try adding a default case or cases that match 'PolicyFeedType.bookmarked'.
+    switch (normalizedFeed) {
+            ^
+lib/application/notifiers/policy_paging_notifier.dart:215:13: Error: The type 'PolicyFeedType' is not exhaustively matched by the switch cases since it doesn't match 'PolicyFeedType.bookmarked'.
+ - 'PolicyFeedType' is from 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart' ('lib/domain/policy/entities/policy_feed_type.dart').
+Try adding a default case or cases that match 'PolicyFeedType.bookmarked'.
+    switch (normalizedFeed) {
+            ^
+lib/application/notifiers/policy_paging_notifier.dart:301:13: Error: The type 'PolicyFeedType' is not exhaustively matched by the switch cases since it doesn't match 'PolicyFeedType.bookmarked'.
+ - 'PolicyFeedType' is from 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart' ('lib/domain/policy/entities/policy_feed_type.dart').
+Try adding a default case or cases that match 'PolicyFeedType.bookmarked'.
+    switch (normalizedFeed) {
+            ^
+Target kernel_snapshot_program failed: Exception
+
 
 
 
