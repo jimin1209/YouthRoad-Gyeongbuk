@@ -162,11 +162,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
       final androidController = controller.platform as AndroidWebViewController;
       AndroidWebViewController.enableDebugging(kDebugMode);
       androidController
-        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
         ..setAllowContentAccess(true)
         ..setAllowFileAccess(true)
-        ..setAllowFileAccessFromFileURLs(true)
-        ..setAllowUniversalAccessFromFileURLs(true)
         ..setOnPlatformPermissionRequest((request) {
           request.grant();
         });
