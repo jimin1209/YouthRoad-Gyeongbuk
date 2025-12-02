@@ -1,0 +1,93 @@
+import 'package:flutter/material.dart';
+
+import '../../domain/entities/policy.dart';
+
+class PolicyCard extends StatelessWidget {
+  const PolicyCard({
+    super.key,
+    required this.policy,
+    required this.onTap,
+  });
+
+  final Policy policy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                policy.title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                policy.summary,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _chip(policy.region.name),
+                  _chip(policy.category.name),
+                  if (policy.isOngoing) _chip('모집중'),
+                  if (policy.isUpcoming) _chip('시작 예정'),
+                  if (policy.isClosed) _chip('마감'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _buildPeriodText(policy),
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 11),
+      ),
+    );
+  }
+
+  String _buildPeriodText(Policy policy) {
+    final start = policy.applicationStartDate;
+    final end = policy.applicationEndDate;
+    if (start == null && end == null) {
+      return '신청 기간 정보 없음';
+    }
+    if (start != null && end == null) {
+      return '신청 시작일: ${start.toLocal().toString().split(" ").first}';
+    }
+    if (start == null && end != null) {
+      return '신청 마감일: ${end.toLocal().toString().split(" ").first}';
+    }
+    return '신청 기간: '
+        '${start!.toLocal().toString().split(" ").first} ~ '
+        '${end!.toLocal().toString().split(" ").first}';
+  }
+}
