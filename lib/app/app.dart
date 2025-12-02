@@ -1,19 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../core/constants/app_strings.dart';
 import '../debug/debug_wrapper.dart';
-import '../navigation/app_router.dart';
 import '../theme/app_theme.dart';
+import 'providers/app_providers.dart';
 
-final appRouterProvider = Provider<GoRouter>((ref) {
-  return const AppRouter().router();
-});
-
-class App extends ConsumerWidget {
-  const App({super.key});
+class YouthRoadApp extends ConsumerWidget {
+  const YouthRoadApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,3 +32,5 @@ class App extends ConsumerWidget {
     );
   }
 }
+
+typedef App = YouthRoadApp;
