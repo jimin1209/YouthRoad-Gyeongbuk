@@ -51,6 +51,52 @@ class DebugProviderObserver extends ProviderObserver {
     return provider.runtimeType.toString();
   }
 
+  String _describeState(Object? value) {
+    if (value is AsyncValue) {
+      if (value.isLoading) return 'loading';
+      if (value.hasError) return 'error';
+      return 'data';
+    }
+    if (value == null) {
+      return 'null';
+    }
+    return value.runtimeType.toString();
+  }
+
+  void _recordEntry(
+    ProviderBase<Object?> provider, {
+    required String state,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    if (!kDebugMode) return;
+    try {
+      final name = _resolveProviderName(provider);
+      DebugProviderTracker.instance.addEntry(
+        ProviderStatusEntry(
+          providerName: name,
+          state: state,
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
+    } catch (observerError, observerStackTrace) {
+      debugPrint(
+        'DebugProviderObserver error while recording provider (${provider.name ?? provider.runtimeType}): '
+        '$observerError\n$observerStackTrace',
+      );
+    }
+  }
+
+  @override
+  void didAddProvider(
+    ProviderBase<Object?> provider,
+    Object? value,
+    ProviderContainer container,
+  ) {
+    _recordEntry(provider, state: 'added (${_describeState(value)})');
+  }
+
   @override
   void didUpdateProvider(
     ProviderBase<Object?> provider,
@@ -58,13 +104,7 @@ class DebugProviderObserver extends ProviderObserver {
     Object? newValue,
     ProviderContainer container,
   ) {
-    if (!kDebugMode) return;
-
-    final name = _resolveProviderName(provider);
-    final state = _describeState(newValue);
-    DebugProviderTracker.instance.addEntry(
-      ProviderStatusEntry(providerName: name, state: state),
-    );
+    _recordEntry(provider, state: _describeState(newValue));
   }
 
   @override
@@ -74,28 +114,19 @@ class DebugProviderObserver extends ProviderObserver {
     StackTrace stackTrace,
     ProviderContainer container,
   ) {
-    if (!kDebugMode) return;
-
-    final name = _resolveProviderName(provider);
-    DebugProviderTracker.instance.addEntry(
-      ProviderStatusEntry(
-        providerName: name,
-        state: 'error',
-        error: error,
-        stackTrace: stackTrace,
-      ),
+    _recordEntry(
+      provider,
+      state: 'error',
+      error: error,
+      stackTrace: stackTrace,
     );
     DebugToastController.instance
-        .show('Provider "$name" error: ${error.toString()}');
+        .show('Provider "${_resolveProviderName(provider)}" error: ${error.toString()}');
   }
 
-  String _describeState(Object? value) {
-    if (value is AsyncValue) {
-      if (value.isLoading) return 'loading';
-      if (value.hasError) return 'error';
-      return 'data';
-    }
-    return 'data';
+  @override
+  void didDisposeProvider(ProviderBase<Object?> provider, ProviderContainer container) {
+    _recordEntry(provider, state: 'disposed');
   }
 }
 
