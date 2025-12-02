@@ -12,6 +12,8 @@ import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/global_error_view.dart';
 import '../../widgets/policy_card_v2.dart';
+import '../../models/map/kakao_map_models.dart';
+import '../../models/map/kakao_map_options.dart';
 import 'kakao_map_html_builder.dart';
 
 class MapWithListScreen extends ConsumerStatefulWidget {
@@ -25,7 +27,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   static const _htmlBuilder = KakaoMapHtmlBuilder();
   static const _bridgeName = 'MapBridge';
   static const _estimatedItemHeight = 240.0;
-  static const _defaultCenter = KakaoMapLatLng(36.4919, 128.8889);
+  static const _defaultCenter = KakaoMapLatLng(lat: 36.4919, lng: 128.8889);
 
   late final ScrollController _listController;
   late final WebViewController _mapController;
@@ -36,7 +38,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   bool _isMapUpdating = false;
   String? _selectedPolicyId;
   String? _lastMarkerTapId;
-  Map<String, KakaoMapPolicyMarker> _markerLookup = {};
+  Map<String, KakaoMapMarker> _markerLookup = {};
 
   @override
   void initState() {
@@ -156,11 +158,12 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
       _mapReady = false;
     });
 
+    final options = KakaoMapOptions(center: center, markers: markers);
+
     _mapController.loadHtmlString(
       _htmlBuilder.build(
         apiKey: Env.kakaoMapApiKey,
-        center: center,
-        markers: markers,
+        options: options,
         bridgeName: _bridgeName,
       ),
     );
@@ -200,7 +203,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     if (!_mapReady) return;
     final marker = _markerLookup[policyId];
     if (marker == null) return;
-    final script = 'moveTo(${marker.lat}, ${marker.lng});';
+    final script =
+        'setCenter(${marker.position.lat}, ${marker.position.lng}, true);';
     _mapController.runJavaScript(script);
   }
 
@@ -275,8 +279,18 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
   void _highlightNearestPolicy(double lat, double lng) {
     if (_markerLookup.isEmpty) return;
     final nearest = _markerLookup.values.reduce((a, b) {
-      final distA = _distance(lat, lng, a.lat, a.lng);
-      final distB = _distance(lat, lng, b.lat, b.lng);
+      final distA = _distance(
+        lat,
+        lng,
+        a.position.lat,
+        a.position.lng,
+      );
+      final distB = _distance(
+        lat,
+        lng,
+        b.position.lat,
+        b.position.lng,
+      );
       return distA <= distB ? a : b;
     });
     _highlightPolicy(nearest.id);
@@ -286,15 +300,15 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     final normalized = (regionName ?? '').trim();
     switch (normalized) {
       case '포항시':
-        return const KakaoMapLatLng(36.0190, 129.3435);
+        return const KakaoMapLatLng(lat: 36.0190, lng: 129.3435);
       case '구미시':
-        return const KakaoMapLatLng(36.1195, 128.3446);
+        return const KakaoMapLatLng(lat: 36.1195, lng: 128.3446);
       case '경산시':
-        return const KakaoMapLatLng(35.8252, 128.7415);
+        return const KakaoMapLatLng(lat: 35.8252, lng: 128.7415);
       case '안동시':
-        return const KakaoMapLatLng(36.5684, 128.7294);
+        return const KakaoMapLatLng(lat: 36.5684, lng: 128.7294);
       case '김천시':
-        return const KakaoMapLatLng(36.1398, 128.1136);
+        return const KakaoMapLatLng(lat: 36.1398, lng: 128.1136);
       case '경북 전체':
         return _defaultCenter;
       default:
@@ -303,7 +317,7 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     }
   }
 
-  List<KakaoMapPolicyMarker> _policyMarkers(
+  List<KakaoMapMarker> _policyMarkers(
     KakaoMapLatLng center,
     PolicyListState state,
   ) {
@@ -316,28 +330,30 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     return List.generate(limitedPolicies.length, (index) {
       final policy = limitedPolicies[index];
       final offset = markerOffsets[index];
-      return KakaoMapPolicyMarker(
+      return KakaoMapMarker(
         id: policy.id,
         title: policy.policyNm,
-        lat: offset.lat,
-        lng: offset.lng,
+        position: offset,
       );
     });
   }
 
   List<KakaoMapLatLng> _markerOffsets(KakaoMapLatLng base) {
     const deltas = <KakaoMapLatLng>[
-      KakaoMapLatLng(0, 0),
-      KakaoMapLatLng(0.005, 0.003),
-      KakaoMapLatLng(-0.003, 0.006),
-      KakaoMapLatLng(0.006, -0.004),
-      KakaoMapLatLng(-0.005, -0.002),
-      KakaoMapLatLng(0.002, 0.007),
+      KakaoMapLatLng(lat: 0, lng: 0),
+      KakaoMapLatLng(lat: 0.005, lng: 0.003),
+      KakaoMapLatLng(lat: -0.003, lng: 0.006),
+      KakaoMapLatLng(lat: 0.006, lng: -0.004),
+      KakaoMapLatLng(lat: -0.005, lng: -0.002),
+      KakaoMapLatLng(lat: 0.002, lng: 0.007),
     ];
 
     return deltas
         .map(
-          (delta) => KakaoMapLatLng(base.lat + delta.lat, base.lng + delta.lng),
+          (delta) => KakaoMapLatLng(
+            lat: base.lat + delta.lat,
+            lng: base.lng + delta.lng,
+          ),
         )
         .toList();
   }
