@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.youthroad.app">
+
+    <uses-permission android:name="android.permission.INTERNET" />
     
     <application
         android:label="youth_road_app"
