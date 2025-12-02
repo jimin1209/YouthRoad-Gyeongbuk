@@ -8,7 +8,7 @@ import '../../../application/providers.dart';
 import '../../../application/search/providers.dart';
 import '../../../data/models/policy_filter.dart';
 import '../../../data/sources/local/search_history_source.dart';
-import '../../../domain/policy/entities/policy_feed_type.dart';
+import 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/compare_badge.dart';
