@@ -22,9 +22,8 @@ class KakaoMapScreen extends ConsumerStatefulWidget {
 
 class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   final List<KakaoMapEvent> _logs = [];
-  ProviderSubscription<AsyncValue<KakaoMapEvent>>? _eventSubscription;
-  ProviderSubscription<String?>? _regionSubscription;
-  ProviderSubscription<PolicyListState>? _policySubscription;
+
+  static const _defaultCenter = KakaoMapLatLng(lat: 36.4919, lng: 128.8889);
 
   static const _defaultCenter = KakaoMapLatLng(lat: 36.4919, lng: 128.8889);
 
@@ -37,30 +36,17 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   }
 
   void _listenToEvents() {
-    _eventSubscription = ref.listen<AsyncValue<KakaoMapEvent>>(
-      kakaoMapEventStreamProvider,
-      (prev, next) {
-        next.whenData((event) {
-          setState(() {
-            _logs.insert(0, event);
-            if (_logs.length > 50) {
-              _logs.removeLast();
-            }
-          });
-
-          if (event.type == KakaoMapEventType.markerClick) {
-            final policyId = event.payload['id'] as String?;
-            if (policyId != null && policyId.isNotEmpty && mounted) {
-              context.push(RoutePaths.policyDetail(policyId));
-            }
-          }
-        });
-      },
-    );
+    ref.listen<AsyncValue<KakaoMapEvent>>(kakaoMapEventStreamProvider, (prev, next) {
+      next.when(
+        data: _handleEvent,
+        error: (_, __) {},
+        loading: () {},
+      );
+    });
   }
 
   void _listenToRegion() {
-    _regionSubscription = ref.listenManual<String?>(regionProvider, (prev, next) {
+    ref.listen<String?>(regionProvider, (prev, next) {
       final center = _centerForRegion(next);
       _updateOptions((options) => options.copyWith(center: center));
       ref.read(kakaoMapControllerProvider).moveTo(center, animate: true);
@@ -68,20 +54,25 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   }
 
   void _listenToPolicies() {
-    _policySubscription = ref.listenManual<PolicyListState>(
-      policyListNotifierProvider,
-      (prev, next) {
-        _refreshMarkers(next);
-      },
-    );
+    ref.listen<PolicyListState>(policyListNotifierProvider, (prev, next) {
+      _refreshMarkers(next);
+    });
   }
 
-  @override
-  void dispose() {
-    _eventSubscription?.close();
-    _regionSubscription?.close();
-    _policySubscription?.close();
-    super.dispose();
+  void _handleEvent(KakaoMapEvent event) {
+    setState(() {
+      _logs.insert(0, event);
+      if (_logs.length > 50) {
+        _logs.removeLast();
+      }
+    });
+
+    if (event.type == KakaoMapEventType.markerClick) {
+      final policyId = event.payload['id'] as String?;
+      if (policyId != null && policyId.isNotEmpty && mounted) {
+        context.push(RoutePaths.policyDetail(policyId));
+      }
+    }
   }
 
   @override
