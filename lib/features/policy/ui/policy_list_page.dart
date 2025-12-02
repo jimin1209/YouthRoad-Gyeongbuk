@@ -5,11 +5,24 @@ import '../../../domain/entities/policy.dart';
 import '../providers/policy_list_provider.dart';
 import '../providers/policy_prefetch_provider.dart';
 
-class PolicyListPage extends ConsumerWidget {
+class PolicyListPage extends ConsumerStatefulWidget {
   const PolicyListPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PolicyListPage> createState() => _PolicyListPageState();
+}
+
+class _PolicyListPageState extends ConsumerState<PolicyListPage> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(policyPrefetchProvider.notifier).prefetchPolicies();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(policyListProvider);
 
     return Scaffold(
@@ -43,7 +56,25 @@ class PolicyListPage extends ConsumerWidget {
             state.when(
               data: (policies) {
                 if (policies.isEmpty) {
-                  return const _LoadingSection();
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '표시할 정책이 없습니다.',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '지역 설정이나 검색 조건을 다시 확인해주세요.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
                 }
 
                 return SliverList.separated(

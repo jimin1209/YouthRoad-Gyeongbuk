@@ -38,4 +38,8 @@ class PolicyListNotifier extends StateNotifier<AsyncValue<List<Policy>>> {
     final updated = current.where((item) => item.id != id).toList();
     state = AsyncValue.data(List.unmodifiable(updated));
   }
+
+  void setError(Object error, [StackTrace? stackTrace]) {
+    state = AsyncValue.error(error, stackTrace ?? StackTrace.current);
+  }
 }
