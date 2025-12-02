@@ -69,6 +69,51 @@
 
 지금부터 ISSUE LIST 입니다.
 
+# ISSUE 20
+
+lib/features/map_v2/map_with_list_screen.dart:165:11: Error: The method 'setMixedContentMode' isn't defined for the class 'AndroidWebViewController'.
+ - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'setMixedContentMode'.
+        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
+          ^^^^^^^^^^^^^^^^^^^
+lib/features/map_v2/map_with_list_screen.dart:165:31: Error: The getter 'AndroidMixedContentMode' isn't defined for the class '_MapWithListScreenState'.
+ - '_MapWithListScreenState' is from 'package:youth_road_app/features/map_v2/map_with_list_screen.dart' ('lib/features/map_v2/map_with_list_screen.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'AndroidMixedContentMode'.
+        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
+                              ^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/map_v2/map_with_list_screen.dart:168:11: Error: The method 'setAllowFileAccessFromFileURLs' isn't defined for the class 'AndroidWebViewController'.
+ - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'setAllowFileAccessFromFileURLs'.
+        ..setAllowFileAccessFromFileURLs(true)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/map_v2/map_with_list_screen.dart:169:11: Error: The method 'setAllowUniversalAccessFromFileURLs' isn't defined for the class 'AndroidWebViewController'.
+ - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'setAllowUniversalAccessFromFileURLs'.
+        ..setAllowUniversalAccessFromFileURLs(true)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/map_v2/kakao_map_controller.dart:352:11: Error: The method 'setMixedContentMode' isn't defined for the class 'AndroidWebViewController'.
+ - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'setMixedContentMode'.
+        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
+          ^^^^^^^^^^^^^^^^^^^
+lib/features/map_v2/kakao_map_controller.dart:352:31: Error: The getter 'AndroidMixedContentMode' isn't defined for the class 'KakaoMapController'.
+ - 'KakaoMapController' is from 'package:youth_road_app/features/map_v2/kakao_map_controller.dart' ('lib/features/map_v2/kakao_map_controller.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'AndroidMixedContentMode'.
+        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
+                              ^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/map_v2/kakao_map_controller.dart:355:11: Error: The method 'setAllowFileAccessFromFileURLs' isn't defined for the class 'AndroidWebViewController'.
+ - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'setAllowFileAccessFromFileURLs'.
+        ..setAllowFileAccessFromFileURLs(true)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/map_v2/kakao_map_controller.dart:356:11: Error: The method 'setAllowUniversalAccessFromFileURLs' isn't defined for the class 'AndroidWebViewController'.
+ - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'setAllowUniversalAccessFromFileURLs'.
+        ..setAllowUniversalAccessFromFileURLs(true)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
 ## [feature/policy-loading-overhaul] 정책 로딩 전체 오버홀 (페이징 + Lazy Loading + 무한 로딩 제거)
 
 Status: Open.
