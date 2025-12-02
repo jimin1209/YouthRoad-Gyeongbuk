@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/policy_filter.dart';
 import '../../domain/entities/policy.dart';
-import '../../domain/policy/entities/policy_feed_type.dart';
+import 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../di.dart';
 import 'region_notifier.dart';
