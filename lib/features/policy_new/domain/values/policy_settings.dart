@@ -1,0 +1,13 @@
+import 'policy_region.dart';
+
+class PolicySettings {
+  final int pageSize;
+  final PolicyRegion defaultRegion;
+  final bool enableCache;
+
+  const PolicySettings({
+    this.pageSize = 20,
+    this.defaultRegion = PolicyRegion.all,
+    this.enableCache = true,
+  });
+}
