@@ -25,6 +25,8 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
   late final TextEditingController _controller;
   late final ScrollController _scrollController;
   late final ScrollController _recommendedScrollController;
+  late final VoidCallback _primaryScrollListener;
+  late final VoidCallback _recommendedScrollListener;
   late final ProviderSubscription<String?> _regionSubscription;
   String? _selectedCategory;
   String? _selectedYear;
@@ -37,8 +39,12 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     _controller = TextEditingController();
     _scrollController = ScrollController();
     _recommendedScrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
-    _recommendedScrollController.addListener(_onRecommendedScroll);
+    _primaryScrollListener =
+        () => _onFeedScroll(PolicyFeedType.primary, _scrollController, 200);
+    _recommendedScrollListener = () =>
+        _onFeedScroll(PolicyFeedType.recommended, _recommendedScrollController, 160);
+    _scrollController.addListener(_primaryScrollListener);
+    _recommendedScrollController.addListener(_recommendedScrollListener);
     _regionSubscription = ref.listenManual<String?>(regionProvider, (prev, next) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _applyFilterDebounced();
@@ -53,38 +59,25 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
   void dispose() {
     _debounce?.cancel();
     _regionSubscription.close();
+    _scrollController.removeListener(_primaryScrollListener);
+    _recommendedScrollController.removeListener(_recommendedScrollListener);
     _scrollController.dispose();
     _recommendedScrollController.dispose();
     _controller.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
-    final state = ref.read(policyPagingProvider).primary;
+  void _onFeedScroll(
+    PolicyFeedType feed,
+    ScrollController controller,
+    double threshold,
+  ) {
+    final feeds = ref.read(policyPagingProvider);
+    final state = feed == PolicyFeedType.primary ? feeds.primary : feeds.recommended;
     if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
-    final position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 200) {
-      ref.read(policyPagingProvider.notifier).loadMore(PolicyFeedType.primary);
-    }
-  }
-
-  void _onRecommendedScroll() {
-    final state = ref.read(policyPagingProvider).recommended;
-    if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
-    final position = _recommendedScrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 160) {
-      ref
-          .read(policyPagingProvider.notifier)
-          .loadMore(PolicyFeedType.recommended);
-    }
-  }
-
-  void _onRecommendedScroll() {
-    final state = ref.read(recommendedPolicyProvider);
-    if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
-    final position = _recommendedScrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 160) {
-      ref.read(recommendedPolicyProvider.notifier).loadMore();
+    final position = controller.position;
+    if (position.pixels >= position.maxScrollExtent - threshold) {
+      ref.read(policyPagingProvider.notifier).loadMore(feed);
     }
   }
 
