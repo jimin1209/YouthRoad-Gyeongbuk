@@ -774,4 +774,451 @@ Widget build(BuildContext context, WidgetRef ref) {
 
 ---
 
+### ISSUE 10. 추천 정책 – 초기 전체 로드 방식 제거 및 스크롤 기반 Lazy Loading 도입
+
+#### 10-1. 배경 / 증상
+
+- 추천 정책 섹션이 진입 시 **모든 정책을 한꺼번에 로드하는 구조**로 되어 있어,
+  - 초기 화면 로딩이 매우 느려지고
+  - API 요청량이 많아지고
+  - WebView/KakaoMap 사용 시 초기 프레임 드랍까지 발생함.
+- 특히 Search V2, 지역 추천, 카테고리 탐색 화면 진입 시  
+  **로딩 1~3초 이상 지연**되는 문제가 발생함.
+
+#### 10-2. 목표
+
+- 추천 정책 로딩 방식을 **스크롤 기반 Lazy Loading 방식(페이징)**으로 전환.
+- 초기에는 **최소한의 정책(예: 10개)**만 로드하고,  
+  사용자가 스크롤을 내릴 때마다 추가 데이터를 요청.
+- 전체 추천 정책 list fetch → 페이징 기반 fetch로 완전 전환.
+- UX와 성능 둘 다 크게 개선.
+
+#### 10-3. 상세 요구사항
+
+1. **API 단 페이징 도입 또는 로컬 페이징 시나리오 정의**
+   - 만약 gbyouth 정책 API가 `page`, `size` 지원한다면:
+     - page=1, size=10 으로 초기 로드  
+     - 이후 스크롤 시 page++ 호출
+   - API가 페이징을 지원하지 않는 경우:
+     - 1회 전체 fetch → 내부에서 Chunk 단위로 나눔  
+     - Lazy Loading UI는 동일하게 구현
+
+2. **UI 변경**
+   - 추천 정책 리스트를 **ListView.builder** 또는 **PagedListView** 구조로 변경
+   - 하단 스크롤 근처에 도달하면 자동으로 다음 페이지 로드  
+     (혹은 "더 불러오기" 버튼 제공)
+   - 목록 하단에 로딩 indicator(`CircularProgressIndicator`) 표시
+
+3. **Controller / Provider 변경**
+   - 기존 RecommendedController는 "전체 리스트 1회 로드" 구조 → **Paging Controller 구조**로 변경
+   - 필수 기능:
+     - `fetchPage(page)` 메소드
+     - `hasMore` 플래그
+     - `isLoadingNextPage` 상태 관리
+     - 에러 발생 시 retry 가능하도록 구성
+
+4. **성능 개선**
+   - 초기 fetch는 **최소 데이터만** 들고 오게 함
+   - 지역 변경 시에도 전체 재로딩이 아닌 **첫 페이지부터 다시 시작**하도록 구성
+   - 기존 추천 정책 50개·80개 로딩으로 발생하던 지연 제거
+
+5. **검색/지역 필터와의 통합**
+   - 지역 변경 시:
+     - 모든 페이지 초기화 (page=1)
+     - 이전 데이터 유지하지 않고 깔끔하게 리셋
+   - 검색어 변화 시:
+     - Lazy Loading 다시 처음부터 적용
+
+6. **디버그 패널 연동**
+   - 페이징 로딩 중 상태 변화(loading → loaded → hasMore=false)를  
+     Debug Provider 탭에서 추적 가능하도록 이벤트 추가
+
+#### 10-4. 구현 가이드 (예시)
+
+**(A) Controller 구조**
+
+```dart
+class RecommendedPagingController extends StateNotifier<RecommendedPagingState> {
+  RecommendedPagingController(this._repo) : super(RecommendedPagingState.initial());
+
+  final PolicyRepository _repo;
+
+  Future<void> loadFirstPage() async {
+    state = state.copyWith(isLoading: true, page: 1, items: []);
+    final result = await _repo.fetchRecommended(page: 1, size: 10);
+    state = state.copyWith(
+      isLoading: false,
+      items: result.items,
+      hasMore: result.items.length == 10,
+      page: 1,
+    );
+  }
+
+  Future<void> loadNextPage() async {
+    if (!state.hasMore || state.isLoadingNext) return;
+
+    state = state.copyWith(isLoadingNext: true);
+    final nextPage = state.page + 1;
+    final result = await _repo.fetchRecommended(page: nextPage, size: 10);
+
+    state = state.copyWith(
+      isLoadingNext: false,
+      items: [...state.items, ...result.items],
+      hasMore: result.items.length == 10,
+      page: nextPage,
+    );
+  }
+}
+
+---
+
+지민님 💙🩵
+바로 **Issue #10 – 추천 정책 Lazy Loading(스크롤 기반 로딩)** 을
+AGENTS.md 서식 그대로 **복붙 가능한 단일 코드블록**로 만들어드릴게요.
+
+아래 그대로 AGENTS.md에 넣으면 됩니다.
+
+---
+
+````markdown
+### 10. 추천 정책 – 초기 전체 로드 방식 제거 및 스크롤 기반 Lazy Loading 도입
+
+#### 10-1. 배경 / 증상
+
+- 추천 정책 섹션이 진입 시 **모든 정책을 한꺼번에 로드하는 구조**로 되어 있어,
+  - 초기 화면 로딩이 매우 느려지고
+  - API 요청량이 많아지고
+  - WebView/KakaoMap 사용 시 초기 프레임 드랍까지 발생함.
+- 특히 Search V2, 지역 추천, 카테고리 탐색 화면 진입 시  
+  **로딩 1~3초 이상 지연**되는 문제가 발생함.
+
+#### 10-2. 목표
+
+- 추천 정책 로딩 방식을 **스크롤 기반 Lazy Loading 방식(페이징)**으로 전환.
+- 초기에는 **최소한의 정책(예: 10개)**만 로드하고,  
+  사용자가 스크롤을 내릴 때마다 추가 데이터를 요청.
+- 전체 추천 정책 list fetch → 페이징 기반 fetch로 완전 전환.
+- UX와 성능 둘 다 크게 개선.
+
+#### 10-3. 상세 요구사항
+
+1. **API 단 페이징 도입 또는 로컬 페이징 시나리오 정의**
+   - 만약 gbyouth 정책 API가 `page`, `size` 지원한다면:
+     - page=1, size=10 으로 초기 로드  
+     - 이후 스크롤 시 page++ 호출
+   - API가 페이징을 지원하지 않는 경우:
+     - 1회 전체 fetch → 내부에서 Chunk 단위로 나눔  
+     - Lazy Loading UI는 동일하게 구현
+
+2. **UI 변경**
+   - 추천 정책 리스트를 **ListView.builder** 또는 **PagedListView** 구조로 변경
+   - 하단 스크롤 근처에 도달하면 자동으로 다음 페이지 로드  
+     (혹은 "더 불러오기" 버튼 제공)
+   - 목록 하단에 로딩 indicator(`CircularProgressIndicator`) 표시
+
+3. **Controller / Provider 변경**
+   - 기존 RecommendedController는 "전체 리스트 1회 로드" 구조 → **Paging Controller 구조**로 변경
+   - 필수 기능:
+     - `fetchPage(page)` 메소드
+     - `hasMore` 플래그
+     - `isLoadingNextPage` 상태 관리
+     - 에러 발생 시 retry 가능하도록 구성
+
+4. **성능 개선**
+   - 초기 fetch는 **최소 데이터만** 들고 오게 함
+   - 지역 변경 시에도 전체 재로딩이 아닌 **첫 페이지부터 다시 시작**하도록 구성
+   - 기존 추천 정책 50개·80개 로딩으로 발생하던 지연 제거
+
+5. **검색/지역 필터와의 통합**
+   - 지역 변경 시:
+     - 모든 페이지 초기화 (page=1)
+     - 이전 데이터 유지하지 않고 깔끔하게 리셋
+   - 검색어 변화 시:
+     - Lazy Loading 다시 처음부터 적용
+
+6. **디버그 패널 연동**
+   - 페이징 로딩 중 상태 변화(loading → loaded → hasMore=false)를  
+     Debug Provider 탭에서 추적 가능하도록 이벤트 추가
+
+#### 10-4. 구현 가이드 (예시)
+
+**(A) Controller 구조**
+
+```dart
+class RecommendedPagingController extends StateNotifier<RecommendedPagingState> {
+  RecommendedPagingController(this._repo) : super(RecommendedPagingState.initial());
+
+  final PolicyRepository _repo;
+
+  Future<void> loadFirstPage() async {
+    state = state.copyWith(isLoading: true, page: 1, items: []);
+    final result = await _repo.fetchRecommended(page: 1, size: 10);
+    state = state.copyWith(
+      isLoading: false,
+      items: result.items,
+      hasMore: result.items.length == 10,
+      page: 1,
+    );
+  }
+
+  Future<void> loadNextPage() async {
+    if (!state.hasMore || state.isLoadingNext) return;
+
+    state = state.copyWith(isLoadingNext: true);
+    final nextPage = state.page + 1;
+    final result = await _repo.fetchRecommended(page: nextPage, size: 10);
+
+    state = state.copyWith(
+      isLoadingNext: false,
+      items: [...state.items, ...result.items],
+      hasMore: result.items.length == 10,
+      page: nextPage,
+    );
+  }
+}
+````
+
+**(B) UI 구조**
+
+```dart
+NotificationListener<ScrollNotification>(
+  onNotification: (scroll) {
+    if (scroll.metrics.pixels >= scroll.metrics.maxScrollExtent * 0.8) {
+      ref.read(recommendedPagingControllerProvider.notifier).loadNextPage();
+    }
+    return false;
+  },
+  child: ListView.builder(
+    itemCount: items.length + (hasMore ? 1 : 0),
+    itemBuilder: (context, index) {
+      if (index == items.length) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return PolicyCard(item: items[index]);
+    },
+  ),
+);
+```
+
+#### 10-5. 체크리스트
+
+* [ ] 추천 정책 초기 로딩이 즉시(0.2~0.4초) 완료되는지 확인
+* [ ] 스크롤 시 부드럽게 추가 정책이 로드되는지 확인
+* [ ] 더 이상 페이지가 없으면 로딩 인디케이터가 사라지는지
+* [ ] 지역 변경 → 첫 페이지부터 정상 로드되는지
+* [ ] 검색어 변경 → Lazy Loading 재초기화되는지
+* [ ] 전체 리스트를 한 번에 로드하지 않는지 로깅에서 확인
+* [ ] Debug Provider 탭에서 페이징 상태 변화를 확인할 수 있는지
+
+#### 10-6. 완료 기준
+
+* 추천 정책 섹션이 **초기 진입 시 빠르게 로드되고**,
+  스크롤할 때마다 자연스럽게 추가 로드되는 Lazy Loading 구조가 완료됨.
+* 전체 fetch로 인한 1~3초 지연이 **완전히 제거됨**.
+* Search V2, 홈 추천, 지역 기반 추천 모두 안정적으로 페이징 로딩.
+
+```
+
+---
+
+### ISSUE 11. 정책 비교 UI 삭제됨 · 좋아요 정책 모아보기 없음 · 정책 검색 V2 무한 로딩 문제
+
+#### 11-1. 배경 / 증상
+
+최근 구조 개편 및 Search V2 도입 과정에서 다음과 같은 3가지 심각한 기능 손실이 발생함:
+
+1. **정책 비교 UI가 사라짐**
+   - 기존 정책 상세/정책 리스트에서 “비교하기” 버튼 또는 비교슬롯 UI가 제공되었음
+   - 현재 정책 비교 섹션/화면이 완전히 노출되지 않음  
+   - 정책 모델 내 비교 플래그, 비교 리스트 Provider 등도 정상 작동하지 않는 것으로 보임
+
+2. **정책 좋아요(하트) 저장 후 모아보기 화면이 없음**
+   - 정책 카드의 ❤ 버튼은 눌리지만  
+     - 상태 저장이 되는지 불분명  
+     - 사용자가 좋아요 누른 정책들을 한 화면에서 볼 수 있는 “좋아요 모아보기” 페이지가 없음  
+   - 기존 저장 위치나 Storage Provider가 변경되거나 삭제된 가능성
+
+3. **정책 검색 V2 – “최신 정보를 준비하고 있습니다…” 메시지에서 무한 로딩**
+   - Search V2 진입 시
+     - 추천 정책 / 검색 초기 리스트 / 인기 키워드 등이 로드되지 않고  
+     - 화면 전체가 “최신 정보를 준비하고 있습니다…” 문구만 반복 표시
+   - 정책 fetch 로직이 실행되지 않거나,  
+     AsyncNotifier 상태가 `loading` → `data` 로 전환되지 않음
+
+#### 11-2. 목표
+
+- **(A)** 정책 비교 기능을 원래대로 복구하고 UI/Provider 구조를 안정화  
+- **(B)** 정책 좋아요(찜) 기능을 저장 가능 + 모아보기 화면 제공하도록 복원  
+- **(C)** Search V2에서 정책/추천 정책/검색 초기 데이터가 정상 표시되도록 로딩 구조 재정비
+
+#### 11-3. 상세 요구사항
+
+---
+
+### (A) 정책 비교 기능 복원
+
+1. **정책 비교 컨트롤러/Provider 존재 여부 확인**
+   - `compare_policy_controller.dart`, `compare_list_provider`,  
+     `selectedPolicyForCompare`, `compareManager` 등 기존 파일 확인
+   - 디렉토리 구조 변경으로 import path 끊긴 부분 없는지 확인
+
+2. **UI 컴포넌트 복구**
+   - 정책 카드 내 “비교 담기” 버튼 재확인
+   - 화면 하단/상단 비교 UI 패널 복원
+   - 비교 화면(route: `/policy/compare`) 정상 진입 가능하도록 라우터 재정비
+
+3. **기능 연동 복원**
+   - 정책 추가 → 리스트에 반영  
+   - 정책 제거 → UI 반영  
+   - 비교 화면에서 두 정책 스펙 비교가 정상적으로 나타나는지 확인
+
+4. **Search V2/탐색/홈 화면 모든 정책 카드에서 Compare버튼 노출되게 유지**
+
+---
+
+### (B) 정책 좋아요(찜) 기능 복원 및 모아보기 화면 제공
+
+1. **좋아요 상태 저장 구조 확인**
+   - Local storage (SharedPreferences or Isar)  
+   - Provider: `favoritePoliciesProvider`, `favoriteManager` 등 작동 여부 검증
+   - 기존 key/value 구조가 남아 있는지 점검
+
+2. **❤ 버튼 UI 복원**
+   - 정책 카드에서 하트 클릭 시:
+     - 즉시 애니메이션 반영  
+     - Provider 상태 업데이트  
+     - local DB 저장
+
+3. **좋아요 정책 모아보기 화면 추가**
+   - Route: `/policy/favorites`
+   - 필요한 요소:
+     - 좋아요한 정책 리스트
+     - 검색/필터 기능(optional)
+     - 정책 상세/비교 연동
+
+4. **정책 목록/검색/탐색/추천 페이지에서 좋아요 상태 유지 일관성 테스트**
+
+---
+
+### (C) 정책 검색 V2 무한 로딩 문제 해결
+
+1. **초기 로딩 트리거 확인**
+   - `SearchControllerV2.initialize()`가 실행되지 않음  
+   - 또는 초기 fetch가 다 실패 → state가 loading에서 벗어나지 못함
+
+2. **무한 로딩 발생 패턴**
+   - AsyncNotifier의 build가 비동기 오류로 throw  
+   - exception이 swallow 되어 UI로 전달되지 않고 loading 유지  
+   - ref.listen 위치 오류로 초기 동작 자체가 실행되지 않음  
+
+3. **필수 초기 데이터 흐름 복구**
+   - 추천 정책 로딩  
+   - 기본 정책 fetch  
+   - 인기 검색어 가져오기  
+   - 최근 검색어 복원  
+   - 현재 지역 기반 정책 fetch  
+   이 5개 중 1개라도 Future 에러 → 전체 init 중단될 가능성 존재
+
+4. **로딩 UI 조건식 점검**
+   - `state.isLoading || items.isEmpty` 같은 조건으로 인해  
+     data가 있음에도 로딩 문구만 표시되는 UI 버그 체크
+
+5. **에러 발생 시 fallback**
+   - 에러 발생 시 ‘최신 정보를 준비~’가 아닌  
+     “데이터를 불러오지 못했습니다. 다시 시도해주세요.”  
+     로 전환되도록 분리
+
+---
+
+#### 11-4. 구현 가이드 (예시)
+
+**(A) 정책 비교 복구**
+
+```dart
+final compareProvider = StateNotifierProvider<CompareController, CompareState>((ref) {
+  return CompareController();
+});
+````
+
+정책 카드에서:
+
+```dart
+IconButton(
+  icon: Icon(isInCompare ? Icons.compare : Icons.compare_arrows),
+  onPressed: () => ref.read(compareProvider.notifier).toggle(policy),
+);
+```
+
+비교 화면에서 두 정책 데이터 비교 UI 구현.
+
+---
+
+**(B) 좋아요 정책 저장 및 페이지**
+
+```dart
+final favoritesProvider = StateNotifierProvider<FavoritesController, Set<int>>((ref) {
+  return FavoritesController(ref.read);
+});
+```
+
+좋아요 페이지 라우트:
+
+```dart
+GoRoute(
+  path: '/policy/favorites',
+  builder: (context, _) => FavoritePoliciesScreen(),
+);
+```
+
+---
+
+**(C) Search V2 초기화 문제 해결**
+
+검색 화면 진입 시:
+
+```dart
+@override
+void initState() {
+  super.initState();
+  Future.microtask(() {
+    ref.read(searchV2ControllerProvider.notifier).initialize();
+  });
+}
+```
+
+UI:
+
+```dart
+final state = ref.watch(searchV2ControllerProvider);
+if (state.isLoading) return LoadingSkeleton();
+if (state.hasError) return RetryButton();
+return SearchV2Content(state);
+```
+
+---
+
+#### 11-5. 체크리스트
+
+* [ ] 정책 비교 버튼 및 비교 화면 완전히 복구됨
+* [ ] 비교 리스트 추가/삭제가 즉시 UI에 반영
+* [ ] 좋아요 ❤ 기능 정상 저장 + 상태 유지
+* [ ] 좋아요 모아보기 페이지 정상 진입
+* [ ] Search V2에서 “로딩 중…” 무한표시가 사라짐
+* [ ] 초기 정책/추천 정책/검색어 데이터 정상 표시
+* [ ] 모든 화면에서 Compare/Like 상태 일관 유지
+
+#### 11-6. 완료 기준
+
+* 정책 비교 기능 + 좋아요 모아보기 + 검색 V2가
+  **모두 정상 작동하며 기능 손실이 없는 상태**
+* Search V2에서 더 이상 “최신 정보를 준비...” 무한 로딩이 발생하지 않음
+* 정책 기능 전반(탐색/검색/추천/상세/비교/좋아요)이 **정상 흐름으로 완전 회복됨**
+
+```
+
+---
+
+
+
+
 
