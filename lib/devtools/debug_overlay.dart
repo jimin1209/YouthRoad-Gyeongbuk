@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../debug/debug_settings_provider.dart';
 import 'devtools_provider.dart';
 import 'panels/log_console_panel.dart';
 import 'panels/network_inspector_panel.dart';
@@ -10,15 +13,70 @@ import 'panels/webview_console_panel.dart';
 import 'widgets/devtools_container.dart';
 import 'widgets/devtools_tab_bar.dart';
 
-class DevtoolsOverlay extends ConsumerWidget {
+class DevtoolsOverlay extends ConsumerStatefulWidget {
   const DevtoolsOverlay({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (kReleaseMode) {
-      return child;
+  ConsumerState<DevtoolsOverlay> createState() => _DevtoolsOverlayState();
+}
+
+class _DevtoolsOverlayState extends ConsumerState<DevtoolsOverlay> {
+  bool _buttonVisible = false;
+  Timer? _revealTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    final enabled = ref.read(debugPanelEnabledProvider);
+    if (enabled) {
+      _scheduleReveal();
+    }
+    ref.listen<bool>(debugPanelEnabledProvider, (previous, next) {
+      if (!next) {
+        _revealTimer?.cancel();
+        if (mounted) {
+          setState(() => _buttonVisible = false);
+        }
+        return;
+      }
+      _scheduleReveal();
+    });
+  }
+
+  @override
+  void dispose() {
+    _revealTimer?.cancel();
+    super.dispose();
+  }
+
+  void _revealButton() {
+    if (_buttonVisible) return;
+    setState(() {
+      _buttonVisible = true;
+    });
+  }
+
+  void _scheduleReveal() {
+    _revealTimer?.cancel();
+    _revealTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted || _buttonVisible) return;
+      setState(() {
+        _buttonVisible = true;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kDebugMode) {
+      return widget.child;
+    }
+
+    final isEnabled = ref.watch(debugPanelEnabledProvider);
+    if (!isEnabled) {
+      return widget.child;
     }
 
     final state = ref.watch(devtoolsProvider);
@@ -26,7 +84,7 @@ class DevtoolsOverlay extends ConsumerWidget {
 
     return Stack(
       children: [
-        child,
+        widget.child,
         if (state.isOpen)
           DevtoolsContainer(
             onClose: notifier.closeOverlay,
@@ -40,11 +98,21 @@ class DevtoolsOverlay extends ConsumerWidget {
             right: 20,
             bottom: 24,
             child: GestureDetector(
-              onLongPress: notifier.toggleOverlay,
-              child: FloatingActionButton(
-                onPressed: notifier.toggleOverlay,
-                backgroundColor: const Color(0xFF1E293B),
-                child: const Icon(Icons.bug_report, color: Colors.white),
+              onLongPress: _revealButton,
+              behavior: HitTestBehavior.opaque,
+              child: SizedBox(
+                width: 56,
+                height: 56,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 240),
+                  opacity: _buttonVisible ? 1 : 0,
+                  child: FloatingActionButton(
+                    mini: true,
+                    onPressed: notifier.toggleOverlay,
+                    backgroundColor: const Color(0xFF1E293B).withOpacity(0.82),
+                    child: const Icon(Icons.bug_report, color: Colors.white),
+                  ),
+                ),
               ),
             ),
           ),

@@ -160,11 +160,6 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       case KakaoMapEventType.unknown:
         break;
     }
-    if (widget.showDebugPanel && !_showDebug) {
-      setState(() {
-        _showDebug = true;
-      });
-    }
   }
 
   void _notifyLoading(bool value) {

@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/providers.dart';
+import '../../../debug/debug_settings_provider.dart';
 import '../../widgets/app_appbar.dart';
 
 class SettingScreen extends ConsumerWidget {
@@ -11,6 +13,7 @@ class SettingScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(sharedPreferencesProvider);
     final notifications = prefs.getBool('notifications') ?? true;
+    final debugPanelEnabled = ref.watch(debugPanelEnabledProvider);
 
     return Scaffold(
       appBar: const AppAppBar(title: '설정'),
@@ -46,6 +49,14 @@ class SettingScreen extends ConsumerWidget {
               );
             },
           ),
+          if (kDebugMode)
+            SwitchListTile(
+              title: const Text('디버그 패널 활성화'),
+              subtitle: const Text('디버그 버튼 표시 여부를 전환합니다.'),
+              value: debugPanelEnabled,
+              onChanged: (value) =>
+                  ref.read(debugPanelEnabledProvider.notifier).setEnabled(value),
+            ),
           const ListTile(
             title: Text('앱 버전'),
             subtitle: Text('1.0.0 (mock)'),
