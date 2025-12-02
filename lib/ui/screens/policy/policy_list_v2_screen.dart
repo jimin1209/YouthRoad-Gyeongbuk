@@ -10,6 +10,7 @@ import '../../../data/models/policy_filter.dart';
 import '../../../data/sources/local/search_history_source.dart';
 import '../../../navigation/route_paths.dart';
 import '../../widgets/app_appbar.dart';
+import '../../widgets/compare_badge.dart';
 import '../../widgets/global_error_view.dart';
 import '../../widgets/policy_card_v2.dart';
 
@@ -187,7 +188,23 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     }
 
     return Scaffold(
-      appBar: const AppAppBar(title: '정책 목록'),
+      appBar: AppAppBar(
+        title: '정책 목록',
+        actions: [
+          IconButton(
+            tooltip: '찜한 정책',
+            icon: const Icon(Icons.favorite_border),
+            onPressed: () => context.push(RoutePaths.favorites),
+          ),
+          CompareBadge(
+            child: IconButton(
+              tooltip: '비교함',
+              icon: const Icon(Icons.balance_outlined),
+              onPressed: () => context.push(RoutePaths.compare),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: compareCount == 0
           ? null
           : FloatingActionButton.extended(
@@ -292,7 +309,11 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
           ),
           buildHistory(),
           const Divider(height: 1),
-          Expanded(child: buildList()),
+          Expanded(
+            child: pagingState.isLoading && pagingState.items.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : buildList(),
+          ),
         ],
       ),
     );

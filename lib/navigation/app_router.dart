@@ -15,11 +15,11 @@ import '../ui/screens/compare/compare_screen.dart';
 import '../ui/screens/policy/policy_compare_screen.dart';
 import '../ui/screens/policy/policy_detail_v2_screen.dart';
 import '../ui/screens/policy/policy_list_legacy_screen.dart';
+import '../ui/screens/policy/policy_list_v2_screen.dart';
 import '../ui/screens/policy/policy_webview_page.dart';
 import '../ui/screens/region/region_select_screen.dart';
 import '../ui/screens/setting/setting_screen.dart';
 import '../ui/screens/setting/setting_v2_screen.dart';
-import '../features/policy/ui/policy_list_page.dart';
 import '../ui/widgets/bottom_nav.dart';
 import '../ui/widgets/global_error_view.dart';
 import '../presentation/search/screens/search_screen.dart';
@@ -102,7 +102,7 @@ class AppRouter {
         ),
         GoRoute(
           path: RoutePaths.policyListV2,
-          builder: (context, state) => const PolicyListPage(),
+          builder: (context, state) => const PolicyListV2Screen(),
         ),
         GoRoute(
           path: RoutePaths.policyLegacyList,
