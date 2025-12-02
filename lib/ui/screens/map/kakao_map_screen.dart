@@ -25,6 +25,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   static const _defaultCenter = KakaoMapLatLng(lat: 36.4919, lng: 128.8889);
 
+  static const _defaultCenter = KakaoMapLatLng(lat: 36.4919, lng: 128.8889);
+
   @override
   void initState() {
     super.initState();
