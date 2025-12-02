@@ -25,10 +25,6 @@ class SearchRepositoryImpl implements SearchRepository {
     final trimmedQuery = query.text.trim();
     final effectiveQuery = query.copyWith(text: trimmedQuery, page: query.page);
 
-    if (effectiveQuery.isEmpty) {
-      return SearchResult(query: effectiveQuery, items: const [], hasMore: false);
-    }
-
     final remoteResponse = await _remoteSource.search(effectiveQuery);
     final mergedItems = List<SearchResultItemModel>.from(remoteResponse.items);
 

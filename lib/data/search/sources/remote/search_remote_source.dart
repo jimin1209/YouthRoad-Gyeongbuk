@@ -75,11 +75,6 @@ class SearchRemoteSource {
   }
 
   Future<SearchRemoteResponse> search(SearchQuery query) async {
-    final normalized = query.text.trim();
-    if (normalized.isEmpty) {
-      return const SearchRemoteResponse(items: [], hasMore: false);
-    }
-
     final tasks = <Future<SearchRemoteResponse>>[];
     if (query.category == SearchCategory.all ||
         query.category == SearchCategory.policy) {
