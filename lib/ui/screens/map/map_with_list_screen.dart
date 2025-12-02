@@ -98,6 +98,18 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
                           controller: _listController,
                           padding: const EdgeInsets.all(16),
                           itemBuilder: (_, i) {
+                            if (i >= policies.length) {
+                              if (!state.hasMore) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: Center(child: Text('모든 정책을 불러왔습니다.')),
+                                );
+                              }
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
                             final policy = policies[i];
                             return PolicyCardV2(
                               policy: policy,
@@ -105,7 +117,8 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
                             );
                           },
                           separatorBuilder: (_, __) => const SizedBox(height: 12),
-                          itemCount: policies.length,
+                          itemCount:
+                              policies.length + (state.isLoadingMore || state.hasMore ? 1 : 0),
                         ),
             ),
           ],
@@ -222,6 +235,15 @@ class _MapWithListScreenState extends ConsumerState<MapWithListScreen> {
     if (current.id == _selectedPolicyId) return;
     _selectedPolicyId = current.id;
     _moveMapToPolicy(current.id);
+
+    final position = _listController.position;
+    if (position.maxScrollExtent <= 0) return;
+    final state = ref.read(policyListNotifierProvider);
+    if (state.hasMore &&
+        !state.isLoadingMore &&
+        position.pixels >= position.maxScrollExtent - 200) {
+      ref.read(policyListNotifierProvider.notifier).loadNextPage();
+    }
   }
 
   void _onMapEvent(JavaScriptMessage message) {
