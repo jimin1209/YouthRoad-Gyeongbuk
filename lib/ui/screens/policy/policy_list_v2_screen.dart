@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../application/notifiers/policy_paging_notifier.dart';
 import '../../../application/providers.dart';
 import '../../../application/search/providers.dart';
 import '../../../data/models/policy_filter.dart';
@@ -80,6 +79,15 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     }
   }
 
+  void _onRecommendedScroll() {
+    final state = ref.read(recommendedPolicyProvider);
+    if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
+    final position = _recommendedScrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 160) {
+      ref.read(recommendedPolicyProvider.notifier).loadMore();
+    }
+  }
+
   PolicyFilter _buildFilter() {
     final region = ref.read(regionProvider);
     return PolicyFilter(
@@ -88,6 +96,17 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
       category: _selectedCategory,
       searchYear: _selectedYear,
       availableOnly: _availableOnly,
+      pageIndex: 1,
+      recordCount: 10,
+      pagingYn: 'Y',
+    );
+  }
+
+  PolicyFilter _buildRecommendationFilter() {
+    final region = ref.read(regionProvider);
+    return PolicyFilter(
+      searchRgnSe: region,
+      availableOnly: true,
       pageIndex: 1,
       recordCount: 10,
       pagingYn: 'Y',

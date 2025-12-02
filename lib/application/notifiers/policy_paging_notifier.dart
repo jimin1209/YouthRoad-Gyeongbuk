@@ -81,6 +81,8 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
 
   bool _initialized = false;
   bool _initialLoadScheduled = false;
+  int _requestId = 0;
+  String? _inFlightKey;
 
   int _primaryRequestId = 0;
   int _recommendedRequestId = 0;
