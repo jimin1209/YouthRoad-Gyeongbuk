@@ -6,6 +6,7 @@ import 'notifiers/compare_notifier.dart';
 import 'notifiers/favorites_notifier.dart';
 import 'notifiers/policy_detail_notifier.dart';
 import 'notifiers/policy_paging_notifier.dart';
+import 'notifiers/recommended_policy_notifier.dart';
 
 export 'di.dart';
 export 'repository_providers.dart';
@@ -14,6 +15,8 @@ export 'policy/policy_list_notifier.dart'
     show policyListNotifierProvider, PolicyListNotifier, PolicyListState;
 export '../features/policy/providers/policy_prefetch_provider.dart'
     show policyPrefetchProvider, PolicyPrefetchNotifier;
+export 'notifiers/recommended_policy_notifier.dart'
+    show recommendedPolicyProvider, RecommendedPolicyNotifier;
 
 final policyPagingProvider =
     NotifierProvider.autoDispose<PolicyPagingNotifier, PolicyPagingState>(
