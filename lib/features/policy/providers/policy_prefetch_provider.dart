@@ -2,7 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/notifiers/policy_paging_notifier.dart'; // ← ★ 반드시 필요!!
-import '../../../application/providers.dart';
+import '../../../application/providers.dart'
+    show policyPagingProvider, policyRepositoryInterfaceProvider;
 import '../../../domain/repositories/policy_repository.dart';
 import 'policy_list_provider.dart';
 
