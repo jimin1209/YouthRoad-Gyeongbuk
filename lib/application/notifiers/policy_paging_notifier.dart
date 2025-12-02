@@ -146,6 +146,8 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
     final normalizedFeed = _effectiveFeed(feed);
     switch (normalizedFeed) {
       case PolicyFeedType.primary:
+      case PolicyFeedType.bookmarked:
+      case PolicyFeedType.latest:
         return _loadInitialPrimary(filter ?? _defaultFilter());
       case PolicyFeedType.recommended:
         return _loadInitialRecommended(filter ?? _recommendationFilter(_primary.filter));
@@ -214,6 +216,8 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
     final normalizedFeed = _effectiveFeed(feed);
     switch (normalizedFeed) {
       case PolicyFeedType.primary:
+      case PolicyFeedType.bookmarked:
+      case PolicyFeedType.latest:
         if (_primary.isLoadingMore || _primary.isLoading || !_primary.hasMore) {
           return;
         }
@@ -300,6 +304,8 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
     final limited = policies.take(_pageSize).toList();
     switch (normalizedFeed) {
       case PolicyFeedType.primary:
+      case PolicyFeedType.bookmarked:
+      case PolicyFeedType.latest:
         state = state.copyWith(
           primary: _primary.copyWith(
             items: limited,
