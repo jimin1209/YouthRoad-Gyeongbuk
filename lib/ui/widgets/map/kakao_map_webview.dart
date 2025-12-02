@@ -54,7 +54,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
   KakaoMapOptions? _lastOptions;
   bool? _lastClustering;
   Timer? _readyTimeout;
-  static const _readyTimeoutDuration = Duration(seconds: 15);
+  static const _readyTimeoutDuration = Duration(seconds: 20);
   final List<KakaoMapEvent> _logs = [];
   bool _showDebug = false;
 

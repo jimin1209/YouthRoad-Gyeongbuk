@@ -301,6 +301,9 @@ class KakaoMapController {
         NavigationDelegate(
           onPageFinished: (_) {
             _ready = false;
+            webViewController.runJavaScript(
+              'window.kakaoBootstrap && window.kakaoBootstrap();',
+            );
           },
         ),
       )
