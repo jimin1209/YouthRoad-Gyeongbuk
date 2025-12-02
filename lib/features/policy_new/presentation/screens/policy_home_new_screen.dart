@@ -39,7 +39,7 @@ class PolicyHomeNewScreen extends ConsumerWidget {
                 return ListTile(
                   title: Text(p.title),
                   subtitle: Text(
-                    '${p.region} / '
+                    '${p.region.name} / '
                     '${p.applicationStartDate?.toIso8601String() ?? '-'}'
                     ' ~ '
                     '${p.applicationEndDate?.toIso8601String() ?? '-'}',

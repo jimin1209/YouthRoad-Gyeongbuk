@@ -99,7 +99,7 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
             const SizedBox(height: 16),
             _infoRow('기관명', policy.institution),
             _infoRow('담당부서', policy.department),
-            _infoRow('문의처', policy.contact),
+            _infoRow('문의처', policy.contact ?? ''),
             _infoRow('지원대상', _buildTargetText(policy)),
             const SizedBox(height: 16),
             Row(
@@ -191,11 +191,13 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
       targets.add('연령 ${[min, max].where((e) => e.isNotEmpty).join(' ~ ')}');
     }
     if (policy.isForYouth) targets.add('청년 대상');
-    if (policy.incomeCondition.isNotEmpty) targets.add(policy.incomeCondition);
-    if (policy.educationCondition.isNotEmpty) {
+    if ((policy.incomeCondition ?? '').isNotEmpty) {
+      targets.add(policy.incomeCondition!);
+    }
+    if ((policy.educationCondition ?? '').isNotEmpty) {
       targets.add('학력: ${policy.educationCondition}');
     }
-    if (policy.employmentCondition.isNotEmpty) {
+    if ((policy.employmentCondition ?? '').isNotEmpty) {
       targets.add('취업 상태: ${policy.employmentCondition}');
     }
 
