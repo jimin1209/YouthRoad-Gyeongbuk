@@ -1,43 +1,33 @@
 import '../../domain/entities/policy.dart';
-import '../../domain/values/policy_query.dart';
 
 class PolicyCache {
-  final Map<String, List<Policy>> _pageCache = {};
+  /// key: scope|page 형태
+  final Map<String, List<Policy>> _cache = {};
 
-  String _key(PolicyQuery query, int page) {
-    final keyword = query.keyword ?? '';
-    final tags = query.tags.join(',');
-    final filterTags = query.filter.tags.join(',');
-    final category = query.filter.category?.name ?? 'none';
-    final online = query.filter.isOnline?.toString() ?? 'any';
-    final offline = query.filter.isOffline?.toString() ?? 'any';
-    final ongoing = query.filter.isOngoing?.toString() ?? 'any';
-    final age = query.filter.age?.toString() ?? 'any';
-    final sort = query.sort.name;
+  /// 기본 scope는 'default'
+  String _keyForPage(int page, {String scope = 'default'}) => '$scope|$page';
 
-    return [
-      query.feedType.name,
-      page,
-      keyword,
-      tags,
-      query.filter.region.name,
-      category,
-      filterTags,
-      online,
-      offline,
-      ongoing,
-      age,
-      sort,
-    ].join('|');
+  /// job01 하위 호환: page만 사용하는 캐시 (scope = 'default')
+  List<Policy>? getPage(int page) => _cache[_keyForPage(page)];
+
+  void savePage(int page, List<Policy> policies) {
+    _cache[_keyForPage(page)] = policies;
   }
 
-  List<Policy>? getPage(PolicyQuery query, int page) => _pageCache[_key(query, page)];
+  /// job03: PolicyQuery 기반 scope 키 사용
+  List<Policy>? getPageForScope(String scopeKey, int page) {
+    return _cache[_keyForPage(page, scope: scopeKey)];
+  }
 
-  void savePage(PolicyQuery query, int page, List<Policy> policies) {
-    _pageCache[_key(query, page)] = policies;
+  void savePageForScope(
+    String scopeKey,
+    int page,
+    List<Policy> policies,
+  ) {
+    _cache[_keyForPage(page, scope: scopeKey)] = policies;
   }
 
   void clear() {
-    _pageCache.clear();
+    _cache.clear();
   }
 }
