@@ -53,6 +53,7 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
 
   String? _lastQuery;
   bool _initialLoadScheduled = false;
+  int _requestCounter = 0;
 
   PolicyRepository get _repo => ref.read(policyRepositoryInterfaceProvider);
 
@@ -68,7 +69,11 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       _initialLoadScheduled = true;
       Future.microtask(() {
         debugPrint('[PolicyListNotifier] scheduling initial load');
-        _loadPolicies(region: normalizedRegion);
+        _loadPolicies(
+          region: normalizedRegion,
+          forceRefresh: false,
+          isUserRefresh: false,
+        );
       });
     }
 
@@ -77,7 +82,11 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       debugPrint(
         '[PolicyListNotifier] region changed: $previous -> $next, reloading policies',
       );
-      _loadPolicies(region: (next ?? '').trim(), forceRefresh: false);
+      _loadPolicies(
+        region: (next ?? '').trim(),
+        forceRefresh: false,
+        isUserRefresh: false,
+      );
     });
 
     ref.onDispose(() {
@@ -96,9 +105,14 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
     );
   }
 
+  int _nextRequestId() => ++_requestCounter;
+
+  bool _isLatestRequest(int requestId) => requestId == _requestCounter;
+
   Future<void> _loadPolicies({
     required String region,
-    bool forceRefresh = false,
+    required bool forceRefresh,
+    required bool isUserRefresh,
   }) async {
     if (kDebugMode) {
       try {
@@ -113,127 +127,119 @@ class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
       }
     }
 
+    final requestId = _nextRequestId();
+    final previousPolicies = state.policies;
+    final normalizedRegion = region.trim();
+
+    debugPrint(
+      '[PolicyListNotifier][#$requestId] load start | '
+      'region="$normalizedRegion" forceRefresh=$forceRefresh refresh=$isUserRefresh '
+      'prevPolicies=${previousPolicies.length}',
+    );
+
     state = state.copyWith(
-      isLoading: true,
+      isLoading: isUserRefresh ? state.isLoading : true,
+      isRefreshing: isUserRefresh,
       error: null,
-      isStale: state.policies.isNotEmpty,
+      isStale: previousPolicies.isNotEmpty,
     );
 
     try {
-      final filter = _buildFilter(region: region);
+      final filter = _buildFilter(region: normalizedRegion);
       final result = await _repo.getPolicies(
         filter: filter,
         forceRefresh: forceRefresh,
       );
 
+      if (!_isLatestRequest(requestId)) {
+        debugPrint(
+          '[PolicyListNotifier][#$requestId] stale cache result discarded '
+          '(latest=#$_requestCounter)',
+        );
+        return;
+      }
+
       final remoteFuture = result.remoteRefresh;
-      final shouldMarkStale = remoteFuture != null && result.policies.isNotEmpty;
+      final hasInitialPolicies = result.policies.isNotEmpty;
+      final shouldKeepPrevious = !hasInitialPolicies && remoteFuture != null;
+      final policiesToApply = shouldKeepPrevious ? previousPolicies : result.policies;
+      final shouldMarkStale =
+          remoteFuture != null && (hasInitialPolicies || previousPolicies.isNotEmpty);
 
       state = state.copyWith(
-        policies: result.policies,
+        policies: policiesToApply,
         isLoading: false,
+        isRefreshing: isUserRefresh && remoteFuture != null,
         isStale: shouldMarkStale,
         error: null,
       );
       debugPrint(
-        '[PolicyListNotifier] initial cache load done. count=${result.policies.length}',
+        '[PolicyListNotifier][#$requestId] cache applied: '
+        'count=${policiesToApply.length} stale=$shouldMarkStale '
+        'keptPrevious=$shouldKeepPrevious',
       );
 
-      if (remoteFuture != null) {
-        remoteFuture.then((latest) {
-          state = state.copyWith(
-            policies: latest,
-            isStale: false,
-            error: null,
-          );
+      remoteFuture?.then((latest) {
+        if (!_isLatestRequest(requestId)) {
           debugPrint(
-            '[PolicyListNotifier] remote refresh success. count=${latest.length}',
+            '[PolicyListNotifier][#$requestId] remote result discarded '
+            '(latest=#$_requestCounter)',
           );
-        }).catchError((error, stack) {
-          debugPrint('[PolicyListNotifier] remote refresh failed: error=$error');
-          debugPrint('$stack');
-          state = state.copyWith(
-            error: error,
-            isStale: false,
+          return;
+        }
+
+        state = state.copyWith(
+          policies: latest,
+          isStale: false,
+          isRefreshing: false,
+          error: null,
+        );
+        debugPrint(
+          '[PolicyListNotifier][#$requestId] remote refresh success. count=${latest.length}',
+        );
+      }).catchError((error, stack) {
+        if (!_isLatestRequest(requestId)) {
+          debugPrint(
+            '[PolicyListNotifier][#$requestId] remote error discarded '
+            '(latest=#$_requestCounter)',
           );
-        });
-      }
+          return;
+        }
+
+        debugPrint('[PolicyListNotifier][#$requestId] remote refresh failed: error=$error');
+        debugPrint('$stack');
+        state = state.copyWith(
+          error: error,
+          isStale: false,
+          isRefreshing: false,
+        );
+      });
     } catch (e, st) {
-      debugPrint('[PolicyListNotifier] remote refresh failed: error=$e');
+      if (!_isLatestRequest(requestId)) {
+        debugPrint(
+          '[PolicyListNotifier][#$requestId] error discarded (latest=#$_requestCounter)',
+        );
+        return;
+      }
+
+      debugPrint('[PolicyListNotifier][#$requestId] remote refresh failed: error=$e');
       debugPrint('$st');
       state = state.copyWith(
         isLoading: false,
-        error: e,
-        isStale: false,
-      );
-    }
-
-    _debugLogState('after _loadPolicies');
-  }
-
-  Future<void> refresh() async {
-    final region = (ref.read(regionProvider) ?? '').trim();
-    debugPrint('[PolicyListNotifier] refresh() start with region=$region');
-
-    state = state.copyWith(
-      isRefreshing: true,
-      error: null,
-      isStale: state.policies.isNotEmpty,
-    );
-
-    try {
-      final filter = _buildFilter(region: region);
-      final result = await _repo.getPolicies(
-        filter: filter,
-        forceRefresh: true,
-      );
-
-      final remoteFuture = result.remoteRefresh;
-      final shouldMarkStale = remoteFuture != null && result.policies.isNotEmpty;
-
-      state = state.copyWith(
-        policies: result.policies,
-        isStale: shouldMarkStale,
-        error: null,
-      );
-
-      if (remoteFuture != null) {
-        await remoteFuture.then((latest) {
-          state = state.copyWith(
-            policies: latest,
-            isStale: false,
-            isRefreshing: false,
-            error: null,
-          );
-          debugPrint(
-            '[PolicyListNotifier] refresh remote success. count=${latest.length}',
-          );
-        }).catchError((error, stack) {
-          debugPrint('[PolicyListNotifier] refresh remote failed: error=$error');
-          debugPrint('$stack');
-          state = state.copyWith(
-            isRefreshing: false,
-            error: error,
-            isStale: false,
-          );
-        });
-      } else {
-        state = state.copyWith(
-          isRefreshing: false,
-          isStale: false,
-        );
-      }
-    } catch (e, st) {
-      debugPrint('[PolicyListNotifier] refresh failed: error=$e');
-      debugPrint('$st');
-      state = state.copyWith(
         isRefreshing: false,
         error: e,
         isStale: false,
       );
     }
 
-    _debugLogState('after refresh');
+    _debugLogState('after _loadPolicies #$requestId');
+  }
+
+  Future<void> refresh() async {
+    final region = (ref.read(regionProvider) ?? '').trim();
+    debugPrint('[PolicyListNotifier] refresh() start with region=$region');
+
+    await _loadPolicies(region: region, forceRefresh: true, isUserRefresh: true);
   }
 
   Future<void> search(String query) async {
