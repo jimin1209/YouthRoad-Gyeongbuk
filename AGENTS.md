@@ -2256,4 +2256,682 @@ final recommendFeedControllerProvider =
 
 ---
 
+좋아요 지민님 💙🩵
+이번엔 진짜 job01이랑 완전히 같은 급으로, 헷갈리는 거 하나 없이 정확하게 컴파일 가능한 구조로 job05 다시 만들어요.
+
+이 버전은:
+	•	경로까지 명확하고
+	•	참조하는 provider/controller 전부 정의 위치 명시하고
+	•	UI가 실제로 돌아갈 수 있는 형태로 설계된 “완전체 job05”예요.
+
+⸻
+
+🟦 #job05 — PolicyNew UI/UX 아키텍처 (완전체)
+
+아래 블록 그대로 AGENTS.md 에 #job05로 넣고 Codex한테 시키면 됩니다.
+
+@chatgpt-codex
+# job05 — PolicyNew UI/UX Architecture
+# Swipe 탭 기반 정책 피드 UI + 공통 리스트 + 카드 + 상세 바텀시트 + 실제 정책 페이지 이동까지
+
+목표:
+- job01~04에서 구축한 PolicyNew 엔진 위에,
+  실제로 사용할 수 있는 **정책 피드 UI 전체 구조**를 구축한다.
+- 탭/스와이프 구조, 리스트, 카드, 로딩/에러/빈 상태, 상세 바텀시트,
+  "실제 정책 페이지로 이동" 버튼까지 구현한다.
+- 기존 V1/V2 정책 화면은 전혀 건드리지 않고,
+  `lib/features/policy_new/presentation/**` 아래에만 새 UI를 만든다.
+
+---
+
+# 1. 전역 규칙 (job05)
+
+1. **기존 코드 수정 금지**
+   - 아래 경로의 파일은 수정하지 않는다:
+     - lib/ui/screens/policy/**
+     - lib/data/policy/**
+     - 기타 기존 정책 관련 화면
+
+2. **모든 신규 UI 파일 경로**
+   - lib/features/policy_new/presentation/**
+
+3. **사용하는 Controller / Provider 전제**
+   - job04가 이미 아래 Provider들을 정의했다고 가정한다:
+
+     ```dart
+     final recommendFeedControllerProvider
+         = StateNotifierProvider<RecommendFeedController, PolicyPagingState>(...);
+     final allFeedControllerProvider
+         = StateNotifierProvider<AllFeedController, PolicyPagingState>(...);
+     final regionFeedControllerProvider
+         = StateNotifierProvider<RegionFeedController, PolicyPagingState>(...);
+     final searchFeedControllerProvider
+         = StateNotifierProvider<SearchFeedController, PolicyPagingState>(...);
+     final favoriteFeedControllerProvider
+         = StateNotifierProvider<FavoriteFeedController, PolicyPagingState>(...);
+     final compareFeedControllerProvider
+         = StateNotifierProvider<CompareFeedController, PolicyPagingState>(...);
+     ```
+
+   - `PolicyPagingState`는 다음 필드를 가진다고 전제:
+     ```dart
+     class PolicyPagingState {
+       final bool isLoading;
+       final List<Policy> items;
+       final PolicyFailure? failure;
+       final bool hasMore;
+       ...
+     }
+     ```
+
+4. **UI는 오직 Controller/Provider만 의존**
+   - Repository/Remote에 직접 접근하지 않는다.
+   - Domain 엔티티 `Policy` 만 사용.
+
+5. **디자인**
+   - 이 job05에서는 “구조/동작”에 집중하고,
+     구체적인 색/폰트/애니메이션 튜닝은 이후 job에서 다룬다.
+
+---
+
+# 2. 디렉토리 구조
+
+아래 디렉토리/파일을 생성한다:
+
+```txt
+lib/features/policy_new/presentation/
+  screens/
+    policy_feed_home_screen.dart        # 상단 탭 + TabBarView (스와이프)
+  widgets/
+    policy_feed_list_view.dart          # 공통 피드 리스트 (Provider 매핑 + 스크롤/페이징)
+    policy_card.dart                    # 정책 카드 UI
+    policy_list_loading.dart            # 로딩 위젯
+    policy_list_empty.dart              # 빈 상태 위젯
+    policy_list_error.dart              # 에러 위젯
+  detail/
+    policy_detail_bottom_sheet.dart     # 상세 바텀시트 (실제 정책 페이지 링크 포함)
+
+
+⸻
+
+3. PolicyFeedHomeScreen — 상단 탭 + 스와이프
+
+파일:
+lib/features/policy_new/presentation/screens/policy_feed_home_screen.dart
+
+class PolicyFeedHomeScreen extends ConsumerStatefulWidget {
+  const PolicyFeedHomeScreen({super.key});
+
+  @override
+  ConsumerState<PolicyFeedHomeScreen> createState() =>
+      _PolicyFeedHomeScreenState();
+}
+
+class _PolicyFeedHomeScreenState
+    extends ConsumerState<PolicyFeedHomeScreen>
+    with TickerProviderStateMixin {
+  late final TabController _tabController;
+
+  final List<(String label, PolicyFeedType type)> _tabs = const [
+    ('추천', PolicyFeedType.recommend),
+    ('전체', PolicyFeedType.all),
+    ('지역', PolicyFeedType.region),
+    ('검색', PolicyFeedType.search),
+    ('즐겨찾기', PolicyFeedType.favorite),
+    ('비교', PolicyFeedType.compare),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
+
+    // 초기 탭(추천) 첫 페이지 로딩
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(recommendFeedControllerProvider.notifier)
+          .loadFirstPage();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('정책 탐색'),
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: _tabs.map((e) => Tab(text: e.label)).toList(),
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        physics: const BouncingScrollPhysics(),
+        children: _tabs
+            .map(
+              (tab) => PolicyFeedListView(feedType: tab.type),
+            )
+            .toList(),
+      ),
+    );
+  }
+}
+
+
+⸻
+
+4. PolicyFeedListView — 피드 타입별로 Provider 매핑 + 리스트 표시
+
+파일:
+lib/features/policy_new/presentation/widgets/policy_feed_list_view.dart
+
+class PolicyFeedListView extends ConsumerWidget {
+  const PolicyFeedListView({
+    super.key,
+    required this.feedType,
+  });
+
+  final PolicyFeedType feedType;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (state, notifier) = _useController(ref);
+
+    // 에러 우선 처리
+    if (state.failure != null) {
+      return PolicyListError(
+        message: state.failure!.message,
+        onRetry: () => notifier.loadFirstPage(),
+      );
+    }
+
+    if (state.isLoading && state.items.isEmpty) {
+      return const PolicyListLoading();
+    }
+
+    if (!state.isLoading && state.items.isEmpty) {
+      return const PolicyListEmpty();
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => notifier.refresh(),
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: state.items.length + (state.hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index < state.items.length) {
+            final policy = state.items[index];
+            return PolicyCard(
+              policy: policy,
+              onTap: () => _openDetail(context, policy.id),
+            );
+          }
+
+          // footer: 다음 페이지 로딩
+          notifier.loadNextPage();
+          return const PolicyListLoading();
+        },
+      ),
+    );
+  }
+
+  /// feedType에 따라 올바른 Provider를 선택한다.
+  (PolicyPagingState, BasePolicyFeedController) _useController(WidgetRef ref) {
+    switch (feedType) {
+      case PolicyFeedType.recommend:
+        return (
+          ref.watch(recommendFeedControllerProvider),
+          ref.read(recommendFeedControllerProvider.notifier),
+        );
+      case PolicyFeedType.all:
+        return (
+          ref.watch(allFeedControllerProvider),
+          ref.read(allFeedControllerProvider.notifier),
+        );
+      case PolicyFeedType.region:
+        return (
+          ref.watch(regionFeedControllerProvider),
+          ref.read(regionFeedControllerProvider.notifier),
+        );
+      case PolicyFeedType.search:
+        return (
+          ref.watch(searchFeedControllerProvider),
+          ref.read(searchFeedControllerProvider.notifier),
+        );
+      case PolicyFeedType.favorite:
+        return (
+          ref.watch(favoriteFeedControllerProvider),
+          ref.read(favoriteFeedControllerProvider.notifier),
+        );
+      case PolicyFeedType.compare:
+        return (
+          ref.watch(compareFeedControllerProvider),
+          ref.read(compareFeedControllerProvider.notifier),
+        );
+    }
+  }
+
+  void _openDetail(BuildContext context, String policyId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => PolicyDetailBottomSheet(policyId: policyId),
+    );
+  }
+}
+
+⚠ BasePolicyFeedController와 PolicyPagingState는 job04에서 정의한 타입을 사용한다.
+
+⸻
+
+5. PolicyCard — 정책 리스트 아이템 UI
+
+파일:
+lib/features/policy_new/presentation/widgets/policy_card.dart
+
+class PolicyCard extends StatelessWidget {
+  const PolicyCard({
+    super.key,
+    required this.policy,
+    required this.onTap,
+  });
+
+  final Policy policy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 제목
+            Text(
+              policy.title,
+              style: theme.textTheme.titleMedium,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+
+            // 요약
+            Text(
+              policy.summary,
+              style: theme.textTheme.bodySmall,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+
+            const SizedBox(height: 12),
+
+            // 태그 영역
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                _buildChip(policy.region),
+                _buildChip(policy.category),
+                if (policy.isOngoing) _buildChip('모집중'),
+                if (policy.isUpcoming) _buildChip('시작 예정'),
+                if (policy.isClosed) _buildChip('마감'),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // 신청 기간
+            if (policy.applicationStartDate != null ||
+                policy.applicationEndDate != null)
+              Text(
+                _buildPeriodText(),
+                style: theme.textTheme.labelSmall,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _buildPeriodText() {
+    final start = policy.applicationStartDate;
+    final end = policy.applicationEndDate;
+    if (start == null && end == null) return '신청 기간 정보 없음';
+    if (start != null && end == null) {
+      return '신청 시작: ${start.toLocal().toString().split(" ").first}';
+    }
+    if (start == null && end != null) {
+      return '신청 마감: ${end.toLocal().toString().split(" ").first}';
+    }
+    return '신청 기간: '
+        '${start!.toLocal().toString().split(" ").first} ~ '
+        '${end!.toLocal().toString().split(" ").first}';
+  }
+
+  Widget _buildChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 11),
+      ),
+    );
+  }
+}
+
+
+⸻
+
+6. 로딩 / 빈 상태 / 에러 위젯
+
+6.1 로딩
+
+파일:
+lib/features/policy_new/presentation/widgets/policy_list_loading.dart
+
+class PolicyListLoading extends StatelessWidget {
+  const PolicyListLoading({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.all(16),
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+}
+
+
+⸻
+
+6.2 빈 상태
+
+파일:
+lib/features/policy_new/presentation/widgets/policy_list_empty.dart
+
+class PolicyListEmpty extends StatelessWidget {
+  const PolicyListEmpty({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(32),
+        child: Text(
+          '표시할 정책이 없습니다.\n필터나 검색 조건을 바꿔보세요.',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
+
+⸻
+
+6.3 에러 상태
+
+파일:
+lib/features/policy_new/presentation/widgets/policy_list_error.dart
+
+class PolicyListError extends StatelessWidget {
+  const PolicyListError({
+    super.key,
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '정책을 불러오는 중 오류가 발생했어요.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: onRetry,
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+⸻
+
+7. 정책 상세 바텀시트 + 실제 정책 페이지 이동 버튼
+
+job05에서 상세 보기 + “실제 정책 페이지로 이동” 버튼까지 구현한다.
+
+7.1 Detail용 Provider 추가 (providers.dart 수정)
+
+파일:
+lib/features/policy_new/application/providers.dart
+
+맨 아래에 다음 provider를 추가한다:
+
+final policyDetailProvider =
+    FutureProvider.family<Policy, String>((ref, policyId) async {
+  final repo = ref.read(policyRepositoryProvider);
+  final result = await repo.fetchPolicyDetail(policyId);
+
+  if (result.isSuccess && result.data != null) {
+    return result.data!;
+  }
+
+  throw result.failure ?? const UnknownFailure();
+});
+
+
+⸻
+
+7.2 상세 바텀시트
+
+파일:
+lib/features/policy_new/presentation/detail/policy_detail_bottom_sheet.dart
+
+class PolicyDetailBottomSheet extends ConsumerWidget {
+  const PolicyDetailBottomSheet({
+    super.key,
+    required this.policyId,
+  });
+
+  final String policyId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncPolicy = ref.watch(policyDetailProvider(policyId));
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Material(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: asyncPolicy.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  e is PolicyFailure ? e.message : '정책 정보를 불러오지 못했습니다.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            data: (policy) => ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.all(20),
+              children: [
+                // 제목
+                Text(
+                  policy.title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+
+                // 요약
+                Text(
+                  policy.summary,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+
+                const SizedBox(height: 12),
+
+                // 지역/카테고리/상태
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _chip(policy.region),
+                    _chip(policy.category),
+                    if (policy.isOngoing) _chip('모집중'),
+                    if (policy.isUpcoming) _chip('시작 예정'),
+                    if (policy.isClosed) _chip('마감'),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // 본문 설명
+                Text(
+                  policy.description,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+
+                const SizedBox(height: 24),
+
+                // 신청 기간
+                Text(
+                  _buildPeriodText(policy),
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+
+                const SizedBox(height: 16),
+
+                // 버튼 영역
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _openApplyUrl(policy.applyUrl),
+                        child: const Text('실제 정책 페이지로 이동'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _chip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 11),
+      ),
+    );
+  }
+
+  String _buildPeriodText(Policy policy) {
+    final start = policy.applicationStartDate;
+    final end = policy.applicationEndDate;
+    if (start == null && end == null) {
+      return '신청 기간 정보 없음';
+    }
+    if (start != null && end == null) {
+      return '신청 시작일: ${start.toLocal().toString().split(" ").first}';
+    }
+    if (start == null && end != null) {
+      return '신청 마감일: ${end.toLocal().toString().split(" ").first}';
+    }
+    return '신청 기간: '
+        '${start!.toLocal().toString().split(" ").first} ~ '
+        '${end!.toLocal().toString().split(" ").first}';
+  }
+
+  Future<void> _openApplyUrl(String url) async {
+    if (url.isEmpty) return;
+    final uri = Uri.parse(url);
+    if (!await canLaunchUrl(uri)) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+⚠ url_launcher 패키지를 이미 사용 중이 아니라면,
+pubspec.yaml에 url_launcher 추가 후 import 'package:url_launcher/url_launcher.dart';를 넣어야 한다.
+
+⸻
+
+8. Acceptance Criteria (job05 완료 기준)
+	•	lib/features/policy_new/presentation/** 아래에 명시된 파일과 구조가 모두 생성된다.
+	•	PolicyFeedHomeScreen에서 탭 전환 + 좌우 스와이프가 정상 동작한다.
+	•	각 탭(추천/전체/지역/검색/즐겨찾기/비교)이 자신의 Controller Provider와 정상적으로 연결된다.
+	•	리스트는 Pull-to-Refresh + 무한 스크롤(footer 로딩)이 동작한다.
+	•	로딩/빈 상태/에러 상태 UI가 공통 컴포넌트로 구현되어 있다.
+	•	정책 카드를 탭하면 상세 바텀시트가 뜨고, Repository를 통해 상세 정보를 로딩한다.
+	•	상세 바텀시트에서 “실제 정책 페이지로 이동” 버튼을 누르면 외부 브라우저로 이동한다.
+	•	빌드시 타입 에러, Provider 참조 에러, import 에러 없이 통과한다
+(단, url_launcher 사용 시 의존성 추가 필요).
+
+---
 
