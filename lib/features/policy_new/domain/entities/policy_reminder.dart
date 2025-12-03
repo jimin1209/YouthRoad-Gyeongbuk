@@ -41,9 +41,3 @@ class PolicyReminder {
     );
   }
 }
-
-class PolicyReminderIdBuilder {
-  static String build({required String policyId, required ReminderTimeKind timeKind}) {
-    return '$policyId::${timeKind.name}';
-  }
-}

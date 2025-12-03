@@ -4,6 +4,7 @@ import '../../domain/repositories/policy_reminder_repository.dart';
 import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
+import '../../domain/utils/reminder_id_util.dart';
 import '../controllers/policy_event_bus.dart';
 import '../gateways/notification_gateway.dart';
 import 'policy_reminder_scheduler.dart';
@@ -30,8 +31,7 @@ class PolicyReminderService {
 
     for (final kind in kinds) {
       final schedule = scheduler.buildSchedule(policy, option: kind);
-      final reminderId =
-          PolicyReminderIdBuilder.build(policyId: policy.id, timeKind: kind);
+      final reminderId = ReminderIdUtil.buildReminderId(policy.id, kind);
       final existing = await repository.getReminder(reminderId);
 
       final reminder = PolicyReminder(

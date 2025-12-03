@@ -2,6 +2,7 @@ import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_reminder_config.dart';
 import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
+import '../../domain/utils/reminder_time_util.dart';
 
 class PolicyReminderScheduleResult {
   const PolicyReminderScheduleResult({
@@ -29,8 +30,8 @@ class PolicyReminderScheduler {
       throw ArgumentError('신청 기간 정보가 없는 정책입니다.');
     }
 
-    final now = DateTime.now().toUtc();
-    final scheduledAt = baseDate.toUtc().subtract(option.offset);
+    final now = ReminderTimeUtil.toUtc(DateTime.now());
+    final scheduledAt = ReminderTimeUtil.toUtc(baseDate).subtract(option.offset);
     final status = scheduledAt.isBefore(now)
         ? PolicyReminderStatus.expired
         : PolicyReminderStatus.scheduled;
