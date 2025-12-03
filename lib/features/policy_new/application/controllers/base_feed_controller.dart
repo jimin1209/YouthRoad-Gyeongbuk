@@ -136,6 +136,15 @@ abstract class BasePolicyFeedController
   }
 
   Future<void> loadFirstPage() async {
+    final shouldFetch = _shouldFetchForFeedType();
+
+    if (!shouldFetch) {
+      _page = 1;
+      _isLoading = false;
+      state = const PolicyPagingState.initial();
+      return;
+    }
+
     _page = 1;
     _isLoading = true;
     state = const PolicyPagingState.loading();
@@ -158,7 +167,7 @@ abstract class BasePolicyFeedController
   }
 
   Future<void> loadNextPage() async {
-    if (_isLoading || !state.hasMore) return;
+    if (_isLoading || !state.hasMore || !_shouldFetchForFeedType()) return;
 
     _isLoading = true;
     final nextPage = _page + 1;
@@ -184,5 +193,18 @@ abstract class BasePolicyFeedController
 
   Future<void> refresh() async {
     await loadFirstPage();
+  }
+
+  bool _shouldFetchForFeedType() {
+    if (feedType != PolicyFeedType.search) {
+      return true;
+    }
+
+    final ui = ref.read(policyFilterUiStateProvider);
+    final keyword = ui.keyword.trim();
+    final hasKeyword = keyword.length >= 2;
+    final hasTags = ui.tags.isNotEmpty;
+
+    return hasKeyword || hasTags;
   }
 }
