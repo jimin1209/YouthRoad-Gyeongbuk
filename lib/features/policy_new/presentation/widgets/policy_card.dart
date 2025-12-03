@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import '../reminder/policy_reminder_badge.dart';
 
@@ -15,6 +16,14 @@ class PolicyCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef _ref) {
+    final favoriteState = _ref.watch(favoriteRepositoryProvider);
+    final compareState = _ref.watch(compareRepositoryProvider);
+    final favoriteController = _ref.read(favoriteRepositoryProvider.notifier);
+    final compareController = _ref.read(compareRepositoryProvider.notifier);
+
+    final isFavorite = favoriteState.allIds.contains(policy.id);
+    final isCompared = compareState.ids.contains(policy.id);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -37,6 +46,22 @@ class PolicyCard extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   PolicyReminderBadge(policyId: policy.id),
+                  IconButton(
+                    icon: Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      color: isFavorite ? Colors.redAccent : Colors.grey,
+                    ),
+                    onPressed: () => favoriteController.toggleFavorite(policy),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      isCompared
+                          ? Icons.compare_arrows
+                          : Icons.compare_arrows_outlined,
+                      color: isCompared ? Colors.blueAccent : Colors.grey,
+                    ),
+                    onPressed: () => compareController.toggleCompare(policy),
+                  ),
                 ],
               ),
               const SizedBox(height: 6),

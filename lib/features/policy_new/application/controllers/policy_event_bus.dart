@@ -12,3 +12,8 @@ class PolicyEventBus extends StateNotifier<PolicyEvent?> {
     state = event;
   }
 }
+
+final policyEventBusProvider =
+    StateNotifierProvider<PolicyEventBus, PolicyEvent?>(
+  (ref) => PolicyEventBus(),
+);

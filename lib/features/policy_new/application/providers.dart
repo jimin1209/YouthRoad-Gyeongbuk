@@ -20,6 +20,7 @@ import '../domain/values/policy_settings.dart';
 import '../domain/values/policy_sort.dart';
 import '../domain/repositories/policy_reminder_repository.dart';
 import '../domain/entities/policy_reminder.dart';
+import 'behavior/policy_behavior_tracker.dart';
 import 'controllers/base_feed_controller.dart';
 import 'controllers/policy_detail_controller.dart';
 import 'controllers/policy_event_bus.dart';
@@ -29,10 +30,12 @@ import 'controllers/notification_center_controller.dart';
 import 'controllers/policy_paging_controller.dart';
 import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
+import 'controllers/policy_selection_controller.dart';
 import 'gateways/notification_gateway.dart';
 import 'services/policy_reminder_service.dart';
 import 'services/policy_reminder_scheduler.dart';
 import 'filters/policy_filter_ui_state.dart';
+import 'models/user_collections.dart';
 import '../data/cache/policy_cache.dart';
 import '../data/repositories/policy_repository_impl.dart';
 import '../data/repositories/policy_reminder_repository_impl.dart';
@@ -54,16 +57,6 @@ class UserProfile {
     this.age,
     this.recommendTags = const [],
   });
-}
-
-class FavoriteRepository {
-  final List<String> allIds;
-  const FavoriteRepository({this.allIds = const []});
-}
-
-class CompareRepository {
-  final List<String> ids;
-  const CompareRepository({this.ids = const []});
 }
 
 class ConsolePolicyLogger implements PolicyLogger {
@@ -97,11 +90,6 @@ final policyLoggerProvider = Provider<PolicyLogger>((ref) {
   return ConsolePolicyLogger();
 });
 
-final policyEventBusProvider =
-    StateNotifierProvider<PolicyEventBus, PolicyEvent?>(
-  (ref) => PolicyEventBus(),
-);
-
 final userProfileProvider = Provider<UserProfile>((ref) {
   return const UserProfile(
     region: PolicyRegion.gyeongbuk,
@@ -110,13 +98,15 @@ final userProfileProvider = Provider<UserProfile>((ref) {
   );
 });
 
-final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) {
-  return const FavoriteRepository();
-});
+final favoriteRepositoryProvider =
+    StateNotifierProvider<FavoriteController, FavoriteRepository>(
+  (ref) => FavoriteController(ref),
+);
 
-final compareRepositoryProvider = Provider<CompareRepository>((ref) {
-  return const CompareRepository();
-});
+final compareRepositoryProvider =
+    StateNotifierProvider<CompareController, CompareRepository>(
+  (ref) => CompareController(ref),
+);
 
 final isMockModeProvider = Provider<bool>((ref) => false);
 
