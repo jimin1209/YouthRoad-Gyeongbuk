@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-import '../../../devtools/panels/webview_console_panel.dart';
+import 'package:youth_road_app/devtools/panels/webview_console_panel.dart';
 
 class PolicyWebviewPage extends StatefulWidget {
   const PolicyWebviewPage({super.key, required this.title, required this.url});

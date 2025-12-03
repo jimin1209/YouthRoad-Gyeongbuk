@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../application/notifiers/policy_detail_notifier.dart';
-import '../../../application/providers.dart';
-import '../../../application/services/memo_repository.dart';
-import '../../../application/services/eligibility_service.dart';
-import '../../../navigation/route_paths.dart';
-import '../../widgets/app_appbar.dart';
-import '../../widgets/global_error_view.dart';
-import '../../widgets/policy_card_v2.dart';
-import '../../widgets/policy_detail_metadata.dart';
-import '../../widgets/compare_badge.dart';
+import 'package:youth_road_app/application/providers.dart';
+import 'package:youth_road_app/application/services/eligibility_service.dart';
+import 'package:youth_road_app/application/services/memo_repository.dart';
+import 'package:youth_road_app/legacy/policy/application/notifiers/policy_detail_notifier.dart';
+import 'package:youth_road_app/navigation/route_paths.dart';
+import 'package:youth_road_app/ui/widgets/app_appbar.dart';
+import 'package:youth_road_app/ui/widgets/compare_badge.dart';
+import 'package:youth_road_app/ui/widgets/global_error_view.dart';
+import 'package:youth_road_app/ui/widgets/policy_card_v2.dart';
+import 'package:youth_road_app/ui/widgets/policy_detail_metadata.dart';
 
 class PolicyDetailScreen extends ConsumerStatefulWidget {
   const PolicyDetailScreen({super.key, required this.id});

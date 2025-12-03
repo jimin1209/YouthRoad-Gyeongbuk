@@ -1,4 +1,4 @@
-// FILE: lib/application/policy/policy_providers.dart
+// FILE: lib/legacy/policy/application/policy/policy_providers.dart
 // 정책 관련 Provider 모음. 앱 기동 시 [policyBootstrapProvider] 를 읽으면
 // 캐시 우선 UI 렌더링 + 백그라운드 프리패치 흐름이 자동으로 시작된다.
 

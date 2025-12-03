@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../domain/entities/policy.dart';
-import '../providers/policy_list_provider.dart';
-import '../providers/policy_prefetch_provider.dart';
+import 'package:youth_road_app/domain/entities/policy.dart';
+import 'package:youth_road_app/legacy/policy/features/policy/providers/policy_list_provider.dart';
+import 'package:youth_road_app/legacy/policy/features/policy/providers/policy_prefetch_provider.dart';
 
 class PolicyListPage extends ConsumerStatefulWidget {
   const PolicyListPage({super.key});

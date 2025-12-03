@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/models/policy_filter.dart';
-import '../../domain/entities/policy.dart';
-import '../../domain/repositories/policy_repository.dart';
-import '../di.dart';
-import 'policy_paging_notifier.dart';
-import 'region_notifier.dart';
+import 'package:youth_road_app/application/di.dart';
+import 'package:youth_road_app/application/notifiers/region_notifier.dart';
+import 'package:youth_road_app/data/models/policy_filter.dart';
+import 'package:youth_road_app/domain/entities/policy.dart';
+import 'package:youth_road_app/domain/repositories/policy_repository.dart';
+import 'package:youth_road_app/legacy/policy/application/notifiers/policy_paging_notifier.dart';
 
 class RecommendedPolicyNotifier
     extends AutoDisposeNotifier<PolicyPagingState> {
