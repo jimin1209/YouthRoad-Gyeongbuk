@@ -8,4 +8,8 @@ class PolicyEventBus extends StateNotifier<PolicyEvent?> {
   void emit(PolicyEvent event) {
     state = event;
   }
+
+  void removeListener(void Function(PolicyEvent?) listener) {
+    super.removeListener(listener);
+  }
 }
