@@ -198,6 +198,246 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 
 
 
+@chatgpt-codex
+# Task 29 — YouthRoad Notification System QA & Stability Architecture (Full Spec)
+# (job01 스타일 완전판 설계 문서)
+
+────────────────────────────────────────
+1. 시스템 정의 (System Definition)
+────────────────────────────────────────
+
+YouthRoad의 정책 알림 시스템은
+사용자가 관심 있는 정책의 모집 시작/마감일 또는 특정 D-day 시점에
+정확한 시점·타임존·옵션 기준으로 모바일 기기에 로컬 알림을 예약/취소/변경할 수 있도록 설계된
+**클라이언트 기반 스케줄링 시스템**이다.
+
+본 Task 29는 *Task 13~28까지 설계된 기능들이 실제 서비스 수준에서 정상 동작하기 위한*
+**품질 보증(QA)·안정성·신뢰성 아키텍처를 구축하는 것**을 목표로 한다.
+
+본 시스템은 아래 조건을 반드시 만족해야 한다:
+
+- Cross-platform 안정성(Android / iOS)
+- 영속적 저장(Isar)
+- 플랫폼 스케줄링 엔진과의 정확한 매핑(flutter_local_notifications)
+- 다중 알림 옵션 및 고유 ID 전략
+- 타임존 불변성 유지
+- 멀티스레드 환경에서 Race Condition 방지
+- Optimistic UI, Offline-safe 동작
+- 앱 재시작 이후 일관성 복원
+
+────────────────────────────────────────
+2. 문제 정의 (Problem Statement)
+────────────────────────────────────────
+
+Task 29가 해결해야 할 핵심 문제는 다음과 같다:
+
+1) **스케줄링 흐름 전체가 통합 테스트 없이 산발적 구현으로 존재**  
+   - Task 14~28까지 각 기능은 설계되었으나, 전체 흐름을 통합 테스트한 구조가 부재
+   - API 스펙, 스케줄링 엔진, Isar 영속화, UI 상태 업데이트 간 상호작용 규칙이 문서화되어 있지 않음
+
+2) **실제 모바일 환경(iOS/Android)에 대한 신뢰성 확보 불가**  
+   - 디바이스 재부팅, 앱 재설치, 시간 변경, 배터리 최적화 영향을 고려하지 않은 상태
+   - ID 충돌, 리마인더 이중 예약, 취소 실패, 플랫폼 Permission 문제 미비
+
+3) **장기 실행 안정성(Resilience)에 대한 아키텍처 정의 부족**  
+   - “예약 → 저장 → UI 업데이트 → 앱 재시작 → 재동기화 → firing → post-processing”  
+     이 전체 사이클에 대한 공식 흐름도 없음
+
+4) **정책 변경 또는 사용자 프로필 변경 시 알림 유지 전략 미정**  
+   - 정책 모집 기간이 변경된 경우 → 알림 자동 재계산?
+   - 사용자가 지역/연령을 변경한 경우 → 기존 알림의 처리?
+
+Task29는 이 모든 문제를 해결하기 위한 “최종 QA + 안정성 설계 문서”가 된다.
+
+────────────────────────────────────────
+3. 요구사항 분석 (Requirement Specification)
+────────────────────────────────────────
+
+본 시스템이 반드시 충족해야 하는 요구사항:
+
+### Functional Requirements
+- [FR01] 알림 예약/취소 시 Isar에 즉시 영속화
+- [FR02] 알림 firing 시 알림 센터에서 상태 갱신 (fired / expired)
+- [FR03] 앱 재시작 시 모든 알림을 플랫폼 스케줄링 엔진과 재동기화
+- [FR04] 알림 옵션(D-7, D-3, D-1, 당일 등)을 다중 지원
+- [FR05] 정책 상세 화면에서 알림 설정/취소 UI 일관
+- [FR06] 알림 클릭 시 정책 상세 화면으로 이동
+
+### Non-Functional Requirements
+- [NFR01] Race Condition 방지(동시에 여러 알림 설정)
+- [NFR02] Offline-safe (인터넷 없이도 정상 예약/취소)
+- [NFR03] iOS/Android 모두에서 Timezone-safe
+- [NFR04] 10,000개 이상의 알림도 성능 보장
+- [NFR05] 디바이스 재부팅/앱 재시작 후 상태 일관성 유지
+- [NFR06] 실패 리포팅 체계(에러 로깅, Crash 대응)
+
+────────────────────────────────────────
+4. 아키텍처 설계 (Architecture Design)
+────────────────────────────────────────
+
+본 Task 29는 아래 3가지 레이어를 모두 아우르는 통합 아키텍처 문서를 제공한다:
+
+### (1) Domain Layer
+도메인 모델:
+- NotificationReminder
+- NotificationOption
+- NotificationStatus
+- TimezoneRules
+- ReminderId (policyId + option + timestamp 기반)
+
+### (2) Data Layer
+- Isar 기반 repository  
+- 스케줄링 결과(Result Model) 기록  
+- fired 이벤트 기록 테이블  
+- 정책 변경 감지 후 알림 재계산 트리거  
+
+### (3) Application Layer
+컨트롤러 흐름:
+1. UI → ReminderService.setReminder()
+2. ReminderService → IdFactory.generateId()
+3. ReminderService → Repository.save()
+4. ReminderService → PlatformGateway.schedule()
+5. 성공 시 EventBus → UI 갱신
+6. 실패 시 rollback (Optimistic UI)
+
+### (4) Presentation Layer
+- Optimistic UI 구성  
+- “예약 중 / 예약됨 / 실패 / 취소됨” 상태머신  
+- 정책 상세 화면 with 알림 토글  
+- 알림 목록 UI (정렬: 정책명 / 날짜 / 옵션)
+
+────────────────────────────────────────
+5. 데이터 파이프라인 / 흐름도 (Data Pipeline & Flow)
+
+[User Action]
+|
+v
+[UI: Reminder Toggle]
+|
+v
+[ReminderController]
+|
+v
+[ReminderService]
+├─ validateRequest()
+├─ buildReminderModel()
+├─ generateReminderId()
+├─ repo.save()
+├─ platform.schedule()
+└─ logResult()
+|
+v
+[Isar Storage]
+|
+v
+[EventBus.emit(ReminderUpdated)]
+|
+v
+[UI Rebuild]
+
+재시작 흐름:
+
+[App Restart]
+|
+v
+[SyncService.startupSync()]
+|
+v
+[Isar.loadAllReminders()]
+|
+v
+[Platform.scheduleAllPending()]
+|
+v
+[UI Refresh]
+
+────────────────────────────────────────
+6. Provider / Controller 상호작용 규칙
+
+UI → ReminderController → ReminderService → Repository
+↘ PlatformGateway
+Repository → EventBus → UI StateNotifier → UI
+
+규칙:
+- Controller는 Repository에 직접 접근하지만 PlatformGateway에는 Service를 통해서만 접근
+- UI는 절대 Repository 직접 접근 금지
+- 이벤트 처리는 EventBus 단일 경로만 허용
+
+────────────────────────────────────────
+7. UI 상태도 (UI State Machine)
+
+알림 UI 상태:
+
+IDLE
+|  
+|   
+SET_REQUESTED
+| (success)
+v
+SET_CONFIRMED
+| (cancel)
+v
+CANCEL_REQUESTED
+| (success)
+v
+CANCEL_CONFIRMED
+| (error)
+v
+ERROR → retry?
+
+────────────────────────────────────────
+8. 이벤트 흐름 (Event Flow)
+
+알림 관련 주요 이벤트:
+
+- ReminderCreated
+- ReminderCanceled
+- ReminderFired
+- ReminderSyncCompleted
+- ReminderErrorOccurred
+
+UI는 EventBus를 통해 즉시 반응하여 Optimistic UI를 유지.
+
+────────────────────────────────────────
+9. 파일 구조 (File Structure)
+
+lib/features/reminder/
+domain/
+reminder.dart
+reminder_option.dart
+reminder_status.dart
+reminder_id.dart
+data/
+reminder_repository.dart
+reminder_repository_isar.dart
+application/
+reminder_service.dart
+reminder_sync_service.dart
+id_factory.dart
+reminder_controller.dart
+presentation/
+reminder_center_screen.dart
+reminder_tile.dart
+reminder_option_selector.dart
+reminder_toggle_button.dart
+
+────────────────────────────────────────
+10. Acceptance Criteria (AC)
+
+- [AC01] 스케줄링 + 저장 + UI 반영이 end-to-end로 테스트 가능할 것
+- [AC02] 디바이스 재부팅 후 reminder sync 정상 수행
+- [AC03] 모든 로직이 Timezone-safe 처리
+- [AC04] policyId + option 조합 ID 중복 없음
+- [AC05] Optimistic UI가 실패 시 rollback 가능
+- [AC06] 1000개 이상 알림 등록 시에도 성능 저하 없음
+- [AC07] iOS/Android 실기기에서 firing 정상 동작
+- [AC08] 에러 발생 시 EventBus → UI 반영까지 일관성 유지
+
+
+⸻
+
+
+
 ⸻
 
 💎 최종 완성본 — Task 25~28 (Ultra-High Spec)
