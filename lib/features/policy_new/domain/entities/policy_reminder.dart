@@ -1,4 +1,4 @@
-enum PolicyReminderStatus { scheduled, expired, cancelled }
+import '../values/policy_reminder_status.dart';
 
 enum PolicyReminderOption {
   day1,
@@ -9,34 +9,38 @@ enum PolicyReminderOption {
 class PolicyReminder {
   final String id;
   final String policyId;
-  final DateTime scheduledAt;
+  final DateTime triggerAt;
   final DateTime createdAt;
-  final PolicyReminderOption option;
+  final DateTime updatedAt;
+  final PolicyReminderOption timeKind;
   final PolicyReminderStatus status;
 
   const PolicyReminder({
     required this.id,
     required this.policyId,
-    required this.scheduledAt,
+    required this.triggerAt,
     required this.createdAt,
-    required this.option,
+    required this.updatedAt,
+    required this.timeKind,
     this.status = PolicyReminderStatus.scheduled,
   });
 
-  bool get isExpired => scheduledAt.isBefore(DateTime.now());
+  bool get isExpired => triggerAt.isBefore(DateTime.now());
 
   PolicyReminder copyWith({
-    DateTime? scheduledAt,
+    DateTime? triggerAt,
     DateTime? createdAt,
-    PolicyReminderOption? option,
+    DateTime? updatedAt,
+    PolicyReminderOption? timeKind,
     PolicyReminderStatus? status,
   }) {
     return PolicyReminder(
       id: id,
       policyId: policyId,
-      scheduledAt: scheduledAt ?? this.scheduledAt,
+      triggerAt: triggerAt ?? this.triggerAt,
       createdAt: createdAt ?? this.createdAt,
-      option: option ?? this.option,
+      updatedAt: updatedAt ?? this.updatedAt,
+      timeKind: timeKind ?? this.timeKind,
       status: status ?? this.status,
     );
   }

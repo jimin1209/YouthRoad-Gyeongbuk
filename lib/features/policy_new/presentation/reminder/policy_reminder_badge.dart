@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/providers.dart';
 import '../../domain/entities/policy_reminder.dart';
+import '../../domain/values/policy_reminder_status.dart';
 
 class PolicyReminderBadge extends ConsumerWidget {
   const PolicyReminderBadge({super.key, required this.policyId});
@@ -16,7 +17,7 @@ class PolicyReminderBadge extends ConsumerWidget {
     return reminderState.when(
       data: (reminder) {
         if (reminder == null) return const SizedBox.shrink();
-        if (reminder.status == PolicyReminderStatus.cancelled) {
+        if (reminder.status == PolicyReminderStatus.canceled) {
           return const SizedBox.shrink();
         }
         return Row(
@@ -27,7 +28,7 @@ class PolicyReminderBadge extends ConsumerWidget {
             Text(
               reminder.status == PolicyReminderStatus.expired
                   ? '만료'
-                  : reminder.option.label,
+                  : reminder.timeKind.label,
               style: Theme.of(context).textTheme.labelSmall,
             ),
           ],
