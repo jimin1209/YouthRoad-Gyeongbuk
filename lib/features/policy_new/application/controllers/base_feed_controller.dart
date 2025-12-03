@@ -52,6 +52,11 @@ abstract class BasePolicyFeedController
               refresh();
             }
             break;
+          case PolicyEventType.behaviorChanged:
+            if (feedType == PolicyFeedType.recommend) {
+              refresh();
+            }
+            break;
         }
       },
     );

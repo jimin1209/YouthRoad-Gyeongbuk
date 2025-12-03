@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/behavior/policy_behavior_tracker.dart';
 import '../../application/controllers/base_feed_controller.dart';
 import '../../application/controllers/policy_paging_state.dart';
 import '../../application/providers.dart';
@@ -93,7 +94,12 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
             final policy = state.items[index];
             return PolicyCard(
               policy: policy,
-              onTap: () => _openDetail(context, policy.id),
+              onTap: () {
+                ref
+                    .read(policyBehaviorTrackerProvider.notifier)
+                    .recordDetailView(policy);
+                _openDetail(context, policy.id);
+              },
             );
           }
 
