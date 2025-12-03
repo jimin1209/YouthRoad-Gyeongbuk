@@ -195,7 +195,508 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 # ============================================================
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
+@chatgpt-codex
+# Notification Roadmap Tasks (task20 ~ task23)
+# YouthRoad 정책 알림 시스템 프로덕션 수준 완성 플랜
 
+==================================================
+공통 시스템 컨텍스트 (task20~23 전체 공통)
+==================================================
+
+## 0. 시스템 정의 (System Definition)
+
+- 모듈명: `policy_new` 알림 서브시스템
+- 주요 구성
+  - Domain
+    - `PolicyReminder` (정책별 알림 도메인 엔티티)
+    - `ReminderTimeKind` (D-7 / D-3 / D-1 / 당일 등)
+  - Data
+    - `PolicyReminderDataSource` (현재 메모리 기반 + 추후 로컬DB)
+    - `PolicyReminderRepository`
+  - Application
+    - `PolicyReminderService`
+    - `NotificationGateway` (포트: 현재 NoOp 구현)
+    - `PolicyReminderController` (Riverpod StateNotifier)
+  - Presentation
+    - 정책 상세/카드/피드 화면 내 알림 버튼
+    - 알림 목록 화면 (예정/지난 알림)
+- 목표
+  - 사용자 기준: “정책 신청일 기준으로 여러 시점(D-7, D-1 등)에 알림을 정확하게 받고, 앱을 재시작해도 알림이 남아 있는 상태”
+  - 기술 기준: 멀티 알림 + 영속화 + 타임존 안전 + 실기기 검증까지 완료된 **프로덕션 급 알림 시스템**
+
+---
+
+# task20 — 멀티 알림 & ID 설계 개선
+# (도메인 + 서비스 + UI 반영)
+
+==================================================
+1. 시스템 정의
+==================================================
+
+- 이름: `task20 — Multi Reminder & ID Design Upgrade`
+- 역할:
+  - 정책 1개에 대해 **여러 개의 알림(D-7, D-1, 커스텀 등)** 을 안전하게 저장/식별/관리.
+  - 알림 ID 충돌 없이, 알림 예약/취소/완료 상태를 추적.
+  - UI에서 멀티 알림 구조를 자연스럽게 노출.
+
+==================================================
+2. 문제 정의 (Problem Statement)
+==================================================
+
+- 현재:
+  - 알림 ID = `policyId` 기반 단일 키.
+  - 동일 정책에 **여러 알림**을 설정하면 마지막 것만 남고 모두 덮어쓴다.
+  - 도메인/서비스/리포지토리/화면이 **“정책당 1개 알림”** 구조를 가정.
+- 결과:
+  - “D-7 + D-1 동시에 알림” 같은 가장 기본적인 사용 시나리오가 불가능.
+  - ID 설계가 확장성·안정성을 심각하게 제한.
+
+==================================================
+3. 요구사항 분석 (Requirements)
+==================================================
+
+### 기능 요구사항
+
+1. 정책 하나에 대해 여러 알림을 설정할 수 있어야 한다.
+   - 예: D-7, D-3, D-1, 마감일 당일 등
+2. 각각의 알림은 독립된 ID를 가져야 한다.
+3. 알림 삭제/취소/완료는 **개별 알림 단위**로 동작해야 한다.
+4. UI에서 정책별로 “현재 어떤 알림들이 걸려 있는지”를 확인할 수 있어야 한다.
+
+### 비기능 요구사항
+
+1. ID 규칙은 명확히 문서화될 것 (task22에서 상세 문서화).
+2. ID는 플랫폼(Android/iOS) 알림 시스템과 충돌 없이 사용 가능해야 한다.
+3. 기존 “단일 알림” 구조와 호환성을 고려하여 마이그레이션 시나리오를 정의한다.
+
+==================================================
+4. 아키텍처 설계 (Architecture Design)
+==================================================
+
+### 4.1 도메인 모델 확장
+
+- 기존:  
+  - `PolicyReminder`가 사실상 `policyId` 기준 단일 레코드.
+- 변경:
+  - `PolicyReminder`를 **“정책별 알림 항목 1개”** 로 정의.
+  - 필드 예시:
+    - `String reminderId`  // 내부 알림 고유 ID (policyId + timeKind 조합 또는 UUID)
+    - `String policyId`
+    - `ReminderTimeKind timeKind` (D-7, D-1, CUSTOM 등)
+    - `DateTime fireDateTimeUtc`
+    - `bool isCompleted`
+    - `bool isCancelled`
+  - `ReminderTimeKind` enum 확장:
+    - `d7`, `d3`, `d1`, `dayOf`, `custom`, ...
+
+### 4.2 ID 규칙 설계 (초안, 상세는 task22)
+
+- 내부 고유 ID:  
+  - 포맷: `${policyId}::${timeKind.name}`
+  - custom timeKind인 경우 `${policyId}::custom::${yyyyMMddHHmm}`
+- 플랫폼 알림 ID (int):
+  - 내부에서 `reminderId`를 해시하여 int로 매핑 (task22에서 구체 규칙 정의).
+
+### 4.3 Repository/Service 계층
+
+- `PolicyReminderRepository`
+  - 변경 전: `getByPolicyId(policyId)` → 단일 알림
+  - 변경 후:
+    - `Future<List<PolicyReminder>> getByPolicyId(String policyId);`
+    - `Future<void> upsert(PolicyReminder reminder);`
+    - `Future<void> deleteByReminderId(String reminderId);`
+- `PolicyReminderService`
+  - 역할:
+    - 정책 스케줄 정보를 바탕으로 **여러 ReminderTimeKind에 대한 알림 세트**를 생성.
+    - Gateway에 예약/취소 요청.
+  - 주요 메서드:
+    - `Future<List<PolicyReminder>> createRemindersForPolicy(Policy policy, List<ReminderTimeKind> kinds);`
+    - `Future<void> cancelReminder(String reminderId);`
+    - `Future<void> cancelAllByPolicy(String policyId);`
+
+### 4.4 UI/Controller 상호작용
+
+- `PolicyReminderController` (per policy)
+  - 상태: `AsyncValue<List<PolicyReminder>>`
+  - 메서드:
+    - `load()` → 정책별 전체 알림 목록 조회
+    - `setReminders(List<ReminderTimeKind> kinds)` → 기존 알림과 비교해 diff 계산, 추가/삭제 실행
+    - `removeReminder(String reminderId)` → 개별 취소
+
+==================================================
+5. 데이터 파이프라인 / 흐름도
+==================================================
+
+1. 사용자: 정책 상세 화면에서 알림 옵션(D-7, D-1 등) 여러 개 선택 → 저장.
+2. UI:
+   - 선택된 `ReminderTimeKind` 리스트를 `PolicyReminderController.setReminders(kinds)`로 전달.
+3. Controller:
+   - `repository.getByPolicyId(policyId)` 로 현재 알림 목록 조회.
+   - 새 `kinds`와 비교하여 **추가/삭제 대상** 계산.
+4. Service:
+   - 추가 대상에 대해 `createRemindersForPolicy` 호출 → `PolicyReminder` 엔티티 생성 + Gateway.schedule 호출.
+   - 삭제 대상에 대해 `cancelReminder(reminderId)` 호출.
+5. Repository:
+   - 로컬 스토리지에 `PolicyReminder` 리스트 저장.
+6. UI:
+   - 변경된 알림 리스트를 다시 구독하여 화면에 반영 (체크박스/토글/리스트 갱신).
+
+==================================================
+6. Provider/Controller 상호작용 규칙
+==================================================
+
+- `policyReminderRepositoryProvider`  
+- `policyReminderServiceProvider`  
+- `policyReminderControllerProvider(policyId)`:
+  - 읽기: `AsyncValue<List<PolicyReminder>>`
+  - 쓰기:
+    - `setReminders(List<ReminderTimeKind>)`
+    - `removeReminder(reminderId)`
+
+규칙:
+1. UI는 항상 Controller를 통해서만 알림을 변경한다 (서비스/리포지토리에 직접 접근 금지).
+2. Controller는 Service를 통해 Gateway를 호출하고, Repository에 결과를 반영한다.
+3. Repository는 로컬 데이터(추후 task21~22에서 DB 기반)만 관리한다.
+
+==================================================
+7. UI 상태도 (State Diagram – per Policy)
+==================================================
+
+- 상태:
+  - `Idle` (로딩 전)
+  - `LoadingReminders`
+  - `Loaded(reminderList)`
+  - `SavingChanges`
+  - `Error(message)`
+- 전이:
+  - `Idle` → `LoadingReminders` (화면 진입 시)
+  - `LoadingReminders` → `Loaded`
+  - `Loaded` → `SavingChanges` (사용자가 옵션 변경 저장)
+  - `SavingChanges` → `Loaded` (성공)
+  - `SavingChanges` → `Error` (실패)
+
+==================================================
+8. 이벤트 흐름 (Event Flow)
+==================================================
+
+- 이벤트:
+  - `OnPolicyReminderOptionChanged(List<ReminderTimeKind>)`
+  - `OnPolicyReminderDeleted(reminderId)`
+  - `OnPolicyDeleted(policyId)` (향후)
+- 브로드캐스트:
+  - 알림이 추가/삭제될 때, 전역 EventBus에 `ReminderUpdated(policyId)` 이벤트 발행 → 알림 목록 화면/배지 갱신.
+
+==================================================
+9. 파일 구조
+==================================================
+
+- `lib/features/policy_new/domain/entities/policy_reminder.dart` (필드 확장)
+- `lib/features/policy_new/domain/value/reminder_time_kind.dart`
+- `lib/features/policy_new/data/repositories/policy_reminder_repository.dart` (멀티 알림 API로 변경)
+- `lib/features/policy_new/application/services/policy_reminder_service.dart`
+- `lib/features/policy_new/application/controllers/policy_reminder_controller.dart`
+- `lib/features/policy_new/presentation/reminder/policy_reminder_selector.dart` (멀티 선택 UI)
+
+==================================================
+10. Acceptance Criteria
+==================================================
+
+- [ ] 하나의 정책에 대해 D-7, D-1 등 **두 개 이상 알림**을 동시에 설정할 수 있다.
+- [ ] 각 알림은 서로 다른 `reminderId`로 저장되며, 별도로 취소 가능하다.
+- [ ] 정책 상세 화면에서 현재 설정된 모든 알림 옵션이 정확히 반영·표시된다.
+- [ ] API/서비스/리포지토리 시그니처가 “멀티 알림 구조”에 맞게 정리된다.
+- [ ] 기존 단일 알림 로직은 더 이상 사용되지 않는다(컴파일 상 제거 or 래핑).
+
+
+
+--------------------------------------------------
+# task21 — 실제 플랫폼 알림 Gateway 구현
+# (flutter_local_notifications 연동)
+--------------------------------------------------
+
+==================================================
+1. 시스템 정의
+==================================================
+
+- 이름: `task21 — Platform Notification Gateway Integration`
+- 목적:
+  - `NotificationGateway` 포트에 대해 **실제 flutter_local_notifications 기반 구현체**를 붙인다.
+  - 스케줄 예약/취소가 실제 기기 알림센터에 반영되도록 한다.
+
+==================================================
+2. 문제 정의
+==================================================
+
+- 현재 `NotificationGateway` 구현체가 `NoOpNotificationGateway`로 비어 있음.
+- 도메인/서비스/컨트롤러는 돌아가지만, 실제 디바이스에는 알림이 전혀 뜨지 않는다.
+
+==================================================
+3. 요구사항 분석
+==================================================
+
+- flutter_local_notifications 플러그인을 기반으로:
+  - 단일 시점 알림 스케줄 지원
+  - 알림 취소/전체 취소 지원
+  - iOS/Android 양쪽 모두 동작
+- YouthRoad에서 사용 중인 `reminderId` / `policyId` / `timeKind` 정보를 사용해
+  - 알림 제목, 본문, payload 구성.
+
+==================================================
+4. 아키텍처 설계
+==================================================
+
+### 4.1 플러그인 기반 Gateway 구현
+
+- 인터페이스 (기존):
+  - `Future<void> scheduleReminder(PolicyReminder reminder);`
+  - `Future<void> cancelReminder(String reminderId);`
+  - `Future<void> cancelAllForPolicy(String policyId);`
+- 새 구현체:
+  - `FlutterLocalNotificationGateway implements NotificationGateway`
+  - 내부에 `FlutterLocalNotificationsPlugin` 인스턴스를 보유.
+  - `scheduleReminder` 호출 시:
+    - `reminder.fireDateTimeUtc` → 로컬 시간 변환 (task22에서 규칙 명세).
+    - `zonedSchedule()` 혹은 `schedule()` 호출.
+
+### 4.2 초기화 및 Provider 연결
+
+- 파일:
+  - `lib/features/policy_new/application/gateways/notification_gateway.dart`
+  - `lib/features/policy_new/application/providers.dart`
+- 변경:
+  - `notificationGatewayProvider`가 기존 `NoOpNotificationGateway` → `FlutterLocalNotificationGateway` 로 교체.
+  - 앱 시작 시 한 번 초기화 (권한 요청 등은 task22/23에서 세부 정의).
+
+==================================================
+5. 데이터 파이프라인 / 흐름
+
+1. `PolicyReminderService` → `NotificationGateway.scheduleReminder(reminder)`
+2. Gateway →
+   - `reminder.reminderId` → int notificationId로 매핑
+   - 제목/본문/payload 구성
+   - `flutter_local_notifications.zonedSchedule` 호출
+3. 디바이스 OS → 지정 시각에 알림 표시.
+
+==================================================
+6. Provider/Controller 상호작용
+
+- 변경 없음:  
+  Controller/Service는 여전히 `NotificationGateway` 인터페이스만 사용.
+- 실제 구현체는 Provider 레벨에서 교체.
+
+==================================================
+7. UI 상태도 / 이벤트 흐름
+
+- 알림 예약/취소 시 UI는 기존과 동일 (task20 구조 그대로).
+- 추가 이벤트:
+  - 알림을 스케줄링하거나 취소하는 동안, 필요 시 로딩 표시/에러 스낵바만 추가(선택).
+
+==================================================
+8. 파일 구조
+
+- `lib/features/policy_new/application/gateways/notification_gateway.dart`
+  - `abstract class NotificationGateway`
+  - `class FlutterLocalNotificationGateway implements NotificationGateway`
+  - `class NoOpNotificationGateway implements NotificationGateway` (테스트용으로 유지)
+- `lib/features/policy_new/application/providers.dart`
+  - `notificationGatewayProvider` 구현체 교체.
+
+==================================================
+9. Acceptance Criteria
+
+- [ ] 실제 디바이스에서 정책 알림이 설정 시간에 뜬다.
+- [ ] 알림 취소 호출 시 기존 알림이 사라진다.
+- [ ] 안드로이드/아이폰 모두 기본 케이스에서 동작한다.
+- [ ] 코드는 여전히 `NotificationGateway` 인터페이스에만 의존한다 (플러그인 직접 호출 X).
+
+
+
+--------------------------------------------------
+# task22 — 타임존 & ID 규칙 문서화 + 유닛 테스트
+--------------------------------------------------
+
+==================================================
+1. 시스템 정의
+==================================================
+
+- 이름: `task22 — Timezone & ID Rules Spec + Unit Tests`
+- 목적:
+  - 알림 ID 생성 규칙 및 타임존 변환 규칙을 명확히 문서화.
+  - 이에 대한 유닛테스트/단위 검증을 통해 회귀 버그 방지.
+
+==================================================
+2. 문제 정의
+==================================================
+
+- 현재:
+  - ID 규칙: 구두 설계 수준.
+  - 타임존 변환: “대략 UTC로 저장하고 로컬로 보여준다” 정도로만 합의.
+- 위험:
+  - ID 충돌 → 알림 덮어쓰기/취소 실패.
+  - 타임존 오류 → 잘못된 시간(하루 앞뒤, 시차 오류 등)에 알림 발생.
+
+==================================================
+3. 요구사항 분석
+==================================================
+
+- ID 규칙:
+  - `reminderId` (String) 생성 규칙 명세 + 테스트.
+  - 플랫폼용 `notificationId` (int) 매핑 규칙 명세 + 테스트.
+- 타임존 규칙:
+  - 항상 내부 저장은 `UTC` 로.
+  - 디바이스 로컬 시간대에서 스케줄 → 내부 UTC 변환.
+  - flutter_local_notifications 호출 시 `TZDateTime` 변환 규칙.
+
+==================================================
+4. 아키텍처 설계
+
+### 4.1 ID 규칙 유틸
+
+- 새 파일:
+  - `lib/features/policy_new/domain/utils/reminder_id_util.dart`
+- 기능:
+  - `String buildReminderId(String policyId, ReminderTimeKind kind, {DateTime? customTimeUtc})`
+  - `int toNotificationId(String reminderId)`
+  - `String parsePolicyId(String reminderId)` (테스트/관리용)
+- 규칙 예:
+  - 기본: `${policyId}::${kind.name}`
+  - custom: `${policyId}::custom::${yyyyMMddHHmm}`
+
+### 4.2 타임존 유틸
+
+- 새 파일:
+  - `lib/features/policy_new/domain/utils/reminder_time_util.dart`
+- 기능:
+  - `DateTime toUtc(DateTime localTime);`
+  - `TZDateTime toDeviceZone(DateTime utcTime);`
+  - 알림 예상 시간 계산 (D-7, D-1 등) 시 항상 `UTC` 기준 DateTime 사용.
+
+==================================================
+5. 데이터 파이프라인 / 흐름
+
+- 설정:
+  - 사용자가 로컬 기준 “알림 시각”을 선택 → `DateTime`(local) 입력.
+  - `toUtc(local)` → `PolicyReminder.fireDateTimeUtc`.
+  - 스케줄:
+    - `TZDateTime scheduled = toDeviceZone(fireDateTimeUtc)`  
+      → `zonedSchedule` 전달.
+
+==================================================
+6. Provider/Controller 상호작용 규칙
+
+- Controller/Service는 유틸 호출만 사용:
+  - ID 생성/해석, 시간 변환을 직접 구현해서는 안 됨.
+- 모든 ID/시간 관련 로직은 **유틸 단일 진입점**으로 모은다.
+
+==================================================
+7. UI 상태도 / 이벤트 흐름
+
+- UI에서는 여전히 “로컬 시간”만 보여준다.
+- 내부적으로 UTC/타임존 변환이 일어나도, UI 상태도에는 영향을 주지 않는다.
+
+==================================================
+8. 파일 구조
+
+- `lib/features/policy_new/domain/utils/reminder_id_util.dart`
+- `lib/features/policy_new/domain/utils/reminder_time_util.dart`
+- `test/features/policy_new/domain/utils/reminder_id_util_test.dart`
+- `test/features/policy_new/domain/utils/reminder_time_util_test.dart`
+
+==================================================
+9. Acceptance Criteria
+
+- [ ] ID 유틸 테스트에서 **서로 다른 policyId/kind/customTime** 조합이 서로 다른 ID와 notificationId를 생성하는지 검증.
+- [ ] 동일한 입력에 대해 항상 동일한 ID가 생성되는지 보장.
+- [ ] 타임존 유틸 테스트에서 **KST, UTC, 다른 타임존** 샘플 값에 대해 올바른 변환을 수행하는지 검증.
+- [ ] Service/Gateway 코드에서 직접 문자열 붙이기, 직접 타임존 계산 코드가 존재하지 않는다 (모두 유틸 사용).
+
+
+
+--------------------------------------------------
+# task23 — 실기기 QA 시나리오 + 버그 픽스 라운드
+--------------------------------------------------
+
+==================================================
+1. 시스템 정의
+==================================================
+
+- 이름: `task23 — Device QA Scenarios + Bugfix Round`
+- 목적:
+  - 실제 안드로이드/아이폰 디바이스에서 알림 시스템 전체를 검증하고,
+    발견된 버그를 정리·패치하는 QA 라운드.
+
+==================================================
+2. 문제 정의
+==================================================
+
+- 지금까지의 작업(task20~22)은 설계/구현/유닛테스트를 중심으로 함.
+- 하지만 알림은 플랫폼 특성, 절전모드, 앱 종료 상태 등 변수들이 많아
+  **실기기 QA 없이 바로 배포하면 위험하다.**
+
+==================================================
+3. 요구사항 분석
+
+- 최소 검증 범위:
+  1. 단일 알림 설정/취소
+  2. 멀티 알림(D-7 & D-1) 설정/취소
+  3. 앱 종료 / 재부팅 후 알림 유지 여부
+  4. 타임존 변경 (설정 시간대 변경) 시 알림 동작
+  5. 알림 클릭 시 앱 진입 동작 (딥링크 or 정책 상세 이동)
+- 플랫폼:
+  - Android (실 디바이스 1종 이상)
+  - iOS (실 디바이스 1종 이상)
+
+==================================================
+4. 아키텍처/프로세스 설계
+
+- QA 시나리오 문서:
+  - `docs/notification/qa_scenarios.md`
+- 각 시나리오:
+  - 목적
+  - 준비 조건
+  - 단계별 수행 방법
+  - 기대 결과
+  - 실제 결과 & 버그 기록
+
+- 버그 관리:
+  - 발견된 버그는 GitHub Issue로 등록 (`[Notification][Bug] ...` 규칙).
+  - task23에서 수정 가능한 것과, 이후 작업으로 미루는 것을 분리.
+
+==================================================
+5. 데이터/이벤트 흐름
+
+- QA 관점에서의 흐름 정리:
+  1. 정책 선택 → 알림 옵션 설정 → 알림 예약
+  2. 디바이스 시간/타임존/전원/앱 상태 변경
+  3. 알림 발생/미발생/중복 여부 관찰
+  4. 알림 탭 → 앱 진입 → 정책 상세/알림 목록 이동 확인
+
+==================================================
+6. UI 상태도
+
+- QA 시나리오별로:
+  - 알림 설정 화면 → 알림 목록 → 실제 알림 → 다시 앱
+- 상태 변화가 UX 요구사항에 맞는지 검증.
+
+==================================================
+7. 파일 구조
+
+- `docs/notification/qa_scenarios.md`
+- (버그 픽스용)
+  - `lib/features/policy_new/**` 내 수정되는 파일들
+  - `test/**` 내 보완되는 테스트
+
+==================================================
+8. Acceptance Criteria
+
+- [ ] `docs/notification/qa_scenarios.md` 에 안드로이드/아이폰 공통/개별 시나리오가 정리되어 있다.
+- [ ] 최소 1회 이상 실제 기기에서 각 시나리오를 수행한 결과가 기록된다.
+- [ ] 치명적인 버그(알림 미발생, 시간 크게 어긋남, 앱 진입 실패 등)는 모두 수정된다.
+- [ ] 남은 경미한 이슈는 별도 Issue로 분리되어 추후 작업으로 관리된다.
+
+==================================================
+끝.
+==================================================
 
 
 @chatgpt-codex
