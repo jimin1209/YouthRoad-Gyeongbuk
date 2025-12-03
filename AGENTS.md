@@ -5527,4 +5527,164 @@ Execution failed for task ':app:compileFlutterBuildDebug'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
+# ISSUE 43
+
+
+---
+
+### 🧾 Codex 작업 설명문 (그대로 써도 되는 버전)
+
+**Title**
+`Refactor PolicyPrefetchNotifier: deduplicate provider & remove legacy mounted usage`
+
+**Goal**
+
+* `PolicyPrefetchNotifier` / `policyPrefetchProvider`를 **한 곳(appliction 레이어)에서만** 정의하도록 정리
+* 예전에 `mounted`를 사용하던 **legacy 구현/파일을 모두 정리**
+* 현재 사용 중인 prefetch 로직은 그대로 유지
+
+---
+
+### 1. `lib/application/policy/policy_prefetch_provider.dart`를 단일 소스로 유지
+
+다음 구현을 기준으로 이 파일을 정리해줘
+(동일/유사 import가 이미 있다면 중복 없이 정리해도 됨)
+
+```dart
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../application/notifiers/policy_paging_notifier.dart';
+import '../../../application/providers.dart'
+    show policyPagingProvider, policyRepositoryInterfaceProvider;
+import '../../../domain/repositories/policy_repository.dart';
+import 'policy_list_provider.dart';
+
+final policyPrefetchProvider =
+    AsyncNotifierProvider<PolicyPrefetchNotifier, void>(
+  PolicyPrefetchNotifier.new,
+);
+
+class PolicyPrefetchNotifier extends AsyncNotifier<void> {
+  PolicyRepository get _repository =>
+      ref.read(policyRepositoryInterfaceProvider);
+
+  PolicyFeedsNotifier get _pagingNotifier =>
+      ref.read(policyPagingProvider.notifier);
+
+  PolicyListNotifier get _listNotifier => ref.read(policyListProvider.notifier);
+
+  @override
+  FutureOr<void> build() {
+    // 초기 로직이 필요 없으면 비워둔다
+  }
+
+  Future<void> prefetchPolicies() async {
+    // 이미 prefetch 중이면 중복 실행 방지
+    if (state.isLoading) return;
+
+    state = const AsyncValue.loading();
+    _listNotifier.setLoading();
+
+    // 1) 캐시 우선 로드
+    try {
+      final cached = await _repository.loadCachedPolicies(
+        filter: _pagingNotifier.currentFilter,
+      );
+
+      if (cached.isNotEmpty) {
+        _pagingNotifier.seedFromCache(cached);
+        _listNotifier.setPolicies(cached);
+      } else {
+        _listNotifier.clear();
+      }
+    } catch (e, st) {
+      debugPrint('[PolicyPrefetchNotifier] cache preload failed: $e\n$st');
+      _listNotifier.setError(e, st);
+    }
+
+    // 2) 원격 최신 데이터로 갱신
+    try {
+      final remote = await _repository.refreshPolicies(
+        filter: _pagingNotifier.currentFilter,
+      );
+      _pagingNotifier.replaceWithFresh(remote);
+      _listNotifier.setPolicies(remote);
+      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      debugPrint('[PolicyPrefetchNotifier] remote prefetch failed: $e\n$st');
+      _listNotifier.setError(e, st);
+      state = AsyncValue.error(e, st);
+    }
+  }
+}
+```
+
+* 위 로직이 **정확히 현재 사용하는 prefetch 로직**이므로
+  이 파일 안에서 다른 오래된 구현(특히 `mounted` 사용)은 모두 삭제해줘
+* `mounted`를 사용한 코드는 남기지 않는다
+
+---
+
+### 2. `lib/features/policy/providers/policy_prefetch_provider.dart` 정리
+
+이 파일에 있는 **별도의 `PolicyPrefetchNotifier`/`policyPrefetchProvider` 구현은 모두 삭제**하고,
+application 레이어의 구현만 내보내는 **얇은 export 파일**로 바꿔줘
+
+```dart
+export 'package:youth_road_app/application/policy/policy_prefetch_provider.dart';
+```
+
+> 패키지 이름 `youth_road_app`은 현재 프로젝트 구조를 기준으로 한 추정입니다 (추측입니다)
+> 실제 pubspec의 name이 다르면 거기에 맞게 수정해줘
+
+이렇게 하면:
+
+* 기존에 `features/policy/providers/policy_prefetch_provider.dart`를 import하던 코드들은 그대로 유지 가능
+* 실제 구현은 항상 `lib/application/policy/policy_prefetch_provider.dart` 한 곳만 사용
+
+---
+
+### 3. 레거시 `mounted` 및 중복 구현 전체 정리
+
+1. `lib/features/policy/providers/policy_prefetch_provider.dart` 뿐 아니라
+   레포 전체에서 **`PolicyPrefetchNotifier` 관련 `mounted` 사용을 모두 제거**해줘
+
+   * 검색 키워드 예시:
+
+     * `PolicyPrefetchNotifier`
+     * `policyPrefetchProvider`
+     * `mounted`
+
+2. 최종적으로 레포 안에
+
+   * `PolicyPrefetchNotifier` 정의는 **딱 한 군데** (`lib/application/policy/policy_prefetch_provider.dart`)만 남도록 정리
+
+3. `policyPrefetchProvider` 또한 동일하게 한 군데만 남도록 정리
+
+---
+
+### 4. 검증 조건 (Acceptance Criteria)
+
+* `flutter analyze` 시
+
+  * `PolicyPrefetchNotifier` / `policyPrefetchProvider` 중복 정의 에러 없음
+  * `'mounted' isn't defined for the class 'PolicyPrefetchNotifier'` 에러 완전 제거
+
+* `flutter test` 전부 통과 (있는 경우)
+
+* `flutter build` 또는 CI 빌드에서
+
+  * `PolicyPrefetchNotifier` 관련 컴파일 에러 없음
+
+* 검색 결과
+
+  * `PolicyPrefetchNotifier` 정의는 `lib/application/policy/policy_prefetch_provider.dart`에만 존재
+  * `policyPrefetchProvider` 정의도 동일
+  * `PolicyPrefetchNotifier`와 관련된 어떤 파일에서도 `mounted`를 사용하지 않음
+
+---
+
 
