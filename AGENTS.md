@@ -197,6 +197,371 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 ❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️🩵🩵🩵
 
 @chatgpt-codex
+# TASK 08 — PolicyNew 즐겨찾기(좋아요) 전체 시스템 구축
+# (즐겨찾기 저장소 + EventBus + Favorite 탭 + 카드 하트 버튼 + Feed 연동)
+
+> 목표: `policy_new` 모듈 안에서 **“즐겨찾기(좋아요)” 기능을 도메인 ~ 저장소 ~ 컨트롤러 ~ UI까지 완전히 구현**한다.  
+> - 정책 카드의 하트 버튼 토글  
+> - 즐겨찾기 정보 영구 저장(로컬)  
+> - “즐겨찾기 탭”에서만 그 정책들만 모아서 보기  
+> - 다른 탭(추천/전체/검색)에서도 하트 상태 실시간 반영  
+> - EventBus 기반으로 탭 간 상태 동기화
+
+---
+
+## 1. 시스템 정의 (System Definition)
+
+### 1.1 시스템 범위
+
+- 모듈: `lib/features/policy_new/**`
+- 기능: **정책 즐겨찾기(Favorite) 시스템**
+  - 정책 카드에서 하트 버튼 토글
+  - 로컬 저장소에 즐겨찾기 상태 저장 (앱 재실행 후에도 유지)
+  - “즐겨찾기 탭”에서 즐겨찾기한 정책 목록만 노출
+  - 다른 탭(추천/전체/지역/검색/비교)에서도 하트 상태 실시간 반영
+  - EventBus를 통해 즐겨찾기 변경 이벤트 방송
+
+### 1.2 관련 서브시스템
+
+- Domain:
+  - `Policy` (job02)
+  - `PolicyFavorite` (job02 에서 정의했거나, 없으면 함께 정의)
+- Repository:
+  - `PolicyRepository` / `PolicyRepositoryImpl` (job03)
+- Controller:
+  - `BasePolicyFeedController`, `FavoriteFeedController` (job04)
+- UI:
+  - `PolicyCard`, `PolicyFeedListView`, `PolicyFeedHomeScreen` (job05 이후)
+- Event:
+  - `PolicyEventBus` / `PolicyEventType` (job01 계열 설계에서 언급된 이벤트 시스템)
+
+---
+
+## 2. 문제 정의 (Problem Definition)
+
+현재 `policy_new`의 정책 화면은:
+
+1. 정책 카드에는 “즐겨찾기/좋아요” 상태가 없다.
+2. 사용자가 관심 정책을 저장해둘 수 있는 방법이 없다.
+3. “즐겨찾기 탭(PolicyFeedType.favorite)”이 설계 수준에서만 존재하고, 실제로는:
+   - 어떤 정책이 즐겨찾기인지 판단 불가
+   - API/Repository/Controller에서 favorite 상태 연동 안 됨
+   - UI에서 favorite 전용 목록 표시 불가
+4. 다른 탭(추천/전체/검색 등)과 “즐겨찾기 탭” 사이의 상태 동기화가 없다:
+   - 한 탭에서 하트를 눌러도, 다른 탭에선 반영 안 됨
+   - 앱 재실행 시에도 favorite 상태를 복원하지 못함
+
+**결론**:  
+- 정책 즐겨찾기 기능이 **도메인/저장소/컨트롤러/UI 전 구간에서 비어 있다.**  
+- 이 TASK 08에서 즐겨찾기 시스템 전체를 **한 번에** 구축해야 한다.
+
+---
+
+## 3. 요구사항 분석 (Requirements Analysis)
+
+### 3.1 기능 요구사항 (Functional)
+
+1. **즐겨찾기 토글**
+   - 정책 카드 우측 상단(또는 제목 옆)에 하트 아이콘을 배치.
+   - 하트 클릭 시:
+     - 해당 정책이 즐겨찾기 목록에 없으면 → 추가
+     - 이미 있으면 → 제거
+   - 하트 상태는 즉시 UI에 반영 (optimistic UI 가능).
+
+2. **즐겨찾기 상태 유지**
+   - 즐겨찾기는 **로컬 저장소**(예: Isar, SharedPreferences, Hive 등 어떤 것이든 추상화) 에 영구 저장.
+   - 앱 재실행 후에도 즐겨찾기 상태 유지.
+
+3. **즐겨찾기 탭**
+   - “즐겨찾기” 탭(PolicyFeedType.favorite)을 선택하면:
+     - 즐겨찾기된 정책들만 리스트로 노출.
+     - 기존 페이징/로딩/에러/빈 상태 핸들링은 동일 패턴 유지.
+   - 즐겨찾기가 하나도 없을 경우, “즐겨찾기한 정책이 없습니다” 빈 화면 표시.
+
+4. **탭 간 상태 동기화**
+   - 추천/전체/지역/검색/비교 등 모든 탭의 `PolicyCard`에서 하트 상태가 동일해야 한다.
+   - 어느 탭에서 하트를 눌러도:
+     - 모든 탭에서 해당 정책 카드의 하트 상태가 최신으로 유지.
+     - “즐겨찾기 탭” 리스트도 자동 갱신.
+
+5. **EventBus 통합**
+   - 즐겨찾기 추가/제거 시 `PolicyEventType.favoritesChanged` 이벤트 발행.
+   - FavoriteFeedController는 해당 이벤트를 구독하고 refresh.
+   - RecommendFeedController 등은 필요시 즐겨찾기 마크 재렌더링.
+
+6. **정책 ID 기준 식별**
+   - 즐겨찾기 상태는 `policy.id`를 기준으로 관리.
+   - 동일 ID가 여러 탭/페이지에 등장해도 하나의 favorite 상태를 공유.
+
+### 3.2 비기능 요구사항 (Non-Functional)
+
+1. **성능**
+   - 즐겨찾기 토글은 즉시 UI 반응 (완전히 비동기로 저장).
+   - 즐겨찾기 수가 많아도 (수백 개) 리스트 렌더링에 문제가 없도록 설계.
+2. **안정성**
+   - 로컬 저장소에 읽기/쓰기 실패 시 graceful fallback:
+     - UI는 ErrorSnackBar나 로그 출력.
+     - 앱 전체 Crash 금지.
+3. **확장성**
+   - 향후 “폴더/카테고리별 즐겨찾기” 또는 “클라우드 동기화”로 확장 가능하도록 Repository 인터페이스를 깔끔하게 정의.
+
+---
+
+## 4. 아키텍처 설계 (Architecture Design)
+
+### 4.1 핵심 구성 요소
+
+1. **Domain**
+   - `Policy` : 기존 job02 정의
+   - `PolicyFavorite`:
+     ```dart
+     class PolicyFavorite {
+       final String policyId;
+       final DateTime savedAt;
+
+       const PolicyFavorite({
+         required this.policyId,
+         required this.savedAt,
+       });
+     }
+     ```
+
+2. **Repository 계층**
+   - `PolicyFavoriteRepository` (Domain 레이어 인터페이스)
+   - `PolicyFavoriteRepositoryImpl` (Data 레이어 구현)
+     - 내부에서 `PolicyFavoriteLocalDataSource` 사용
+
+3. **Local DataSource**
+   - `PolicyFavoriteLocalDataSource`
+     - getAll()
+     - isFavorite(policyId)
+     - addFavorite(policyId)
+     - removeFavorite(policyId)
+
+4. **Service / UseCase 계층**
+   - `PolicyFavoriteService`
+     - toggleFavorite(Policy policy)
+     - isFavorite(Policy policy)
+     - getFavoriteIds()
+     - getFavoritePolicies() (필요시 Repository와 결합)
+
+5. **EventBus**
+   - `PolicyEventBus`:
+     - `PolicyEventType.favoritesChanged`
+     - payload: 변경된 policyId 리스트 또는 전체 상태
+
+6. **Controller 계층**
+   - `FavoriteFeedController` (FeedType.favorite)
+     - BasePolicyFeedController 상속
+     - QueryEngine + FavoriteRepository 활용
+   - 기타 FeedController:
+     - 즐겨찾기 상태 자체는 Repository/Service를 통해 읽는다 (UI에서 직접 `isFavorite` 구독).
+
+7. **UI**
+   - `PolicyCard`:
+     - props: `Policy policy`, `bool isFavorite`, `onFavoriteToggle()`
+   - `PolicyFeedListView`:
+     - 각 정책에 대해 favorite 상태를 Provider로 읽어서 전달
+   - Empty/Error/Loading는 기존 것을 재사용
+
+---
+
+## 5. 데이터 파이프라인 / 흐름도 (Data Pipeline & Flow)
+
+### 5.1 Favorite On/Off 흐름
+
+1. 유저가 PolicyCard의 하트 아이콘 탭
+2. `onFavoriteToggle(policy)` 호출
+3. `PolicyFavoriteService.toggleFavorite(policy)` 호출
+4. Service 내부 로직:
+   - `isFavorite(policy.id)` 조회
+   - true → `repository.remove(policy.id)`
+   - false → `repository.add(policy.id)`
+5. Repository:
+   - LocalDataSource에 읽기/쓰기
+   - 성공 후, EventBus에 `favoritesChanged` 이벤트 발행
+6. UI/Controller:
+   - `favoriteIdsProvider` 또는 `isFavoriteProvider(policy.id)`가 값 변경 감지
+   - PolicyCard 재렌더링 (하트 상태 갱신)
+   - FavoriteFeedController는 `favoritesChanged` 이벤트 수신 → `refresh()` 호출 → 추천/전체 탭과 동기화
+
+### 5.2 앱 시작 시 Favorite 상태 로드
+
+1. 앱/모듈 초기화 시:
+   - `PolicyFavoriteRepository`가 LocalDataSource에서 favorite 목록 로드
+   - `favoriteIdsProvider` 초기값 설정
+2. 모든 PolicyCard는 `favoriteIdsProvider`를 통해 isFavorite 여부를 즉시 확인 가능
+
+### 5.3 Favorite 탭 로드
+
+1. Favorite 탭이 선택됨 → FavoriteFeedController의 `loadFirstPage()` 호출
+2. QueryEngine:
+   - FeedType.favorite을 전달받고, QueryOrchestrator에서
+     - tags = favoriteIds
+     - filter = 기본 PolicyFilter
+   - Repository.fetchPoliciesByQuery() 호출
+3. Repository:
+   - Remote/API에서 policyId 필터가 가능하면 해당 정책만 로딩
+   - 그렇지 않다면:
+     - 전체 목록 또는 페이지 기반으로 불러온 후, favoriteIds와 교차 필터 (후처리)
+4. FavoriteFeedController는 결과를 PolicyPagingState에 반영
+5. UI: PolicyFeedListView가 해당 상태를 렌더링
+
+---
+
+## 6. Provider / Controller 상호작용 규칙
+
+### 6.1 Provider 정의
+
+- `policyFavoriteRepositoryProvider`
+- `policyFavoriteServiceProvider`
+- `favoriteIdsProvider` (Set<String> 혹은 List<String>)
+- `favoriteFeedControllerProvider` (StateNotifierProvider)
+
+### 6.2 상호작용 규칙
+
+1. **PolicyCard → Service**
+   - 카드에서 onFavoriteToggle 호출 시:
+     - `ref.read(policyFavoriteServiceProvider).toggleFavorite(policy);`
+
+2. **Service → Repository → LocalDataSource**
+   - Service는 로직/유즈케이스 담당
+   - Repository는 저장소 추상화
+   - LocalDataSource가 실제 저장 수행
+
+3. **Repository → EventBus + favoriteIdsProvider**
+   - add/removeFavorite 성공 시:
+     - `favoriteIdsProvider` 내부 상태 업데이트
+     - `policyEventBus`에 `favoritesChanged` 이벤트 발행
+
+4. **EventBus → FeedControllers**
+   - FavoriteFeedController:
+     - `favoritesChanged` 수신 → `refresh()` 호출
+   - RecommendFeedController:
+     - 필요 시 즐겨찾기 표시를 업데이트(리스트 자체는 그대로)
+
+5. **favoriteIdsProvider → UI**
+   - PolicyCard:
+     - `final favoriteIds = ref.watch(favoriteIdsProvider);`
+     - `final isFavorite = favoriteIds.contains(policy.id);`
+
+---
+
+## 7. UI 상태도 (UI State Diagram)
+
+### 7.1 PolicyCard Favorite 상태
+
+- 상태: `isFavorite: true/false`
+- 이벤트:
+  - `사용자 탭` → toggleFavorite
+  - `favoriteIds 변경` → PolicyCard 재빌드
+- 전이:
+  - false → (toggle) → true
+  - true → (toggle) → false
+- 가시적 표시:
+  - `isFavorite == true` → 채워진 하트 아이콘 (예: Icons.favorite)
+  - `isFavorite == false` → 빈 하트 아이콘 (예: Icons.favorite_border)
+
+### 7.2 Favorite 탭 전체 상태
+
+- 상태:
+  - `loading`, `data (items)`, `empty`, `error`
+- 이벤트:
+  - 탭 진입 → loadFirstPage()
+  - favoritesChanged 이벤트 → refresh()
+  - pull-to-refresh → refresh()
+- 전이:
+  - initial → loading → data/empty/error
+  - data → loading → data/empty/error (refresh)
+  - empty → loading → data/empty/error
+
+---
+
+## 8. 이벤트 흐름 (Event Flow)
+
+### 8.1 즐겨찾기 변경 이벤트
+
+1. PolicyCard 하트 탭
+2. Service.toggleFavorite → Repository.add/remove
+3. LocalDataSource 저장 성공
+4. Repository:
+   - `favoriteIdsProvider` 상태 업데이트
+   - EventBus에 `PolicyEvent(type: favoritesChanged, payload: {policyId})` 발행
+5. 구독자:
+   - FavoriteFeedController:
+     - `favoritesChanged` 수신 → `refresh()`
+   - RecommendFeedController 등:
+     - 필요시 즐겨찾기 표시만 재렌더 (리스트는 그대로)
+
+### 8.2 캐시 초기화 이벤트 (이미 존재한다면)
+
+- Event: `PolicyEventType.cacheCleared`
+- FavoriteFeedController 포함 모든 FeedController:
+  - `_resetPaging()` 후 필요 시 refresh()
+
+---
+
+## 9. 파일 구조 (File Structure)
+
+아래 파일들을 `policy_new` 아래에 생성/수정한다.
+
+```txt
+lib/
+  features/
+    policy_new/
+      domain/
+        entities/
+          policy.dart                      # (존재, 수정 X)
+          policy_favorite.dart             # NEW: PolicyFavorite 정의
+        repositories/
+          policy_favorite_repository.dart  # NEW: 인터페이스
+      data/
+        datasources/
+          policy_favorite_local_data_source.dart  # NEW: 로컬 저장소
+        repositories/
+          policy_favorite_repository_impl.dart    # NEW: 구현체
+      application/
+        services/
+          policy_favorite_service.dart     # NEW: toggleFavorite, isFavorite 등
+        controllers/
+          favorite_feed_controller.dart    # EXISTING일 수 있음 → TASK 08 기준으로 교체/보완
+        providers.dart                     # favorite 관련 provider 등록 (필요 시)
+        events/
+          policy_event.dart                # favoritesChanged 이벤트 타입 확장/명시
+      presentation/
+        widgets/
+          policy_card.dart                 # 하트 버튼 + isFavorite 표시 추가
+        screens/
+          policy_feed_home_screen.dart     # Favorite 탭 자체는 job05에서 존재, 동작 검증
+
+규칙:
+	•	Domain/Repository/Controller/Presentation 기존 구조를 최대한 존중하고, 추가/확장 위주로 구현한다.
+	•	기존 policy_card.dart가 다른 용도로 사용 중이면, policy_card_new.dart로 별도 생성하고 new 화면에서만 사용하도록 한다.
+
+⸻
+
+10. Acceptance Criteria (수용 기준)
+
+다음 체크리스트가 모두 충족되면 TASK 08 완료로 간주한다.
+	•	PolicyFavorite 도메인 엔티티가 생성되어, policyId + savedAt 정보를 담을 수 있다.
+	•	PolicyFavoriteRepository 인터페이스가 정의되어 있고, 즐겨찾기 추가/삭제/조회 메서드를 제공한다.
+	•	PolicyFavoriteRepositoryImpl이 로컬 저장소(LocalDataSource)를 사용하여 즐겨찾기를 영구 저장/조회할 수 있다.
+	•	PolicyFavoriteService가 toggleFavorite, isFavorite, getFavoriteIds 등의 메서드를 통해 UI/Controller에서 사용하기 편리한 API를 제공한다.
+	•	favoriteIdsProvider가 존재하며, 현재 즐겨찾기된 정책들의 ID 목록(또는 Set)을 상태로 가진다.
+	•	PolicyCard가 isFavorite 상태를 받아 하트 아이콘을 올바르게 표시하며, 탭 시 PolicyFavoriteService.toggleFavorite을 호출한다.
+	•	즐겨찾기 토글 시, favoriteIdsProvider 상태가 즉시 업데이트되고 하트 아이콘이 재렌더링된다.
+	•	즐겨찾기 토글 시, PolicyEventType.favoritesChanged 이벤트가 EventBus에 발행된다.
+	•	FavoriteFeedController가 favoritesChanged 이벤트를 구독하고, refresh()를 호출하여 Favorite 탭의 목록이 업데이트된다.
+	•	Favorite 탭에서 즐겨찾기한 정책 목록만 표시되며, 즐겨찾기가 없으면 빈 상태 화면이 표시된다.
+	•	앱을 재실행해도 즐겨찾기 상태가 유지된다 (로컬 저장소 연동 완료).
+	•	전체 프로젝트 빌드 시 타입 에러, Provider 참조 에러, import 에러가 없어야 한다.
+
+⸻
+
+
+
+
+@chatgpt-codex
 # TASK 07 — PolicyNew **추천 탭(Recommend Tab)** 단일 기능 E2E 구현 (job01 스타일 설계서)
 
 > 목표:  
