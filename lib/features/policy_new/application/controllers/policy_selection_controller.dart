@@ -4,16 +4,29 @@ import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_event.dart';
 import '../behavior/policy_behavior_tracker.dart';
 import '../models/user_collections.dart';
+import '../providers.dart';
 import 'policy_event_bus.dart';
 
 class CompareController extends StateNotifier<CompareRepository> {
-  CompareController(this.ref) : super(const CompareRepository());
+  CompareController(this.ref) : super(const CompareRepository()) {
+    _load();
+  }
 
   final Ref ref;
 
+  CompareLocalDataSource get _localSource =>
+      ref.read(compareLocalDataSourceProvider);
+
   bool isCompared(String policyId) => state.ids.contains(policyId);
 
-  void toggleCompare(Policy policy) {
+  Future<void> _load() async {
+    final stored = _localSource.loadIds();
+    if (stored.isNotEmpty) {
+      state = CompareRepository(ids: stored);
+    }
+  }
+
+  Future<void> toggleCompare(Policy policy) async {
     final exists = state.ids.contains(policy.id);
     final updated = [
       for (final id in state.ids)
@@ -24,14 +37,45 @@ class CompareController extends StateNotifier<CompareRepository> {
       updated.add(policy.id);
     }
 
-    state = CompareRepository(ids: updated);
+    await _persistAndNotify(updated, policy: policy, added: !exists);
+  }
 
-    ref.read(policyEventBusProvider.notifier).emit(
-          PolicyEvent(PolicyEventType.compareListChanged, policyId: policy.id),
-        );
+  Future<void> remove(String policyId) async {
+    if (!state.ids.contains(policyId)) return;
 
-    ref
-        .read(policyBehaviorTrackerProvider.notifier)
-        .recordCompareChanged(policy, added: !exists);
+    final updated = [
+      for (final id in state.ids)
+        if (id != policyId) id,
+    ];
+
+    await _persistAndNotify(updated, policyId: policyId, added: false);
+  }
+
+  Future<void> clear() async {
+    await _persistAndNotify(const [], added: false);
+  }
+
+  Future<void> _persistAndNotify(
+    List<String> ids, {
+    Policy? policy,
+    String? policyId,
+    required bool added,
+  }) async {
+    state = CompareRepository(ids: ids);
+    await _localSource.saveIds(ids);
+
+    final targetPolicyId = policy?.id ?? policyId;
+    if (targetPolicyId != null) {
+      ref.read(policyEventBusProvider.notifier).emit(
+            PolicyEvent(PolicyEventType.compareListChanged,
+                policyId: targetPolicyId),
+          );
+    }
+
+    if (policy != null) {
+      ref
+          .read(policyBehaviorTrackerProvider.notifier)
+          .recordCompareChanged(policy, added: added);
+    }
   }
 }

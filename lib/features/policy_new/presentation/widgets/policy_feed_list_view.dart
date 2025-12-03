@@ -168,10 +168,7 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
           ref.read(favoriteFeedControllerProvider.notifier),
         );
       case PolicyFeedType.compare:
-        return (
-          ref.watch(compareFeedControllerProvider),
-          ref.read(compareFeedControllerProvider.notifier),
-        );
+        throw UnsupportedError('Compare feed는 별도 화면을 사용합니다.');
     }
   }
 
@@ -188,7 +185,7 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
       case PolicyFeedType.favorite:
         return ref.read(favoriteFeedControllerProvider.notifier);
       case PolicyFeedType.compare:
-        return ref.read(compareFeedControllerProvider.notifier);
+        throw UnsupportedError('Compare feed는 별도 화면을 사용합니다.');
     }
   }
 

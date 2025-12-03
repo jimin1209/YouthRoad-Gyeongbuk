@@ -35,10 +35,3 @@ class FavoriteFeedController extends BasePolicyFeedController {
     required super.queryEngine,
   }) : super(feedType: PolicyFeedType.favorite);
 }
-
-class CompareFeedController extends BasePolicyFeedController {
-  CompareFeedController({
-    required super.ref,
-    required super.queryEngine,
-  }) : super(feedType: PolicyFeedType.compare);
-}
