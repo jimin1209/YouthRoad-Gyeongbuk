@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/entities/policy_reminder.dart';
+import '../../domain/utils/reminder_time_util.dart';
 import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
 
@@ -128,9 +129,12 @@ class SharedPrefsPolicyReminderLocalDataSource
               'id': reminder.reminderId,
               'reminderId': reminder.reminderId,
               'policyId': reminder.policyId,
-              'scheduledAt': reminder.scheduledAt.toUtc().toIso8601String(),
-              'createdAt': reminder.createdAt.toUtc().toIso8601String(),
-              'updatedAt': reminder.updatedAt.toUtc().toIso8601String(),
+              'scheduledAt': ReminderTimeUtil.toUtc(reminder.scheduledAt)
+                  .toIso8601String(),
+              'createdAt': ReminderTimeUtil.toUtc(reminder.createdAt)
+                  .toIso8601String(),
+              'updatedAt': ReminderTimeUtil.toUtc(reminder.updatedAt)
+                  .toIso8601String(),
               'timeKind': reminder.timeKind.name,
               'status': reminder.status.name,
             },
@@ -169,9 +173,12 @@ class SharedPrefsPolicyReminderLocalDataSource
     return PolicyReminder(
       reminderId: reminderId,
       policyId: map['policyId'] as String,
-      scheduledAt: DateTime.parse(map['scheduledAt'] as String).toUtc(),
-      createdAt: DateTime.parse(map['createdAt'] as String).toUtc(),
-      updatedAt: DateTime.parse(map['updatedAt'] as String).toUtc(),
+      scheduledAt:
+          ReminderTimeUtil.toUtc(DateTime.parse(map['scheduledAt'] as String)),
+      createdAt:
+          ReminderTimeUtil.toUtc(DateTime.parse(map['createdAt'] as String)),
+      updatedAt:
+          ReminderTimeUtil.toUtc(DateTime.parse(map['updatedAt'] as String)),
       timeKind: timeKind,
       status: status,
     );
