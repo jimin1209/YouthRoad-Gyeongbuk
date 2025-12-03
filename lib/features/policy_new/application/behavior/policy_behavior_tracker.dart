@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_event.dart';
-import '../providers.dart';
+import '../controllers/policy_event_bus.dart';
 
 class PolicyBehaviorState {
   final Map<String, int> policyScores;
