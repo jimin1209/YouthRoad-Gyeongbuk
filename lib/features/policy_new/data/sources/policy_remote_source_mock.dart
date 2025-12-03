@@ -96,6 +96,14 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
   }
 
   @override
+  Future<List<PolicyModel>> fetchPolicies(int page, int pageSize) {
+    return fetchPoliciesWithParams({
+      'page': page,
+      'size': pageSize,
+    });
+  }
+
+  @override
   Future<List<PolicyModel>> fetchPoliciesWithParams(
     Map<String, dynamic> queryParameters,
   ) async {
