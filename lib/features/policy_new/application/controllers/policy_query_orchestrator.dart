@@ -7,6 +7,7 @@ import '../../domain/values/policy_region.dart';
 import '../../domain/values/policy_sort.dart';
 import '../filters/policy_filter_ui_state.dart';
 import '../providers.dart';
+import '../behavior/policy_behavior_tracker.dart';
 
 class PolicyQueryOrchestrator {
   PolicyQueryOrchestrator(this.ref);
@@ -15,6 +16,8 @@ class PolicyQueryOrchestrator {
 
   PolicyFilterUiState get _ui => ref.read(policyFilterUiStateProvider);
   UserProfile get _profile => ref.read(userProfileProvider);
+  PolicyBehaviorState get _behavior =>
+      ref.read(policyBehaviorTrackerProvider);
 
   List<String> get _favoriteIds =>
       ref.read(favoriteRepositoryProvider).allIds;
@@ -49,12 +52,25 @@ class PolicyQueryOrchestrator {
       departmentId: _ui.departmentId,
     );
 
-    final tags = _ui.tags.isNotEmpty ? _ui.tags : _profile.recommendTags;
+    final baseTags = _ui.tags.isNotEmpty ? _ui.tags : _profile.recommendTags;
+    final behaviorTags = _behavior.topTags();
+
+    final combinedTags = <String>[];
+    void addAll(List<String> source) {
+      for (final tag in source) {
+        if (!combinedTags.contains(tag)) {
+          combinedTags.add(tag);
+        }
+      }
+    }
+
+    addAll(baseTags);
+    addAll(behaviorTags);
 
     return PolicyQuery(
       feedType: PolicyFeedType.recommend,
       filter: filter,
-      tags: tags,
+      tags: combinedTags,
       sort: PolicySortOption.recommendation,
     );
   }
