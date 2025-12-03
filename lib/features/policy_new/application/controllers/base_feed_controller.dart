@@ -93,9 +93,13 @@ abstract class BasePolicyFeedController
         return previous == null ||
             previous.region != next.region ||
             previous.category != next.category ||
+            previous.keyword != next.keyword ||
             previous.sort != next.sort ||
             previous.showOnlyOnline != next.showOnlyOnline ||
-            previous.showOnlyOngoing != next.showOnlyOngoing;
+            previous.showOnlyOngoing != next.showOnlyOngoing ||
+            !listEquals(previous.tags, next.tags) ||
+            previous.institutionId != next.institutionId ||
+            previous.departmentId != next.departmentId;
       case PolicyFeedType.region:
         return previous == null ||
             previous.region != next.region ||

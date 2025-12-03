@@ -83,10 +83,12 @@ class PolicyQueryOrchestrator {
       isOngoing: _ui.showOnlyOngoing ? true : null,
       institutionId: _ui.institutionId,
       departmentId: _ui.departmentId,
+      tags: _ui.tags,
     );
 
     return PolicyQuery(
       feedType: PolicyFeedType.all,
+      keyword: _ui.keyword.isEmpty ? null : _ui.keyword,
       filter: filter,
       sort: _ui.sort,
     );
