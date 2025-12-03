@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../domain/entities/policy_reminder.dart';
+import '../../domain/utils/reminder_id_util.dart';
+import '../../domain/utils/reminder_time_util.dart';
 import 'notification_gateway.dart';
 
 class FlutterLocalNotificationGateway implements NotificationGateway {
@@ -73,7 +75,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
   }
 
   int _notificationId(String reminderId) {
-    return reminderId.hashCode & 0x7fffffff;
+    return ReminderIdUtil.toNotificationId(reminderId);
   }
 
   String _buildPayload(PolicyReminder reminder) {
@@ -102,7 +104,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
       return;
     }
 
-    final scheduledLocal = reminder.scheduledAt.toLocal();
+    final scheduledLocal = ReminderTimeUtil.toUtc(reminder.scheduledAt).toLocal();
     if (scheduledLocal.isBefore(DateTime.now())) {
       return;
     }
