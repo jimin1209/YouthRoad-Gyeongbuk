@@ -6,6 +6,8 @@ import '../../application/controllers/policy_detail_controller.dart';
 import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_failure.dart';
+import '../reminder/sheets/reminder_manage_sheet.dart';
+import '../reminder/sheets/reminder_setup_bottom_sheet.dart';
 import '../widgets/policy_list_loading.dart';
 
 class PolicyDetailBottomSheet extends ConsumerWidget {
@@ -31,7 +33,8 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           clipBehavior: Clip.antiAlias,
           child: asyncPolicy.when(
-            data: (policy) => _buildContent(context, scrollController, policy),
+            data: (policy) =>
+                _buildContent(context, ref, scrollController, policy),
             loading: () => const PolicyListLoading(),
             error: (err, __) => _buildError(context, err, detailController),
           ),
@@ -40,8 +43,8 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildContent(
-      BuildContext context, ScrollController controller, Policy policy) {
+  Widget _buildContent(BuildContext context, WidgetRef ref,
+      ScrollController controller, Policy policy) {
     return SingleChildScrollView(
       controller: controller,
       child: Padding(
@@ -101,6 +104,8 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
             _infoRow('담당부서', policy.department),
             _infoRow('문의처', policy.contact ?? ''),
             _infoRow('지원대상', _buildTargetText(policy)),
+            const SizedBox(height: 16),
+            _buildReminderSection(context, ref, policy),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -180,6 +185,101 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildReminderSection(
+    BuildContext context,
+    WidgetRef ref,
+    Policy policy,
+  ) {
+    final remindersAsync = ref.watch(remindersByPolicyProvider(policy.id));
+    final hasReminders = remindersAsync.valueOrNull?.isNotEmpty ?? false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '신청 알림',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.notifications_active_outlined, size: 18),
+          ],
+        ),
+        const SizedBox(height: 8),
+        remindersAsync.when(
+          data: (list) {
+            if (list.isEmpty) {
+              return const Text('알림이 설정되지 않았습니다.');
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: list
+                  .map(
+                    (reminder) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle, size: 16),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${reminder.type.label} · ${reminder.remindAt.toLocal()}',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
+          error: (err, _) => Text('알림 정보를 불러오지 못했습니다: $err'),
+          loading: () => const LinearProgressIndicator(minHeight: 3),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (_) => ReminderSetupBottomSheet(policy: policy),
+                  );
+                },
+                icon: const Icon(Icons.add_alert),
+                label: const Text('알림 설정'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: hasReminders
+                    ? () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (_) => ReminderManageSheet(policy: policy),
+                        );
+                      }
+                    : null,
+                icon: const Icon(Icons.manage_history_outlined),
+                label: const Text('알림 관리'),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
