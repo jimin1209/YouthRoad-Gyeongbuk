@@ -134,28 +134,18 @@ class PolicyQueryOrchestrator {
   }
 
   PolicyQuery _buildFavoriteQuery() {
-    final filter = PolicyFilter(
-      isOnline: _ui.showOnlyOnline ? true : null,
-      isOngoing: _ui.showOnlyOngoing ? true : null,
-    );
-
     return PolicyQuery(
       feedType: PolicyFeedType.favorite,
-      filter: filter,
+      filter: const PolicyFilter(),
       tags: _favoriteIds,
       sort: _ui.sort,
     );
   }
 
   PolicyQuery _buildCompareQuery() {
-    final filter = PolicyFilter(
-      isOnline: _ui.showOnlyOnline ? true : null,
-      isOngoing: _ui.showOnlyOngoing ? true : null,
-    );
-
     return PolicyQuery(
       feedType: PolicyFeedType.compare,
-      filter: filter,
+      filter: const PolicyFilter(),
       tags: _compareIds,
       sort: _ui.sort,
     );

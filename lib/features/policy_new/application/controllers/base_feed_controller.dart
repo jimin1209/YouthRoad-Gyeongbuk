@@ -118,10 +118,7 @@ abstract class BasePolicyFeedController
             !listEquals(previous.tags, next.tags);
       case PolicyFeedType.favorite:
       case PolicyFeedType.compare:
-        return previous == null ||
-            previous.sort != next.sort ||
-            previous.showOnlyOnline != next.showOnlyOnline ||
-            previous.showOnlyOngoing != next.showOnlyOngoing;
+        return previous == null || previous.sort != next.sort;
     }
   }
 
