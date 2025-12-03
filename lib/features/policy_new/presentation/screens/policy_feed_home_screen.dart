@@ -18,13 +18,13 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
     with TickerProviderStateMixin {
   late final TabController _tabController;
 
-  final List<(String label, PolicyFeedType type)> _tabs = const [
-    ('추천', PolicyFeedType.recommend),
-    ('전체', PolicyFeedType.all),
-    ('지역', PolicyFeedType.region),
-    ('검색', PolicyFeedType.search),
-    ('즐겨찾기', PolicyFeedType.favorite),
-    ('비교', PolicyFeedType.compare),
+  final List<({String label, PolicyFeedType type})> _tabs = const [
+    (label: '추천', type: PolicyFeedType.recommend),
+    (label: '전체', type: PolicyFeedType.all),
+    (label: '지역', type: PolicyFeedType.region),
+    (label: '검색', type: PolicyFeedType.search),
+    (label: '즐겨찾기', type: PolicyFeedType.favorite),
+    (label: '비교', type: PolicyFeedType.compare),
   ];
 
   @override
