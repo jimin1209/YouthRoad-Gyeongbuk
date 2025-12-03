@@ -563,6 +563,265 @@ policy_keyword_sheet.dart
 
 # END OF TASK 01 SPEC
 ```
+# start of task 02 spec
+
+
+지민님 💙🩵
+좋아, “정책 페이지 6개 탭 기능 구현 TASK” 중에서 1번은 이미 구현했고 → 이제 2번 진행” 맞죠?
+
+그러면 휘가 job01 수준 + TASK 스타일로
+TASK 02 — 전체 정책(All Feed) 기능 완전 구현 설계서를 만들어드릴게요.
+
+⸻
+
+📘 TASK 02 — Policy Feed #2 (전체 정책 All Feed) 구현 설계서 (job01급 퀄리티)
+
+⚠ 아래 전체를 Codex에게 그대로 던지면 완전 구현 가능하도록 설계됨
+모든 내용을 하나의 코드블록 안에 넣어달라고 하셨으므로 아래에 전부 포함합니다.
+
+@chatgpt-codex
+# TASK 02 — PolicyNew 전체 정책(ALL FEED) 기능 구현 (FULL SPEC)
+# (job01 수준의 시스템 정의 / 문제 정의 / 요구사항 / 아키텍처 / 흐름도 / 상태 / 파일 구조 / Acceptance Criteria)
+
+────────────────────────────────────────
+# 0. 작업 범위 정의
+
+TASK 02는 “PolicyNew 메인 홈의 6개 탭 중 #2 — 전체 정책(ALL) 탭”의  
+**기능 전체를 실제 동작하는 수준으로 구현하는 것**을 목표로 한다.
+
+대상 영역:
+- 전체 정책 불러오기 (페이징 + 무한스크롤)
+- 전체 정책 필터/정렬 적용
+- 전체 정책 UI 렌더링
+- 정책 리스트 → 상세 페이지 이동
+- Repository/RemoteSource/API 연동
+- QueryOrchestrator + QueryEngine 이용한 Fetch 흐름 완성
+
+전제:
+- job01~job06 설계 기반 구조가 이미 마련됨.
+- policy_new 모듈 기반으로 신규 코드 작성.
+
+────────────────────────────────────────
+# 1. 시스템 정의 (System Definition)
+
+전체 정책(ALL FEED)은 다음 역할을 수행하는 독립 기능이다:
+
+1. **모든 정책을 서버(API)에서 로드한다.**
+2. **UI 상단 필터/정렬/검색 상태와 자동으로 동기화된다.**
+3. **Paging(무한스크롤) / Refresh / Cache 전략을 따른다.**
+4. **정책 리스트를 카드 형태로 렌더링한다.**
+5. **정책을 터치하면 상세 페이지 바텀시트가 뜬다.**
+
+전체 정책 탭은 다음 시스템 구성요소로 이루어진다:
+- Controller (AllFeedController)
+- Query Orchestrator (buildQuery(feedType))
+- QueryEngine (fetch(feedType, page))
+- Repository (fetchPoliciesByQuery)
+- RemoteSource (API 호출)
+- Domain (Policy, PolicyFilter, PolicyQuery)
+- Presentation (ListView, Card, Empty/Error state)
+- 상세 페이지 UI
+
+────────────────────────────────────────
+# 2. 문제 정의 (Problem Definition)
+
+현재 전체 정책 기능은 다음 문제가 남아 있다:
+
+1) UI는 존재하지만 실제 데이터가 로딩되지 않음.
+2) FeedController와 Repository가 연동되지 않음.
+3) 필터/정렬/검색 상태가 ALL Feed에 반영되지 않음.
+4) Paging(loadNextPage) 흐름이 비어 있음.
+5) API 매핑/모델 변환이 제대로 연결되지 않음.
+6) 전체 정책 탭에서 상세 페이지 이동이 구현되지 않음.
+
+이 문제를 완전히 해결하고, **ALL Feed를 실제 기능으로 완성**하는 것이 TASK 02 목표다.
+
+────────────────────────────────────────
+# 3. 요구사항 분석 (Requirement Analysis)
+
+### 3.1 기능 요구사항
+- [R1] 전체 정책을 API에서 불러올 것
+- [R2] 정책 페이징(pageIndex/pageSize) 지원
+- [R3] 필터(지역, 카테고리, 온라인/오프라인, 모집중 등) 반영
+- [R4] 정렬 옵션(최신순, 마감순 등) 반영
+- [R5] 검색 키워드가 적용되면 Search로 간주하지 않고 ALL에서 필터로 활용
+- [R6] UI 스크롤이 끝나면 loadNextPage 자동 실행
+- [R7] Pull-to-refresh 지원
+- [R8] 정책 카드를 눌렀을 때 상세 바텀시트 표시
+- [R9] 오류 시 오류 UI, 빈 상태 시 Empty UI 표시
+- [R10] 앱 재실행 시 캐시 사용 가능해야 함
+
+### 3.2 비기능 요구사항
+- [NF1] 60fps 스크롤 성능
+- [NF2] API 오류 또는 빈 결과에 대한 안정성
+- [NF3] Controller / Repository 분리 (Clean Architecture)
+- [NF4] Unit test 용이성 확보
+
+────────────────────────────────────────
+# 4. 아키텍처 설계 (Architecture Design)
+
+전체 정책 탭은 아래 계층 구조로 동작한다:
+
+UI
+└─ PolicyFeedListView (ALL)
+└─ AllFeedController (StateNotifier)
+└─ PolicyQueryEngine
+└─ PolicyQueryOrchestrator
+└─ PolicyFilterUiState (전역 Filter UI 상태)
+└─ PolicyRepository
+└─ PolicyRemoteSource (API)
+
+전체 정책(ALL)은 feedType = PolicyFeedType.all 로 고정된 Controller를 사용한다.
+
+Controller가 QueryEngine.fetch(feedType, page)를 호출하면:
+- QueryOrchestrator.buildQuery(feedType) 를 호출하여 Query 구성
+- Repository가 `GET /policy/list.json` 호출
+- Domain Policy 모델로 변환하여 UI 전달
+
+────────────────────────────────────────
+# 5. 데이터 파이프라인 / 흐름도 (Data Flow Diagram)
+
+사용자 진입
+↓
+PolicyFeedHomeScreen
+↓
+AllFeedController.loadFirstPage()
+↓
+PolicyQueryEngine.fetch(ALL, 1)
+↓
+PolicyQueryOrchestrator.buildQuery(ALL)
+↓
+PolicyRepository.fetchPoliciesByQuery(query)
+↓
+PolicyRemoteSource.fetchPolicies(query + pageIndex/pageSize)
+↓ API 호출 →
+← List 응답
+↓
+PolicyModel.toDomain()
+↓
+AllFeedController.state = PolicyPagingState.data(…)
+↓
+PolicyFeedListView 렌더링
+
+필터/정렬/검색 변경 시:
+
+PolicyFilterUiState 변경
+↓ (listener)
+AllFeedController.refresh()
+↓
+QueryEngine.fetch(… 다시 실행)
+
+────────────────────────────────────────
+# 6. Provider / Controller 상호작용 규칙
+
+### 6.1 AllFeedController must:
+- BasePolicyFeedController 상속
+- feedType = PolicyFeedType.all 전달
+- QueryEngine을 주입하여 fetch 수행
+- FilterUiState가 변경되면 자동 refresh
+
+### 6.2 FilterUiStateProvider
+- region, category, keyword, sort 등 UI에서 설정된 값 유지
+- AllFeedController에서 상태 변화를 listen하여 Query 재조합 → refresh
+
+### 6.3 정책 상세 페이지
+- policyDetailProvider(policyId) 호출하여 상세 정보를 가져옴
+- 상세 바텀시트 표시
+
+────────────────────────────────────────
+# 7. UI 상태도 (UI State Diagram)
+
+초기 상태
+↓ loadFirstPage()
+Loading (Spinner)
+↓ 성공
+Loaded(ListView + Cards)
+↓ Scroll to end
+LoadingMore
+↓ 마지막 페이지 도달
+NoMoreData
+↓ Pull-to-refresh
+Reload
+↓ 실패
+ErrorState(Retry button)
+
+────────────────────────────────────────
+# 8. 이벤트 흐름 (Event Flow)
+
+사용자 이벤트 중심 흐름:
+
+1) 전체 탭 진입  
+→ loadFirstPage 실행
+
+2) 스크롤 끝 도달  
+→ loadNextPage 실행
+
+3) 상단 필터/정렬 변경  
+→ FilterUiState 변경  
+→ AllFeedController.refresh 자동 실행
+
+4) 카드 터치  
+→ PolicyDetailBottomSheet 호출  
+→ 상세 정보 API 호출  
+→ 페이지 이동 링크 적용
+
+5) 즐겨찾기 변경(EventBus)  
+→ AllFeedController는 refresh 필요 없음 (feedType = ALL)
+
+────────────────────────────────────────
+# 9. 파일 구조 (File Structure)
+
+lib/features/policy_new/
+application/
+controllers/
+all_feed_controller.dart          # AllFeedController 구현
+presentation/
+feed/
+policy_feed_list_view.dart        # All Feed에서 재사용
+screens/
+policy_feed_home_screen.dart      # Tabs + FilterBar + FeedView
+widgets/
+policy_card.dart
+policy_list_loading.dart
+policy_list_empty.dart
+policy_list_error.dart
+
+────────────────────────────────────────
+# 10. 구현해야 하는 파일 (Actual Work Items)
+
+## [A] Controller 구현
+- all_feed_controller.dart
+
+## [B] Repository & RemoteSource 연동
+- query → http params 매핑
+- API 명세 기반 Model.fromJson 업데이트
+
+## [C] UI 연결
+- PolicyFeedListView(feedType: all)
+- PolicyCard → Detail BottomSheet
+
+────────────────────────────────────────
+# 11. Acceptance Criteria
+
+- [ ] AllFeedController 생성 및 정상 동작 (loadFirstPage / loadNextPage / refresh)
+- [ ] PolicyQueryEngine.fetch(feedType.all) 성공적으로 호출됨
+- [ ] FilterUiState 변경 시 자동 refresh 동작함
+- [ ] API 응답이 Domain Policy로 정상 매핑됨
+- [ ] PolicyFeedListView에서 무한스크롤 / Pull-to-refresh 동작함
+- [ ] 빈 상태, 오류 상태 UI가 정상 표시됨
+- [ ] 정책 탭에서 카드 터치 → 상세 바텀시트 정상 표시됨
+- [ ] 빌드 에러 없이 전체 정책 화면 동작
+- [ ] 성능 문제(스크롤 지연) 없음
+
+────────────────────────────────────────
+# END OF TASK 02
+
+
+⸻
+
+
+---
+
 
 #START OF JOB 07
 
