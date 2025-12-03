@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/policy.dart';
+import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_failure.dart';
 import '../../domain/values/policy_query.dart';
@@ -13,6 +14,11 @@ abstract class BasePolicyFeedController extends StateNotifier<PolicyPagingState>
     required this.ref,
     required this.queryEngine,
   }) : super(const PolicyPagingState.initial()) {
+    ref.listen<PolicyEvent?>(
+      policyEventBusProvider,
+      (previous, next) => handlePolicyEvent(next),
+    );
+
     ref.listen<PolicyQuery>(
       policyQueryProvider(feedType),
       (previous, next) {
@@ -31,6 +37,15 @@ abstract class BasePolicyFeedController extends StateNotifier<PolicyPagingState>
 
   PolicyFeedType get feedType;
   PolicyQuery buildBaseQuery();
+
+  void handlePolicyEvent(PolicyEvent? event) {
+    if (event == null) return;
+
+    if (event.type == PolicyEventType.refreshRequested ||
+        event.type == PolicyEventType.cacheCleared) {
+      refresh();
+    }
+  }
 
   void ensureInitialized() {
     if (_hasRequestedInitial) return;
