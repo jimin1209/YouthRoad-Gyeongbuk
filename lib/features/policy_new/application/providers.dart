@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../../core/constants/env.dart';
 import '../domain/entities/department.dart';
@@ -40,6 +41,7 @@ import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
 import 'controllers/policy_selection_controller.dart';
 import 'gateways/notification_gateway.dart';
+import 'gateways/notification_gateway_impl.dart';
 import 'services/policy_favorite_service.dart';
 import 'services/policy_reminder_scheduler.dart';
 import 'services/policy_reminder_service.dart';
@@ -256,8 +258,14 @@ final policyReminderLocalDataSourceProvider =
   return SharedPrefsPolicyReminderLocalDataSource(prefs);
 });
 
+final flutterLocalNotificationsPluginProvider =
+    Provider<FlutterLocalNotificationsPlugin>((ref) {
+  return FlutterLocalNotificationsPlugin();
+});
+
 final notificationGatewayProvider = Provider<NotificationGateway>((ref) {
-  return NoOpNotificationGateway();
+  final plugin = ref.watch(flutterLocalNotificationsPluginProvider);
+  return FlutterLocalNotificationGateway(plugin: plugin);
 });
 
 final policyReminderRepositoryProvider =
