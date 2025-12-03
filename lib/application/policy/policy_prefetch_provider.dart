@@ -50,11 +50,11 @@ class PolicyPrefetchNotifier extends AutoDisposeAsyncNotifier<void> {
       }
 
       remoteFuture.then((_) {
-        if (!ref.mounted) return;
+        if (!mounted) return;
         state = const AsyncData(null);
         debugPrint('[PolicyPrefetchNotifier] remote prefetch completed');
       }).catchError((error, stack) {
-        if (!ref.mounted) return;
+        if (!mounted) return;
         debugPrint('[PolicyPrefetchNotifier] remote prefetch failed: $error');
         debugPrint('$stack');
         state = AsyncError(error, stack);
