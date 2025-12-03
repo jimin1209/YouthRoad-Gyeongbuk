@@ -8,6 +8,41 @@ class PolicyRemoteSource {
 
   PolicyRemoteSource(this._dio);
 
+  List<dynamic> _extractPolicyList(dynamic rawData) {
+    final queue = <dynamic>[rawData];
+
+    while (queue.isNotEmpty) {
+      final current = queue.removeAt(0);
+
+      if (current is List) return current;
+
+      if (current is Map<String, dynamic>) {
+        final candidates = [
+          current['policies'],
+          current['data'],
+          current['items'],
+          current['content'],
+          current['result'],
+          current['list'],
+        ];
+
+        for (final candidate in candidates) {
+          if (candidate == null) continue;
+          if (candidate is List) return candidate;
+          if (candidate is Map<String, dynamic>) queue.add(candidate);
+        }
+
+        // 알려지지 않은 래퍼 키를 가진 경우에도 맵의 모든 값들을 탐색해 리스트를 찾는다.
+        for (final value in current.values) {
+          if (value is List) return value;
+          if (value is Map<String, dynamic>) queue.add(value);
+        }
+      }
+    }
+
+    return const [];
+  }
+
   /// 기존 job01용 단순 페이지 조회 (하위 호환 유지)
   Future<List<PolicyModel>> fetchPolicies(int page, int pageSize) async {
     final params = <String, dynamic>{
@@ -27,9 +62,11 @@ class PolicyRemoteSource {
         queryParameters: queryParameters,
       );
 
-      final List data = (res.data['policies'] ?? []) as List;
+      final data = _extractPolicyList(res.data);
+
       return data
-          .map((e) => PolicyModel.fromJson(e as Map<String, dynamic>))
+          .whereType<Map<String, dynamic>>()
+          .map(PolicyModel.fromJson)
           .toList();
     } on DioError {
       throw const NetworkFailure();

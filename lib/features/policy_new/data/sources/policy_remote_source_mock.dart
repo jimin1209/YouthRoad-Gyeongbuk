@@ -78,6 +78,14 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
   PolicyRemoteSourceMock() : super(Dio());
 
   @override
+  Future<List<PolicyModel>> fetchPolicies(int page, int pageSize) {
+    return fetchPoliciesWithParams({
+      'page': page,
+      'size': pageSize,
+    });
+  }
+
+  @override
   Future<List<PolicyModel>> fetchPoliciesWithParams(
     Map<String, dynamic> queryParameters,
   ) async {
@@ -86,6 +94,8 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
     final int page = queryParameters['page'] as int? ?? 1;
     final int size = queryParameters['size'] as int? ?? 10;
     final String feedType = (queryParameters['feed_type'] as String?) ?? 'all';
+    final String sort = (queryParameters['sort'] as String?) ?? 'latest';
+    final String? keyword = (queryParameters['keyword'] as String?)?.trim();
     final PolicyRegion region =
         _parseRegion((queryParameters['region'] as String?) ?? 'all');
     final PolicyCategory category =
@@ -107,21 +117,24 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
     final List<String> tags = mergedTags.isNotEmpty ? mergedTags : const ['sample'];
     final List<String> keywords = tags.isNotEmpty ? tags : const ['sample'];
 
-    return List.generate(
+    final now = DateTime.now();
+
+    final items = List.generate(
       size,
       (i) => PolicyModel(
-        id: 'mock_${feedType}_${page}_$i',
-        title: 'Mock Policy ${page}_$i',
-        summary: 'Mock summary for page $page item $i',
+        id: 'mock_${feedType}_${sort}_${page}_$i',
+        title: keyword == null || keyword.isEmpty
+            ? 'Mock Policy ${page}_$i'
+            : '[${keyword}] Mock Policy ${page}_$i',
+        summary: 'feed=$feedType, sort=$sort, page=$page item $i',
         description: 'Mock description for page $page item $i',
         region: region,
         category: category,
         tags: tags,
         keywords: keywords,
-        applicationStartDate: DateTime.now().toIso8601String(),
-        applicationEndDate:
-            DateTime.now().add(const Duration(days: 10)).toIso8601String(),
-        announceDate: DateTime.now().toIso8601String(),
+        applicationStartDate: now.toIso8601String(),
+        applicationEndDate: now.add(const Duration(days: 10)).toIso8601String(),
+        announceDate: now.toIso8601String(),
         isOnline: true,
         isOffline: true,
         minAge: 19,
@@ -135,10 +148,16 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
         institution: '청년정책센터',
         department: '정책기획팀',
         contact: '02-000-0000',
-        createdAt: DateTime.now().toIso8601String(),
-        updatedAt: DateTime.now().toIso8601String(),
+        createdAt: now.toIso8601String(),
+        updatedAt: now.toIso8601String(),
       ),
     );
+
+    if (sort == 'deadline') {
+      return items.reversed.toList();
+    }
+
+    return items;
   }
 
   @override

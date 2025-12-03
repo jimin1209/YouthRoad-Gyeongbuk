@@ -147,6 +147,39 @@ class PolicyModel {
     this.updatedAt,
   });
 
+  factory PolicyModel.fromDomain(Policy policy) {
+    String? _toIsoString(DateTime? value) => value?.toIso8601String();
+
+    return PolicyModel(
+      id: policy.id,
+      title: policy.title,
+      summary: policy.summary,
+      description: policy.description,
+      region: policy.region,
+      category: policy.category,
+      tags: policy.tags,
+      keywords: policy.keywords,
+      applicationStartDate: _toIsoString(policy.applicationStartDate),
+      applicationEndDate: _toIsoString(policy.applicationEndDate),
+      announceDate: _toIsoString(policy.announceDate),
+      isOnline: policy.isOnline,
+      isOffline: policy.isOffline,
+      minAge: policy.minAge,
+      maxAge: policy.maxAge,
+      isForYouth: policy.isForYouth,
+      incomeCondition: policy.incomeCondition,
+      educationCondition: policy.educationCondition,
+      employmentCondition: policy.employmentCondition,
+      applyUrl: policy.applyUrl,
+      attachmentUrl: policy.attachmentUrl,
+      institution: policy.institution,
+      department: policy.department,
+      contact: policy.contact,
+      createdAt: _toIsoString(policy.createdAt),
+      updatedAt: _toIsoString(policy.updatedAt),
+    );
+  }
+
   factory PolicyModel.fromJson(Map<String, dynamic> json) {
     List<String> _toStringList(dynamic value) {
       if (value is List) {
@@ -275,5 +308,36 @@ class PolicyModel {
       createdAt: _parseRequiredDate(createdAt),
       updatedAt: _parseRequiredDate(updatedAt),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'summary': summary,
+      'description': description,
+      'region': region.name,
+      'category': category.name,
+      'tags': tags,
+      'keywords': keywords,
+      'application_start_date': applicationStartDate,
+      'application_end_date': applicationEndDate,
+      'announce_date': announceDate,
+      'is_online': isOnline,
+      'is_offline': isOffline,
+      'min_age': minAge,
+      'max_age': maxAge,
+      'is_for_youth': isForYouth,
+      'income_condition': incomeCondition,
+      'education_condition': educationCondition,
+      'employment_condition': employmentCondition,
+      'apply_url': applyUrl,
+      'attachment_url': attachmentUrl,
+      'institution': institution,
+      'department': department,
+      'contact': contact,
+      'created_at': createdAt,
+      'updated_at': updatedAt,
+    };
   }
 }
