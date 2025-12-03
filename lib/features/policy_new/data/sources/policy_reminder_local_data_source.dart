@@ -4,7 +4,7 @@ abstract class PolicyReminderLocalDataSource {
   Future<void> saveReminder(PolicyReminder reminder);
   Future<void> deleteReminder(String reminderId);
   Future<PolicyReminder?> getReminder(String reminderId);
-  Future<PolicyReminder?> getReminderByPolicyId(String policyId);
+  Future<List<PolicyReminder>> getRemindersForPolicy(String policyId);
   Future<List<PolicyReminder>> getAllReminders();
 }
 
@@ -28,18 +28,16 @@ class InMemoryPolicyReminderLocalDataSource
   }
 
   @override
-  Future<PolicyReminder?> getReminderByPolicyId(String policyId) async {
-    try {
-      return _reminders.values
-          .firstWhere((reminder) => reminder.policyId == policyId);
-    } on StateError {
-      return null;
-    }
+  Future<List<PolicyReminder>> getRemindersForPolicy(String policyId) async {
+    return _reminders.values
+        .where((reminder) => reminder.policyId == policyId)
+        .toList()
+      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
   }
 
   @override
   Future<List<PolicyReminder>> getAllReminders() async {
     return _reminders.values.toList()
-      ..sort((a, b) => a.triggerAt.compareTo(b.triggerAt));
+      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
   }
 }

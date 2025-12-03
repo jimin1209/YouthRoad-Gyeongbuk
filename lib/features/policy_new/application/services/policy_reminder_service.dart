@@ -29,7 +29,7 @@ class PolicyReminderService {
     final reminder = PolicyReminder(
       id: policy.id,
       policyId: policy.id,
-      triggerAt: schedule.triggerAt,
+      scheduledAt: schedule.scheduledAt,
       createdAt: now,
       updatedAt: now,
       timeKind: option,
@@ -48,10 +48,11 @@ class PolicyReminderService {
   }
 
   Future<void> cancelReminderByPolicyId(String policyId) async {
-    final reminder = await repository.getReminderByPolicyId(policyId);
-    if (reminder == null) {
+    final reminders = await repository.getRemindersForPolicy(policyId);
+    if (reminders.isEmpty) {
       return;
     }
+    final reminder = reminders.first;
     await repository.deleteReminder(reminder.id);
     await notificationGateway.cancelReminder(reminder.id);
     eventBus.emit(PolicyEvent(
@@ -67,7 +68,7 @@ class PolicyReminderService {
 
     for (final reminder in all) {
       if (reminder.status == PolicyReminderStatus.scheduled &&
-          reminder.triggerAt.isBefore(now)) {
+          reminder.scheduledAt.isBefore(now)) {
         final expiredReminder = reminder.copyWith(
           status: PolicyReminderStatus.expired,
           updatedAt: now,
