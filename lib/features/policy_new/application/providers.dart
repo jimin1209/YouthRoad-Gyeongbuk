@@ -14,6 +14,8 @@ import '../domain/values/policy_failure.dart';
 import '../domain/values/policy_feed_type.dart';
 import '../domain/values/policy_logger.dart';
 import '../domain/values/policy_region.dart';
+import '../domain/values/policy_reminder_config.dart';
+import '../domain/values/policy_reminder_status.dart';
 import '../domain/values/policy_settings.dart';
 import '../domain/values/policy_sort.dart';
 import '../domain/repositories/policy_reminder_repository.dart';
@@ -27,18 +29,19 @@ import 'controllers/policy_reminder_list_controller.dart';
 import 'controllers/policy_paging_controller.dart';
 import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
-import 'schedulers/reminder_scheduler.dart';
+import 'gateways/notification_gateway.dart';
 import 'services/policy_reminder_service.dart';
 import 'filters/policy_filter_ui_state.dart';
 import '../data/cache/policy_cache.dart';
 import '../data/repositories/policy_repository_impl.dart';
-import '../data/repositories_impl/policy_reminder_local_repository.dart';
+import '../data/repositories/policy_reminder_repository_impl.dart';
 import '../data/repositories/institution_repository_impl.dart';
 import '../data/repositories/department_repository_impl.dart';
 import '../data/sources/policy_remote_source.dart';
 import '../data/sources/policy_remote_source_mock.dart';
 import '../data/sources/institution_remote_source.dart';
 import '../data/sources/department_remote_source.dart';
+import '../data/sources/policy_reminder_local_data_source.dart';
 
 class UserProfile {
   final PolicyRegion region;
@@ -200,19 +203,29 @@ final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
   );
 });
 
-final policyReminderRepositoryProvider =
-    Provider<PolicyReminderRepository>((ref) {
-  return PolicyReminderLocalRepository();
+final policyReminderConfigProvider =
+    Provider<PolicyReminderConfig>((ref) => const PolicyReminderConfig());
+
+final policyReminderLocalDataSourceProvider =
+    Provider<PolicyReminderLocalDataSource>((ref) {
+  return InMemoryPolicyReminderLocalDataSource();
 });
 
-final reminderSchedulerProvider = Provider<ReminderScheduler>((ref) {
-  return NoOpReminderScheduler();
+final notificationGatewayProvider = Provider<NotificationGateway>((ref) {
+  return NoOpNotificationGateway();
+});
+
+final policyReminderRepositoryProvider =
+    Provider<PolicyReminderRepository>((ref) {
+  return PolicyReminderRepositoryImpl(
+    ref.watch(policyReminderLocalDataSourceProvider),
+    ref.watch(notificationGatewayProvider),
+  );
 });
 
 final policyReminderServiceProvider = Provider<PolicyReminderService>((ref) {
   return PolicyReminderService(
     repository: ref.watch(policyReminderRepositoryProvider),
-    scheduler: ref.watch(reminderSchedulerProvider),
     eventBus: ref.read(policyEventBusProvider.notifier),
   );
 });
@@ -291,6 +304,15 @@ final policyReminderControllerProvider = StateNotifierProvider.family<
     policyId: policyId,
   ),
 );
+
+final policyReminderStatusProvider =
+    Provider.family<PolicyReminderStatus?, String>((ref, policyId) {
+  final reminderState = ref.watch(policyReminderControllerProvider(policyId));
+  return reminderState.maybeWhen(
+    data: (reminder) => reminder?.status,
+    orElse: () => null,
+  );
+});
 
 final policyReminderListControllerProvider = StateNotifierProvider<
     PolicyReminderListController, AsyncValue<List<PolicyReminder>>>(

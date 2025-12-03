@@ -2,18 +2,16 @@ import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/repositories/policy_reminder_repository.dart';
 import '../../domain/values/policy_event.dart';
+import '../../domain/values/policy_reminder_status.dart';
 import '../controllers/policy_event_bus.dart';
-import '../schedulers/reminder_scheduler.dart';
 
 class PolicyReminderService {
   PolicyReminderService({
     required this.repository,
-    required this.scheduler,
     required this.eventBus,
   });
 
   final PolicyReminderRepository repository;
-  final ReminderScheduler scheduler;
   final PolicyEventBus eventBus;
 
   Future<PolicyReminder> upsertReminder(
@@ -24,24 +22,23 @@ class PolicyReminderService {
       throw ArgumentError('신청 마감일이 없는 정책입니다.');
     }
 
-    final triggerAt = policy.applicationEndDate!.subtract(option.offset);
-    final now = DateTime.now();
-    final status = triggerAt.isBefore(now)
+    final now = DateTime.now().toUtc();
+    final scheduledAt =
+        policy.applicationEndDate!.toUtc().subtract(option.offset);
+    final status = scheduledAt.isBefore(now)
         ? PolicyReminderStatus.expired
         : PolicyReminderStatus.scheduled;
     final reminder = PolicyReminder(
       id: policy.id,
       policyId: policy.id,
-      scheduledAt: triggerAt,
+      scheduledAt: scheduledAt,
       createdAt: now,
-      option: option,
+      updatedAt: now,
+      timeKind: option,
       status: status,
     );
 
-    await repository.upsert(reminder);
-    if (status == PolicyReminderStatus.scheduled) {
-      await scheduler.scheduleReminder(reminder);
-    }
+    await repository.saveReminder(reminder);
     eventBus.emit(PolicyEvent(
       PolicyEventType.reminderChanged,
       policyId: policy.id,
@@ -49,9 +46,12 @@ class PolicyReminderService {
     return reminder;
   }
 
-  Future<void> cancelReminder(String policyId) async {
-    await repository.delete(policyId);
-    await scheduler.cancelReminder(policyId);
+  Future<void> cancelReminderByPolicyId(String policyId) async {
+    final reminder = await repository.getReminderByPolicyId(policyId);
+    if (reminder == null) {
+      return;
+    }
+    await repository.deleteReminder(reminder.id);
     eventBus.emit(PolicyEvent(
       PolicyEventType.reminderChanged,
       policyId: policyId,
@@ -59,16 +59,19 @@ class PolicyReminderService {
   }
 
   Future<List<PolicyReminder>> cleanupExpiredReminders() async {
-    final all = await repository.getAll();
-    final now = DateTime.now();
+    final all = await repository.getAllReminders();
+    final now = DateTime.now().toUtc();
     final updated = <PolicyReminder>[];
 
     for (final reminder in all) {
       if (reminder.status == PolicyReminderStatus.scheduled &&
           reminder.scheduledAt.isBefore(now)) {
-        final expired = reminder.copyWith(status: PolicyReminderStatus.expired);
-        await repository.upsert(expired);
-        updated.add(expired);
+        final expiredReminder = reminder.copyWith(
+          status: PolicyReminderStatus.expired,
+          updatedAt: now,
+        );
+        await repository.saveReminder(expiredReminder);
+        updated.add(expiredReminder);
       }
     }
 

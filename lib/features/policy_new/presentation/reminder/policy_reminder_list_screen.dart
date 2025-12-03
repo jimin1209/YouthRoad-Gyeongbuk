@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/providers.dart';
 import '../../domain/entities/policy_reminder.dart';
+import 'widgets/policy_reminder_list_item.dart';
 
 class PolicyReminderListScreen extends ConsumerWidget {
   const PolicyReminderListScreen({super.key});
@@ -26,24 +27,9 @@ class PolicyReminderListScreen extends ConsumerWidget {
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final reminder = reminders[index];
-                return ListTile(
-                  leading: Icon(
-                    reminder.status == PolicyReminderStatus.expired
-                        ? Icons.notifications_off
-                        : Icons.notifications_active,
-                    color: reminder.status == PolicyReminderStatus.expired
-                        ? Colors.grey
-                        : Colors.orange,
-                  ),
-                  title: Text('정책 ID: ${reminder.policyId}'),
-                  subtitle: Text(
-                    '${reminder.option.label} · 예정 시각: ${reminder.scheduledAt.toLocal()}',
-                  ),
-                  trailing: Text(
-                    reminder.status == PolicyReminderStatus.expired
-                        ? '만료'
-                        : '예정',
-                  ),
+                return PolicyReminderListItem(
+                  reminder: reminder,
+                  onCancel: () => controller.cancelReminder(reminder.policyId),
                 );
               },
             ),

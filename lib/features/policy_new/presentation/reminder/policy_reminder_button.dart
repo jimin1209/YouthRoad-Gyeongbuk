@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
+import '../../domain/values/policy_reminder_status.dart';
 
 class PolicyReminderButton extends ConsumerWidget {
   const PolicyReminderButton({super.key, required this.policy});
@@ -21,14 +22,14 @@ class PolicyReminderButton extends ConsumerWidget {
         final label = hasReminder
             ? reminder!.status == PolicyReminderStatus.expired
                 ? '알림 만료됨'
-                : '알림 설정됨 · ${reminder.option.label}'
+                : '알림 설정됨 · ${reminder.timeKind.label}'
             : '신청일자 알림 설정';
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ElevatedButton.icon(
               onPressed: () async {
-                final option = await _selectOption(context, reminder?.option);
+                final option = await _selectOption(context, reminder?.timeKind);
                 if (option == null) return;
                 await controller.setReminder(policy, option);
               },

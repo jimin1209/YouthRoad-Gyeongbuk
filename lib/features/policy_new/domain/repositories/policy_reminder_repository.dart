@@ -1,8 +1,10 @@
 import '../entities/policy_reminder.dart';
 
 abstract class PolicyReminderRepository {
-  Future<void> upsert(PolicyReminder reminder);
-  Future<void> delete(String policyId);
-  Future<PolicyReminder?> getByPolicyId(String policyId);
-  Future<List<PolicyReminder>> getAll();
+  Future<void> saveReminder(PolicyReminder reminder);
+  Future<void> deleteReminder(String reminderId);
+  Future<PolicyReminder?> getReminder(String reminderId);
+  Future<PolicyReminder?> getReminderByPolicyId(String policyId);
+  Future<List<PolicyReminder>> getRemindersForPolicy(String policyId);
+  Future<List<PolicyReminder>> getAllReminders();
 }
