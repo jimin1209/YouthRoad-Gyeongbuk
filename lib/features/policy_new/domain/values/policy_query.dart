@@ -56,6 +56,10 @@ class PolicyQuery {
       ..write('|')
       ..write(tags.join(','))
       ..write('|')
+      ..write(filter.institutionId ?? 'any')
+      ..write('|')
+      ..write(filter.departmentId ?? 'any')
+      ..write('|')
       ..write(filter.tags.join(','));
 
     return buffer.toString();

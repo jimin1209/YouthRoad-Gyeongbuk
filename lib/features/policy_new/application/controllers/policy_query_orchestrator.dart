@@ -45,6 +45,8 @@ class PolicyQueryOrchestrator {
       age: _profile.age,
       isOnline: _ui.showOnlyOnline ? true : null,
       isOngoing: _ui.showOnlyOngoing ? true : null,
+      institutionId: _ui.institutionId,
+      departmentId: _ui.departmentId,
     );
 
     final tags = _ui.tags.isNotEmpty ? _ui.tags : _profile.recommendTags;
@@ -63,6 +65,8 @@ class PolicyQueryOrchestrator {
       category: _ui.category,
       isOnline: _ui.showOnlyOnline ? true : null,
       isOngoing: _ui.showOnlyOngoing ? true : null,
+      institutionId: _ui.institutionId,
+      departmentId: _ui.departmentId,
     );
 
     return PolicyQuery(
@@ -81,6 +85,8 @@ class PolicyQueryOrchestrator {
       category: _ui.category,
       isOnline: _ui.showOnlyOnline ? true : null,
       isOngoing: _ui.showOnlyOngoing ? true : null,
+      institutionId: _ui.institutionId,
+      departmentId: _ui.departmentId,
     );
 
     return PolicyQuery(
@@ -96,6 +102,8 @@ class PolicyQueryOrchestrator {
       category: _ui.category,
       isOnline: _ui.showOnlyOnline ? true : null,
       isOngoing: _ui.showOnlyOngoing ? true : null,
+      institutionId: _ui.institutionId,
+      departmentId: _ui.departmentId,
     );
 
     return PolicyQuery(

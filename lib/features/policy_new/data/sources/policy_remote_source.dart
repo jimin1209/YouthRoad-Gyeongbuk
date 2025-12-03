@@ -4,48 +4,73 @@ import '../../domain/values/policy_failure.dart';
 import '../models/policy_model.dart';
 
 class PolicyRemoteSource {
+  PolicyRemoteSource(
+    this._dio, {
+    required this.apiKey,
+    required this.baseUrl,
+  });
+
   final Dio _dio;
+  final String apiKey;
+  final String baseUrl;
 
-  PolicyRemoteSource(this._dio);
-
-  /// 기존 job01용 단순 페이지 조회 (하위 호환 유지)
-  Future<List<PolicyModel>> fetchPolicies(int page, int pageSize) async {
-    final params = <String, dynamic>{
-      'page': page,
-      'size': pageSize,
-    };
-    return fetchPoliciesWithParams(params);
-  }
-
-  /// job03에서 추가: QueryParameter 기반 페이지 조회
   Future<List<PolicyModel>> fetchPoliciesWithParams(
     Map<String, dynamic> queryParameters,
   ) async {
+    final params = _withDefaults(queryParameters);
     try {
       final res = await _dio.get(
-        '/policies',
-        queryParameters: queryParameters,
+        '$baseUrl/policy/list.json',
+        queryParameters: params,
       );
 
-      final List data = (res.data['policies'] ?? []) as List;
-      return data
-          .map((e) => PolicyModel.fromJson(e as Map<String, dynamic>))
+      final data = res.data;
+      if (data is! Map<String, dynamic>) {
+        throw const ServerFailure('정책 목록 응답이 올바르지 않습니다');
+      }
+
+      final list = data['resultList'];
+      if (list is! List) {
+        throw const ServerFailure('정책 목록을 찾을 수 없습니다');
+      }
+
+      return list
+          .map((e) => PolicyModel.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
     } on DioError {
       throw const NetworkFailure();
-    } catch (_) {
+    } catch (e) {
+      if (e is PolicyFailure) rethrow;
       throw const UnknownFailure();
     }
   }
 
   Future<PolicyModel> fetchPolicyDetail(String id) async {
-    try {
-      final res = await _dio.get('/policies/$id');
-      return PolicyModel.fromJson(res.data as Map<String, dynamic>);
-    } on DioError {
-      throw const NetworkFailure();
-    } catch (_) {
-      throw const UnknownFailure();
+    final list = await fetchPoliciesWithParams({
+      'pagingYn': 'N',
+      'recordCount': 2000,
+      'pageIndex': 1,
+    });
+
+    return list.firstWhere(
+      (element) => element.id == id,
+      orElse: () => throw const ServerFailure('정책 상세 정보를 찾을 수 없습니다'),
+    );
+  }
+
+  Map<String, dynamic> _withDefaults(Map<String, dynamic> params) {
+    final query = <String, dynamic>{
+      'pageIndex': params['pageIndex'] ?? params['page'] ?? 1,
+      'pageSize': params['pageSize'] ?? params['size'] ?? 20,
+      'recordCount': params['recordCount'] ?? params['pageSize'] ?? 20,
+      'pagingYn': params['pagingYn'] ?? 'Y',
+      'searchDsplyYn': params['searchDsplyYn'] ?? 'all',
+    }..addAll(params);
+
+    if (apiKey.isNotEmpty) {
+      query['apiKey'] = apiKey;
     }
+
+    return query;
   }
 }

@@ -14,6 +14,10 @@ class PolicyFilterUiState {
   final List<String> tags;
   final bool showOnlyOnline;
   final bool showOnlyOngoing;
+  final String? institutionId;
+  final String? institutionName;
+  final String? departmentId;
+  final String? departmentName;
 
   const PolicyFilterUiState({
     this.region = PolicyRegion.all,
@@ -23,6 +27,10 @@ class PolicyFilterUiState {
     this.tags = const [],
     this.showOnlyOnline = false,
     this.showOnlyOngoing = false,
+    this.institutionId,
+    this.institutionName,
+    this.departmentId,
+    this.departmentName,
   });
 
   PolicyFilterUiState copyWith({
@@ -33,6 +41,10 @@ class PolicyFilterUiState {
     List<String>? tags,
     bool? showOnlyOnline,
     bool? showOnlyOngoing,
+    String? institutionId,
+    String? institutionName,
+    String? departmentId,
+    String? departmentName,
   }) {
     return PolicyFilterUiState(
       region: region ?? this.region,
@@ -42,6 +54,10 @@ class PolicyFilterUiState {
       tags: tags ?? this.tags,
       showOnlyOnline: showOnlyOnline ?? this.showOnlyOnline,
       showOnlyOngoing: showOnlyOngoing ?? this.showOnlyOngoing,
+      institutionId: institutionId ?? this.institutionId,
+      institutionName: institutionName ?? this.institutionName,
+      departmentId: departmentId ?? this.departmentId,
+      departmentName: departmentName ?? this.departmentName,
     );
   }
 }
@@ -67,6 +83,18 @@ class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
 
   void toggleOngoingOnly() =>
       state = state.copyWith(showOnlyOngoing: !state.showOnlyOngoing);
+
+  void setInstitution({String? id, String? name}) => state = state.copyWith(
+        institutionId: id,
+        institutionName: name,
+        departmentId: null,
+        departmentName: null,
+      );
+
+  void setDepartment({String? id, String? name}) => state = state.copyWith(
+        departmentId: id,
+        departmentName: name,
+      );
 
   void resetAll() => state = const PolicyFilterUiState();
 }

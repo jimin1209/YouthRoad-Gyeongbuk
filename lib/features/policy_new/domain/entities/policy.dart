@@ -26,6 +26,9 @@ class Policy {
   final String institution;
   final String department;
   final String? contact;
+  final String? institutionId;
+  final String? departmentId;
+  final String? detailUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -54,6 +57,9 @@ class Policy {
     required this.institution,
     required this.department,
     required this.contact,
+    this.institutionId,
+    this.departmentId,
+    this.detailUrl,
     required this.createdAt,
     required this.updatedAt,
   });
