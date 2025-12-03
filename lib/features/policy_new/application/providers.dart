@@ -252,7 +252,8 @@ final policyReminderSchedulerProvider =
 
 final policyReminderLocalDataSourceProvider =
     Provider<PolicyReminderLocalDataSource>((ref) {
-  return InMemoryPolicyReminderLocalDataSource();
+  final prefs = ref.watch(app_di.sharedPreferencesProvider);
+  return SharedPrefsPolicyReminderLocalDataSource(prefs);
 });
 
 final notificationGatewayProvider = Provider<NotificationGateway>((ref) {
