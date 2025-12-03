@@ -61,11 +61,11 @@ class PolicyPrefetchNotifier extends AutoDisposeAsyncNotifier<void> {
 
       // remote 결과는 백그라운드에서 Isar에 저장되고 자동 반영된다.
       remoteFuture.then((_) {
-        if (!ref.mounted) return;
+        if (!mounted) return;
         state = const AsyncData(null);
         debugPrint('[PolicyPrefetchNotifier] remote prefetch completed');
       }).catchError((error, stack) {
-        if (!ref.mounted) return;
+        if (!mounted) return;
         debugPrint('[PolicyPrefetchNotifier] remote prefetch failed: $error');
         debugPrint('$stack');
         state = AsyncError(error, stack);
