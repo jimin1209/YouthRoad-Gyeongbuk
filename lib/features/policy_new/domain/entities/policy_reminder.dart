@@ -9,7 +9,7 @@ enum PolicyReminderOption {
 class PolicyReminder {
   final String id;
   final String policyId;
-  final DateTime triggerAt;
+  final DateTime scheduledAt;
   final DateTime createdAt;
   final DateTime updatedAt;
   final PolicyReminderOption timeKind;
@@ -18,17 +18,17 @@ class PolicyReminder {
   const PolicyReminder({
     required this.id,
     required this.policyId,
-    required this.triggerAt,
+    required this.scheduledAt,
     required this.createdAt,
     required this.updatedAt,
     required this.timeKind,
     this.status = PolicyReminderStatus.scheduled,
   });
 
-  bool get isExpired => triggerAt.isBefore(DateTime.now());
+  bool get isExpired => scheduledAt.isBefore(DateTime.now());
 
   PolicyReminder copyWith({
-    DateTime? triggerAt,
+    DateTime? scheduledAt,
     DateTime? createdAt,
     DateTime? updatedAt,
     PolicyReminderOption? timeKind,
@@ -37,7 +37,7 @@ class PolicyReminder {
     return PolicyReminder(
       id: id,
       policyId: policyId,
-      triggerAt: triggerAt ?? this.triggerAt,
+      scheduledAt: scheduledAt ?? this.scheduledAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       timeKind: timeKind ?? this.timeKind,

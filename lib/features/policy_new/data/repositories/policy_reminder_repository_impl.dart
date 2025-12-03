@@ -23,8 +23,8 @@ class PolicyReminderRepositoryImpl implements PolicyReminderRepository {
   }
 
   @override
-  Future<PolicyReminder?> getReminderByPolicyId(String policyId) {
-    return _localDataSource.getReminderByPolicyId(policyId);
+  Future<List<PolicyReminder>> getRemindersForPolicy(String policyId) {
+    return _localDataSource.getRemindersForPolicy(policyId);
   }
 
   @override

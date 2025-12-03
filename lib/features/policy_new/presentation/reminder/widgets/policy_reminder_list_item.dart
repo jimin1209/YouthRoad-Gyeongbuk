@@ -8,10 +8,12 @@ class PolicyReminderListItem extends StatelessWidget {
     super.key,
     required this.reminder,
     required this.onCancel,
+    this.onTap,
   });
 
   final PolicyReminder reminder;
   final VoidCallback onCancel;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +28,7 @@ class PolicyReminderListItem extends StatelessWidget {
       leading: Icon(iconData, color: iconColor),
       title: Text('정책 ID: ${reminder.policyId}'),
       subtitle: Text(
-        '${reminder.timeKind.label} · 예정 시각: ${reminder.triggerAt.toLocal()}',
+        '${reminder.timeKind.label} · 예정 시각: ${reminder.scheduledAt.toLocal()}',
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -40,6 +42,7 @@ class PolicyReminderListItem extends StatelessWidget {
           ),
         ],
       ),
+      onTap: onTap,
     );
   }
 }

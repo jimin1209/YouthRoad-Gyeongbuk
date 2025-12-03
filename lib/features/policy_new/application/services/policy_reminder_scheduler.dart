@@ -5,11 +5,11 @@ import '../../domain/values/policy_reminder_status.dart';
 
 class PolicyReminderScheduleResult {
   const PolicyReminderScheduleResult({
-    required this.triggerAt,
+    required this.scheduledAt,
     required this.status,
   });
 
-  final DateTime triggerAt;
+  final DateTime scheduledAt;
   final PolicyReminderStatus status;
 }
 
@@ -30,13 +30,13 @@ class PolicyReminderScheduler {
     }
 
     final now = DateTime.now().toUtc();
-    final triggerAt = baseDate.toUtc().subtract(option.offset);
-    final status = triggerAt.isBefore(now)
+    final scheduledAt = baseDate.toUtc().subtract(option.offset);
+    final status = scheduledAt.isBefore(now)
         ? PolicyReminderStatus.expired
         : PolicyReminderStatus.scheduled;
 
     return PolicyReminderScheduleResult(
-      triggerAt: triggerAt,
+      scheduledAt: scheduledAt,
       status: status,
     );
   }

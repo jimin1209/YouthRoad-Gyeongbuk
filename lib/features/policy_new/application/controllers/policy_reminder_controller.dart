@@ -27,10 +27,11 @@ class PolicyReminderController
 
   Future<void> load() async {
     state = const AsyncLoading();
-    final existing =
-        await ref.read(policyReminderRepositoryProvider).getReminderByPolicyId(
+    final reminders =
+        await ref.read(policyReminderRepositoryProvider).getRemindersForPolicy(
               policyId,
             );
+    final existing = reminders.isEmpty ? null : reminders.first;
     state = AsyncData(existing);
   }
 

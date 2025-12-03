@@ -25,7 +25,7 @@ import 'controllers/policy_detail_controller.dart';
 import 'controllers/policy_event_bus.dart';
 import 'controllers/policy_feed_controllers.dart';
 import 'controllers/policy_reminder_controller.dart';
-import 'controllers/policy_reminder_list_controller.dart';
+import 'controllers/notification_center_controller.dart';
 import 'controllers/policy_paging_controller.dart';
 import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
@@ -323,7 +323,7 @@ final policyReminderStatusProvider =
   );
 });
 
-final policyReminderListControllerProvider = StateNotifierProvider<
-    PolicyReminderListController, AsyncValue<List<PolicyReminder>>>(
-  (ref) => PolicyReminderListController(ref: ref),
+final notificationCenterControllerProvider = StateNotifierProvider<
+    NotificationCenterController, AsyncValue<NotificationCenterState>>(
+  (ref) => NotificationCenterController(ref: ref),
 );
