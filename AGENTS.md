@@ -194,6 +194,371 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 # 🌐 5. TASKS (AGENTS.md 내부 통합 TASK 목록)
 # ============================================================
 
+❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️🩵🩵🩵
+
+@chatgpt-codex
+# TASK 07 — PolicyNew **추천 탭(Recommend Tab)** 단일 기능 E2E 구현 (job01 스타일 설계서)
+
+> 목표:  
+> `policy_new` 모듈 안에서 **“추천 탭 하나만”을 믿을 수 없을 정도로 완성도 높게** 끝까지 구현한다.  
+> (데이터 로드 → 필터/추천 로직 반영 → 무한스크롤 → 새로고침 → 이벤트 반응 → UI/UX까지)
+
+---
+
+## 1. 시스템 정의 (System Definition)
+
+### 1.1 범위(Scope)
+
+- 이 Task 는 **“추천 탭(Recommend Feed)”라는 단일 탭**에만 집중한다.
+- 이미 job01~job06에서 설계된 전체 구조를 사용하되, **그 중 Recommend 탭 하나를 실제로 동작하는 수준까지 구현**하는 것이 목표다.
+- Recommend 탭은:
+  - 사용자 프로필(나이, 지역, 관심 키워드 등)
+  - UI 필터 상태(카테고리, 지역, 정렬, 온라인/모집중 여부)
+  - 추천 태그(키워드)
+  를 기반으로 한 **맞춤형 정책 목록 피드**다.
+
+### 1.2 적용 모듈
+
+- 네임스페이스: `lib/features/policy_new/**`
+- 주요 레이어:
+  - `domain/`
+  - `data/`
+  - `application/`
+  - `presentation/`
+
+---
+
+## 2. 문제 정의 (Problem Definition)
+
+현재 상태:
+
+1. 상단 설계(job01~job06)에서 **추천 탭 컨셉과 구조는 정의**되어 있음.
+2. 하지만 실제 구현은 아래와 같은 상태일 수 있다:
+   - Recommend 탭이 UI에 보이더라도 **실제 데이터 로드/표시가 되지 않거나**,  
+     혹은 All 탭과 동일한 데이터를 보여줌.
+   - 추천 전용 로직(유저 프로필, 추천 태그 기반 Query 조립)이 적용되지 않음.
+   - EventBus(즐겨찾기 변경, 프로필 변경 등)에 따른 자동 새로고침이 미적용.
+   - Empty/Loading/Error 상태 UI가 추천 탭에서 제대로 작동하지 않음.
+
+**따라서**:  
+> “추천 탭 하나도 제대로 신뢰할 수 없는 상태” →  
+> 이번 TASK 07에서 **Recommend 탭 하나만큼은 “완성된 기능”으로 끌어올리는 것이 목표**.
+
+---
+
+## 3. 요구사항 분석 (Requirements)
+
+### 3.1 기능 요구사항 (Functional Requirements)
+
+1. **초기 로드**
+   - Recommend 탭이 최초로 활성화될 때, 자동으로 첫 페이지를 로드해야 한다.
+   - 로드 기준:
+     - 사용자 프로필: `userProfileProvider` (age, region, recommendTags)
+     - UI 필터: `policyFilterUiStateProvider` (job06 기준)
+     - FeedType: `PolicyFeedType.recommend`
+
+2. **추천 로직**
+   - PolicyQuery 생성 시 다음 조건을 반영:
+     - 지역: UI에서 선택한 region이 `all`인 경우 → `userProfile.region` 사용
+     - 나이: `userProfile.age`
+     - 추천 태그:
+       - UI에서 선택한 tags가 비어있지 않으면 그 값 사용
+       - 비어있으면 `userProfile.recommendTags` 사용
+     - 정렬: `PolicySortOption.recommendation` 고정
+     - 온라인/모집중 필터: UI 상태(`showOnlyOnline`, `showOnlyOngoing`)가 true일 경우만 값을 세팅
+
+3. **무한 스크롤(Pagination)**
+   - List 끝에 도달 시 자동으로 `loadNextPage()` 호출하여 다음 페이지 로드.
+   - SWR 캐시/페이지 크기는 job03~06에서 정의된 설정 사용.
+
+4. **새로고침(Refresh)**
+   - Pull-to-refresh 또는 필터 변경(EventBus, FilterUiState 변화) 시
+     - Recommend 탭은 **페이지 1부터 다시 로드**해야 한다.
+
+5. **이벤트 반응(Event Handling)**
+   - 아래 이벤트에 대해 Recommend 탭은 반드시 적절히 반응:
+     - `PolicyEventType.profileUpdated` → 추천 기준 변경 → `refresh()`
+     - `PolicyEventType.favoritesChanged` → 추천 점수/정렬에 영향 가능 → `refresh()`
+     - `PolicyEventType.cacheCleared` → 캐시 초기화 후 다음 로드에서 fresh fetch
+
+6. **UI/UX**
+   - Recommend 탭은 `PolicyFeedListView(feedType: PolicyFeedType.recommend)`를 사용.
+   - Loading/Empty/Error/Content 상태 전부 올바르게 표시되어야 한다.
+   - 정책 카드를 탭하면 `PolicyDetailBottomSheet` 열림.
+   - “실제 정책 페이지로 이동” 버튼이 Detail 시트에 존재하고 동작해야 한다.
+
+### 3.2 비기능 요구사항 (Non-Functional)
+
+- 가독성/유지보수성 높은 코드 구조.
+- 다른 탭(All/Region/Search 등)에 영향 없이 Recommend 탭만 잘 작동해야 함.
+- Null/에러 상황에서 앱 크래시 없이 Failure/Empty UI로 graceful degrade.
+- 재사용 가능한 패턴 유지: 다른 탭 구현 시 그대로 복제 가능해야 함.
+
+---
+
+## 4. 아키텍처 설계 (Architecture Design)
+
+### 4.1 레이어 구조
+
+- **Domain**
+  - `Policy`, `PolicyFilter`, `PolicyQuery`, `PolicyFeedType`, `PolicySortOption`
+- **Data**
+  - `PolicyRepository` / `PolicyRepositoryImpl`
+  - `PolicyRemoteSource`, `PolicyCache`
+- **Application**
+  - `PolicyFilterUiState` + `policyFilterUiStateProvider`
+  - `PolicyQueryOrchestrator`
+  - `PolicyQueryEngine`
+  - `RecommendFeedController` (BasePolicyFeedController 상속)
+- **Presentation**
+  - `PolicyFeedHomeScreen`
+  - `PolicyFeedListView`
+  - `PolicyCard`
+  - `PolicyDetailBottomSheet`
+  - (필요 시) Recommend 탭과 관련된 추천 태그 UI (e.g. `PolicyRecommendTagsBar`)
+
+### 4.2 Recommend 탭 전용 규칙
+
+- FeedType: `PolicyFeedType.recommend`
+- Query 생성은 `PolicyQueryOrchestrator._buildRecommendQuery()` 하나로 집약한다.
+- Controller는 Query 내용을 몰라도 된다.  
+  → 단지 `feedType`만 알고 `queryEngine.fetch(feedType, page)` 호출.
+
+---
+
+## 5. 데이터 파이프라인 / 흐름도 (Data Flow)
+
+텍스트 기반 흐름도:
+
+1. 유저가 앱에서 “추천 탭”으로 들어간다.
+2. `PolicyFeedHomeScreen` → `TabBarView` → `PolicyFeedListView(feedType: recommend)` 표시.
+3. `PolicyFeedListView`:
+   - `ref.watch(recommendFeedControllerProvider)`로 상태 구독.
+   - 첫 진입 시 Controller가 `loadFirstPage()` 호출(이미 init에서 or 외부에서 호출).
+4. `RecommendFeedController.loadFirstPage()`:
+   - 내부 `_page = 1`, state = loading
+   - `queryEngine.fetch(PolicyFeedType.recommend, page: 1)` 호출
+5. `PolicyQueryEngine.fetch()`:
+   - `orchestrator.buildQuery(PolicyFeedType.recommend)` 호출
+6. `PolicyQueryOrchestrator._buildRecommendQuery()`:
+   - `userProfileProvider`에서 age/region/recommendTags 읽음.
+   - `policyFilterUiStateProvider`에서 region/category/sort/tags/online/ongoing 읽음.
+   - 정책에 맞게 `PolicyFilter` + `PolicyQuery` 생성 후 반환.
+7. Repository (`PolicyRepositoryImpl.fetchPoliciesByQuery`) 호출:
+   - Query → HTTP queryParameters 빌더 → `remote.fetchPoliciesWithParams(...)`
+   - 응답 JSON → `PolicyModel.fromJson` → `Policy.toDomain()`
+   - 캐시(SWR) 저장 후 `PolicyResult<List<Policy>>`로 반환.
+8. Controller:
+   - Success → `PolicyPagingState.data`로 상태 갱신.
+   - UI: `PolicyFeedListView`가 이를 구독하여 카드 리스트 렌더링.
+9. 사용자가 스크롤 끝까지 내려감:
+   - `loadNextPage()` 호출 → page 2, 3… 반복.
+10. EventBus 혹은 FilterUiState 변경:
+    - Controller가 listen 중 → `refresh()` 호출 → 1~8 과정 반복.
+
+---
+
+## 6. Provider / Controller 상호작용 규칙
+
+### 6.1 관련 Provider 정리
+
+- `userProfileProvider`  
+  → age, region, recommendTags
+
+- `policyFilterUiStateProvider`  
+  → region, category, sort, keyword, tags, showOnlyOnline, showOnlyOngoing
+
+- `policyQueryOrchestratorProvider`  
+  → `PolicyQueryOrchestrator`
+
+- `policyQueryEngineProvider`  
+  → `PolicyQueryEngine`
+
+- `recommendFeedControllerProvider`  
+  → `RecommendFeedController` + `PolicyPagingState` 반환
+
+- `policyEventBusProvider`  
+  → `PolicyEvent?` (favoritesChanged, cacheCleared, profileUpdated 등)
+
+### 6.2 RecommendFeedController 규칙
+
+- BasePolicyFeedController 상속.
+- 생성자에서:
+  - `feedType: PolicyFeedType.recommend`로 고정.
+- Base 클래스에서:
+  - `supportsFilterAutoApply == true` 이므로 FilterUiState 변경 시 자동 refresh.
+  - EventBus에 대해:
+    - `profileUpdated` → refresh
+    - `favoritesChanged` → refresh
+    - `cacheCleared` → state reset + 다음 load에서 fresh fetch
+
+---
+
+## 7. UI 상태도 (UI State Diagram)
+
+Recommend 탭의 상태는 `PolicyPagingState`로 표현.
+
+- **Initial**
+  - `isLoading = false`, `items = []`, `failure = null`, `hasMore = true`
+  - 화면: “당긴다 → 새로고침”만 가능, 컨텐츠 없음 (보통 바로 loadFirstPage 호출 예정)
+
+- **Loading**
+  - 첫 페이지 로딩:
+    - 상단 전체에 로딩 인디케이터 / 스켈레톤 표시 (`PolicyListLoading`)
+  - 다음 페이지 로딩:
+    - 리스트 하단에 footer 로딩 표시
+
+- **Loaded (With Data)**
+  - `items.isNotEmpty == true`
+  - `hasMore == true | false`
+  - UI: 카드 리스트 스크롤 가능
+
+- **Empty**
+  - `items.isEmpty == true` AND `failure == null` AND `isLoading == false`
+  - UI: `PolicyListEmpty` 표시
+  - 메시지: “현재 조건에 맞는 추천 정책이 없습니다. 필터나 검색 조건을 바꿔보세요.”
+
+- **Error**
+  - `failure != null`
+  - UI: `PolicyListError(message: failure.message, onRetry: loadFirstPage)`
+
+---
+
+## 8. 이벤트 흐름 (Event Flow)
+
+### 8.1 사용자 이벤트
+
+1. **탭 전환 (다른 탭 → 추천 탭)**
+   - TabBarView에서 Recommend 탭 페이지가 활성화됨.
+   - 최초 활성화 시 `loadFirstPage()` 호출 (이미 구현되어 있거나, 필요시 onInit에서 호출).
+
+2. **스크롤 끝까지 이동**
+   - `PolicyFeedListView`에서 index == items.length 위치에서 `loadNextPage()` 호출.
+
+3. **당겨서 새로고침(Pull-to-Refresh)**
+   - `RefreshIndicator` → `controller.refresh()` 호출.
+
+4. **필터/정렬/검색/추천 태그 변경**
+   - Filter UI → `policyFilterUiStateProvider` 상태 변경.
+   - BasePolicyFeedController가 이를 감지해 `refresh()` 호출.
+
+5. **정책 카드 탭**
+   - `PolicyDetailBottomSheet(policyId: ...)` 열기.
+   - 상세에서 “실제 정책 페이지로 이동” 버튼 클릭 시 외부 브라우저로 이동.
+
+### 8.2 시스템/도메인 이벤트
+
+- `PolicyEventType.profileUpdated`
+  - ex) 온보딩/설정 화면에서 나이/지역/관심 키워드 변경
+  - Recommend 탭과 Region 탭은 자동 `refresh()`.
+
+- `PolicyEventType.favoritesChanged`
+  - 즐겨찾기 토글 시 발생.
+  - Recommend 탭은 즐겨찾기 상태 변화에 따라 추천 순위가 달라질 수 있으므로 `refresh()`.
+
+- `PolicyEventType.cacheCleared`
+  - 디버그/설정에서 캐시 초기화 시
+  - Recommend 탭은 다음 요청에서 새 데이터 fetch.
+
+---
+
+## 9. 파일 구조 (File Structure)
+
+이 Task에서 관여하는 파일(생성/수정):
+
+1. **이미 존재해야 하는 파일** (필요 시 일부 보완/전체 교체)
+   - `lib/features/policy_new/application/filters/policy_filter_ui_state.dart`
+   - `lib/features/policy_new/application/controllers/policy_query_orchestrator.dart`
+   - `lib/features/policy_new/application/controllers/policy_query_engine.dart`
+   - `lib/features/policy_new/application/controllers/base_feed_controller.dart`
+   - `lib/features/policy_new/application/controllers/recommend_feed_controller.dart`
+   - `lib/features/policy_new/application/providers.dart`
+   - `lib/features/policy_new/presentation/screens/policy_feed_home_screen.dart`
+   - `lib/features/policy_new/presentation/widgets/policy_feed_list_view.dart`
+   - `lib/features/policy_new/presentation/widgets/policy_card.dart`
+   - `lib/features/policy_new/presentation/detail/policy_detail_bottom_sheet.dart`
+
+2. **이 Task에서 반드시 확인/보완할 포인트**
+   - `PolicyQueryOrchestrator._buildRecommendQuery()` 구현이 요구사항을 정확히 반영하는지 확인/수정.
+   - `RecommendFeedController`가 BasePolicyFeedController를 올바르게 상속하고 feedType 설정이 정확한지 확인.
+   - `policy_feed_home_screen.dart` 에서 Recommend 탭이 `PolicyFeedType.recommend` 로 연결되어 있는지 확인.
+   - `policy_feed_list_view.dart` 에서 Recommend 탭도 다른 탭들과 동일한 로딩/에러/빈 상태 처리 흐름을 따르는지 확인.
+
+---
+
+## 10. 구현 단계 (Step-by-Step Guide)
+
+1. **`PolicyQueryOrchestrator._buildRecommendQuery()` 구현/보완**
+   - 사용자 프로필 + FilterUiState를 이용해 위에서 정의한 로직대로 Query 조립.
+   - 이미 함수가 있다면 전체 내용을 이 Task 요구사항에 맞게 다시 교체.
+
+2. **`PolicyQueryEngine.fetch(feedType: recommend, page)` 동작 확인**
+   - Orchestrator → Repository → Remote → Model → Domain → Result 흐름이 정상인지 확인.
+   - 최소한 로그/주석으로 Recommend 경로가 구분되도록 구성.
+
+3. **`RecommendFeedController` 구현**
+   - BasePolicyFeedController 상속.
+   - feedType = `PolicyFeedType.recommend` 를 생성자에서 전달.
+   - 별도의 추가 상태는 가지지 않는다 (모든 Query는 Orchestrator가 책임).
+
+4. **Provider 연결**
+   - `providers.dart`에 `recommendFeedControllerProvider`가 올바르게 등록되어 있는지 확인.
+   - `PolicyFeedListView`에서 `feedType == recommend`일 때 이 Provider를 사용하도록 되어 있는지 확인.
+
+5. **UI 연동**
+   - `PolicyFeedHomeScreen`에서 Recommend 탭이 첫 번째 탭으로 존재하는지 확인.
+   - 화면 진입 후, `loadFirstPage()`가 한 번은 호출되도록 구성 (initState or 첫 렌더 시점).
+
+6. **이벤트 연동**
+   - BasePolicyFeedController에서 `policyFilterUiStateProvider`와 `policyEventBusProvider`를 listen하는 로직이 Recommend 탭에 적용되어 있는지 확인.
+   - 프로필 변경 / 즐겨찾기 변경 / 캐시 초기화 시 Recommend 탭이 자동 새로고침 되는지 테스트.
+
+7. **Empty/Error 상태 UX 점검**
+   - API가 빈 리스트, 오류 응답, 네트워크 오류를 반환하는 상황을 가정하고
+     - Empty / Error 위젯이 정상 노출되는지 확인.
+
+---
+
+## 11. Acceptance Criteria (완료 기준)
+
+이 TASK 07이 “완료”로 인정되기 위한 조건:
+
+1. Recommend 탭을 선택했을 때:
+   - 자동으로 추천 정책 리스트가 로드되고,
+   - **사용자 프로필(나이/지역/추천 태그)** + **UI 필터 상태** 기반으로 Query가 조립된다.
+
+2. 무한 스크롤:
+   - Recommend 탭에서 아래까지 스크롤하면 `loadNextPage()`가 호출되어
+     새 페이지가 정상적으로 이어 붙여져야 한다.
+
+3. 새로고침:
+   - Pull-to-refresh 또는 Filter/정렬/추천 태그 변경, 프로필 변경 시
+     Recommend 탭이 **페이지 1부터 재로드** 해야 한다.
+
+4. 이벤트 반응:
+   - `PolicyEventType.profileUpdated` 발생 시 Recommend 탭 내용이 새로 로드된다.
+   - `PolicyEventType.favoritesChanged` 발생 시 Recommend 탭 내용이 새로 로드된다.
+   - `PolicyEventType.cacheCleared` 발생 시 다음 로드에서 fresh fetch가 일어난다.
+
+5. 상태 표현:
+   - 로딩/빈/에러/컨텐츠 상태가 `PolicyPagingState` 기준으로 모두 올바르게 렌더링된다.
+
+6. 상세 화면:
+   - Recommend 탭의 카드 클릭 시 `PolicyDetailBottomSheet`가 열리고,
+   - “실제 정책 페이지로 이동” 버튼이 존재하며 올바른 URL로 외부 브라우저를 연다.
+
+7. 안정성:
+   - Recommend 탭 관련 코드 수정으로 인해 다른 탭(All/Region/Search/Favorite/Compare)에서 빌드 에러나 런타임 크래시가 발생하지 않는다.
+
+8. 구조 재사용성:
+   - 이 구현을 템플릿으로 사용해 다른 탭(All/Region 등)을 구현하더라도
+     동일 패턴으로 쉽게 확장할 수 있는 구조여야 한다.
+
+#END OF TASK 07
+---
+
+
+
 @chatgpt-codex
 # TASK 06 — PolicyNew 6개 탭 ‘실제 동작 로직’ 구현 (JOB01급 FULL SPEC)
 # Recommended → All → Region → Search → Favorite → Compare
