@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../../domain/values/policy_logger.dart';
+import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_result.dart';
 import '../../domain/values/policy_settings.dart';
 import '../controllers/policy_event_bus.dart';
@@ -17,6 +18,7 @@ class PolicyPagingController extends StateNotifier<AsyncValue<List<Policy>>> {
   bool _isLast = false;
   bool _isLoading = false;
   final List<Policy> _items = [];
+  late final void Function(PolicyEvent?) _eventListener;
 
   PolicyPagingController({
     required this.repository,
@@ -25,6 +27,16 @@ class PolicyPagingController extends StateNotifier<AsyncValue<List<Policy>>> {
     required this.eventBus,
   })  : settings = policySettings,
         super(const AsyncValue.loading()) {
+    _eventListener = (event) {
+      if (event?.type == PolicyEventType.refreshRequested) {
+        refresh();
+      }
+    };
+
+    eventBus.addListener(
+      _eventListener,
+      fireImmediately: false,
+    );
     loadFirstPage();
   }
 
@@ -81,5 +93,11 @@ class PolicyPagingController extends StateNotifier<AsyncValue<List<Policy>>> {
   Future<void> refresh() async {
     logger.info('PolicyPagingController.refresh() 호출');
     await loadFirstPage();
+  }
+
+  @override
+  void dispose() {
+    eventBus.removeListener(_eventListener);
+    super.dispose();
   }
 }

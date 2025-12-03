@@ -18,6 +18,7 @@ import 'controllers/policy_detail_controller.dart';
 import 'controllers/policy_event_bus.dart';
 import 'controllers/policy_feed_controllers.dart';
 import 'controllers/policy_paging_state.dart';
+import 'controllers/policy_paging_controller.dart';
 import 'controllers/policy_query_controller.dart';
 import 'controllers/policy_query_engine.dart';
 import '../data/cache/policy_cache.dart';
@@ -132,6 +133,17 @@ final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
 final policyQueryEngineProvider = Provider(
   (ref) => PolicyQueryEngine(ref),
 );
+
+final policyPagingControllerProvider =
+    StateNotifierProvider<PolicyPagingController, AsyncValue<List<Policy>>>(
+        (ref) {
+  return PolicyPagingController(
+    repository: ref.watch(policyRepositoryProvider),
+    logger: ref.watch(policyLoggerProvider),
+    policySettings: ref.watch(policySettingsProvider),
+    eventBus: ref.read(policyEventBusProvider.notifier),
+  );
+});
 
 PolicyQuery _initialQueryFor(Ref ref, PolicyFeedType type) {
   final settings = ref.read(policySettingsProvider);

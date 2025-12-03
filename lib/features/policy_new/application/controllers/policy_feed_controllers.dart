@@ -10,13 +10,7 @@ class RecommendFeedController extends BasePolicyFeedController {
   RecommendFeedController({
     required super.ref,
     required super.queryEngine,
-  }) {
-    ref.listen(policyEventBusProvider, (prev, next) {
-      if (next?.type == PolicyEventType.refreshRequested) {
-        refresh();
-      }
-    });
-  }
+  });
 
   @override
   PolicyFeedType get feedType => PolicyFeedType.recommend;
@@ -68,36 +62,42 @@ class FavoriteFeedController extends BasePolicyFeedController {
   FavoriteFeedController({
     required super.ref,
     required super.queryEngine,
-  }) {
-    ref.listen(policyEventBusProvider, (prev, next) {
-      if (next?.type == PolicyEventType.favoritesChanged) {
-        refresh();
-      }
-    });
-  }
+  });
 
   @override
   PolicyFeedType get feedType => PolicyFeedType.favorite;
 
   @override
   PolicyQuery buildBaseQuery() => ref.read(policyQueryProvider(feedType));
+
+  @override
+  void handlePolicyEvent(PolicyEvent? event) {
+    super.handlePolicyEvent(event);
+
+    if (event?.type == PolicyEventType.favoritesChanged) {
+      refresh();
+    }
+  }
 }
 
 class CompareFeedController extends BasePolicyFeedController {
   CompareFeedController({
     required super.ref,
     required super.queryEngine,
-  }) {
-    ref.listen(policyEventBusProvider, (prev, next) {
-      if (next?.type == PolicyEventType.refreshRequested) {
-        refresh();
-      }
-    });
-  }
+  });
 
   @override
   PolicyFeedType get feedType => PolicyFeedType.compare;
 
   @override
   PolicyQuery buildBaseQuery() => ref.read(policyQueryProvider(feedType));
+
+  @override
+  void handlePolicyEvent(PolicyEvent? event) {
+    super.handlePolicyEvent(event);
+
+    if (event?.type == PolicyEventType.compareListChanged) {
+      refresh();
+    }
+  }
 }

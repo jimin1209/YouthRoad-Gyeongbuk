@@ -1,6 +1,7 @@
 enum PolicyEventType {
   cacheCleared,
   favoritesChanged,
+  compareListChanged,
   profileUpdated,
   refreshRequested,
 }
