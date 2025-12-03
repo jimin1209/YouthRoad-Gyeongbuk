@@ -59,10 +59,10 @@ class NotificationCenterController
     }
   }
 
-  Future<void> cancelReminder(String policyId) async {
+  Future<void> cancelReminder(String reminderId) async {
     state = const AsyncLoading();
     try {
-      await _service.cancelReminderByPolicyId(policyId);
+      await _service.cancelReminderById(reminderId);
       await load();
     } catch (e, st) {
       state = AsyncError(e, st);

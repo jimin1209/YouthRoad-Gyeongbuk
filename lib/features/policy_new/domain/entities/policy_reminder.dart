@@ -1,13 +1,9 @@
 import '../values/policy_reminder_status.dart';
 
-enum PolicyReminderOption {
-  day1,
-  day3,
-  day7,
-}
+enum PolicyReminderOption { day1, day3, day7 }
 
 class PolicyReminder {
-  final String id;
+  final String reminderId;
   final String policyId;
   final DateTime scheduledAt;
   final DateTime createdAt;
@@ -16,7 +12,7 @@ class PolicyReminder {
   final PolicyReminderStatus status;
 
   const PolicyReminder({
-    required this.id,
+    required this.reminderId,
     required this.policyId,
     required this.scheduledAt,
     required this.createdAt,
@@ -35,7 +31,7 @@ class PolicyReminder {
     PolicyReminderStatus? status,
   }) {
     return PolicyReminder(
-      id: id,
+      reminderId: reminderId,
       policyId: policyId,
       scheduledAt: scheduledAt ?? this.scheduledAt,
       createdAt: createdAt ?? this.createdAt,
@@ -43,6 +39,12 @@ class PolicyReminder {
       timeKind: timeKind ?? this.timeKind,
       status: status ?? this.status,
     );
+  }
+}
+
+class PolicyReminderIdBuilder {
+  static String build({required String policyId, required PolicyReminderOption timeKind}) {
+    return '$policyId|${timeKind.name}';
   }
 }
 

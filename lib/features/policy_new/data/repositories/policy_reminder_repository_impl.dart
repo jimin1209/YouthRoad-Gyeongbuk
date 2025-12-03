@@ -23,6 +23,22 @@ class PolicyReminderRepositoryImpl implements PolicyReminderRepository {
   }
 
   @override
+  Future<PolicyReminder?> getReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  ) {
+    return _localDataSource.getReminderByPolicyAndTimeKind(policyId, timeKind);
+  }
+
+  @override
+  Future<void> deleteReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  ) {
+    return _localDataSource.deleteReminderByPolicyAndTimeKind(policyId, timeKind);
+  }
+
+  @override
   Future<List<PolicyReminder>> getRemindersForPolicy(String policyId) {
     return _localDataSource.getRemindersForPolicy(policyId);
   }

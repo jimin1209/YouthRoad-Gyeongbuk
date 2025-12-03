@@ -9,7 +9,7 @@ import '../providers.dart';
 class PolicyActionState {
   final bool isFavorite;
   final bool isCompared;
-  final AsyncValue<PolicyReminder?> reminderState;
+  final AsyncValue<List<PolicyReminder>> reminderState;
   final bool isProcessing;
   final String? errorMessage;
 
@@ -21,13 +21,15 @@ class PolicyActionState {
     this.errorMessage,
   });
 
-  bool get hasReminder =>
-      reminderState.maybeWhen(data: (reminder) => reminder != null, orElse: () => false);
+  bool get hasReminder => reminderState.maybeWhen(
+        data: (reminders) => reminders.isNotEmpty,
+        orElse: () => false,
+      );
 
   PolicyActionState copyWith({
     bool? isFavorite,
     bool? isCompared,
-    AsyncValue<PolicyReminder?>? reminderState,
+    AsyncValue<List<PolicyReminder>>? reminderState,
     bool? isProcessing,
     String? errorMessage,
   }) {
@@ -71,7 +73,7 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
       );
     });
 
-    ref.listen<AsyncValue<PolicyReminder?>> (
+    ref.listen<AsyncValue<List<PolicyReminder>>> (
       policyReminderControllerProvider(policyId),
       (previous, next) {
         state = state.copyWith(reminderState: next, errorMessage: state.errorMessage);
@@ -123,7 +125,10 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     _setError(null);
     final controller = ref.read(policyReminderControllerProvider(policyId).notifier);
     try {
-      await controller.cancelReminder();
+      final latestList = controller.state.value;
+      if (latestList != null && latestList.isNotEmpty) {
+        await controller.cancelReminder(latestList.first.timeKind);
+      }
     } catch (e) {
       _setError('알림을 취소하지 못했습니다: $e');
     } finally {
