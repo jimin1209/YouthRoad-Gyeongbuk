@@ -88,6 +88,8 @@ abstract class BasePolicyFeedController
             previous.category != next.category ||
             previous.showOnlyOnline != next.showOnlyOnline ||
             previous.showOnlyOngoing != next.showOnlyOngoing ||
+            previous.institutionId != next.institutionId ||
+            previous.departmentId != next.departmentId ||
             !listEquals(previous.tags, next.tags);
       case PolicyFeedType.all:
         return previous == null ||
