@@ -17,16 +17,19 @@ class PolicyRemoteSource {
       if (current is List) return current;
 
       if (current is Map<String, dynamic>) {
-        final candidates = [
-          current['policies'],
-          current['data'],
-          current['items'],
-          current['content'],
-          current['result'],
-          current['list'],
+        const candidateKeys = [
+          'policies',
+          'data',
+          'items',
+          'content',
+          'result',
+          'list',
+          'records',
+          'results',
         ];
 
-        for (final candidate in candidates) {
+        for (final key in candidateKeys) {
+          final candidate = current[key];
           if (candidate == null) continue;
           if (candidate is List) return candidate;
           if (candidate is Map<String, dynamic>) queue.add(candidate);
@@ -52,14 +55,25 @@ class PolicyRemoteSource {
     return fetchPoliciesWithParams(params);
   }
 
+  Map<String, dynamic> _sanitizeParameters(Map<String, dynamic> source) {
+    final sanitized = Map<String, dynamic>.from(source);
+    sanitized.removeWhere((_, value) {
+      if (value == null) return true;
+      if (value is String && value.trim().isEmpty) return true;
+      return false;
+    });
+    return sanitized;
+  }
+
   /// job03에서 추가: QueryParameter 기반 페이지 조회
   Future<List<PolicyModel>> fetchPoliciesWithParams(
     Map<String, dynamic> queryParameters,
   ) async {
     try {
+      final sanitizedParams = _sanitizeParameters(queryParameters);
       final res = await _dio.get(
         '/policies',
-        queryParameters: queryParameters,
+        queryParameters: sanitizedParams,
       );
 
       final data = _extractPolicyList(res.data);
@@ -68,7 +82,7 @@ class PolicyRemoteSource {
           .whereType<Map<String, dynamic>>()
           .map(PolicyModel.fromJson)
           .toList();
-    } on DioError {
+    } on DioException {
       throw const NetworkFailure();
     } catch (_) {
       throw const UnknownFailure();
@@ -79,7 +93,7 @@ class PolicyRemoteSource {
     try {
       final res = await _dio.get('/policies/$id');
       return PolicyModel.fromJson(res.data as Map<String, dynamic>);
-    } on DioError {
+    } on DioException {
       throw const NetworkFailure();
     } catch (_) {
       throw const UnknownFailure();

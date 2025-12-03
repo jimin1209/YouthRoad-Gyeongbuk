@@ -77,6 +77,24 @@ PolicyCategory _parseCategory(String? value) {
 class PolicyRemoteSourceMock extends PolicyRemoteSource {
   PolicyRemoteSourceMock() : super(Dio());
 
+  Map<String, dynamic> _sanitizeParameters(Map<String, dynamic> source) {
+    final sanitized = Map<String, dynamic>.from(source);
+    sanitized.removeWhere((_, value) {
+      if (value == null) return true;
+      if (value is String && value.trim().isEmpty) return true;
+      return false;
+    });
+    return sanitized;
+  }
+
+  @override
+  Future<List<PolicyModel>> fetchPolicies(int page, int pageSize) {
+    return fetchPoliciesWithParams({
+      'page': page,
+      'size': pageSize,
+    });
+  }
+
   @override
   Future<List<PolicyModel>> fetchPolicies(int page, int pageSize) {
     return fetchPoliciesWithParams({
@@ -91,21 +109,22 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
   ) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
 
-    final int page = queryParameters['page'] as int? ?? 1;
-    final int size = queryParameters['size'] as int? ?? 10;
-    final String feedType = (queryParameters['feed_type'] as String?) ?? 'all';
-    final String sort = (queryParameters['sort'] as String?) ?? 'latest';
-    final String? keyword = (queryParameters['keyword'] as String?)?.trim();
-    final PolicyRegion region =
-        _parseRegion((queryParameters['region'] as String?) ?? 'all');
+    final params = _sanitizeParameters(queryParameters);
+
+    final int page = params['page'] as int? ?? 1;
+    final int size = params['size'] as int? ?? 10;
+    final String feedType = (params['feed_type'] as String?) ?? 'all';
+    final String sort = (params['sort'] as String?) ?? 'latest';
+    final String? keyword = (params['keyword'] as String?)?.trim();
+    final PolicyRegion region = _parseRegion((params['region'] as String?) ?? 'all');
     final PolicyCategory category =
-        _parseCategory((queryParameters['category'] as String?) ?? 'employment');
-    final List<String> selectedTags = (queryParameters['tags'] as String?)
+        _parseCategory((params['category'] as String?) ?? 'employment');
+    final List<String> selectedTags = (params['tags'] as String?)
             ?.split(',')
             .where((tag) => tag.isNotEmpty)
             .toList() ??
         const [];
-    final List<String> filterTags = (queryParameters['tag_filters'] as String?)
+    final List<String> filterTags = (params['tag_filters'] as String?)
             ?.split(',')
             .where((tag) => tag.isNotEmpty)
             .toList() ??
