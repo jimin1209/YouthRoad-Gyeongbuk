@@ -1,45 +1,28 @@
 import '../../domain/entities/policy_reminder.dart';
-
-enum NotificationFailureReason {
-  permissionDenied,
-  scheduledInPast,
-  unknown,
-}
-
-class NotificationResult {
-  const NotificationResult.success()
-      : success = true,
-        failureReason = null;
-
-  const NotificationResult.failure(this.failureReason)
-      : success = false;
-
-  final bool success;
-  final NotificationFailureReason? failureReason;
-}
+import '../../domain/values/schedule_result.dart';
 
 abstract class NotificationGateway {
-  Future<NotificationResult> scheduleReminder(PolicyReminder reminder);
-  Future<NotificationResult> cancelReminder(String reminderId);
-  Future<NotificationResult> cancelAllForPolicy(String policyId);
+  Future<ScheduleResult> scheduleReminder(PolicyReminder reminder);
+  Future<ScheduleResult> cancelReminder(String reminderId);
+  Future<ScheduleResult> cancelAllForPolicy(String policyId);
 }
 
 class NoOpNotificationGateway implements NotificationGateway {
   @override
-  Future<NotificationResult> cancelReminder(String reminderId) async {
+  Future<ScheduleResult> cancelReminder(String reminderId) async {
     // no-op
-    return const NotificationResult.success();
+    return const ScheduleResult.success();
   }
 
   @override
-  Future<NotificationResult> cancelAllForPolicy(String policyId) async {
+  Future<ScheduleResult> cancelAllForPolicy(String policyId) async {
     // no-op
-    return const NotificationResult.success();
+    return const ScheduleResult.success();
   }
 
   @override
-  Future<NotificationResult> scheduleReminder(PolicyReminder reminder) async {
+  Future<ScheduleResult> scheduleReminder(PolicyReminder reminder) async {
     // no-op
-    return const NotificationResult.success();
+    return ScheduleResult.success(scheduledAt: reminder.scheduledAt);
   }
 }

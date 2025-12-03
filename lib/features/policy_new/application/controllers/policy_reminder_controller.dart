@@ -4,6 +4,7 @@ import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
+import '../../domain/values/schedule_result.dart';
 import '../providers.dart';
 import '../services/policy_reminder_service.dart';
 
@@ -171,12 +172,17 @@ class PolicyReminderController
 
   List<String> _messagesForFailures(List<ReminderMutationFailure> failures) {
     return failures.map((failure) {
-      switch (failure.reason) {
-        case NotificationFailureReason.permissionDenied:
+      switch (failure.failure.type) {
+        case ScheduleFailureType.permissionDenied:
           return '알림 권한이 꺼져 있어 예약에 실패했어요. 설정에서 권한을 허용해 주세요.';
-        case NotificationFailureReason.scheduledInPast:
+        case ScheduleFailureType.invalidDate:
           return '이미 지난 시각에는 알림을 설정할 수 없습니다.';
-        case NotificationFailureReason.unknown:
+        case ScheduleFailureType.gatewayError:
+        case ScheduleFailureType.idCollision:
+        case ScheduleFailureType.unknown:
+          if (failure.failure.message.isNotEmpty) {
+            return failure.failure.message;
+          }
           return '알 수 없는 이유로 알림을 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.';
       }
     }).toList();
