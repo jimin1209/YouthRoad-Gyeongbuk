@@ -12,6 +12,8 @@ import '../domain/repositories/institution_repository.dart';
 import '../domain/repositories/policy_favorite_repository.dart';
 import '../domain/repositories/policy_reminder_repository.dart';
 import '../domain/repositories/policy_repository.dart';
+import '../domain/recommendation/user_profile.dart';
+import '../domain/recommendation/user_profile_repository.dart';
 import '../domain/values/policy_event.dart';
 import '../domain/values/policy_failure.dart';
 import '../domain/values/policy_feed_type.dart';
@@ -46,6 +48,8 @@ import '../data/repositories/institution_repository_impl.dart';
 import '../data/repositories/policy_favorite_repository_impl.dart';
 import '../data/repositories/policy_reminder_repository_impl.dart';
 import '../data/repositories/policy_repository_impl.dart';
+import '../data/recommendation/user_profile_local_source.dart';
+import '../data/recommendation/user_profile_repository_impl.dart';
 import '../data/sources/department_remote_source.dart';
 import '../data/sources/institution_remote_source.dart';
 import '../data/sources/policy_favorite_local_data_source.dart';
@@ -53,18 +57,7 @@ import '../data/sources/policy_reminder_local_data_source.dart';
 import '../data/sources/policy_remote_source.dart';
 import '../data/sources/policy_remote_source_mock.dart';
 import '../../application/di.dart' as app_di;
-
-class UserProfile {
-  final PolicyRegion region;
-  final int? age;
-  final List<String> recommendTags;
-
-  const UserProfile({
-    required this.region,
-    this.age,
-    this.recommendTags = const [],
-  });
-}
+import 'recommendation/user_profile_service.dart';
 
 class ConsolePolicyLogger implements PolicyLogger {
   @override
@@ -97,12 +90,24 @@ final policyLoggerProvider = Provider<PolicyLogger>((ref) {
   return ConsolePolicyLogger();
 });
 
-final userProfileProvider = Provider<UserProfile>((ref) {
-  return const UserProfile(
-    region: PolicyRegion.gyeongbuk,
-    age: null,
-    recommendTags: ['청년', '창업', '주거'],
+final userProfileLocalSourceProvider = Provider<UserProfileLocalSource>((ref) {
+  final prefs = ref.watch(app_di.sharedPreferencesProvider);
+  return UserProfileLocalSource(prefs);
+});
+
+final userProfileRepositoryProvider = Provider<UserProfileRepository>((ref) {
+  return UserProfileRepositoryImpl(ref.watch(userProfileLocalSourceProvider));
+});
+
+final userProfileProvider =
+    StateNotifierProvider<UserProfileNotifier, UserProfile>((ref) {
+  final settings = ref.watch(policySettingsProvider);
+  final notifier = UserProfileNotifier(
+    repository: ref.watch(userProfileRepositoryProvider),
+    defaultRegion: settings.defaultRegion,
   );
+  notifier.load();
+  return notifier;
 });
 
 final compareRepositoryProvider =
