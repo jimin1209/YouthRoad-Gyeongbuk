@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher_string.dart';
 
 import 'package:youth_road_app/application/providers.dart';
 import 'package:youth_road_app/domain/entities/policy.dart';
+import 'package:youth_road_app/legacy/policy/application/notifiers/policy_detail_notifier.dart';
 import 'package:youth_road_app/navigation/route_paths.dart';
 import 'package:youth_road_app/ui/widgets/app_appbar.dart';
 import 'package:youth_road_app/ui/widgets/global_error_view.dart';
