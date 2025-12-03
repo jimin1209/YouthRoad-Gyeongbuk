@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/entities/policy.dart';
 import '../domain/repositories/policy_repository.dart';
+import '../domain/repositories/reminder_repository.dart';
 import '../domain/values/policy_event.dart';
 import '../domain/values/policy_failure.dart';
 import '../domain/values/policy_feed_type.dart';
@@ -12,17 +13,23 @@ import '../domain/values/policy_region.dart';
 import '../domain/values/policy_settings.dart';
 import '../domain/values/policy_sort.dart';
 import 'controllers/base_feed_controller.dart';
+import 'controllers/notification_center_controller.dart';
 import 'controllers/policy_detail_controller.dart';
 import 'controllers/policy_event_bus.dart';
 import 'controllers/policy_feed_controllers.dart';
 import 'controllers/policy_paging_controller.dart';
 import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
+import 'controllers/reminder_controller.dart';
 import 'filters/policy_filter_ui_state.dart';
 import '../data/cache/policy_cache.dart';
 import '../data/repositories/policy_repository_impl.dart';
+import '../data/repositories/reminder_repository_impl.dart';
 import '../data/sources/policy_remote_source.dart';
 import '../data/sources/policy_remote_source_mock.dart';
+import '../data/sources/reminder_local_source.dart';
+import '../infrastructure/notification/local_notification_gateway.dart';
+import '../infrastructure/notification/notification_gateway.dart';
 
 class UserProfile {
   final PolicyRegion region;
@@ -79,6 +86,22 @@ final policyEventBusProvider =
     StateNotifierProvider<PolicyEventBus, PolicyEvent?>(
   (ref) => PolicyEventBus(),
 );
+
+final notificationGatewayProvider = Provider<NotificationGateway>((ref) {
+  return LocalNotificationGateway();
+});
+
+final reminderLocalSourceProvider =
+    Provider<PolicyReminderLocalSource>((ref) {
+  return InMemoryPolicyReminderLocalSource();
+});
+
+final reminderRepositoryProvider = Provider<ReminderRepository>((ref) {
+  return ReminderRepositoryImpl(
+    localSource: ref.watch(reminderLocalSourceProvider),
+    notificationGateway: ref.watch(notificationGatewayProvider),
+  );
+});
 
 final userProfileProvider = Provider<UserProfile>((ref) {
   return const UserProfile(
@@ -195,6 +218,21 @@ final compareFeedControllerProvider =
   (ref) => CompareFeedController(
     ref: ref,
     queryEngine: ref.read(policyQueryEngineProvider),
+  ),
+);
+
+final reminderControllerProvider =
+    StateNotifierProvider<ReminderController, ReminderState>(
+  (ref) => ReminderController(
+    repository: ref.watch(reminderRepositoryProvider),
+    eventBus: ref.read(policyEventBusProvider.notifier),
+  ),
+);
+
+final notificationCenterControllerProvider =
+    StateNotifierProvider<NotificationCenterController, NotificationCenterState>(
+  (ref) => NotificationCenterController(
+    repository: ref.watch(reminderRepositoryProvider),
   ),
 );
 

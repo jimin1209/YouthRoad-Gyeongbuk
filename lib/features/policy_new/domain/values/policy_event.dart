@@ -4,6 +4,8 @@ enum PolicyEventType {
   compareListChanged,
   profileUpdated,
   refreshRequested,
+  reminderAdded,
+  reminderRemoved,
 }
 
 class PolicyEvent {
