@@ -19,7 +19,8 @@ class PolicyFeedTab extends ConsumerStatefulWidget {
   ConsumerState<PolicyFeedTab> createState() => _PolicyFeedTabState();
 }
 
-class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
+class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab>
+    with AutomaticKeepAliveClientMixin {
   late final TextEditingController _searchController;
 
   @override
@@ -37,6 +38,7 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final query = ref.watch(policyQueryProvider(widget.feedType));
     final content = PolicyFeedListView(feedType: widget.feedType);
 
@@ -78,4 +80,7 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
         .read(policyQueryProvider(widget.feedType).notifier)
         .setKeyword(value.trim());
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }
