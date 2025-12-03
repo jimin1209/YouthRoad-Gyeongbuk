@@ -5667,5 +5667,249 @@ export 'package:youth_road_app/application/policy/policy_prefetch_provider.dart'
 ---
 
 
+🟦 #job20 — 기존 정책 폴더 정리 + PolicyNew 전체 적용 리팩토링 아키텍처 (FULL SPEC)
 
+
+@chatgpt-codex
+# job20 — 기존 정책 기능 폴더 정리 + PolicyNew 전체 전환 리팩토링 아키텍처 (Full System Overhaul)
+
+---
+
+# 0. 시스템 정의 (System Definition)
+본 job20은 YouthRoad-Gyeongbuk 프로젝트의 기존 정책 기능 전체를
+**PolicyNew 아키텍처(job01~job19 기반)**로 전면 교체하기 위한 핵심 리팩토링 작업이다.
+
+목표 시스템은 다음을 포함한다:
+
+1) **정책 UI/Interaction 전체 구조를 PolicyNew로 통합**  
+2) 기존 lib/**policy 관련 파일 전체를 정리/이관/폐기/마이그레이션  
+3) Folder-level 정리 기준 확립  
+4) 정책 도메인, 필터, 검색, 추천, 비교 기능을 모두 PolicyNew로 통합  
+5) 기존 화면에서 호출되는 흐름을 PolicyNew로 넘기기 위한 안전한 브릿지 layer 구성  
+6) 전체 Policy 기능의 Stable-Core Layer 구축  
+
+---
+
+# 1. 문제 정의 (Problem Definition)
+
+기존 정책 기능은 아래 문제들을 포함한다:
+
+- 파일/폴더 구조가 분산되어 유지보수가 어렵다.  
+- V1/V2 정책 화면이 분리되어 있으며, UI/도메인/컨트롤러가 섞여 있고 중복 코드가 있다.  
+- 필터/검색/정렬/추천/지역/비교/즐겨찾기 등이 서로 다른 구조를 사용한다.  
+- 로딩/페이징/오류 처리가 화면마다 달라 통일성이 없다.  
+- Domain/Data/Presentation 계층이 불명확하다.  
+- SWR, Query 기반 fetch 구조가 적용되지 않아 속도 문제를 유발한다.  
+- 리팩토링 없이 확장하기에는 너무 많은 충돌이 발생한다.  
+
+job20은 이 문제들을 해결하고,  
+**프로젝트의 정책 기능 전체를 단일 아키텍처로 통합하기 위한 정리 작업**이다.
+
+---
+
+# 2. 요구사항 분석 (Requirements)
+
+## 기능 요구사항
+- 기존 정책 화면을 PolicyNew UI로 대체
+- 기존 코드 중 필요한 Domain/Data는 마이그레이션 후 제거
+- V1, V2 파일 정리 (중복 제거)
+- 정책 상세 뷰, 정책 리스트, 추천, 정렬, 검색, 비교 기능을 PolicyNew 기반으로 재정렬
+- 전체 기능이 실제 앱 빌드에서 충돌 없이 동작해야 함
+
+## 기술 요구사항
+- 파일 정리 후 git clean 상태 유지
+- 기존 경로에서 새 PolicyNew 구조로 안전하게 이관
+- Provider, Route, Navigator 등이 모두 PolicyNew 기준으로 동작해야 함
+- 파일 의존성 충돌 및 import 에러가 없을 것
+- 기존 흐름에 영향을 주지 않도록 "PolicyLegacy" 보관 폴더로 안전하게 이동
+
+---
+
+# 3. 아키텍처 설계 (Architecture)
+
+job20 후 정책 기능 전체는 아래 구조를 따른다:
+
+lib/
+└── features/
+└── policy_new/
+├── domain/           # job01job02 정의한 Domain
+├── data/             # Repository + Sources (job03)
+├── application/      # Controllers + QueryEngine (job04job06)
+└── presentation/     # UI (job05~job19)
+└── legacy/
+└── policy/               # 기존 모든 정책 파일 임시 보관 위치 (삭제 전 확보)
+
+아키텍처 계층:
+
+- **Domain** → Policy 엔티티, 필터, 정렬, 페이징 등 핵심 개념  
+- **Data** → Repository, RemoteSource, SWR  
+- **Application** → FeedController, Query Orchestrator, EventBus  
+- **Presentation** → Feed UI, DetailSheet, FilterBar, SortSheet, KeywordSheet  
+
+---
+
+# 4. 데이터 파이프라인 / 흐름도 (Data Flow Diagram)
+
+[UI (PolicyFeedHomeScreen)]
+│
+▼
+[PolicyFilterBar / Sheets]
+│ (상태 변경)
+▼
+[policyFilterUiStateProvider] ←─────── user actions
+│
+▼
+[BasePolicyFeedController] ←─────── EventBus
+│
+▼
+[PolicyQueryOrchestrator]
+│
+▼
+[PolicyQueryEngine]
+│
+▼
+[PolicyRepository]
+│
+▼
+[RemoteSource / Cache]
+│
+▼
+[PolicyPagingState]
+│
+▼
+[UI → 리스트 렌더링]
+
+---
+
+# 5. Provider / Controller 상호작용 규칙
+
+1) UI는 오직 `policyFilterUiStateProvider` 조작  
+2) FeedController는 필터 상태 변경을 자동 감지하여 `refresh()`  
+3) QueryEngine은 feedType 기반 Query를 Orchestrator에 위임  
+4) EventBus는 favoritesChanged / compareChanged / profileUpdated / cacheCleared 감지  
+5) Detail 화면은 policyDetailProvider를 통해 데이터 개별 fetch  
+6) UI는 Repository 또는 Domain에 직접 의존하지 않음  
+
+---
+
+# 6. UI 상태도 (UI State Machine)
+
+FilterUiState
+├─ region
+├─ category
+├─ sort
+├─ keyword
+├─ tags
+├─ showOnlyOnline
+└─ showOnlyOngoing
+
+변경 이벤트 발생 →
+FeedController.refresh() →
+PolicyQuery 재조립 →
+Repository fetch →
+PolicyPagingState
+├─ loading
+├─ data (items + hasMore)
+└─ error
+
+---
+
+# 7. 이벤트 흐름 (Event Flow)
+
+### 사용자 액션  
+
+검색 → setKeyword()
+정렬 변경 → setSort()
+지역 변경 → setRegion()
+카테고리 변경 → setCategory()
+추천 태그 선택 → setTags()
+“모집중만 보기” → toggleOngoingOnly()
+
+### 시스템 이벤트 (EventBus)
+
+favoritesChanged → FavoriteFeed, RecommendFeed refresh
+compareChanged → CompareFeed refresh
+profileUpdated → RecommendFeed + RegionFeed refresh
+cacheCleared → 모든 FeedController reset
+
+---
+
+# 8. 파일 구조 정리 (Legacy Cleanup + New Placement)
+
+## 기존 정책 폴더 제거/이동 규칙
+
+아래 경로의 기존 파일은 모두 삭제 또는 legacy 폴더로 이동한다:
+
+lib/ui/screens/policy/**        → legacy/policy/ui/**
+lib/data/policy/**             → legacy/policy/data/**
+lib/presentation/policy/**     → legacy/policy/presentation/**
+lib/application/policy/**      → legacy/policy/application/**
+
+절대 PolicyNew 폴더와 혼합 금지.
+
+## PolicyNew 전면 적용 후 구조
+
+lib/features/policy_new/
+domain/
+data/
+application/
+presentation/
+screens/
+widgets/
+filters/
+detail/
+
+---
+
+# 9. Acceptance Criteria (job20)
+
+- [ ] 기존 정책 관련 파일을 모두 `legacy/policy/**` 로 이동  
+- [ ] PolicyNew 구조가 lib/features/policy_new 아래 완전하게 구성됨  
+- [ ] PolicyFeedHomeScreen 라우팅이 PolicyNew 기준으로 연결됨  
+- [ ] 기존 코드 참조(import) 중 policy 관련 경로가 남아있지 않음  
+- [ ] PolicyNew UI가 앱 실행 시 정상적으로 표시됨  
+- [ ] FeedController, QueryEngine, Orchestrator 동작 정상  
+- [ ] EventBus와 FilterUiState 반응 정상  
+- [ ] 실제 기기에서 스크롤/페이징/검색/정렬/필터/상세 화면 동작  
+- [ ] 빌드 에러, 의존성 충돌 없음  
+
+---
+
+# 10. Codex 실행 명령 세트 (job20 수행용)
+
+아래 순서대로 Codex에게 실행시키면 됨:
+
+### ✔ 1단계 — 기존 파일 이동
+
+@chatgpt-codex
+job20-step1:
+“lib/ui/screens/policy/”,
+“lib/data/policy/”,
+“lib/presentation/policy/”,
+“lib/application/policy/”
+→ 모두 lib/legacy/policy/ 아래로 이동”
+
+### ✔ 2단계 — 빈 PolicyNew 폴더 초기 세팅
+
+@chatgpt-codex
+job20-step2:
+“lib/features/policy_new/{domain,data,application,presentation}” 폴더 생성
+
+### ✔ 3단계 — Domain/Data/Application/Presentation 파일 재구축
+
+@chatgpt-codex
+job20-step3:
+job01~job19 내용 기반으로 PolicyNew 아키텍처 파일 전체 생성
+(파일 이름, 경로 명시 필수)
+
+### ✔ 4단계 — Routing 전환
+
+@chatgpt-codex
+job20-step4:
+기존 정책 라우팅 → PolicyFeedHomeScreen(policy_new)로 변경
+
+---
+
+
+⸻
 
