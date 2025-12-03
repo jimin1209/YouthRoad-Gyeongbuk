@@ -66,9 +66,12 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['is_ongoing'] = filter.isOngoing! ? 'Y' : 'N';
     }
 
-    final effectiveTags = query.tags.isNotEmpty ? query.tags : filter.tags;
-    if (effectiveTags.isNotEmpty) {
-      params['tags'] = effectiveTags.join(',');
+    if (filter.tags.isNotEmpty) {
+      params['tag_filters'] = filter.tags.join(',');
+    }
+
+    if (query.tags.isNotEmpty) {
+      params['tags'] = query.tags.join(',');
     }
 
     // feedType에 따라 backend에서 다른 endpoint를 사용한다면 힌트 전달
@@ -82,9 +85,19 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int page,
     required int pageSize,
   }) async {
+    final effectivePageSize = pageSize == 0 ? settings.pageSize : pageSize;
+
+    if (settings.enableCache) {
+      final cached = cache.getPage(page);
+      if (cached != null && cached.isNotEmpty) {
+        logger.info('캐시 히트 (page: $page)');
+        return PolicyResult.success(cached);
+      }
+    }
+
     // 기본 Query: 전체 탭, 기본 지역/정렬
     final defaultFilter = PolicyFilter(
-      region: settings.defaultRegion,
+      region: PolicyRegion.all,
     );
 
     final defaultQuery = PolicyQuery(
@@ -92,11 +105,17 @@ class PolicyRepositoryImpl implements PolicyRepository {
       feedType: PolicyFeedType.all,
     );
 
-    return fetchPoliciesByQuery(
+    final result = await fetchPoliciesByQuery(
       query: defaultQuery,
       page: page,
-      pageSize: pageSize == 0 ? settings.pageSize : pageSize,
+      pageSize: effectivePageSize,
     );
+
+    if (settings.enableCache && result.isSuccess && result.data != null) {
+      cache.savePage(page, result.data!);
+    }
+
+    return result;
   }
 
   @override
