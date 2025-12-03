@@ -5497,3 +5497,34 @@ Target kernel_snapshot_program failed: Exception
 FAILURE: Build failed with an exception.
 
 * What went wrong:
+
+---
+
+#ISSUE 42
+
+lib/application/policy/policy_prefetch_provider.dart:53:18: Error: The getter 'mounted' isn't defined for the class 'AutoDisposeAsyncNotifierProviderRef<void>'.
+ - 'AutoDisposeAsyncNotifierProviderRef' is from 'package:riverpod/src/async_notifier.dart' ('../.pub-cache/hosted/pub.dev/riverpod-2.6.1/lib/src/async_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
+        if (!ref.mounted) return;
+                 ^^^^^^^
+lib/application/policy/policy_prefetch_provider.dart:57:18: Error: The getter 'mounted' isn't defined for the class 'AutoDisposeAsyncNotifierProviderRef<void>'.
+ - 'AutoDisposeAsyncNotifierProviderRef' is from 'package:riverpod/src/async_notifier.dart' ('../.pub-cache/hosted/pub.dev/riverpod-2.6.1/lib/src/async_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
+        if (!ref.mounted) return;
+                 ^^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+
