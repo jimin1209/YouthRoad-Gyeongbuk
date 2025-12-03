@@ -194,6 +194,287 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 # 🌐 5. TASKS (AGENTS.md 내부 통합 TASK 목록)
 # ============================================================
 
+@chatgpt-codex
+# TASK 06 — PolicyNew 6개 탭 ‘실제 동작 로직’ 구현 (JOB01급 FULL SPEC)
+# Recommended → All → Region → Search → Favorite → Compare
+# (API 연동 + Query 충전 + Controller 연동 + UI 상태 + 상단 필터 + EventBus 전체 통합)
+
+───────────────────────────────────────────
+0. SYSTEM DEFINITION — 시스템 정의
+───────────────────────────────────────────
+
+본 Task06은 PolicyNew의 6개 탭을 실제로 동작하게 만드는 핵심 단계이며,
+task01~05에서 설계한 Domain / Query / UI 구조 위에 **진짜 기능을 올리는 단계**이다.
+
+각 탭은 다음 역할을 가진다:
+
+1) 추천(Recommend)
+   - 사용자 나이/지역/관심키워드 기반 정책 추천
+   - 추천 태그 기반 필터링
+   - SWR 캐시 적용
+
+2) 전체(All)
+   - 전체 정책 목록 페이징 로드
+   - 상단 필터(지역/카테고리/정렬/온라인/진행중) 반영
+
+3) 지역(Region)
+   - 사용자의 프로필 지역 또는 선택 지역 기반 정책
+   - 정책 모집 중/온라인여부 적용
+
+4) 검색(Search)
+   - UI 검색어 기반 정책 검색
+   - 자동완성(optional)
+   - 추천 태그 + 정렬 반영
+
+5) 즐겨찾기(Favorite)
+   - 즐겨찾기 저장 정책 목록
+   - EventBus favoritesChanged 즉시 반영
+   - Sort/Filter 일부 적용
+
+6) 비교(Compare)
+   - compareRepository에 추가된 정책들만 로드
+   - EventBus compareChanged 즉시 반영
+
+모든 탭은 다음 기능을 공통으로 가진다:
+- 무한 스크롤 페이징
+- 당겨서 새로고침(refresh)
+- 에러/로딩/빈 상태 UI
+- 상세 페이지 연결
+- 실제 정책 페이지(dtlLinkUrl) 이동
+
+───────────────────────────────────────────
+1. PROBLEM DEFINITION — 문제 정의
+───────────────────────────────────────────
+
+현재 PolicyNew의 6개 탭은 UI 껍데기만 존재하고, 실제 기능은 작동하지 않는다:
+
+- API와 연결되어 있지 않음
+- Query가 비어 있음
+- FeedController가 실 데이터 fetch를 안함
+- 상단 필터가 각 탭과 연동되지 않음
+- 이벤트(EventBus)가 탭에 반영되지 않음
+- 페이징/검색/정렬/추천 기능이 실제로 작동하지 않음
+- Favorite/Compare 탭은 데이터가 비어 있음
+- Region 탭은 프로필 연동이 없음
+
+즉, 화면은 존재하지만 “아무 정책도 로드되지 않는 상태”.
+
+본 Task06의 목표는  
+**기능이 없는 탭을 “실제 운영 가능한 정책 탐색 시스템”으로 만드는 것**이다.
+
+───────────────────────────────────────────
+2. REQUIREMENTS — 요구사항 분석
+───────────────────────────────────────────
+
+R1. 실제 API 연동  
+    - 정책 목록 조회 API를 기반으로 Query 파라미터를 변환 및 호출
+
+R2. Query Orchestration  
+    - FeedType + UI 필터 + UserProfile + Favorite/Compare 정보를 조합해
+      실제 API에서 요구하는 HTTP Param을 생성해야 한다.
+
+R3. Paging  
+    - pageIndex/pageSize 기반의 API 응답을 페이징 구조에 맞게 처리
+
+R4. Favorite/Compare 연동  
+    - EventBus 수신 → 즉시 해당 탭 reload
+    - Compare/Favorite 대조 ID 기반 API 조회(태그 역할)
+
+R5. 검색(Search) 탭  
+    - keyword 기반 검색 값 적용
+    - 검색어 변경 시 자동 Refresh
+
+R6. 상단 필터 UI 연동  
+    - PolicyFilterUiState와 모든 FeedController가 동기화
+
+R7. 추천(Recommend)  
+    - age, region, tags 기반 정책 제공
+    - UI 태그 선택 시 Refresh
+
+R8. 오류/빈 상태 처리  
+    - 정책 없는 경우 Empty UI
+    - API 에러 시 재시도 버튼 제공
+
+R9. 상세 페이지  
+    - policyId로 상세 정보 fetch
+    - applyUrl(dtlLinkUrl) 열기
+
+───────────────────────────────────────────
+3. ARCHITECTURE — 아키텍처 설계
+───────────────────────────────────────────
+
+3.1 전체 아키텍처 계층
+
+UI Layer
+  └─ SwipeTabs + FilterBar + FeedListView + DetailModal
+      └─ Provider Layer
+          ├─ PolicyFilterUiStateProvider (검색/필터 상태)
+          ├─ FeedControllerProviders (6개 탭)
+          ├─ PolicyDetailProvider
+          └─ EventBusProvider
+              └─ favoritesChanged / compareChanged / refreshRequested
+                  → FeedControllers auto-refresh
+
+Application Layer
+  ├─ PolicyQueryOrchestrator ← feedType 기반 query 생성
+  ├─ PolicyQueryEngine ← Repository 호출
+  └─ Feed Controllers (Recommend/All/Region/Search/Favorite/Compare)
+
+Domain Layer
+  └─ Policy / PolicyQuery / PolicyFilter / SortOption / RegionCode
+
+Data Layer
+  ├─ PolicyRepositoryImpl
+  ├─ PolicyRemoteSource (API 호출)
+  └─ PolicyModel (JSON ↔ Domain 변환)
+
+───────────────────────────────────────────
+4. DATA PIPELINE / FLOW CHART — 데이터 흐름도
+───────────────────────────────────────────
+
+사용자 상단 필터 변경  
+   → PolicyFilterUiState 변경  
+      → FeedController.listen() 자동 감지  
+         → refresh()  
+            → PolicyQueryEngine.fetch(feedType, page=1)  
+               → PolicyQueryOrchestrator.buildQuery(feedType)  
+                    → UI 상태 + 프로필 + 즐겨찾기/비교 + feedType 조합  
+               → Repository.fetchPoliciesByQuery(query, page, size)  
+                    → RemoteSource.get('/openapi/policy/list.json', params)  
+                       → JSON → PolicyModel → Domain 변환  
+               → PagingState.data(items, hasMore) 
+
+즐겨찾기 변경  
+   → EventBus.favoritesChanged  
+      → FavoriteFeedController.refresh()
+
+비교 변경  
+   → EventBus.compareChanged  
+      → CompareFeedController.refresh()
+
+───────────────────────────────────────────
+5. PROVIDER / CONTROLLER INTERACTION RULES
+───────────────────────────────────────────
+
+5.1 모든 FeedController는 다음을 반드시 가진다:
+- feedType
+- queryEngine
+- state: PolicyPagingState
+- loadFirstPage() / loadNextPage() / refresh()
+
+5.2 Filter 변경 시 자동 반영되는 탭:
+- Recommend
+- All
+- Region
+- Search
+
+5.3 Filter 영향을 받지 않는 탭:
+- Favorite(단 sort만 반영)
+- Compare(단 sort만 반영)
+
+5.4 EventBus 규칙:
+- favoritesChanged → FavoriteFeedController.refresh()
+- compareChanged → CompareFeedController.refresh()
+- profileUpdated → Recommend, Region feed refresh
+- refreshRequested → 모든 탭 refresh
+
+───────────────────────────────────────────
+6. UI STATE DIAGRAM — UI 상태도
+───────────────────────────────────────────
+
+각 탭의 화면 상태는 아래 4가지 중 하나이다:
+
+1) Loading  
+2) Data(items > 0)  
+3) Empty(items == 0 && !loading && !error)  
+4) Error(failure)  
+
+사용자 상호작용:
+- PullToRefresh → Loading → Data  
+- ScrollBottom → loadNextPage() → DataAppend or End  
+- FilterChange → Loading → Data  
+- EventBus → refresh()
+
+───────────────────────────────────────────
+7. EVENT FLOW — 이벤트 흐름
+───────────────────────────────────────────
+
+User changes filter/sort/keyword  
+ → PolicyFilterUiState changed  
+   → FeedController.listen()  
+     → refresh()
+
+User toggles favorite 
+ → favoriteRepository changed  
+   → EventBus.favoritesChanged  
+     → FavoriteFeedController.refresh()
+
+User adds Compare
+ → compareRepository changed  
+   → EventBus.compareChanged  
+     → CompareFeedController.refresh()
+
+───────────────────────────────────────────
+8. FILE STRUCTURE — 파일 구조
+───────────────────────────────────────────
+
+lib/features/policy_new/
+  application/
+    controllers/
+      base_feed_controller.dart
+      recommend_feed_controller.dart
+      all_feed_controller.dart
+      region_feed_controller.dart
+      search_feed_controller.dart
+      favorite_feed_controller.dart
+      compare_feed_controller.dart
+      policy_query_engine.dart
+      policy_query_orchestrator.dart
+    filters/
+      policy_filter_ui_state.dart
+
+  data/
+    models/policy_model.dart
+    sources/policy_remote_source.dart
+    repositories/policy_repository_impl.dart
+
+  presentation/
+    screens/policy_feed_home_screen.dart
+    widgets/
+      policy_feed_list_view.dart
+      policy_card.dart
+      policy_list_loading.dart
+      policy_list_empty.dart
+      policy_list_error.dart
+    filters/
+      policy_filter_bar.dart
+      policy_keyword_sheet.dart
+      policy_sort_bottom_sheet.dart
+      policy_filter_bottom_sheet.dart
+    detail/
+      policy_detail_bottom_sheet.dart
+
+───────────────────────────────────────────
+9. ACCEPTANCE CRITERIA — 완료 기준
+───────────────────────────────────────────
+
+AC1. 6개 탭이 실제 API와 연결되어 정책 데이터를 로드해야 한다.  
+AC2. 필터/정렬/검색/추천 태그 변경 시 해당 Feed가 자동 refresh 되어야 한다.  
+AC3. Favorite/Compare 탭은 EventBus로 즉시 업데이트 되어야 한다.  
+AC4. Paging(무한스크롤) 정상동작.  
+AC5. 로딩/빈값/에러 UI 정상동작.  
+AC6. 상세 페이지에서 정책 정보 및 applyUrl 이동 기능 제공.  
+AC7. 코드 구조는 기존 설계(job01~06)와 충돌 없이 build 되어야 한다.  
+AC8. 모든 Provider/Controller가 QueryEngine + Orchestrator 규약대로 동작해야 한다.  
+AC9. 데이터 변환 오류 없이 Model ↔ Domain 매핑 성공.  
+AC10. 전체 앱 실행 시 6개 탭이 '실제 기능하는 정책 탐색 서비스'로 완성되어야 한다.
+
+───────────────────────────────────────────
+# END OF TASK 06 SPEC
+
+
+
+
 TASK 문서는 AGENTS.md 안에서 직접 관리한다.
 
 Codex는 TASK가 언급되면 해당 섹션을 자동으로 읽고 적용해야 한다.
