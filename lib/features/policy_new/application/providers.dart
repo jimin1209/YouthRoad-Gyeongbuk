@@ -13,6 +13,7 @@ import '../domain/values/policy_event.dart';
 import '../domain/values/policy_failure.dart';
 import '../domain/values/policy_feed_type.dart';
 import '../domain/values/policy_logger.dart';
+import '../domain/values/policy_query.dart';
 import '../domain/values/policy_region.dart';
 import '../domain/values/policy_reminder_config.dart';
 import '../domain/values/policy_reminder_status.dart';
@@ -316,4 +317,18 @@ final policyReminderStatusProvider =
 final notificationCenterControllerProvider = StateNotifierProvider<
     NotificationCenterController, AsyncValue<NotificationCenterState>>(
   (ref) => NotificationCenterController(ref: ref),
+);
+
+final policyQueryProvider = Provider.family<PolicyQuery, PolicyFeedType>(
+  (ref, feedType) {
+    // dependencies to rebuild query on changes
+    ref.watch(policyFilterUiStateProvider);
+    ref.watch(userProfileProvider);
+    ref.watch(policyBehaviorTrackerProvider);
+    ref.watch(favoriteRepositoryProvider);
+    ref.watch(compareRepositoryProvider);
+
+    final orchestrator = ref.read(policyQueryOrchestratorProvider);
+    return orchestrator.buildQuery(feedType);
+  },
 );
