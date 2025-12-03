@@ -19,8 +19,7 @@ class PolicyQueryOrchestrator {
   PolicyBehaviorState get _behavior =>
       ref.read(policyBehaviorTrackerProvider);
 
-  List<String> get _favoriteIds =>
-      ref.read(favoriteRepositoryProvider).allIds;
+  List<String> get _favoriteIds => ref.read(favoriteIdsProvider).toList();
 
   List<String> get _compareIds => ref.read(compareRepositoryProvider).ids;
 

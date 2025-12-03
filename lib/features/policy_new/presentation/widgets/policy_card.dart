@@ -16,12 +16,12 @@ class PolicyCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef _ref) {
-    final favoriteState = _ref.watch(favoriteRepositoryProvider);
+    final favoriteIds = _ref.watch(favoriteIdsProvider);
     final compareState = _ref.watch(compareRepositoryProvider);
-    final favoriteController = _ref.read(favoriteRepositoryProvider.notifier);
+    final favoriteService = _ref.read(policyFavoriteServiceProvider);
     final compareController = _ref.read(compareRepositoryProvider.notifier);
 
-    final isFavorite = favoriteState.allIds.contains(policy.id);
+    final isFavorite = favoriteIds.contains(policy.id);
     final isCompared = compareState.ids.contains(policy.id);
 
     return Card(
@@ -51,7 +51,7 @@ class PolicyCard extends ConsumerWidget {
                       isFavorite ? Icons.favorite : Icons.favorite_border,
                       color: isFavorite ? Colors.redAccent : Colors.grey,
                     ),
-                    onPressed: () => favoriteController.toggleFavorite(policy),
+                    onPressed: () => favoriteService.toggleFavorite(policy),
                   ),
                   IconButton(
                     icon: Icon(

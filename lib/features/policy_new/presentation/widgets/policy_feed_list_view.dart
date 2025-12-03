@@ -79,7 +79,11 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
     }
 
     if (!state.isLoading && state.items.isEmpty) {
-      return const PolicyListEmpty();
+      final emptyMessage = widget.feedType == PolicyFeedType.favorite
+          ? '즐겨찾기한 정책이 없습니다.\n마음에 드는 정책의 하트 버튼을 눌러 저장해보세요.'
+          : '표시할 정책이 없습니다.\n필터나 검색 조건을 바꿔보세요.';
+
+      return PolicyListEmpty(message: emptyMessage);
     }
 
     return RefreshIndicator(
