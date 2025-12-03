@@ -5,6 +5,7 @@ import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/values/policy_reminder_status.dart';
+import '../../domain/values/reminder_time_kind.dart';
 
 class PolicyReminderButton extends ConsumerWidget {
   const PolicyReminderButton({super.key, required this.policy});
@@ -35,13 +36,9 @@ class PolicyReminderButton extends ConsumerWidget {
           children: [
             ElevatedButton.icon(
               onPressed: () async {
-                final option = await _selectOption(context, activeOptions);
-                if (option == null) return;
-                if (activeOptions.contains(option)) {
-                  await controller.cancelReminder(option);
-                } else {
-                  await controller.setReminder(policy, option);
-                }
+                final selected = await _selectOptions(context, activeOptions);
+                if (selected == null) return;
+                await controller.setReminders(policy, selected.toList());
               },
               icon: const Icon(Icons.notifications),
               label: Text(label),
@@ -54,7 +51,7 @@ class PolicyReminderButton extends ConsumerWidget {
                   for (final reminder in activeReminders)
                     InputChip(
                       label: Text(_chipLabel(reminder)),
-                      onDeleted: () => controller.cancelReminder(reminder.timeKind),
+                      onDeleted: () => controller.removeReminder(reminder.reminderId),
                     ),
                 ],
               ),
@@ -66,32 +63,63 @@ class PolicyReminderButton extends ConsumerWidget {
     );
   }
 
-  Future<PolicyReminderOption?> _selectOption(
+  Future<Set<ReminderTimeKind>?> _selectOptions(
     BuildContext context,
-    Set<PolicyReminderOption> current,
+    Set<ReminderTimeKind> current,
   ) async {
-    return showModalBottomSheet<PolicyReminderOption>(
+    return showModalBottomSheet<Set<ReminderTimeKind>>(
       context: context,
       builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final option in PolicyReminderOption.values)
-              ListTile(
-                leading: Icon(
-                  current.contains(option)
-                      ? Icons.check_circle
-                      : Icons.radio_button_off,
+        final selected = {...current};
+        return SafeArea(
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final option in ReminderTimeKind.values)
+                      CheckboxListTile(
+                        value: selected.contains(option),
+                        onChanged: (value) {
+                          setState(() {
+                            if (value ?? false) {
+                              selected.add(option);
+                            } else {
+                              selected.remove(option);
+                            }
+                          });
+                        },
+                        title: Text(option.label),
+                        subtitle: const Text('신청 마감 기준 알림을 예약합니다'),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('취소'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () =>
+                                  Navigator.of(context).pop(selected),
+                              child: const Text('저장'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                title: Text(option.label),
-                subtitle: Text(
-                  current.contains(option)
-                      ? '현재 설정됨 · 탭하여 해제'
-                      : '신청 마감 기준 알림을 예약합니다',
-                ),
-                onTap: () => Navigator.of(context).pop(option),
-              ),
-          ],
+              );
+            },
+          ),
         );
       },
     );

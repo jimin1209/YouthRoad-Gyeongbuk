@@ -1,7 +1,7 @@
 import '../../domain/entities/policy.dart';
-import '../../domain/entities/policy_reminder.dart';
 import '../../domain/values/policy_reminder_config.dart';
 import '../../domain/values/policy_reminder_status.dart';
+import '../../domain/values/reminder_time_kind.dart';
 
 class PolicyReminderScheduleResult {
   const PolicyReminderScheduleResult({
@@ -22,7 +22,7 @@ class PolicyReminderScheduler {
 
   PolicyReminderScheduleResult buildSchedule(
     Policy policy, {
-    PolicyReminderOption option = PolicyReminderOption.day1,
+    ReminderTimeKind option = ReminderTimeKind.day1,
   }) {
     final baseDate = policy.applicationEndDate ?? policy.applicationStartDate;
     if (baseDate == null) {

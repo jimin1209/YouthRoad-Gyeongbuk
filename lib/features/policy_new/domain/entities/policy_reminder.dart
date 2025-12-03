@@ -1,6 +1,6 @@
 import '../values/policy_reminder_status.dart';
 
-enum PolicyReminderOption { day1, day3, day7 }
+import '../values/reminder_time_kind.dart';
 
 class PolicyReminder {
   final String reminderId;
@@ -8,7 +8,7 @@ class PolicyReminder {
   final DateTime scheduledAt;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final PolicyReminderOption timeKind;
+  final ReminderTimeKind timeKind;
   final PolicyReminderStatus status;
 
   const PolicyReminder({
@@ -27,7 +27,7 @@ class PolicyReminder {
     DateTime? scheduledAt,
     DateTime? createdAt,
     DateTime? updatedAt,
-    PolicyReminderOption? timeKind,
+    ReminderTimeKind? timeKind,
     PolicyReminderStatus? status,
   }) {
     return PolicyReminder(
@@ -43,31 +43,7 @@ class PolicyReminder {
 }
 
 class PolicyReminderIdBuilder {
-  static String build({required String policyId, required PolicyReminderOption timeKind}) {
-    return '$policyId|${timeKind.name}';
-  }
-}
-
-extension PolicyReminderOptionX on PolicyReminderOption {
-  Duration get offset {
-    switch (this) {
-      case PolicyReminderOption.day1:
-        return const Duration(days: 1);
-      case PolicyReminderOption.day3:
-        return const Duration(days: 3);
-      case PolicyReminderOption.day7:
-        return const Duration(days: 7);
-    }
-  }
-
-  String get label {
-    switch (this) {
-      case PolicyReminderOption.day1:
-        return '마감 하루 전';
-      case PolicyReminderOption.day3:
-        return '마감 3일 전';
-      case PolicyReminderOption.day7:
-        return '마감 7일 전';
-    }
+  static String build({required String policyId, required ReminderTimeKind timeKind}) {
+    return '$policyId::${timeKind.name}';
   }
 }
