@@ -193,6 +193,278 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 # ============================================================
 # 🌐 5. TASKS (AGENTS.md 내부 통합 TASK 목록)
 # ============================================================
+💙💙💙💙💙💙💙💙💙💙💙💙💙
+💙💙💙❤️❤️❤️💙💙💙💙💙💙💙
+
+
+
+⸻
+
+🟦 TASK 11 — PolicyNew “비교 탭(Compare Feed)” 완전 설계 (job01 수준 MAX 퀄리티)
+
+전체 내용을 하나의 코드블록 안에, 그리고 Codex가 그대로 구현 가능한 기준으로 작성합니다.
+
+@chatgpt-codex
+# TASK 11 — PolicyNew Compare Feed (정책 비교 탭) Full Architecture Spec
+# (job01 레벨 시스템 정의 + 문제 정의 + 요구사항 + 아키텍처 + 데이터 흐름 + Provider 규칙 + UI 상태도 + 이벤트 흐름 + 파일구조 + 완전한 Acceptance Criteria)
+
+────────────────────────────────────────
+1. 시스템 정의 (System Definition)
+────────────────────────────────────────
+
+정책 비교 탭은 사용자가 관심있는 정책을 최대 2~4개까지 선택하여  
+정책의 핵심 항목을 한 화면에서 **표 형식으로 동시에 비교**할 수 있게 하는 기능이다.
+
+이 기능은 다음을 만족해야 한다:
+
+- 정책 상세에서 “비교 추가하기” 버튼 클릭 → 비교 리스트에 정책이 추가됨
+- 비교 탭은 항상 현재 비교 리스트를 실시간 반영
+- 정책을 탭에서 제거하면 모든 연동된 UI(EventBus) 에 즉시 반영
+- 비교 탭은 "표 기반 비교" + "핵심 정보 요약" + "차이 강조" UI 를 제공
+- 비교 탭 자체도 페이징 없이, 로컬에 저장된 compare 리스트 기반으로 구성됨
+
+정책 비교는 정책 추천/목록/검색과 다르게 **서버 API로 비교 요청을 하지 않는다.**  
+비교는 앱 내부의 Local 저장소(Isar or SharedPreferences or DB)에 있는 비교 ID 목록으로 동작한다.
+
+핵심 목표:  
+**비교 선택** → **비교 목록 저장** → **비교 탭에서 자동 반영** → **차이점 기반 표 제공**.
+
+────────────────────────────────────────
+2. 문제 정의 (Problem Statement)
+────────────────────────────────────────
+
+현재 PolicyNew 모듈에서는 비교 탭 관련 문제들이 있다:
+
+1) CompareFeedController만 존재하고 실제 비교 화면/기능 없음  
+2) “비교에 추가/삭제” 하는 UI/기능이 화면별로 통합되어 있지 않음  
+3) Compare 리스트를 저장/로드/수정하는 Repository는 있으나 UI 연동 없음  
+4) 두 정책의 차이를 강조하는 UI 구조 부재  
+5) 비교 탭이 각 정책의 상세 데이터(요약, 지원자격, 신청기간 등)를  
+   **동일한 필드 기준으로 정렬**하여 보여주는 기능이 없음  
+6) EventBus와 연동 규칙이 미구현  
+7) Compare 탭 내부 구성(UI/상태/Provider) 모두 공백
+
+따라서 “정책 비교” 기능은 현재 완전히 미구현이며  
+**전면 설계 + 아키텍처 작업이 필요**함.
+
+────────────────────────────────────────
+3. 요구사항 분석 (Requirements Analysis)
+────────────────────────────────────────
+
+◼ 사용자가 원하는 기능  
+- 정책 상세 화면에서 "비교 담기" 버튼 클릭 → 비교 리스트에 저장  
+- 비교 탭에서 정책 2~4개 동시에 비교 가능  
+- 비교 목록에서 정책 제거 가능  
+- 비교 탭에서 각 정책의 주요 정보가 표 형식으로 나열  
+- 차이가 있는 필드는 하이라이트 표시  
+- 정책 아이디 변경/삭제 시 자동 반영  
+- 정책 상세페이지 이동 가능  
+- 비교 리스트 초기화 버튼 존재
+
+◼ UI/UX 요구  
+- 2개만 선택해도 비교 UI 정상 작동  
+- 정책이 1개면 "비교할 정책을 더 선택해주세요" 메시지 표시  
+- 정책이 0개면 빈 상태  
+- 비교 표는 가로 스크롤(정책별 column) + 세로 리스트(비교 항목 row) 방식  
+- 각 정책 column 카드에는 썸네일/제목/지역/모집상태 표시  
+- 항목별: 제목, 요약, 지원자격, 혜택/지원내용, 신청기간, 기관/부서, 링크 등  
+- 차이가 있는 항목 highlight 처리
+
+◼ 기술 요구  
+- CompareRepository로부터 compareIDs 불러오기  
+- compareIDs 기반으로 PolicyRepository.fetchPolicyById 다건 호출  
+- compareIDs 변경 시 CompareFeedController 즉시 새 데이터 fetch  
+- EventBus 연동  
+- Local Storage 기반 유지  
+- 상태는 CompareFeedState = AsyncState<List<Policy>>
+
+────────────────────────────────────────
+4. 아키텍처 설계 (Architecture Design)
+────────────────────────────────────────
+
+◼ CompareFeature 구조
+
+Presentation
+└─ CompareTab
+├─ CompareScreen
+├─ CompareHeaderRowWidget
+├─ ComparePolicyColumnWidget
+├─ CompareDiffTableWidget
+├─ CompareEmptyWidget
+└─ CompareRemoveButton
+
+Application
+├─ compare_repository_provider (이미 존재)
+├─ compareFeedControllerProvider
+└─ compare_service.dart (비교 계산 로직: 차이점 계산 등)
+
+Domain
+└─ Policy(지원자격, 혜택, 신청기간 등 비교할 수 있는 Domain 필드)
+
+Infra
+└─ CompareRepositoryImpl (local ID list 저장/불러오기)
+
+◼ CompareFeedController 동작
+
+1. compareRepository.ids 가져옴  
+2. ids 가 0 → CompareScreen은 빈 화면 표시  
+3. ids 가 1 → CompareScreen “비교할 정책 부족” 표시  
+4. ids ≥ 2 → ids 기반으로 여러 정책을 병렬 fetch  
+5. fetch 결과 domainPolicyList 로 변환  
+6. CompareDiffCalculator 로 각 항목별 difference map 생성  
+7. CompareScreen에서 table 형태로 렌더링  
+
+────────────────────────────────────────
+5. 데이터 파이프라인 / 흐름도 (Data Flow Diagram)
+────────────────────────────────────────
+
+1) 비교 추가  
+
+[정책상세 화면]
+→ CompareRepository.add(id)
+→ Local DB 저장
+→ policyEventBus.emit(favoritesChanged or compareChanged)
+→ CompareFeedController.refresh()
+
+2) 비교 탭 진입  
+
+[CompareScreen]
+→ CompareFeedController.load()
+→ compareRepository.ids 읽음
+→ ids → PolicyRepository.fetchById() 병렬 호출
+→ results → List
+→ CompareDiffService.calculateDiffs()
+→ CompareState(data: policies, diffs)
+
+3) 비교 정책 제거  
+
+[CompareScreen RemoveButton]
+→ compareRepository.remove(id)
+→ policyEventBus.emit(compareChanged)
+→ CompareFeedController.refresh()
+
+────────────────────────────────────────
+6. Provider / Controller 상호작용 규칙
+────────────────────────────────────────
+
+◼ compareRepositoryProvider  
+- ids: List<String>  
+- add(id), remove(id), clear()
+
+◼ compareFeedControllerProvider  
+- load()  
+- refresh()  
+- remove(id) → repository.remove(id) → refresh()  
+- state: AsyncValue<CompareState>  
+  - CompareState: { policies: List<Policy>, diffs: CompareDiffMap }
+
+◼ policyEventBusProvider  
+- compareChanged 발생 시 compareFeedController.refresh()
+
+◼ policyRepositoryProvider  
+- fetchPolicyDetailById(id) 제공  
+- 비교시 반드시 정책 상세 데이터 전부 로드
+
+────────────────────────────────────────
+7. UI 상태도 (UI State Diagram)
+────────────────────────────────────────
+
+      +--------------------+
+      | Compare Tab Opened |
+      +----------+---------+
+                 |
+                 v
+    +--------------------------+
+    | compareRepository.ids ?  |
+    +------+-------------------+
+           |
+ +---------+--------+
+ |                  |
+
+ids == 0         ids == 1            ids >= 2
+(Empty)        (Need More)           (Compare)
+|               |                     |
+v               v                     v
+CompareEmpty   CompareNeedMore        CompareTable   <–– refresh()
+
+────────────────────────────────────────
+8. 이벤트 흐름 (Event Flow)
+────────────────────────────────────────
+
+1) 정책상세에서 "비교 추가하기" 버튼 터치  
+→ compareRepository.add(id)  
+→ EventBus(compareChanged)  
+→ CompareFeedController.refresh()  
+→ CompareScreen UI 자동 갱신
+
+2) 비교 탭에서 정책 제거 버튼 터치  
+→ compareRepository.remove(id)  
+→ EventBus(compareChanged)  
+→ CompareFeedController.refresh()
+
+3) 필터/정렬 UI 변경 시 비교 탭은 영향 X  
+(비교 탭은 UI 필터를 사용하지 않음)
+
+────────────────────────────────────────
+9. 파일 구조 (File Structure)
+────────────────────────────────────────
+
+lib/features/policy_new/
+compare/
+controllers/
+compare_feed_controller.dart
+compare_diff_service.dart
+presentation/
+compare_screen.dart
+compare_empty_widget.dart
+compare_need_more_widget.dart
+compare_header_row_widget.dart
+compare_policy_column_widget.dart
+compare_diff_table_widget.dart
+compare_remove_button.dart
+
+────────────────────────────────────────
+10. CompareDiffService (정책 차이점 계산 로직)
+────────────────────────────────────────
+
+차이점 계산 규칙 예시:
+
+- 지원자격(age/job/education)이 다르면 highlight  
+- 신청기간(날짜)이 다르면 highlight  
+- 지원금/지원방식/혜택이 다르면 highlight  
+- 기관/부서 다르면 highlight  
+
+구현은 Map<String, bool> 형태로 관리:
+
+{
+“지원자격”: true,
+“신청기간”: false,
+…
+}
+
+────────────────────────────────────────
+11. Acceptance Criteria (완료 기준)
+────────────────────────────────────────
+
+□ CompareScreen이 정상적으로 두 정책 이상을 비교 표로 렌더링  
+□ CompareScreen에서 비교 정책 추가/제거 UI 정상 동작  
+□ 정책상세 화면에서 "비교 담기" 버튼 클릭 → CompareScreen에 자동 반영  
+□ CompareDiffService가 항목별 차이점 계산 가능  
+□ CompareFeedController가 ids 변화 → 자동 refresh 동작  
+□ EventBus(compareChanged)로 모든 화면이 StateSync 됨  
+□ 비교 탭은 Filter/Sort/Keyword 상태에 영향 받지 않음  
+□ Compare info가 LocalStorage에 영구 저장  
+□ Compare UI가 가로 스크롤 + 세로 리스트 방식으로 표 형태 렌더링  
+□ Compare 화면에서 정책 상세로 이동 가능  
+
+────────────────────────────────────────
+(End of TASK 11)
+
+
+⸻
+
+
+
 
 @chatgpt-codex
 # TASK 10 — Recommendation UX System (Full Specification)
