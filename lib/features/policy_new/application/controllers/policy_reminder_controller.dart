@@ -7,7 +7,7 @@ import '../providers.dart';
 import '../services/policy_reminder_service.dart';
 
 class PolicyReminderController
-    extends StateNotifier<AsyncValue<PolicyReminder?>> {
+    extends StateNotifier<AsyncValue<List<PolicyReminder>>> {
   PolicyReminderController({
     required this.ref,
     required this.policyId,
@@ -31,31 +31,47 @@ class PolicyReminderController
         await ref.read(policyReminderRepositoryProvider).getRemindersForPolicy(
               policyId,
             );
-    final existing = reminders.isEmpty ? null : reminders.first;
-    state = AsyncData(existing);
+    reminders.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    state = AsyncData(reminders);
   }
 
   Future<void> setReminder(Policy policy, PolicyReminderOption option) async {
+    final previous = [...(state.value ?? [])];
     state = const AsyncLoading();
     try {
       final reminder = await _service.upsertReminder(policy, option: option);
-      state = AsyncData(reminder);
+      final current = [...previous];
+      current.removeWhere((item) => item.timeKind == option);
+      current.add(reminder);
+      current.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      state = AsyncData(current);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
   }
 
-  Future<void> cancelReminder() async {
+  Future<void> cancelReminder(PolicyReminderOption option) async {
+    final previous = [...(state.value ?? [])];
     state = const AsyncLoading();
     try {
-      await _service.cancelReminderByPolicyId(policyId);
-      state = const AsyncData(null);
+      await _service.cancelReminderByPolicyAndTimeKind(policyId, option);
+      final current = [...previous]..removeWhere((item) => item.timeKind == option);
+      current.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      state = AsyncData(current);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
   }
 
   PolicyReminderStatus? currentStatus() {
-    return state.maybeWhen(data: (reminder) => reminder?.status, orElse: () => null);
+    return state.maybeWhen(
+      data: (reminders) {
+        if (reminders.isEmpty) return null;
+        final sorted = [...reminders]
+          ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+        return sorted.first.status;
+      },
+      orElse: () => null,
+    );
   }
 }

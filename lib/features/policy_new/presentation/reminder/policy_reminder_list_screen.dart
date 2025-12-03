@@ -37,7 +37,7 @@ class PolicyReminderListScreen extends ConsumerWidget {
                     PolicyReminderListItem(
                       reminder: reminder,
                       onCancel: () =>
-                          controller.cancelReminder(reminder.policyId),
+                          controller.cancelReminder(reminder.reminderId),
                       onTap: () =>
                           _openDetail(context: context, policyId: reminder.policyId),
                     ),
@@ -55,7 +55,7 @@ class PolicyReminderListScreen extends ConsumerWidget {
                     PolicyReminderListItem(
                       reminder: reminder,
                       onCancel: () =>
-                          controller.cancelReminder(reminder.policyId),
+                          controller.cancelReminder(reminder.reminderId),
                       onTap: () =>
                           _openDetail(context: context, policyId: reminder.policyId),
                     ),

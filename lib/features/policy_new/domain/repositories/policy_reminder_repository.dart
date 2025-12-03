@@ -4,6 +4,14 @@ abstract class PolicyReminderRepository {
   Future<void> saveReminder(PolicyReminder reminder);
   Future<void> deleteReminder(String reminderId);
   Future<PolicyReminder?> getReminder(String reminderId);
+  Future<PolicyReminder?> getReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  );
+  Future<void> deleteReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  );
   Future<List<PolicyReminder>> getRemindersForPolicy(String policyId);
   Future<List<PolicyReminder>> getAllReminders();
 }

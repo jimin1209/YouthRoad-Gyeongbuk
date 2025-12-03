@@ -9,6 +9,14 @@ abstract class PolicyReminderLocalDataSource {
   Future<void> saveReminder(PolicyReminder reminder);
   Future<void> deleteReminder(String reminderId);
   Future<PolicyReminder?> getReminder(String reminderId);
+  Future<PolicyReminder?> getReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  );
+  Future<void> deleteReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  );
   Future<List<PolicyReminder>> getRemindersForPolicy(String policyId);
   Future<List<PolicyReminder>> getAllReminders();
 }
@@ -19,7 +27,7 @@ class InMemoryPolicyReminderLocalDataSource
 
   @override
   Future<void> saveReminder(PolicyReminder reminder) async {
-    _reminders[reminder.id] = reminder;
+    _reminders[reminder.reminderId] = reminder;
   }
 
   @override
@@ -30,6 +38,30 @@ class InMemoryPolicyReminderLocalDataSource
   @override
   Future<PolicyReminder?> getReminder(String reminderId) async {
     return _reminders[reminderId];
+  }
+
+  @override
+  Future<PolicyReminder?> getReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  ) async {
+    for (final reminder in _reminders.values) {
+      if (reminder.policyId == policyId && reminder.timeKind == timeKind) {
+        return reminder;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<void> deleteReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  ) async {
+    final target = await getReminderByPolicyAndTimeKind(policyId, timeKind);
+    if (target != null) {
+      _reminders.remove(target.reminderId);
+    }
   }
 
   @override
@@ -60,7 +92,7 @@ class SharedPrefsPolicyReminderLocalDataSource
     final reminders = await _loadReminders();
     final updated = [
       for (final existing in reminders)
-        if (existing.id != reminder.id) existing,
+        if (existing.reminderId != reminder.reminderId) existing,
       reminder,
     ];
     await _saveReminders(updated);
@@ -71,7 +103,7 @@ class SharedPrefsPolicyReminderLocalDataSource
     final reminders = await _loadReminders();
     final updated = [
       for (final reminder in reminders)
-        if (reminder.id != reminderId) reminder,
+        if (reminder.reminderId != reminderId) reminder,
     ];
     await _saveReminders(updated);
   }
@@ -80,11 +112,39 @@ class SharedPrefsPolicyReminderLocalDataSource
   Future<PolicyReminder?> getReminder(String reminderId) async {
     final reminders = await _loadReminders();
     for (final reminder in reminders) {
-      if (reminder.id == reminderId) {
+      if (reminder.reminderId == reminderId) {
         return reminder;
       }
     }
     return null;
+  }
+
+  @override
+  Future<PolicyReminder?> getReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  ) async {
+    final reminders = await _loadReminders();
+    for (final reminder in reminders) {
+      if (reminder.policyId == policyId && reminder.timeKind == timeKind) {
+        return reminder;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<void> deleteReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  ) async {
+    final reminders = await _loadReminders();
+    final updated = [
+      for (final reminder in reminders)
+        if (reminder.policyId != policyId || reminder.timeKind != timeKind)
+          reminder,
+    ];
+    await _saveReminders(updated);
   }
 
   @override
@@ -108,7 +168,8 @@ class SharedPrefsPolicyReminderLocalDataSource
         .map(
           (reminder) => jsonEncode(
             {
-              'id': reminder.id,
+              'id': reminder.reminderId,
+              'reminderId': reminder.reminderId,
               'policyId': reminder.policyId,
               'scheduledAt': reminder.scheduledAt.toUtc().toIso8601String(),
               'createdAt': reminder.createdAt.toUtc().toIso8601String(),
@@ -136,6 +197,7 @@ class SharedPrefsPolicyReminderLocalDataSource
   PolicyReminder _decodeReminder(Map<String, dynamic> map) {
     final timeKindValue = map['timeKind'] as String?;
     final statusValue = map['status'] as String?;
+    final reminderId = (map['reminderId'] as String?) ?? (map['id'] as String);
 
     final timeKind = PolicyReminderOption.values.firstWhere(
       (option) => option.name == timeKindValue,
@@ -148,7 +210,7 @@ class SharedPrefsPolicyReminderLocalDataSource
     );
 
     return PolicyReminder(
-      id: map['id'] as String,
+      reminderId: reminderId,
       policyId: map['policyId'] as String,
       scheduledAt: DateTime.parse(map['scheduledAt'] as String).toUtc(),
       createdAt: DateTime.parse(map['createdAt'] as String).toUtc(),

@@ -349,7 +349,7 @@ final policyDetailProvider =
 );
 
 final policyReminderControllerProvider = StateNotifierProvider.family<
-    PolicyReminderController, AsyncValue<PolicyReminder?>, String>(
+    PolicyReminderController, AsyncValue<List<PolicyReminder>>, String>(
   (ref, policyId) => PolicyReminderController(
     ref: ref,
     policyId: policyId,
@@ -368,7 +368,12 @@ final policyReminderStatusProvider =
     Provider.family<PolicyReminderStatus?, String>((ref, policyId) {
   final reminderState = ref.watch(policyReminderControllerProvider(policyId));
   return reminderState.maybeWhen(
-    data: (reminder) => reminder?.status,
+    data: (reminders) {
+      if (reminders.isEmpty) return null;
+      final sorted = [...reminders]
+        ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      return sorted.first.status;
+    },
     orElse: () => null,
   );
 });

@@ -26,11 +26,15 @@ class PolicyReminderService {
   }) async {
     final schedule = scheduler.buildSchedule(policy, option: option);
     final now = DateTime.now().toUtc();
+    final reminderId =
+        PolicyReminderIdBuilder.build(policyId: policy.id, timeKind: option);
+    final existing =
+        await repository.getReminderByPolicyAndTimeKind(policy.id, option);
     final reminder = PolicyReminder(
-      id: policy.id,
+      reminderId: reminderId,
       policyId: policy.id,
       scheduledAt: schedule.scheduledAt,
-      createdAt: now,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       timeKind: option,
       status: schedule.status,
@@ -47,17 +51,31 @@ class PolicyReminderService {
     return reminder;
   }
 
-  Future<void> cancelReminderByPolicyId(String policyId) async {
-    final reminders = await repository.getRemindersForPolicy(policyId);
-    if (reminders.isEmpty) {
-      return;
-    }
-    final reminder = reminders.first;
-    await repository.deleteReminder(reminder.id);
-    await notificationGateway.cancelReminder(reminder.id);
+  Future<void> cancelReminderByPolicyAndTimeKind(
+    String policyId,
+    PolicyReminderOption timeKind,
+  ) async {
+    final reminder =
+        await repository.getReminderByPolicyAndTimeKind(policyId, timeKind);
+    if (reminder == null) return;
+
+    await repository.deleteReminder(reminder.reminderId);
+    await notificationGateway.cancelReminder(reminder.reminderId);
     eventBus.emit(PolicyEvent(
       PolicyEventType.reminderChanged,
       policyId: policyId,
+    ));
+  }
+
+  Future<void> cancelReminderById(String reminderId) async {
+    final reminder = await repository.getReminder(reminderId);
+    if (reminder == null) return;
+
+    await repository.deleteReminder(reminder.reminderId);
+    await notificationGateway.cancelReminder(reminder.reminderId);
+    eventBus.emit(PolicyEvent(
+      PolicyEventType.reminderChanged,
+      policyId: reminder.policyId,
     ));
   }
 
@@ -74,7 +92,7 @@ class PolicyReminderService {
           updatedAt: now,
         );
         await repository.saveReminder(expiredReminder);
-        await notificationGateway.cancelReminder(expiredReminder.id);
+        await notificationGateway.cancelReminder(expiredReminder.reminderId);
         updated.add(expiredReminder);
       }
     }

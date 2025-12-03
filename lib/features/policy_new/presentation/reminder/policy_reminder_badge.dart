@@ -15,9 +15,14 @@ class PolicyReminderBadge extends ConsumerWidget {
     final reminderState = ref.watch(policyReminderControllerProvider(policyId));
 
     return reminderState.when(
-      data: (reminder) {
-        if (reminder == null) return const SizedBox.shrink();
-        if (reminder.status == PolicyReminderStatus.canceled) {
+      data: (reminders) {
+        final activeReminders = reminders
+            .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
+            .toList();
+        if (activeReminders.isEmpty) return const SizedBox.shrink();
+        activeReminders.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+        final targetReminder = activeReminders.first;
+        if (targetReminder.status == PolicyReminderStatus.canceled) {
           return const SizedBox.shrink();
         }
         return Row(
@@ -26,9 +31,11 @@ class PolicyReminderBadge extends ConsumerWidget {
             const Icon(Icons.notifications_active, size: 16, color: Colors.orange),
             const SizedBox(width: 4),
             Text(
-              reminder.status == PolicyReminderStatus.expired
+              targetReminder.status == PolicyReminderStatus.expired
                   ? '만료'
-                  : reminder.timeKind.label,
+                  : activeReminders.length > 1
+                      ? '${targetReminder.timeKind.label} 외 ${activeReminders.length - 1}'
+                      : targetReminder.timeKind.label,
               style: Theme.of(context).textTheme.labelSmall,
             ),
           ],
