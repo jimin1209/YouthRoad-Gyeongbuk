@@ -4,23 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/entities/policy.dart';
 import '../domain/repositories/policy_repository.dart';
-import '../domain/values/policy_failure.dart';
-import '../domain/values/policy_logger.dart';
-import '../domain/values/policy_filter.dart';
-import '../domain/values/policy_query.dart';
-import '../domain/values/policy_region.dart';
 import '../domain/values/policy_event.dart';
+import '../domain/values/policy_failure.dart';
 import '../domain/values/policy_feed_type.dart';
+import '../domain/values/policy_logger.dart';
+import '../domain/values/policy_region.dart';
 import '../domain/values/policy_settings.dart';
 import '../domain/values/policy_sort.dart';
 import 'controllers/base_feed_controller.dart';
 import 'controllers/policy_detail_controller.dart';
 import 'controllers/policy_event_bus.dart';
 import 'controllers/policy_feed_controllers.dart';
-import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_paging_controller.dart';
-import 'controllers/policy_query_controller.dart';
+import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
+import 'filters/policy_filter_ui_state.dart';
 import '../data/cache/policy_cache.dart';
 import '../data/repositories/policy_repository_impl.dart';
 import '../data/sources/policy_remote_source.dart';
@@ -28,7 +26,14 @@ import '../data/sources/policy_remote_source_mock.dart';
 
 class UserProfile {
   final PolicyRegion region;
-  const UserProfile({required this.region});
+  final int? age;
+  final List<String> recommendTags;
+
+  const UserProfile({
+    required this.region,
+    this.age,
+    this.recommendTags = const [],
+  });
 }
 
 class FavoriteRepository {
@@ -76,7 +81,11 @@ final policyEventBusProvider =
 );
 
 final userProfileProvider = Provider<UserProfile>((ref) {
-  return const UserProfile(region: PolicyRegion.gyeongbuk);
+  return const UserProfile(
+    region: PolicyRegion.gyeongbuk,
+    age: null,
+    recommendTags: ['청년', '창업', '주거'],
+  );
 });
 
 final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) {
@@ -130,10 +139,6 @@ final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
   );
 });
 
-final policyQueryEngineProvider = Provider(
-  (ref) => PolicyQueryEngine(ref),
-);
-
 final policyPagingControllerProvider =
     StateNotifierProvider<PolicyPagingController, AsyncValue<List<Policy>>>(
         (ref) {
@@ -144,59 +149,6 @@ final policyPagingControllerProvider =
     eventBus: ref.read(policyEventBusProvider.notifier),
   );
 });
-
-PolicyQuery _initialQueryFor(Ref ref, PolicyFeedType type) {
-  final settings = ref.read(policySettingsProvider);
-  switch (type) {
-    case PolicyFeedType.recommend:
-      return PolicyQuery(
-        feedType: type,
-        filter: PolicyFilter(region: settings.defaultRegion),
-        sort: PolicySortOption.recommendation,
-      );
-    case PolicyFeedType.all:
-      return PolicyQuery(
-        feedType: type,
-        filter: const PolicyFilter(),
-        sort: PolicySortOption.latest,
-      );
-    case PolicyFeedType.region:
-      final user = ref.read(userProfileProvider);
-      return PolicyQuery(
-        feedType: type,
-        filter: PolicyFilter(region: user.region),
-        sort: PolicySortOption.latest,
-      );
-    case PolicyFeedType.search:
-      return const PolicyQuery(
-        feedType: PolicyFeedType.search,
-        filter: PolicyFilter(),
-        sort: PolicySortOption.latest,
-      );
-    case PolicyFeedType.favorite:
-      final favIds = ref.read(favoriteRepositoryProvider).allIds;
-      return PolicyQuery(
-        feedType: type,
-        filter: const PolicyFilter(),
-        tags: favIds,
-        sort: PolicySortOption.latest,
-      );
-    case PolicyFeedType.compare:
-      final compareIds = ref.read(compareRepositoryProvider).ids;
-      return PolicyQuery(
-        feedType: type,
-        filter: const PolicyFilter(),
-        tags: compareIds,
-        sort: PolicySortOption.latest,
-      );
-  }
-}
-
-final policyQueryProvider =
-    StateNotifierProvider.family<PolicyQueryController, PolicyQuery, PolicyFeedType>(
-  (ref, feedType) =>
-      PolicyQueryController(initialQuery: _initialQueryFor(ref, feedType)),
-);
 
 final recommendFeedControllerProvider =
     StateNotifierProvider<RecommendFeedController, PolicyPagingState>(
