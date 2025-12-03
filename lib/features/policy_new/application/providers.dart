@@ -2,8 +2,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/env.dart';
+import '../domain/entities/department.dart';
+import '../domain/entities/institution.dart';
 import '../domain/entities/policy.dart';
 import '../domain/repositories/policy_repository.dart';
+import '../domain/repositories/institution_repository.dart';
+import '../domain/repositories/department_repository.dart';
 import '../domain/values/policy_event.dart';
 import '../domain/values/policy_failure.dart';
 import '../domain/values/policy_feed_type.dart';
@@ -28,8 +33,12 @@ import 'filters/policy_filter_ui_state.dart';
 import '../data/cache/policy_cache.dart';
 import '../data/repositories/policy_repository_impl.dart';
 import '../data/repositories_impl/policy_reminder_local_repository.dart';
+import '../data/repositories/institution_repository_impl.dart';
+import '../data/repositories/department_repository_impl.dart';
 import '../data/sources/policy_remote_source.dart';
 import '../data/sources/policy_remote_source_mock.dart';
+import '../data/sources/institution_remote_source.dart';
+import '../data/sources/department_remote_source.dart';
 
 class UserProfile {
   final PolicyRegion region;
@@ -75,6 +84,8 @@ final policySettingsProvider = Provider<PolicySettings>((ref) {
     pageSize: 20,
     defaultRegion: PolicyRegion.gyeongbuk,
     enableCache: true,
+    apiKey: Env.youthApiKey,
+    baseUrl: Env.policyApiBaseUrl,
   );
 });
 
@@ -121,7 +132,12 @@ final dioProvider = Provider((ref) {
 });
 
 final policyRemoteSourceProvider = Provider((ref) {
-  return PolicyRemoteSource(ref.watch(dioProvider));
+  final settings = ref.watch(policySettingsProvider);
+  return PolicyRemoteSource(
+    ref.watch(dioProvider),
+    apiKey: settings.apiKey,
+    baseUrl: settings.baseUrl,
+  );
 });
 
 final mockPolicyRemoteSourceProvider = Provider((ref) {
@@ -134,6 +150,44 @@ final activePolicyRemoteProvider = Provider<PolicyRemoteSource>((ref) {
       ? ref.watch(mockPolicyRemoteSourceProvider)
       : ref.watch(policyRemoteSourceProvider);
 });
+
+final institutionRemoteSourceProvider = Provider((ref) {
+  final settings = ref.watch(policySettingsProvider);
+  return InstitutionRemoteSource(
+    ref.watch(dioProvider),
+    apiKey: settings.apiKey,
+    baseUrl: settings.baseUrl,
+  );
+});
+
+final departmentRemoteSourceProvider = Provider((ref) {
+  final settings = ref.watch(policySettingsProvider);
+  return DepartmentRemoteSource(
+    ref.watch(dioProvider),
+    apiKey: settings.apiKey,
+    baseUrl: settings.baseUrl,
+  );
+});
+
+final institutionRepositoryProvider = Provider<InstitutionRepository>((ref) {
+  return InstitutionRepositoryImpl(ref.watch(institutionRemoteSourceProvider));
+});
+
+final departmentRepositoryProvider = Provider<DepartmentRepository>((ref) {
+  return DepartmentRepositoryImpl(ref.watch(departmentRemoteSourceProvider));
+});
+
+final institutionListProvider = FutureProvider<List<Institution>>((ref) {
+  return ref.watch(institutionRepositoryProvider).fetchInstitutions();
+});
+
+final departmentListProvider = FutureProvider.family<List<Department>, String>(
+  (ref, instNo) {
+    return ref
+        .watch(departmentRepositoryProvider)
+        .fetchDepartments(instNo: instNo);
+  },
+);
 
 final policyCacheProvider = Provider((ref) => PolicyCache());
 

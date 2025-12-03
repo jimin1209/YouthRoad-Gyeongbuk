@@ -75,7 +75,7 @@ PolicyCategory _parseCategory(String? value) {
 }
 
 class PolicyRemoteSourceMock extends PolicyRemoteSource {
-  PolicyRemoteSourceMock() : super(Dio());
+  PolicyRemoteSourceMock() : super(Dio(), apiKey: '', baseUrl: '');
 
   @override
   Future<List<PolicyModel>> fetchPoliciesWithParams(
@@ -83,60 +83,37 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
   ) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
 
-    final int page = queryParameters['page'] as int? ?? 1;
-    final int size = queryParameters['size'] as int? ?? 10;
-    final String feedType = (queryParameters['feed_type'] as String?) ?? 'all';
+    final int page = queryParameters['pageIndex'] as int? ??
+        queryParameters['page'] as int? ??
+        1;
+    final int size = queryParameters['pageSize'] as int? ??
+        queryParameters['size'] as int? ??
+        10;
+    final String feedType =
+        (queryParameters['feed_type'] as String?) ?? 'all';
     final PolicyRegion region =
-        _parseRegion((queryParameters['region'] as String?) ?? 'all');
-    final PolicyCategory category =
-        _parseCategory((queryParameters['category'] as String?) ?? 'employment');
-    final List<String> selectedTags = (queryParameters['tags'] as String?)
-            ?.split(',')
-            .where((tag) => tag.isNotEmpty)
-            .toList() ??
-        const [];
-    final List<String> filterTags = (queryParameters['tag_filters'] as String?)
-            ?.split(',')
-            .where((tag) => tag.isNotEmpty)
-            .toList() ??
-        const [];
-    final List<String> mergedTags = {
-      ...filterTags,
-      ...selectedTags,
-    }.toList();
-    final List<String> tags = mergedTags.isNotEmpty ? mergedTags : const ['sample'];
-    final List<String> keywords = tags.isNotEmpty ? tags : const ['sample'];
+        _parseRegion((queryParameters['searchRgnSe'] as String?) ?? 'all');
+    final PolicyCategory category = _parseCategory(
+        (queryParameters['searchPolicyType'] as String?) ?? 'employment');
 
     return List.generate(
       size,
       (i) => PolicyModel(
         id: 'mock_${feedType}_${page}_$i',
-        title: 'Mock Policy ${page}_$i',
-        summary: 'Mock summary for page $page item $i',
-        description: 'Mock description for page $page item $i',
-        region: region,
-        category: category,
-        tags: tags,
-        keywords: keywords,
-        applicationStartDate: DateTime.now().toIso8601String(),
-        applicationEndDate:
-            DateTime.now().add(const Duration(days: 10)).toIso8601String(),
-        announceDate: DateTime.now().toIso8601String(),
-        isOnline: true,
-        isOffline: true,
-        minAge: 19,
-        maxAge: 39,
-        isForYouth: true,
-        incomeCondition: '제한 없음',
-        educationCondition: '무관',
-        employmentCondition: '무관',
-        applyUrl: 'https://example.com/apply',
-        attachmentUrl: 'https://example.com/attachment',
-        institution: '청년정책센터',
-        department: '정책기획팀',
-        contact: '02-000-0000',
-        createdAt: DateTime.now().toIso8601String(),
-        updatedAt: DateTime.now().toIso8601String(),
+        name: 'Mock Policy ${page}_$i',
+        regionName: region.name,
+        typeName: category.name,
+        policyScale: 'Mock summary for page $page item $i',
+        policyContent: 'Mock description for page $page item $i',
+        onlineApply: true,
+        applyStart: DateTime.now(),
+        applyEnd: DateTime.now().add(const Duration(days: 10)),
+        detailUrl: 'https://example.com/apply',
+        inquiry: '02-000-0000',
+        supervisorName: '청년정책센터',
+        operatorName: '정책기획팀',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       ),
     );
   }
@@ -146,32 +123,20 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
     await Future<void>.delayed(const Duration(milliseconds: 150));
     return PolicyModel(
       id: id,
-      title: 'Mock Policy Detail $id',
-      summary: 'Summary of mock detail $id',
-      description: 'Detailed description for $id',
-      region: PolicyRegion.gyeongbuk,
-      category: PolicyCategory.employment,
-      tags: const ['mock', 'sample'],
-      keywords: const ['mock', 'sample'],
-      applicationStartDate: DateTime.now().toIso8601String(),
-      applicationEndDate:
-          DateTime.now().add(const Duration(days: 5)).toIso8601String(),
-      announceDate: DateTime.now().toIso8601String(),
-      isOnline: true,
-      isOffline: true,
-      minAge: 19,
-      maxAge: 39,
-      isForYouth: true,
-      incomeCondition: '소득 무관',
-      educationCondition: '학력 무관',
-      employmentCondition: '취업 상태 무관',
-      applyUrl: 'https://example.com/apply/$id',
-      attachmentUrl: 'https://example.com/attachment/$id',
-      institution: '청년정책센터',
-      department: '정책팀',
-      contact: '02-000-0000',
-      createdAt: DateTime.now().toIso8601String(),
-      updatedAt: DateTime.now().toIso8601String(),
+      name: 'Mock Policy Detail $id',
+      regionName: PolicyRegion.gyeongbuk.name,
+      typeName: PolicyCategory.employment.name,
+      policyScale: 'Summary of mock detail $id',
+      policyContent: 'Detailed description for $id',
+      onlineApply: true,
+      applyStart: DateTime.now(),
+      applyEnd: DateTime.now().add(const Duration(days: 5)),
+      detailUrl: 'https://example.com/apply/$id',
+      inquiry: '02-000-0000',
+      supervisorName: '청년정책센터',
+      operatorName: '정책팀',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
   }
 }

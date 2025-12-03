@@ -3,6 +3,7 @@ enum PolicyEventType {
   favoritesChanged,
   compareListChanged,
   profileUpdated,
+  behaviorChanged,
   refreshRequested,
   reminderChanged,
   reminderBulkUpdated,
