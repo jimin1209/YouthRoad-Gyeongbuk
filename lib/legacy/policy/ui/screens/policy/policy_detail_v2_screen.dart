@@ -3,13 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
-import '../../../application/notifiers/policy_detail_notifier.dart';
-import '../../../application/providers.dart';
-import '../../../domain/entities/policy.dart';
-import '../../../navigation/route_paths.dart';
-import '../../widgets/app_appbar.dart';
-import '../../widgets/global_error_view.dart';
-import '../../widgets/policy_card_v2.dart';
+import 'package:youth_road_app/application/providers.dart';
+import 'package:youth_road_app/domain/entities/policy.dart';
+import 'package:youth_road_app/navigation/route_paths.dart';
+import 'package:youth_road_app/ui/widgets/app_appbar.dart';
+import 'package:youth_road_app/ui/widgets/global_error_view.dart';
+import 'package:youth_road_app/ui/widgets/policy_card_v2.dart';
 
 class PolicyDetailV2Screen extends ConsumerStatefulWidget {
   const PolicyDetailV2Screen({super.key, required this.id});

@@ -1,13 +1,13 @@
-// FILE: lib/application/policy/policy_list_notifier.dart
+// FILE: lib/legacy/policy/application/policy/policy_list_notifier.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/models/policy_filter.dart';
-import '../../data/sources/local/search_history_source.dart';
-import '../../domain/entities/policy.dart';
-import '../../domain/repositories/policy_repository.dart';
-import '../di.dart';
-import '../notifiers/region_notifier.dart';
+import 'package:youth_road_app/application/di.dart';
+import 'package:youth_road_app/application/notifiers/region_notifier.dart';
+import 'package:youth_road_app/data/models/policy_filter.dart';
+import 'package:youth_road_app/data/sources/local/search_history_source.dart';
+import 'package:youth_road_app/domain/entities/policy.dart';
+import 'package:youth_road_app/domain/repositories/policy_repository.dart';
 
 class PolicyListState {
   const PolicyListState({

@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/repositories/policy_repository.dart';
-import '../../features/policy/providers/policy_list_provider.dart';
-import '../di.dart';
-import '../notifiers/policy_paging_notifier.dart';
+import 'package:youth_road_app/application/di.dart';
+import 'package:youth_road_app/domain/repositories/policy_repository.dart';
+import 'package:youth_road_app/legacy/policy/application/notifiers/policy_paging_notifier.dart';
+import 'package:youth_road_app/legacy/policy/features/policy/providers/policy_list_provider.dart';
+
 import 'policy_paging_provider.dart';
 
 final policyPrefetchProvider =

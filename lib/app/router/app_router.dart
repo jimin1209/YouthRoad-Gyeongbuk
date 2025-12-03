@@ -2,22 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/splash/splash_page.dart';
-import '../../features/policy/ui/policy_list_page.dart';
+import '../../features/policy_new/presentation/screens/policy_feed_home_screen.dart';
 import '../../navigation/route_paths.dart';
 import '../../ui/screens/category/category_screen.dart';
 import '../../ui/screens/chatbot/chatbot_screen.dart';
 import '../../ui/screens/compare/compare_screen.dart';
 import '../../ui/screens/favorites/favorites_screen.dart';
-import '../../ui/screens/home/home_screen.dart';
 import '../../ui/screens/institution/department_list_screen.dart';
 import '../../ui/screens/institution/institution_list_screen.dart';
 import '../../features/map_v2/kakao_map_screen.dart';
 import '../../features/map_v2/kakao_map_test_page.dart';
 import '../../features/map_v2/map_with_list_screen.dart';
-import '../../ui/screens/policy/policy_compare_screen.dart';
-import '../../ui/screens/policy/policy_detail_v2_screen.dart';
-import '../../ui/screens/policy/policy_list_legacy_screen.dart';
-import '../../ui/screens/policy/policy_webview_page.dart';
+import '../../legacy/policy/ui/screens/policy/policy_compare_screen.dart';
+import '../../legacy/policy/ui/screens/policy/policy_detail_v2_screen.dart';
+import '../../legacy/policy/ui/screens/policy/policy_list_legacy_screen.dart';
+import '../../legacy/policy/ui/screens/policy/policy_webview_page.dart';
 import '../../ui/screens/region/region_select_screen.dart';
 import '../../ui/screens/setting/setting_screen.dart';
 import '../../ui/screens/setting/setting_v2_screen.dart';
@@ -63,7 +62,7 @@ class AppRouter {
               routes: [
                 GoRoute(
                   path: RoutePaths.home,
-                  builder: (context, state) => const HomeScreen(),
+                  builder: (context, state) => const PolicyFeedHomeScreen(),
                 ),
               ],
             ),
@@ -103,7 +102,7 @@ class AppRouter {
         ),
         GoRoute(
           path: RoutePaths.policyListV2,
-          builder: (context, state) => const PolicyListPage(),
+          builder: (context, state) => const PolicyFeedHomeScreen(),
         ),
         GoRoute(
           path: RoutePaths.policyLegacyList,

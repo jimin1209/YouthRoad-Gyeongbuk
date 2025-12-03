@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/entities/policy.dart';
-import '../../domain/repositories/policy_repository.dart';
-import '../di.dart';
+import 'package:youth_road_app/application/di.dart';
+import 'package:youth_road_app/domain/entities/policy.dart';
+import 'package:youth_road_app/domain/repositories/policy_repository.dart';
 
 class PolicyDetailState {
   const PolicyDetailState({

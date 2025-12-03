@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../domain/entities/policy.dart';
+import 'package:youth_road_app/domain/entities/policy.dart';
 
 final policyListProvider =
     StateNotifierProvider<PolicyListNotifier, AsyncValue<List<Policy>>>(

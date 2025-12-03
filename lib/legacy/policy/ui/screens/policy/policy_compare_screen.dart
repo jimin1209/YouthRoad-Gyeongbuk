@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../application/providers.dart';
-import '../../../application/services/eligibility_service.dart';
-import '../../widgets/app_appbar.dart';
-import '../../widgets/compare_badge.dart';
-import '../../widgets/policy_card_v2.dart';
+import 'package:youth_road_app/application/providers.dart';
+import 'package:youth_road_app/application/services/eligibility_service.dart';
+import 'package:youth_road_app/ui/widgets/app_appbar.dart';
+import 'package:youth_road_app/ui/widgets/compare_badge.dart';
+import 'package:youth_road_app/ui/widgets/policy_card_v2.dart';
 
 class PolicyCompareScreen extends ConsumerWidget {
   const PolicyCompareScreen({super.key});

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../application/providers.dart';
-import '../../../application/policy/policy_list_notifier.dart';
-import '../../widgets/global_error_view.dart';
-import '../../widgets/app_appbar.dart';
-import '../../widgets/policy_card.dart';
+import 'package:youth_road_app/application/providers.dart';
+import 'package:youth_road_app/legacy/policy/application/policy/policy_list_notifier.dart';
+import 'package:youth_road_app/ui/widgets/app_appbar.dart';
+import 'package:youth_road_app/ui/widgets/global_error_view.dart';
+import 'package:youth_road_app/ui/widgets/policy_card.dart';
 
 class PolicyListLegacyScreen extends ConsumerWidget {
   const PolicyListLegacyScreen({super.key});

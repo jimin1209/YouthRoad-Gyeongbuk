@@ -4,10 +4,10 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/policy_filter.dart';
-import '../../notifiers/policy_paging_notifier.dart';
+import '../../../data/sources/local/search_history_source.dart';
 import '../../providers.dart';
 import '../providers.dart';
-import '../../../data/sources/local/search_history_source.dart';
+import 'package:youth_road_app/legacy/policy/application/notifiers/policy_paging_notifier.dart';
 
 class SearchV2State {
   const SearchV2State({
