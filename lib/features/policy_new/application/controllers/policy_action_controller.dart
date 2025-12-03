@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
+import '../../domain/values/reminder_time_kind.dart';
 import '../providers.dart';
 
 class PolicyActionState {
@@ -105,18 +106,25 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     _setProcessing(false);
   }
 
-  Future<void> setReminder(Policy policy, PolicyReminderOption option) async {
+  Future<void> setReminderOptions(
+    Policy policy,
+    List<ReminderTimeKind> options,
+  ) async {
     if (state.isProcessing) return;
     _setProcessing(true);
     _setError(null);
     final controller = ref.read(policyReminderControllerProvider(policy.id).notifier);
     try {
-      await controller.setReminder(policy, option);
+      await controller.setReminders(policy, options);
     } catch (e) {
       _setError('알림을 설정하지 못했습니다: $e');
     } finally {
       _setProcessing(false);
     }
+  }
+
+  Future<void> setReminder(Policy policy, ReminderTimeKind option) async {
+    await setReminderOptions(policy, [option]);
   }
 
   Future<void> cancelReminder() async {
@@ -125,10 +133,7 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     _setError(null);
     final controller = ref.read(policyReminderControllerProvider(policyId).notifier);
     try {
-      final latestList = controller.state.value;
-      if (latestList != null && latestList.isNotEmpty) {
-        await controller.cancelReminder(latestList.first.timeKind);
-      }
+      await controller.cancelAll();
     } catch (e) {
       _setError('알림을 취소하지 못했습니다: $e');
     } finally {

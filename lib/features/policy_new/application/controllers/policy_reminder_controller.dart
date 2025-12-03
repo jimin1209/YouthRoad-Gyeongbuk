@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/values/policy_reminder_status.dart';
+import '../../domain/values/reminder_time_kind.dart';
 import '../providers.dart';
 import '../services/policy_reminder_service.dart';
 
@@ -35,29 +36,60 @@ class PolicyReminderController
     state = AsyncData(reminders);
   }
 
-  Future<void> setReminder(Policy policy, PolicyReminderOption option) async {
+  Future<void> setReminders(Policy policy, List<ReminderTimeKind> kinds) async {
     final previous = [...(state.value ?? [])];
     state = const AsyncLoading();
     try {
-      final reminder = await _service.upsertReminder(policy, option: option);
-      final current = [...previous];
-      current.removeWhere((item) => item.timeKind == option);
-      current.add(reminder);
-      current.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      final currentKinds = previous.map((reminder) => reminder.timeKind).toSet();
+      final nextKinds = kinds.toSet();
+
+      final toAdd = nextKinds.difference(currentKinds).toList();
+      final toRemove = currentKinds.difference(nextKinds);
+
+      final removed = <PolicyReminder>[];
+      for (final reminder in previous) {
+        if (toRemove.contains(reminder.timeKind)) {
+          await _service.cancelReminder(reminder.reminderId);
+          removed.add(reminder);
+        }
+      }
+
+      final added = await _service.createRemindersForPolicy(policy, toAdd);
+
+      final current = [
+        for (final reminder in previous)
+          if (!removed.contains(reminder)) reminder,
+        ...added,
+      ]
+        ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+
       state = AsyncData(current);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
   }
 
-  Future<void> cancelReminder(PolicyReminderOption option) async {
+  Future<void> removeReminder(String reminderId) async {
     final previous = [...(state.value ?? [])];
     state = const AsyncLoading();
     try {
-      await _service.cancelReminderByPolicyAndTimeKind(policyId, option);
-      final current = [...previous]..removeWhere((item) => item.timeKind == option);
-      current.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      await _service.cancelReminder(reminderId);
+      final current = [
+        for (final reminder in previous)
+          if (reminder.reminderId != reminderId) reminder,
+      ]
+        ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
       state = AsyncData(current);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
+
+  Future<void> cancelAll() async {
+    state = const AsyncLoading();
+    try {
+      await _service.cancelAllByPolicy(policyId);
+      state = const AsyncData([]);
     } catch (e, st) {
       state = AsyncError(e, st);
     }

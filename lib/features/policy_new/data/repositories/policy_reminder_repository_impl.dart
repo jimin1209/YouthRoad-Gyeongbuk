@@ -8,8 +8,13 @@ class PolicyReminderRepositoryImpl implements PolicyReminderRepository {
   final PolicyReminderLocalDataSource _localDataSource;
 
   @override
-  Future<void> deleteReminder(String reminderId) {
-    return _localDataSource.deleteReminder(reminderId);
+  Future<void> deleteReminderById(String reminderId) {
+    return _localDataSource.deleteReminderById(reminderId);
+  }
+
+  @override
+  Future<void> deleteRemindersByPolicy(String policyId) {
+    return _localDataSource.deleteRemindersByPolicy(policyId);
   }
 
   @override
@@ -23,28 +28,12 @@ class PolicyReminderRepositoryImpl implements PolicyReminderRepository {
   }
 
   @override
-  Future<PolicyReminder?> getReminderByPolicyAndTimeKind(
-    String policyId,
-    PolicyReminderOption timeKind,
-  ) {
-    return _localDataSource.getReminderByPolicyAndTimeKind(policyId, timeKind);
-  }
-
-  @override
-  Future<void> deleteReminderByPolicyAndTimeKind(
-    String policyId,
-    PolicyReminderOption timeKind,
-  ) {
-    return _localDataSource.deleteReminderByPolicyAndTimeKind(policyId, timeKind);
-  }
-
-  @override
   Future<List<PolicyReminder>> getRemindersForPolicy(String policyId) {
     return _localDataSource.getRemindersForPolicy(policyId);
   }
 
   @override
-  Future<void> saveReminder(PolicyReminder reminder) {
-    return _localDataSource.saveReminder(reminder);
+  Future<void> upsertReminder(PolicyReminder reminder) {
+    return _localDataSource.upsertReminder(reminder);
   }
 }

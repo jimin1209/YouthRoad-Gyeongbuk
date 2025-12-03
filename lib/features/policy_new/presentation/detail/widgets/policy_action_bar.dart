@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/policy.dart';
 import '../../../domain/entities/policy_reminder.dart';
 import '../../../domain/values/policy_reminder_status.dart';
+import '../../../domain/values/reminder_time_kind.dart';
 import '../../../application/controllers/policy_action_controller.dart';
 import '../../../application/providers.dart';
 
@@ -94,7 +95,7 @@ class _ReminderButton extends StatelessWidget {
 
   final Policy policy;
   final PolicyActionController controller;
-  final AsyncValue<PolicyReminder?> reminderState;
+  final AsyncValue<List<PolicyReminder>> reminderState;
   final bool isProcessing;
 
   @override
@@ -108,8 +109,14 @@ class _ReminderButton extends StatelessWidget {
     }
 
     return reminderState.when(
-      data: (reminder) {
-        final label = _label(reminder);
+      data: (reminders) {
+        final activeReminders = reminders
+            .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
+            .toList()
+          ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+        final label = _label(activeReminders);
+        final activeOptions =
+            activeReminders.map((reminder) => reminder.timeKind).toSet();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -117,15 +124,22 @@ class _ReminderButton extends StatelessWidget {
               onPressed: isProcessing
                   ? null
                   : () async {
-                      final option = await _selectOption(context, reminder?.timeKind);
-                      if (option != null) {
-                        await controller.setReminder(policy, option);
+                      final selected = await _selectOptions(context, activeOptions);
+                      if (selected != null) {
+                        await controller.setReminderOptions(
+                          policy,
+                          selected.toList(),
+                        );
                       }
                     },
-              icon: Icon(reminder == null ? Icons.notifications : Icons.notifications_active),
+              icon: Icon(
+                activeReminders.isEmpty
+                    ? Icons.notifications
+                    : Icons.notifications_active,
+              ),
               label: Text(label),
             ),
-            if (reminder != null)
+            if (activeReminders.isNotEmpty)
               TextButton(
                 onPressed: isProcessing ? null : controller.cancelReminder,
                 child: const Text('알림 취소'),
@@ -141,10 +155,9 @@ class _ReminderButton extends StatelessWidget {
             onPressed: isProcessing
                 ? null
                 : () async {
-                    final option =
-                        await _selectOption(context, PolicyReminderOption.values.first);
+                    final option = await _selectOptions(context, const {});
                     if (option != null) {
-                      await controller.setReminder(policy, option);
+                      await controller.setReminderOptions(policy, option.toList());
                     }
                   },
             icon: const Icon(Icons.notifications_active_outlined),
@@ -159,38 +172,76 @@ class _ReminderButton extends StatelessWidget {
     );
   }
 
-  String _label(PolicyReminder? reminder) {
-    if (reminder == null) {
+  String _label(List<PolicyReminder> reminders) {
+    if (reminders.isEmpty) {
       return '신청 알림 설정';
     }
-    if (reminder.status == PolicyReminderStatus.expired) {
+    final first = reminders.first;
+    if (first.status == PolicyReminderStatus.expired) {
       return '알림 만료됨';
     }
-    return '알림 설정됨 · ${reminder.timeKind.label}';
+    if (reminders.length == 1) {
+      return '알림 설정됨 · ${first.timeKind.label}';
+    }
+    return '알림 설정됨 · ${first.timeKind.label} 외 ${reminders.length - 1}';
   }
 
-  Future<PolicyReminderOption?> _selectOption(
+  Future<Set<ReminderTimeKind>?> _selectOptions(
     BuildContext context,
-    PolicyReminderOption? current,
+    Set<ReminderTimeKind> current,
   ) {
-    return showModalBottomSheet<PolicyReminderOption>(
+    return showModalBottomSheet<Set<ReminderTimeKind>>(
       context: context,
       builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final option in PolicyReminderOption.values)
-              ListTile(
-                leading: Icon(
-                  option == current
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
+        final selected = {...current};
+        return SafeArea(
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final option in ReminderTimeKind.values)
+                      CheckboxListTile(
+                        value: selected.contains(option),
+                        onChanged: (value) {
+                          setState(() {
+                            if (value ?? false) {
+                              selected.add(option);
+                            } else {
+                              selected.remove(option);
+                            }
+                          });
+                        },
+                        title: Text(option.label),
+                        subtitle: const Text('신청 마감 기준으로 알림을 설정합니다'),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('취소'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(selected),
+                              child: const Text('저장'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                title: Text(option.label),
-                subtitle: const Text('신청 마감 기준으로 알림을 설정합니다'),
-                onTap: () => Navigator.of(context).pop(option),
-              ),
-          ],
+              );
+            },
+          ),
         );
       },
     );
