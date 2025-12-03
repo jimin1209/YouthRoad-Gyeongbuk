@@ -6,6 +6,7 @@ import '../../domain/values/policy_logger.dart';
 import '../../domain/values/policy_region.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_query.dart';
+import '../../domain/values/policy_sort.dart';
 import '../../domain/values/policy_result.dart';
 import '../../domain/values/policy_settings.dart';
 import '../../domain/values/policy_feed_type.dart';
@@ -36,6 +37,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
       'recordCount': pageSize,
       'pagingYn': 'Y',
       'searchDsplyYn': 'all',
+      'feed_type': query.feedType.name,
+      'sort': query.sort.name,
     };
 
     if (query.keyword != null && query.keyword!.isNotEmpty) {
@@ -188,7 +191,10 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
     try {
       final models = await remote.fetchPoliciesWithParams(params);
-      final domainList = models.map((e) => e.toDomain()).toList();
+      final domainList = _applySorting(
+        query.sort,
+        models.map((e) => e.toDomain()).toList(),
+      );
 
       logger.info('원격 데이터 수신 (scope: $scopeKey, page: $page)');
 
@@ -236,6 +242,43 @@ class PolicyRepositoryImpl implements PolicyRepository {
       if (e is PolicyFailure) return PolicyResult.failure(e);
       return PolicyResult.failure(const UnknownFailure());
     }
+  }
+
+  List<Policy> _applySorting(PolicySortOption sort, List<Policy> list) {
+    final sorted = List<Policy>.from(list);
+
+    int compareDate(DateTime? a, DateTime? b) {
+      if (a == null && b == null) return 0;
+      if (a == null) return 1;
+      if (b == null) return -1;
+      return b.compareTo(a);
+    }
+
+    switch (sort) {
+      case PolicySortOption.latest:
+      case PolicySortOption.recommendation:
+        sorted.sort((a, b) {
+          final updatedCompare = compareDate(a.updatedAt, b.updatedAt);
+          if (updatedCompare != 0) return updatedCompare;
+          return compareDate(a.createdAt, b.createdAt);
+        });
+        break;
+      case PolicySortOption.deadline:
+        sorted.sort((a, b) {
+          final endA = a.applicationEndDate;
+          final endB = b.applicationEndDate;
+          if (endA == null && endB == null) return 0;
+          if (endA == null) return 1;
+          if (endB == null) return -1;
+          return endA.compareTo(endB);
+        });
+        break;
+      case PolicySortOption.popularity:
+        sorted.sort((a, b) => compareDate(a.createdAt, b.createdAt));
+        break;
+    }
+
+    return sorted;
   }
 
   String _mapRegion(PolicyRegion region) {
