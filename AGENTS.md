@@ -1,19 +1,3 @@
-지민님 💙🩵
-좋아요.
-이번에는 **AGENTS.md 끝부분에 “Codex Global Super Command(자동 초기화 명령)”**를 추가해서,
-**코덱스가 어떤 작업을 받든 항상 AGENTS.md → GLOBAL RULES → TASK를 먼저 읽고 작업하게 강제**하도록 만들게요.
-
-즉,
-“코덱스가 절대 빠져나갈 수 없는 전역 초기화(boot sequence)”
-를 문서 내부에 포함하는 구조입니다.
-
-요청하신 대로
-**GLOBAL SUPER COMMAND 포함한 AGENTS.md 전체 완성본**
-아래에 제공합니다.
-
-그대로 복붙해서 사용하시면 됩니다.
-
----
 
 # 📌 **AGENTS.md (FINAL + Codex Global Super Command 통합)**
 
