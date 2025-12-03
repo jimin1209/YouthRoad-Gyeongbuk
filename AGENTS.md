@@ -2257,7 +2257,30 @@ UI
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 
+# ERROR01
+lib/features/policy_new/application/controllers/base_feed_controller.dart:28:7: Error: The getter 'policyEventBusProvider' isn't defined for the class 'BasePolicyFeedController'.
+ - 'BasePolicyFeedController' is from 'package:youth_road_app/features/policy_new/application/controllers/base_feed_controller.dart' ('lib/features/policy_new/application/controllers/base_feed_controller.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'policyEventBusProvider'.
+      policyEventBusProvider,
+      ^^^^^^^^^^^^^^^^^^^^^^
+Target kernel_snapshot_program failed: Exception
 
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 10s
+
+#END OF ERROR01
 
 
 # ============================================================
