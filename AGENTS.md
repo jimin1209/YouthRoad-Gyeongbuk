@@ -5910,6 +5910,126 @@ job20-step4:
 
 ---
 
+# ISSUE 44
+lib/features/policy_new/application/providers.dart:134:39: Error: Type 'PolicyFeedType' not found.
+PolicyQuery _initialQueryFor(Ref ref, PolicyFeedType type) {
+                                      ^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:71:43: Error: 'PolicyEvent' isn't a type.
+    StateNotifierProvider<PolicyEventBus, PolicyEvent?>(
+                                          ^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:182:70: Error: 'PolicyFeedType' isn't a type.
+    StateNotifierProvider.family<PolicyQueryController, PolicyQuery, PolicyFeedType>(
+                                                                     ^^^^^^^^^^^^^^
+lib/features/policy_new/presentation/screens/policy_feed_home_screen.dart:57:46: Error: The getter 'label' isn't defined for the class '(String, PolicyFeedType)'.
+ - 'PolicyFeedType' is from 'package:youth_road_app/features/policy_new/domain/values/policy_feed_type.dart' ('lib/features/policy_new/domain/values/policy_feed_type.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
+          tabs: _tabs.map((e) => Tab(text: e.label)).toList(),
+                                             ^^^^^
+lib/features/policy_new/presentation/screens/policy_feed_home_screen.dart:64:35: Error: The getter 'type' isn't defined for the class '(String, PolicyFeedType)'.
+ - 'PolicyFeedType' is from 'package:youth_road_app/features/policy_new/domain/values/policy_feed_type.dart' ('lib/features/policy_new/domain/values/policy_feed_type.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'type'.
+          final isSearchTab = tab.type == PolicyFeedType.search;
+                                  ^^^^
+lib/features/policy_new/presentation/screens/policy_feed_home_screen.dart:66:27: Error: The getter 'type' isn't defined for the class '(String, PolicyFeedType)'.
+ - 'PolicyFeedType' is from 'package:youth_road_app/features/policy_new/domain/values/policy_feed_type.dart' ('lib/features/policy_new/domain/values/policy_feed_type.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'type'.
+            feedType: tab.type,
+                          ^^^^
+lib/features/policy_new/presentation/screens/policy_feed_home_screen.dart:80:53: Error: The getter 'type' isn't defined for the class '(String, PolicyFeedType)'.
+ - 'PolicyFeedType' is from 'package:youth_road_app/features/policy_new/domain/values/policy_feed_type.dart' ('lib/features/policy_new/domain/values/policy_feed_type.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'type'.
+    final currentType = _tabs[_tabController.index].type;
+                                                    ^^^^
+lib/legacy/policy/ui/screens/policy/policy_detail_v2_screen.dart:44:20: Error: The getter 'PolicyDetailNotifier' isn't defined forthe class '_PolicyDetailV2ScreenState'.
+ - '_PolicyDetailV2ScreenState' is from 'package:youth_road_app/legacy/policy/ui/screens/policy/policy_detail_v2_screen.dart' ('lib/legacy/policy/ui/screens/policy/policy_detail_v2_screen.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'PolicyDetailNotifier'.
+          message: PolicyDetailNotifier.errorMessage,
+                   ^^^^^^^^^^^^^^^^^^^^
+lib/legacy/policy/ui/screens/policy/policy_detail_v2_screen.dart:50:20: Error: The getter 'PolicyDetailNotifier' isn't defined forthe class '_PolicyDetailV2ScreenState'.
+ - '_PolicyDetailV2ScreenState' is from 'package:youth_road_app/legacy/policy/ui/screens/policy/policy_detail_v2_screen.dart' ('lib/legacy/policy/ui/screens/policy/policy_detail_v2_screen.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'PolicyDetailNotifier'.
+          message: PolicyDetailNotifier.errorMessage,
+                   ^^^^^^^^^^^^^^^^^^^^
+lib/features/policy_new/application/controllers/base_feed_controller.dart:49:12: Error: The method 'fold' isn't defined for the class 'PolicyResult<List<Policy>>'.
+ - 'PolicyResult' is from 'package:youth_road_app/features/policy_new/domain/values/policy_result.dart' ('lib/features/policy_new/domain/values/policy_result.dart').
+ - 'List' is from 'dart:core'.
+ - 'Policy' is from 'package:youth_road_app/features/policy_new/domain/entities/policy.dart' ('lib/features/policy_new/domain/entities/policy.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'fold'.
+    result.fold(
+           ^^^^
+lib/features/policy_new/application/controllers/base_feed_controller.dart:71:12: Error: The method 'fold' isn't defined for the class 'PolicyResult<List<Policy>>'.
+ - 'PolicyResult' is from 'package:youth_road_app/features/policy_new/domain/values/policy_result.dart' ('lib/features/policy_new/domain/values/policy_result.dart').
+ - 'List' is from 'dart:core'.
+ - 'Policy' is from 'package:youth_road_app/features/policy_new/domain/entities/policy.dart' ('lib/features/policy_new/domain/entities/policy.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'fold'.
+    result.fold(
+           ^^^^
+lib/features/policy_new/application/controllers/base_feed_controller.dart:75:18: Error: The argument type 'List<dynamic>' can't beassigned to the parameter type 'List<Policy>'.
+ - 'List' is from 'dart:core'.
+ - 'Policy' is from 'package:youth_road_app/features/policy_new/domain/entities/policy.dart' ('lib/features/policy_new/domain/entities/policy.dart').
+          items: merged,
+                 ^
+lib/features/policy_new/application/providers.dart:134:39: Error: 'PolicyFeedType' isn't a type.
+PolicyQuery _initialQueryFor(Ref ref, PolicyFeedType type) {
+                                      ^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:137:10: Error: Undefined name 'PolicyFeedType'.
+    case PolicyFeedType.recommend:
+         ^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:143:10: Error: Undefined name 'PolicyFeedType'.
+    case PolicyFeedType.all:
+         ^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:149:10: Error: Undefined name 'PolicyFeedType'.
+    case PolicyFeedType.region:
+         ^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:156:10: Error: Undefined name 'PolicyFeedType'.
+    case PolicyFeedType.search:
+         ^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:158:19: Error: Undefined name 'PolicyFeedType'.
+        feedType: PolicyFeedType.search,
+                  ^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:162:10: Error: Undefined name 'PolicyFeedType'.
+    case PolicyFeedType.favorite:
+         ^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:170:10: Error: Undefined name 'PolicyFeedType'.
+    case PolicyFeedType.compare:
+         ^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:134:13: Error: A non-null value must be returned since the return type 'PolicyQuery' doesn't allow null.
+ - 'PolicyQuery' is from 'package:youth_road_app/features/policy_new/domain/values/policy_query.dart' ('lib/features/policy_new/domain/values/policy_query.dart').
+PolicyQuery _initialQueryFor(Ref ref, PolicyFeedType type) {
+            ^
+lib/features/policy_new/application/controllers/policy_detail_controller.dart:22:12: Error: The method 'fold' isn't defined for the class 'PolicyResult<Policy>'.
+ - 'PolicyResult' is from 'package:youth_road_app/features/policy_new/domain/values/policy_result.dart' ('lib/features/policy_new/domain/values/policy_result.dart').
+ - 'Policy' is from 'package:youth_road_app/features/policy_new/domain/entities/policy.dart' ('lib/features/policy_new/domain/entities/policy.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'fold'.
+    result.fold(
+           ^^^^
+lib/features/policy_new/application/controllers/policy_feed_controllers.dart:15:17: Error: The getter 'type' isn't defined for theclass 'Object'.
+ - 'Object' is from 'dart:core'.
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'type'.
+      if (next?.type == PolicyEventType.refreshRequested) {
+                ^^^^
+lib/features/policy_new/application/controllers/policy_feed_controllers.dart:73:17: Error: The getter 'type' isn't defined for theclass 'Object'.
+ - 'Object' is from 'dart:core'.
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'type'.
+      if (next?.type == PolicyEventType.favoritesChanged) {
+                ^^^^
+lib/features/policy_new/application/controllers/policy_feed_controllers.dart:92:17: Error: The getter 'type' isn't defined for theclass 'Object'.
+ - 'Object' is from 'dart:core'.
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'type'.
+      if (next?.type == PolicyEventType.refreshRequested) {
+                ^^^^
+Target kernel_snapshot_program failed: Exception
 
-⸻
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
 
