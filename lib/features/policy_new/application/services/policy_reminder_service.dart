@@ -75,6 +75,7 @@ class PolicyReminderService {
 
   Future<void> cancelAllByPolicy(String policyId) async {
     final reminders = await repository.getRemindersForPolicy(policyId);
+    await notificationGateway.cancelAllForPolicy(policyId);
     for (final reminder in reminders) {
       await notificationGateway.cancelReminder(reminder.reminderId);
     }
