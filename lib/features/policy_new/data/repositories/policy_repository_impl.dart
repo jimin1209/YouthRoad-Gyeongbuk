@@ -4,6 +4,7 @@ import '../../domain/values/policy_failure.dart';
 import '../../domain/values/policy_filter.dart';
 import '../../domain/values/policy_logger.dart';
 import '../../domain/values/policy_region.dart';
+import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_query.dart';
 import '../../domain/values/policy_result.dart';
 import '../../domain/values/policy_settings.dart';
@@ -30,52 +31,43 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int pageSize,
   }) {
     final params = <String, dynamic>{
-      'page': page,
-      'size': pageSize,
-      'sort': query.sort.name,
+      'pageIndex': page,
+      'pageSize': pageSize,
+      'recordCount': pageSize,
+      'pagingYn': 'Y',
+      'searchDsplyYn': 'all',
     };
 
     if (query.keyword != null && query.keyword!.isNotEmpty) {
-      params['keyword'] = query.keyword;
+      params['searchPolicyNm'] = query.keyword;
     }
 
     // Filter → API 파라미터 매핑
     final filter = query.filter;
 
     if (filter.region != PolicyRegion.all) {
-      params['region'] = filter.region.name;
+      params['searchRgnSe'] = _mapRegion(filter.region);
     }
 
     if (filter.category != null) {
-      params['category'] = filter.category!.name;
-    }
-
-    if (filter.age != null) {
-      params['age'] = filter.age;
-    }
-
-    if (filter.isOnline != null) {
-      params['is_online'] = filter.isOnline! ? 'Y' : 'N';
-    }
-
-    if (filter.isOffline != null) {
-      params['is_offline'] = filter.isOffline! ? 'Y' : 'N';
+      params['searchPolicyType'] = _mapCategory(filter.category!);
     }
 
     if (filter.isOngoing != null) {
-      params['is_ongoing'] = filter.isOngoing! ? 'Y' : 'N';
+      params['aplyPsbltyYn'] = filter.isOngoing! ? 'Y' : 'N';
     }
 
-    if (filter.tags.isNotEmpty) {
-      params['tag_filters'] = filter.tags.join(',');
+    if (filter.isOnline != null) {
+      params['aplyYn'] = filter.isOnline! ? 'Y' : 'N';
     }
 
-    if (query.tags.isNotEmpty) {
-      params['tags'] = query.tags.join(',');
+    if (filter.institutionId != null && filter.institutionId!.isNotEmpty) {
+      params['instNo'] = filter.institutionId;
     }
 
-    // feedType에 따라 backend에서 다른 endpoint를 사용한다면 힌트 전달
-    params['feed_type'] = query.feedType.name;
+    if (filter.departmentId != null && filter.departmentId!.isNotEmpty) {
+      params['deptNo'] = filter.departmentId;
+    }
 
     return params;
   }
@@ -243,6 +235,50 @@ class PolicyRepositoryImpl implements PolicyRepository {
       logger.error('fetchPolicyDetail 실패', e, st);
       if (e is PolicyFailure) return PolicyResult.failure(e);
       return PolicyResult.failure(const UnknownFailure());
+    }
+  }
+
+  String _mapRegion(PolicyRegion region) {
+    switch (region) {
+      case PolicyRegion.seoul:
+        return '서울';
+      case PolicyRegion.busan:
+        return '부산';
+      case PolicyRegion.daegu:
+        return '대구';
+      case PolicyRegion.incheon:
+        return '인천';
+      case PolicyRegion.gwangju:
+        return '광주';
+      case PolicyRegion.daejeon:
+        return '대전';
+      case PolicyRegion.ulsan:
+        return '울산';
+      case PolicyRegion.gyeongbuk:
+        return '경북 전체';
+      case PolicyRegion.all:
+        return '전체';
+    }
+  }
+
+  String _mapCategory(PolicyCategory category) {
+    switch (category) {
+      case PolicyCategory.employment:
+        return '취업';
+      case PolicyCategory.startup:
+        return '창업';
+      case PolicyCategory.housing:
+        return '주거';
+      case PolicyCategory.life:
+        return '생활';
+      case PolicyCategory.education:
+        return '교육';
+      case PolicyCategory.welfare:
+        return '복지';
+      case PolicyCategory.culture:
+        return '문화';
+      case PolicyCategory.other:
+        return '기타';
     }
   }
 }
