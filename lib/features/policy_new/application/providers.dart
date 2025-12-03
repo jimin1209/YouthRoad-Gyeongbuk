@@ -16,16 +16,23 @@ import '../domain/values/policy_logger.dart';
 import '../domain/values/policy_region.dart';
 import '../domain/values/policy_settings.dart';
 import '../domain/values/policy_sort.dart';
+import '../domain/repositories/policy_reminder_repository.dart';
+import '../domain/entities/policy_reminder.dart';
 import 'controllers/base_feed_controller.dart';
 import 'controllers/policy_detail_controller.dart';
 import 'controllers/policy_event_bus.dart';
 import 'controllers/policy_feed_controllers.dart';
+import 'controllers/policy_reminder_controller.dart';
+import 'controllers/policy_reminder_list_controller.dart';
 import 'controllers/policy_paging_controller.dart';
 import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
+import 'schedulers/reminder_scheduler.dart';
+import 'services/policy_reminder_service.dart';
 import 'filters/policy_filter_ui_state.dart';
 import '../data/cache/policy_cache.dart';
 import '../data/repositories/policy_repository_impl.dart';
+import '../data/repositories_impl/policy_reminder_local_repository.dart';
 import '../data/repositories/institution_repository_impl.dart';
 import '../data/repositories/department_repository_impl.dart';
 import '../data/sources/policy_remote_source.dart';
@@ -193,6 +200,23 @@ final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
   );
 });
 
+final policyReminderRepositoryProvider =
+    Provider<PolicyReminderRepository>((ref) {
+  return PolicyReminderLocalRepository();
+});
+
+final reminderSchedulerProvider = Provider<ReminderScheduler>((ref) {
+  return NoOpReminderScheduler();
+});
+
+final policyReminderServiceProvider = Provider<PolicyReminderService>((ref) {
+  return PolicyReminderService(
+    repository: ref.watch(policyReminderRepositoryProvider),
+    scheduler: ref.watch(reminderSchedulerProvider),
+    eventBus: ref.read(policyEventBusProvider.notifier),
+  );
+});
+
 final policyPagingControllerProvider =
     StateNotifierProvider<PolicyPagingController, AsyncValue<List<Policy>>>(
         (ref) {
@@ -258,4 +282,17 @@ final policyDetailProvider =
     ref: ref,
     policyId: policyId,
   ),
+);
+
+final policyReminderControllerProvider = StateNotifierProvider.family<
+    PolicyReminderController, AsyncValue<PolicyReminder?>, String>(
+  (ref, policyId) => PolicyReminderController(
+    ref: ref,
+    policyId: policyId,
+  ),
+);
+
+final policyReminderListControllerProvider = StateNotifierProvider<
+    PolicyReminderListController, AsyncValue<List<PolicyReminder>>>(
+  (ref) => PolicyReminderListController(ref: ref),
 );

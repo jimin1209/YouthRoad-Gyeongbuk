@@ -52,6 +52,8 @@ abstract class BasePolicyFeedController
               refresh();
             }
             break;
+          case PolicyEventType.reminderChanged:
+          case PolicyEventType.reminderBulkUpdated:
           case PolicyEventType.behaviorChanged:
             if (feedType == PolicyFeedType.recommend) {
               refresh();
