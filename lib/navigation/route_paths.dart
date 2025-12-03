@@ -19,6 +19,7 @@ class RoutePaths {
   static const instList = '/inst/list';
   static const deptList = '/inst/:instNo/dept/list';
   static const policyWebview = '/policy/webview';
+  static const policyReminderCenter = '/policy/reminders';
   static const splashLegacy = '/splash';
 
   static String policyDetail(String id) => '/policy/$id';

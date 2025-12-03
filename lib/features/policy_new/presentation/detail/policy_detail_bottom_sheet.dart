@@ -7,6 +7,7 @@ import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_failure.dart';
 import '../widgets/policy_list_loading.dart';
+import '../widgets/policy_reminder_button.dart';
 
 class PolicyDetailBottomSheet extends ConsumerWidget {
   const PolicyDetailBottomSheet({
@@ -101,6 +102,8 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
             _infoRow('담당부서', policy.department),
             _infoRow('문의처', policy.contact ?? ''),
             _infoRow('지원대상', _buildTargetText(policy)),
+            const SizedBox(height: 16),
+            PolicyReminderButton(policy: policy),
             const SizedBox(height: 16),
             Row(
               children: [

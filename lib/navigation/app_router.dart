@@ -6,6 +6,7 @@ import 'package:youth_road_app/app/splash/splash_page.dart';
 import '../ui/screens/category/category_screen.dart';
 import '../ui/screens/chatbot/chatbot_screen.dart';
 import '../features/policy_new/presentation/screens/policy_feed_home_screen.dart';
+import '../features/policy_new/presentation/screens/policy_reminder_center_screen.dart';
 import '../ui/screens/favorites/favorites_screen.dart';
 import '../ui/screens/institution/department_list_screen.dart';
 import '../ui/screens/institution/institution_list_screen.dart';
@@ -172,6 +173,10 @@ class AppRouter {
 
             return PolicyWebviewPage(title: title, url: url);
           },
+        ),
+        GoRoute(
+          path: RoutePaths.policyReminderCenter,
+          builder: (context, state) => const PolicyReminderCenterScreen(),
         ),
       ],
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/policy.dart';
+import 'policy_reminder_badge.dart';
 
 class PolicyCard extends StatelessWidget {
   const PolicyCard({
@@ -25,9 +26,18 @@ class PolicyCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                policy.title,
-                style: Theme.of(context).textTheme.titleMedium,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      policy.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  PolicyReminderBadge(policy: policy),
+                ],
               ),
               const SizedBox(height: 6),
               Text(

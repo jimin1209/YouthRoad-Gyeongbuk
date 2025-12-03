@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../domain/values/policy_feed_type.dart';
 import '../filters/policy_filter_bar.dart';
 import '../filters/policy_recommend_tags_bar.dart';
 import '../widgets/policy_feed_list_view.dart';
+import '../../../../navigation/route_paths.dart';
 
 class PolicyFeedHomeScreen extends ConsumerStatefulWidget {
   const PolicyFeedHomeScreen({super.key});
@@ -44,6 +46,12 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('정책 탐색'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications),
+            onPressed: () => context.push(RoutePaths.policyReminderCenter),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
