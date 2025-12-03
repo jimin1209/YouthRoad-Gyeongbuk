@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../filters/policy_filter_ui_state.dart';
-import '../providers.dart';
+import 'policy_event_bus.dart';
 import 'policy_paging_state.dart';
 import 'policy_query_engine.dart';
 
