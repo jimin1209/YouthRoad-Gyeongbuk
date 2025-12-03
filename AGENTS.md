@@ -196,6 +196,389 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+⸻
+
+💠 TASK 30~33 (업데이트된 번호) — FULL SPEC / job01급 최상위 퀄리티
+
+@chatgpt-codex
+###############################################################
+# TASK 30 — Scheduling Feedback Result 모델 설계 (Domain 기반)
+###############################################################
+
+## 0) 시스템 정의 (System Definition)
+YouthRoad의 알림 스케줄링 동작은 다음 두 단계를 거친다:
+1. 서비스 레이어에서 알림 예약/취소(업데이트) 명령을 NotificationGateway로 전달
+2. Device 플랫폼(flutter_local_notifications)이 명령의 성공/실패 상태를 반환
+
+TASK 30의 목표는 이 흐름을 안정적으로 다루기 위한  
+**Result 모델(스케줄링 피드백 모델)을 Domain에 정식 정의**하는 것이다.
+
+---
+
+## 1) 문제 정의 (Problem Statement)
+
+현 구조는 다음 문제를 가진다:
+- 스케줄링 명령 성공/실패 여부를 구분할 Path가 없음
+- Gateway에서 실패해도 Repository에는 성공으로 기록됨
+- Domain/Service/UI 계층이 동일한 실패 원인 정보 공유 불가
+- 플랫폼별 Exception 케이스(iOS/Android 차이)를 수용할 모델 구조 부재
+
+따라서 **도메인 수준의 SchedulingResult 모델 없이는 안정성 확보 불가**.
+
+---
+
+## 2) 요구사항 분석 (Requirements)
+
+### 기능 요구사항
+- 알림 예약/취소 명령의 결과(성공/실패)를 구조적으로 표현
+- 실패 이유 코드 / 메시지 포함
+- 실패 원인 분류:
+  - PlatformError
+  - PermissionDenied
+  - InvalidDate
+  - DuplicateId
+  - UnknownError
+- UI 레이어에 결과 전달 가능해야 함
+
+### 비기능 요구사항
+- JSON 직렬화 필요 없음 → 로컬 Domain 전용 모델
+- 모든 플랫폼 공통 오류 케이스를 포괄하는 상위 구조 필요
+
+---
+
+## 3) 아키텍처 설계
+
+### 3.1 Domain 모델 구조
+
+SchedulingResult
+├─ success: bool
+├─ error?: SchedulingError
+SchedulingError
+├─ code: SchedulingErrorCode
+├─ message: String
+SchedulingErrorCode (enum)
+├─ platform_error
+├─ permission_denied
+├─ invalid_date
+├─ duplicate_id
+├─ unknown
+
+---
+
+## 4) Provider/Service 상호작용 규칙
+
+- NotificationGateway.schedule() / cancel() → SchedulingResult 반환
+- PolicyReminderService.upsertReminder()는 SchedulingResult를 항상 검사
+- 실패 시 Repository에 저장 금지 + UI에 error message 제공
+- UI는 Optimistic Update를 하지 않고, SchedulingResult.success 를 기준으로 갱신
+
+---
+
+## 5) UI 상태도 (State Machine)
+
+[Idle]
+↓ (User taps “Add Reminder”)
+[Submitting]
+↓ Gateway.schedule()
+→ Success → [SuccessToast] → [Idle]
+→ Failure → [ErrorSnackBar(error.message)] → [Idle]
+
+---
+
+## 6) 파일 구조
+
+lib/
+└ domain/
+└ reminder/
+├─ scheduling_result.dart
+└─ scheduling_error.dart
+
+---
+
+## 7) Acceptance Criteria
+
+- SchedulingResult, SchedulingError, SchedulingErrorCode 3단 구조 구현
+- 모든 Gateway에서 SchedulingResult를 반환
+- Service 레이어는 성공/실패를 기반으로 Repository 동작을 제어
+- UI는 성공/실패 피드백을 정확히 구분해 처리
+
+
+⸻
+
+⸻
+
+💠 TASK 31 — 영속화 구조 Isar로 완전 교체 (Persistence Layer Upgrade)
+
+@chatgpt-codex
+###############################################################
+# TASK 31 — 알림 영속화 구조를 Isar 기반으로 완전 교체
+###############################################################
+
+## 0) 시스템 정의
+기존 알림 저장소는 메모리 기반 Mock 구조이며,
+지속성이 없고 앱 재시작 시 모든 알림이 소실된다.
+
+TASK 31의 목적은 **정책 알림 전체 데이터(옵션별 Multi Reminder 포함)를 Isar 로컬 DB에 정식 저장**하는 구조를 수립하는 것.
+
+---
+
+## 1) 문제 정의
+- 알림 기록이 저장되지 않음 (메모리 기반)
+- 앱 재시작 시 알림 정보 모두 삭제
+- 다중 알림 옵션 저장 불가
+- 스케줄링 이력 추적 불가
+
+→ 실 서비스가 불가능한 구조.
+
+---
+
+## 2) 요구사항 분석
+
+### 기능 요구사항
+- 각 정책당 다수의 알림 옵션 저장
+- 저장 필드:
+  - reminderId (고유키)
+  - policyId
+  - scheduledAt
+  - createdAt
+  - option (D-7, D-1, 마감일 등)
+  - status (scheduled/cancelled/failed)
+- CRUD + 전체 조회 + 정책별 조회 기능 제공
+
+### 비기능 요구사항
+- Isar index 최적화
+- 정책 ID + 옵션 조합으로 Unique Index 보장
+- Migration 고려한 모델 구성
+
+---
+
+## 3) 아키텍처 설계
+
+### 3.1 Isar 모델
+
+IsarPolicyReminder {
+int id;                     // 자동 PK
+String reminderId;          // 알림 고유 ID (정책ID+옵션+timestamp 조합)
+String policyId;
+String option;
+DateTime scheduledAt;
+DateTime createdAt;
+String status;              // scheduled / cancelled / failed
+}
+
+### 3.2 Repository 역할
+
+PolicyReminderRepositoryIsarImpl
+├─ save(IsarPolicyReminder)
+├─ delete(reminderId)
+├─ getByPolicyId(policyId)
+├─ getAll()
+└─ purgeExpired()
+
+---
+
+## 4) 데이터 파이프라인/흐름도
+
+(UI)
+↓ user selects reminder option
+(Service)
+↓ create reminderId + scheduledAt
+(Repository)
+↓ save to Isar
+(Gateway)
+↓ schedule notification
+(Repository)
+↓ update status
+
+---
+
+## 5) 파일 구조
+
+lib/data/reminder/
+├─ isar/
+│   ├─ isar_policy_reminder.dart
+│   └─ policy_reminder_repository_isar.dart
+└─ mapper/
+└─ policy_reminder_mapper.dart
+
+---
+
+## 6) Acceptance Criteria
+- Isar 모델 정의 완료
+- 기존 MemoryRepository 완전 제거
+- 모든 CRUD Isar 기반으로 작동
+- 앱 재시작 시 알림 데이터 복원
+- multi-reminder 저장 가능
+
+
+⸻
+
+⸻
+
+💠 TASK 32 — 알림 센터 상태머신 개선 (Optimistic UI + 오류 복구)
+
+@chatgpt-codex
+###############################################################
+# TASK 32 — 알림 센터 상태머신 개선 (Optimistic UI + Error Recovery)
+###############################################################
+
+## 0) 시스템 정의
+알림 관리 화면(Reminder Center)은 알림의 상태 변화(예약/취소/오류)를 즉시 사용자에게 반영해야 한다.  
+그러나 실제 스케줄링은 Gateway 결과를 기다려야 하므로  
+UI/Service/Gateway 간의 비동기 차이를 흡수하는 “상태머신(State Machine)”이 필요하다.
+
+---
+
+## 1) 문제 정의
+- 예약 버튼 누르자마자 UI 반영 vs 실제 성공 시점의 불일치
+- 실패 시 롤백 처리가 없음
+- 스케줄링 지연 발생 시 UI 멈춤 현상
+- 상태 동기화 부재
+
+---
+
+## 2) 요구사항 분석
+
+### 기능 요구:
+- Optimistic UI 지원
+- 실패 시 롤백
+- Gateway Pending 상태 표시
+- Repository 업데이트 지연을 UI가 핸들링
+
+### 비기능 요구:
+- 재시도( retry ) 지원
+- 플랫폼 타임존 차이 처리
+- EventBus 연동
+
+---
+
+## 3) 아키텍처 설계
+
+### 3.1 상태 정의
+
+ReminderUiState
+├─ idle
+├─ submitting (pending scheduling)
+├─ success (scheduled)
+├─ failed(error)
+├─ rollingBack (when optimistic UI must revert)
+
+### 3.2 상태 전이도
+
+idle
+→ submitting
+→ success → idle
+→ failed → rollingBack → idle
+
+---
+
+## 4) Provider/Controller 상호작용 규칙
+
+- UI → ReminderController.requestSchedule(policy, option)
+- Controller → Optimistic UI 적용 즉시 UI 업데이트
+- Controller → Gateway.schedule()
+- Controller → SchedulingResult 검사
+- 실패 시:
+  - 상태 → failed → rollingBack
+  - Repository에서 삭제 or 이전 상태 복구
+
+---
+
+## 5) Acceptance Criteria
+
+- 상태머신 5단계 구현
+- 실패 시 UI 롤백 동작 구현
+- EventBus로 다른 화면도 즉시 변경 반영
+- Pending indicator 지원
+- Gateway 결과와 Repository 반영 순서 보장
+
+
+⸻
+
+⸻
+
+💠 TASK 33 — 정책명/옵션 기반 알림 상세 UI 확장 (Detail Model Upgrade)
+
+@chatgpt-codex
+###############################################################
+# TASK 33 — 정책명/옵션 포함한 알림 상세 UI 확장을 위한 모델 정식 정의
+###############################################################
+
+## 0) 시스템 정의
+알림 관리 화면(UI)은 정책명, 알림 옵션(D-7/D-1/마감일), 예정 시간 등을  
+정확한 Domain 모델에 기반해 표현해야 한다.
+
+TASK 33의 목표는 기존 간소한 Reminder 모델을  
+**정책 정보 + 옵션 정보 + 실 예약 상태를 모두 포괄하는 강력한 확장 모델**로 재정의하는 것.
+
+---
+
+## 1) 문제 정의
+- 현재 모델은 policyId와 scheduledAt만 보유
+- UI는 정책명/기관/옵션/상세 링크 등 표시 불가능
+- 다중 알림 옵션을 구분할 수 있는 구조 부재
+- PolicyModel과 ReminderModel 간 Domain 연동 없음
+
+---
+
+## 2) 요구사항 분석
+
+### 기능:
+- 알림 상세 정보 완전 표시:
+  - 정책명
+  - 기관명/정책 분류
+  - 알림 옵션 이름 (예: 신청 마감 3일 전)
+  - 알림 ID
+  - 실제 예약된 시간
+  - 상태(scheduled/cancelled/failed)
+
+### 비기능:
+- Repository 레벨에서 PolicySnapshot 저장 필요 (정책 삭제 대비)
+- UI 렌더링 최적화
+
+---
+
+## 3) 아키텍처 설계
+
+### 3.1 Unified Domain Model
+
+PolicyReminderDetail {
+String reminderId;
+String policyId;
+String policyTitle;
+String? organizationName;
+String optionName;         // ex: D-7, D-1, 당일
+DateTime scheduledAt;
+String status;             // scheduled/cancelled/failed
+String? policyDetailUrl;   // 정책 페이지 이동 링크
+}
+
+### 3.2 Snapshot 저장 전략
+Isar DB에 정책명/기관/URL 등을 “스냅샷”으로 저장  
+→ 정책 API 변경/삭제 시에도 알림 기록 유지
+
+---
+
+## 4) 파일 구조
+
+lib/domain/reminder/
+├─ policy_reminder_detail.dart
+lib/data/reminder/
+├─ isar_policy_reminder_detail.dart
+└─ mapper/
+└─ policy_reminder_detail_mapper.dart
+
+---
+
+## 5) Acceptance Criteria
+- 정책명/기관/URL을 포함한 Snapshot 기반 모델 추가
+- 알림 UI에서 모든 정보 표시 가능해야 함
+- D-7/D-1/Custom 옵션명 노출
+- Repository 레이어에 Snapshot 저장
+- 기존 ReminderModel과 충돌 없어야 함
+
+
+⸻
 
 
 @chatgpt-codex
