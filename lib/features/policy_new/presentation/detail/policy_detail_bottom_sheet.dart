@@ -5,6 +5,7 @@ import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_failure.dart';
 import '../widgets/policy_list_loading.dart';
+import '../reminder/policy_reminder_button.dart';
 import 'widgets/policy_action_bar.dart';
 
 class PolicyDetailBottomSheet extends ConsumerWidget {
@@ -59,6 +60,8 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             PolicyActionBar(policy: policy),
+            const SizedBox(height: 12),
+            PolicyReminderButton(policy: policy),
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 12),
