@@ -19,6 +19,7 @@ class PolicyPagingController extends StateNotifier<AsyncValue<List<Policy>>> {
   bool _isLoading = false;
   final List<Policy> _items = [];
   late final void Function(PolicyEvent?) _eventListener;
+  void Function()? _removeEventListener;
 
   PolicyPagingController({
     required this.repository,
@@ -33,7 +34,7 @@ class PolicyPagingController extends StateNotifier<AsyncValue<List<Policy>>> {
       }
     };
 
-    eventBus.addListener(
+    _removeEventListener = eventBus.addListener(
       _eventListener,
       fireImmediately: false,
     );
@@ -97,7 +98,7 @@ class PolicyPagingController extends StateNotifier<AsyncValue<List<Policy>>> {
 
   @override
   void dispose() {
-    eventBus.removeListener(_eventListener);
+    _removeEventListener?.call();
     super.dispose();
   }
 }
