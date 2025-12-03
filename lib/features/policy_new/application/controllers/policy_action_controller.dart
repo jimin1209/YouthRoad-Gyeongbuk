@@ -45,7 +45,7 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
   PolicyActionController({required this.ref, required this.policyId})
       : super(
           PolicyActionState(
-            isFavorite: ref.read(favoriteRepositoryProvider).allIds.contains(policyId),
+            isFavorite: ref.read(favoriteIdsProvider).contains(policyId),
             isCompared: ref.read(compareRepositoryProvider).ids.contains(policyId),
             reminderState: ref.read(policyReminderControllerProvider(policyId)),
           ),
@@ -57,9 +57,9 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
   final String policyId;
 
   void _listenToCollections() {
-    ref.listen<FavoriteRepository>(favoriteRepositoryProvider, (prev, next) {
+    ref.listen<Set<String>>(favoriteIdsProvider, (prev, next) {
       state = state.copyWith(
-        isFavorite: next.allIds.contains(policyId),
+        isFavorite: next.contains(policyId),
         errorMessage: state.errorMessage,
       );
     });
@@ -91,7 +91,7 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     if (state.isProcessing) return;
     _setProcessing(true);
     _setError(null);
-    ref.read(favoriteRepositoryProvider.notifier).toggleFavorite(policy);
+    await ref.read(policyFavoriteServiceProvider).toggleFavorite(policy);
     _setProcessing(false);
   }
 

@@ -6,9 +6,12 @@ import '../../../core/constants/env.dart';
 import '../domain/entities/department.dart';
 import '../domain/entities/institution.dart';
 import '../domain/entities/policy.dart';
-import '../domain/repositories/policy_repository.dart';
-import '../domain/repositories/institution_repository.dart';
+import '../domain/entities/policy_reminder.dart';
 import '../domain/repositories/department_repository.dart';
+import '../domain/repositories/institution_repository.dart';
+import '../domain/repositories/policy_favorite_repository.dart';
+import '../domain/repositories/policy_reminder_repository.dart';
+import '../domain/repositories/policy_repository.dart';
 import '../domain/values/policy_event.dart';
 import '../domain/values/policy_failure.dart';
 import '../domain/values/policy_feed_type.dart';
@@ -19,8 +22,6 @@ import '../domain/values/policy_reminder_config.dart';
 import '../domain/values/policy_reminder_status.dart';
 import '../domain/values/policy_settings.dart';
 import '../domain/values/policy_sort.dart';
-import '../domain/repositories/policy_reminder_repository.dart';
-import '../domain/entities/policy_reminder.dart';
 import 'behavior/policy_behavior_tracker.dart';
 import 'controllers/base_feed_controller.dart';
 import 'controllers/policy_detail_controller.dart';
@@ -34,20 +35,24 @@ import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
 import 'controllers/policy_selection_controller.dart';
 import 'gateways/notification_gateway.dart';
-import 'services/policy_reminder_service.dart';
+import 'services/policy_favorite_service.dart';
 import 'services/policy_reminder_scheduler.dart';
+import 'services/policy_reminder_service.dart';
 import 'filters/policy_filter_ui_state.dart';
 import 'models/user_collections.dart';
 import '../data/cache/policy_cache.dart';
-import '../data/repositories/policy_repository_impl.dart';
-import '../data/repositories/policy_reminder_repository_impl.dart';
-import '../data/repositories/institution_repository_impl.dart';
 import '../data/repositories/department_repository_impl.dart';
+import '../data/repositories/institution_repository_impl.dart';
+import '../data/repositories/policy_favorite_repository_impl.dart';
+import '../data/repositories/policy_reminder_repository_impl.dart';
+import '../data/repositories/policy_repository_impl.dart';
+import '../data/sources/department_remote_source.dart';
+import '../data/sources/institution_remote_source.dart';
+import '../data/sources/policy_favorite_local_data_source.dart';
+import '../data/sources/policy_reminder_local_data_source.dart';
 import '../data/sources/policy_remote_source.dart';
 import '../data/sources/policy_remote_source_mock.dart';
-import '../data/sources/institution_remote_source.dart';
-import '../data/sources/department_remote_source.dart';
-import '../data/sources/policy_reminder_local_data_source.dart';
+import '../../application/di.dart' as app_di;
 
 class UserProfile {
   final PolicyRegion region;
@@ -100,15 +105,40 @@ final userProfileProvider = Provider<UserProfile>((ref) {
   );
 });
 
-final favoriteRepositoryProvider =
-    StateNotifierProvider<FavoriteController, FavoriteRepository>(
-  (ref) => FavoriteController(ref),
-);
-
 final compareRepositoryProvider =
     StateNotifierProvider<CompareController, CompareRepository>(
   (ref) => CompareController(ref),
 );
+
+final policyFavoriteLocalDataSourceProvider =
+    Provider<PolicyFavoriteLocalDataSource>((ref) {
+  final prefs = ref.watch(app_di.sharedPreferencesProvider);
+  return SharedPrefsPolicyFavoriteLocalDataSource(prefs);
+});
+
+final policyFavoriteRepositoryProvider = Provider<PolicyFavoriteRepository>(
+  (ref) => PolicyFavoriteRepositoryImpl(
+    ref.watch(policyFavoriteLocalDataSourceProvider),
+  ),
+);
+
+final favoriteIdsProvider =
+    StateNotifierProvider<FavoriteIdsNotifier, Set<String>>((ref) {
+  final notifier = FavoriteIdsNotifier(
+    repository: ref.watch(policyFavoriteRepositoryProvider),
+  );
+  notifier.initialize();
+  return notifier;
+});
+
+final policyFavoriteServiceProvider = Provider<PolicyFavoriteService>((ref) {
+  return PolicyFavoriteService(
+    repository: ref.watch(policyFavoriteRepositoryProvider),
+    eventBus: ref.read(policyEventBusProvider.notifier),
+    behaviorTracker: ref.read(policyBehaviorTrackerProvider.notifier),
+    favoriteIdsNotifier: ref.read(favoriteIdsProvider.notifier),
+  );
+});
 
 final isMockModeProvider = Provider<bool>((ref) => false);
 
@@ -334,7 +364,7 @@ final policyQueryProvider = Provider.family<PolicyQuery, PolicyFeedType>(
     ref.watch(policyFilterUiStateProvider);
     ref.watch(userProfileProvider);
     ref.watch(policyBehaviorTrackerProvider);
-    ref.watch(favoriteRepositoryProvider);
+    ref.watch(favoriteIdsProvider);
     ref.watch(compareRepositoryProvider);
 
     final orchestrator = ref.read(policyQueryOrchestratorProvider);
