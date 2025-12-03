@@ -69,1323 +69,963 @@
 
 지금부터 ISSUE LIST 입니다.
 
-# ISSUE 20
 
-lib/features/map_v2/map_with_list_screen.dart:165:11: Error: The method 'setMixedContentMode' isn't defined for the class 'AndroidWebViewController'.
- - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'setMixedContentMode'.
-        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
-          ^^^^^^^^^^^^^^^^^^^
-lib/features/map_v2/map_with_list_screen.dart:165:31: Error: The getter 'AndroidMixedContentMode' isn't defined for the class '_MapWithListScreenState'.
- - '_MapWithListScreenState' is from 'package:youth_road_app/features/map_v2/map_with_list_screen.dart' ('lib/features/map_v2/map_with_list_screen.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'AndroidMixedContentMode'.
-        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
-                              ^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/map_v2/map_with_list_screen.dart:168:11: Error: The method 'setAllowFileAccessFromFileURLs' isn't defined for the class 'AndroidWebViewController'.
- - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'setAllowFileAccessFromFileURLs'.
-        ..setAllowFileAccessFromFileURLs(true)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/map_v2/map_with_list_screen.dart:169:11: Error: The method 'setAllowUniversalAccessFromFileURLs' isn't defined for the class 'AndroidWebViewController'.
- - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'setAllowUniversalAccessFromFileURLs'.
-        ..setAllowUniversalAccessFromFileURLs(true)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/map_v2/kakao_map_controller.dart:352:11: Error: The method 'setMixedContentMode' isn't defined for the class 'AndroidWebViewController'.
- - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'setMixedContentMode'.
-        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
-          ^^^^^^^^^^^^^^^^^^^
-lib/features/map_v2/kakao_map_controller.dart:352:31: Error: The getter 'AndroidMixedContentMode' isn't defined for the class 'KakaoMapController'.
- - 'KakaoMapController' is from 'package:youth_road_app/features/map_v2/kakao_map_controller.dart' ('lib/features/map_v2/kakao_map_controller.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'AndroidMixedContentMode'.
-        ..setMixedContentMode(AndroidMixedContentMode.alwaysAllow)
-                              ^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/map_v2/kakao_map_controller.dart:355:11: Error: The method 'setAllowFileAccessFromFileURLs' isn't defined for the class 'AndroidWebViewController'.
- - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'setAllowFileAccessFromFileURLs'.
-        ..setAllowFileAccessFromFileURLs(true)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/map_v2/kakao_map_controller.dart:356:11: Error: The method 'setAllowUniversalAccessFromFileURLs' isn't defined for the class 'AndroidWebViewController'.
- - 'AndroidWebViewController' is from 'package:webview_flutter_android/src/android_webview_controller.dart' ('../.pub-cache/hosted/pub.dev/webview_flutter_android-4.3.2/lib/src/android_webview_controller.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'setAllowUniversalAccessFromFileURLs'.
-        ..setAllowUniversalAccessFromFileURLs(true)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Target kernel_snapshot_program failed: Exception
+## ISSUE [feature/core-stability] Core Stability Layer Spec #122
+이 명세는 feature/core-stability 브랜치를 대상으로 한다.
 
-# ISSUE 21
-lib/application/providers.dart:19:1: Error: The '===' operator is not supported.
-=======
-^
-lib/application/providers.dart:19:4: Error: The '===' operator is not supported.
-=======
-   ^
-lib/application/providers.dart:14:1: Error: Expected a declaration, but got '<<'.
-<<<<<<< HEAD
-^^
-lib/application/providers.dart:14:3: Error: Expected a declaration, but got '<<'.
-<<<<<<< HEAD
-  ^^
-lib/application/providers.dart:14:5: Error: Expected a declaration, but got '<<'.
-<<<<<<< HEAD
-    ^^
-lib/application/providers.dart:14:7: Error: Expected a declaration, but got '<'.
-<<<<<<< HEAD
-      ^
-lib/application/providers.dart:15:1: Error: Expected an identifier, but got 'export'.
-Try inserting an identifier before 'export'.
-export 'policy/policy_list_notifier.dart'
-^^^^^^
-lib/application/providers.dart:14:9: Error: Expected ';' after this.
-<<<<<<< HEAD
-        ^^^^
-lib/application/providers.dart:15:1: Error: Directives must appear before any declarations.
-Try moving the directive before any declarations.
-export 'policy/policy_list_notifier.dart'
-^^^^^^
-lib/application/providers.dart:17:1: Error: Directives must appear before any declarations.
-Try moving the directive before any declarations.
-export '../features/policy/providers/policy_prefetch_provider.dart'
-^^^^^^
-lib/application/providers.dart:19:1: Error: Expected a declaration, but got '==='.
-=======
-^^^
-lib/application/providers.dart:19:4: Error: Expected a declaration, but got '==='.
-=======
-   ^^^
-lib/application/providers.dart:19:7: Error: Expected a declaration, but got '='.
-=======
-      ^
-lib/application/providers.dart:20:1: Error: Directives must appear before any declarations.
-Try moving the directive before any declarations.
-export 'policy/policy_providers.dart'
-^^^^^^
-lib/application/providers.dart:29:1: Error: Expected a declaration, but got '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-^^^
-lib/application/providers.dart:29:4: Error: Expected a declaration, but got '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-   ^^^
-lib/application/providers.dart:29:7: Error: Expected a declaration, but got '>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-      ^
-lib/application/providers.dart:29:9: Error: Expected a declaration, but got '10'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-        ^^
-lib/application/providers.dart:29:11: Error: Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
-Try adding the name of the type of the variable or the keyword 'var'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/application/providers.dart:29:11: Error: Expected ';' after this.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/application/providers.dart:20:1: Error: 'policyPrefetchProvider' is exported from both 'package:youth_road_app/application/policy/policy_prefetch_provider.dart' and 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart'.
-export 'policy/policy_providers.dart'
-^
-lib/application/providers.dart:20:1: Error: 'PolicyPrefetchNotifier' is exported from both 'package:youth_road_app/application/policy/policy_prefetch_provider.dart' and 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart'.
-export 'policy/policy_providers.dart'
-^
-lib/application/providers.dart:14:9: Error: Type 'HEAD' not found.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_prefetch_provider.dart:64:14: Error: The getter 'mounted' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/application/policy/policy_prefetch_provider.dart' ('lib/application/policy/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
-        if (!mounted) return;
-             ^^^^^^^
-lib/application/policy/policy_prefetch_provider.dart:68:14: Error: The getter 'mounted' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/application/policy/policy_prefetch_provider.dart' ('lib/application/policy/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
-        if (!mounted) return;
-             ^^^^^^^
-lib/application/policy/policy_list_notifier.dart:137:1: Error: The '===' operator is not supported.
-=======
-^
-lib/application/policy/policy_list_notifier.dart:137:4: Error: The '===' operator is not supported.
-=======
-   ^
-lib/application/policy/policy_list_notifier.dart:185:1: Error: The '===' operator is not supported.
-=======
-^
-lib/application/policy/policy_list_notifier.dart:185:4: Error: The '===' operator is not supported.
-=======
-   ^
-lib/application/policy/policy_list_notifier.dart:302:1: Error: The '===' operator is not supported.
-=======
-^
-lib/application/policy/policy_list_notifier.dart:302:4: Error: The '===' operator is not supported.
-=======
-   ^
-lib/application/policy/policy_list_notifier.dart:355:1: Error: The '===' operator is not supported.
-=======
-^
-lib/application/policy/policy_list_notifier.dart:355:4: Error: The '===' operator is not supported.
-=======
-   ^
-lib/application/policy/policy_list_notifier.dart:389:1: Error: The '===' operator is not supported.
-=======
-^
-lib/application/policy/policy_list_notifier.dart:389:4: Error: The '===' operator is not supported.
-=======
-   ^
-lib/application/policy/policy_list_notifier.dart:69:71: Error: Can't find '}' to match '{'.
-class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
-                                                                      ^
-lib/application/policy/policy_list_notifier.dart:133:1: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-^^
-lib/application/policy/policy_list_notifier.dart:133:3: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-  ^^
-lib/application/policy/policy_list_notifier.dart:133:5: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-    ^^
-lib/application/policy/policy_list_notifier.dart:133:9: Error: 'HEAD' isn't a type.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:133:9: Error: Expected '>' after this.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:134:7: Error: Expected '[' before this.
-      pageIndex: page,
-      ^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:134:7: Error: Expected ',' before this.
-      pageIndex: page,
-      ^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:137:1: Error: Expected an identifier, but got '==='.
-Try inserting an identifier before '==='.
-=======
-^^^
-lib/application/policy/policy_list_notifier.dart:137:7: Error: Expected an identifier, but got '='.
-Try inserting an identifier before '='.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:137:4: Error: The string '===' isn't a user-definable operator.
-=======
-   ^^^
-lib/application/policy/policy_list_notifier.dart:137:7: Error: Can't assign to this.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:138:15: Error: Expected ')' before this.
-      pagingYn: 'N',
-              ^
-lib/application/policy/policy_list_notifier.dart:129:24: Error: Too many positional arguments: 0 allowed, but 2 found.
-Try removing the extra positional arguments.
-    return PolicyFilter(
-                       ^
-lib/data/models/policy_filter.dart:2:9: Context: Found this candidate, but the arguments don't match.
-  const PolicyFilter({
-        ^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:168:1: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-^^
-lib/application/policy/policy_list_notifier.dart:168:3: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-  ^^
-lib/application/policy/policy_list_notifier.dart:168:5: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-    ^^
-lib/application/policy/policy_list_notifier.dart:168:9: Error: 'HEAD' isn't a type.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:168:9: Error: Expected '>' after this.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:169:5: Error: Expected '[' before this.
-    final requestId = _nextRequestId();
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:168:9: Error: Expected ';' after this.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:185:1: Error: Expected an identifier, but got '==='.
-Try inserting an identifier before '==='.
-=======
-^^^
-lib/application/policy/policy_list_notifier.dart:185:7: Error: Expected an identifier, but got '='.
-Try inserting an identifier before '='.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:185:4: Error: The string '===' isn't a user-definable operator.
-=======
-   ^^^
-lib/application/policy/policy_list_notifier.dart:187:1: Error: Expected an identifier, but got '>>>'.
-Try inserting an identifier before '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-^^^
-lib/application/policy/policy_list_notifier.dart:187:4: Error: Expected an identifier, but got '>>>'.
-Try inserting an identifier before '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-   ^^^
-lib/application/policy/policy_list_notifier.dart:187:7: Error: Expected an identifier, but got '>'.
-Try inserting an identifier before '>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-      ^
-lib/application/policy/policy_list_notifier.dart:185:7: Error: Can't assign to this.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:187:9: Error: Expected ';' after this.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-        ^^
-lib/application/policy/policy_list_notifier.dart:187:11: Error: 'cb82c5be7418eec2cafee48e1207446fde2b94' isn't a type.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:159:19: Error: Local variable 'state' can't be referenced before it is declared.
-        final _ = state;
-                  ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
-    state = state.copyWith(
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:171:10: Error: Local variable 'state' can't be referenced before it is declared.
-        (state.isLoadingMore || state.isLoading || !state.hasMore || page <= 1)) {
-         ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
-    state = state.copyWith(
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:171:33: Error: Local variable 'state' can't be referenced before it is declared.
-        (state.isLoadingMore || state.isLoading || !state.hasMore || page <= 1)) {
-                                ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
-    state = state.copyWith(
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:171:53: Error: Local variable 'state' can't be referenced before it is declared.
-        (state.isLoadingMore || state.isLoading || !state.hasMore || page <= 1)) {
-                                                    ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
-    state = state.copyWith(
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:175:30: Error: Local variable 'state' can't be referenced before it is declared.
-    final previousPolicies = state.policies;
-                             ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
-    state = state.copyWith(
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:13: Error: Local variable 'state' can't be referenced before it is declared.
-    state = state.copyWith(
-            ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
-    state = state.copyWith(
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:189:27: Error: Local variable 'state' can't be referenced before it is declared.
-      isLoading: append ? state.isLoading : !isUserRefresh,
-                          ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
-    state = state.copyWith(
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:192:25: Error: Local variable 'state' can't be referenced before it is declared.
-      hasMore: append ? state.hasMore : true,
-                        ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
-    state = state.copyWith(
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:193:22: Error: Local variable 'state' can't be referenced before it is declared.
-      page: append ? state.page : page,
-                     ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
-    state = state.copyWith(
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:195:25: Error: Local variable 'state' can't be referenced before it is declared.
-      isStale: append ? state.isStale : previousPolicies.isNotEmpty,
-                        ^^^^^
-lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
-    state = state.copyWith(
-    ^^^^^
-lib/application/policy/policy_list_notifier.dart:210:1: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-^^
-lib/application/policy/policy_list_notifier.dart:210:3: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-  ^^
-lib/application/policy/policy_list_notifier.dart:210:5: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-    ^^
-lib/application/policy/policy_list_notifier.dart:210:9: Error: 'HEAD' isn't a type.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:210:9: Error: Expected '>' after this.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:211:9: Error: Expected '[' before this.
-        final merged = [...previousPolicies, ...policies];
-        ^^^^^
-lib/application/policy/policy_list_notifier.dart:210:9: Error: Expected ';' after this.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:302:1: Error: Expected an identifier, but got '==='.
-Try inserting an identifier before '==='.
-=======
-^^^
-lib/application/policy/policy_list_notifier.dart:302:7: Error: Expected an identifier, but got '='.
-Try inserting an identifier before '='.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:302:4: Error: The string '===' isn't a user-definable operator.
-=======
-   ^^^
-lib/application/policy/policy_list_notifier.dart:302:7: Error: Can't assign to this.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:338:1: Error: Expected an identifier, but got '>>>'.
-Try inserting an identifier before '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-^^^
-lib/application/policy/policy_list_notifier.dart:338:4: Error: Expected an identifier, but got '>>>'.
-Try inserting an identifier before '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-   ^^^
-lib/application/policy/policy_list_notifier.dart:338:7: Error: Expected an identifier, but got '>'.
-Try inserting an identifier before '>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-      ^
-lib/application/policy/policy_list_notifier.dart:338:9: Error: Expected ';' after this.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-        ^^
-lib/application/policy/policy_list_notifier.dart:338:11: Error: Expected ';' after this.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:340:7: Error: 'catch' can't be used as an identifier because it's a keyword.
-Try renaming this to be an identifier that isn't a keyword.
-    } catch (e, st) {
-      ^^^^^
-lib/application/policy/policy_list_notifier.dart:340:19: Error: Expected ';' after this.
-    } catch (e, st) {
-                  ^
-lib/application/policy/policy_list_notifier.dart:353:1: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-^^
-lib/application/policy/policy_list_notifier.dart:353:3: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-  ^^
-lib/application/policy/policy_list_notifier.dart:353:5: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-    ^^
-lib/application/policy/policy_list_notifier.dart:353:9: Error: 'HEAD' isn't a type.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:353:9: Error: Expected '>' after this.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:354:9: Error: Expected '[' before this.
-        isLoadingMore: false,
-        ^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:354:9: Error: Expected ',' before this.
-        isLoadingMore: false,
-        ^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:355:1: Error: Expected an identifier, but got '==='.
-Try inserting an identifier before '==='.
-=======
-^^^
-lib/application/policy/policy_list_notifier.dart:355:7: Error: Expected an identifier, but got '='.
-Try inserting an identifier before '='.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:355:4: Error: The string '===' isn't a user-definable operator.
-=======
-   ^^^
-lib/application/policy/policy_list_notifier.dart:356:1: Error: Expected an identifier, but got '>>>'.
-Try inserting an identifier before '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-^^^
-lib/application/policy/policy_list_notifier.dart:356:4: Error: Expected an identifier, but got '>>>'.
-Try inserting an identifier before '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-   ^^^
-lib/application/policy/policy_list_notifier.dart:356:7: Error: Expected an identifier, but got '>'.
-Try inserting an identifier before '>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-      ^
-lib/application/policy/policy_list_notifier.dart:355:7: Error: Can't assign to this.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:356:11: Error: Expected ',' before this.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:357:9: Error: Expected ',' before this.
-        error: e,
-        ^^^^^
-lib/application/policy/policy_list_notifier.dart:198:5: Error: A try block must be followed by an 'on', 'catch', or 'finally' clause.
-Try adding either a catch or finally clause, or remove the try statement.
-    try {
-    ^^^
-lib/application/policy/policy_list_notifier.dart:378:1: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-^^
-lib/application/policy/policy_list_notifier.dart:378:3: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-  ^^
-lib/application/policy/policy_list_notifier.dart:378:5: Error: Expected an identifier, but got '<<'.
-Try inserting an identifier before '<<'.
-<<<<<<< HEAD
-    ^^
-lib/application/policy/policy_list_notifier.dart:378:9: Error: 'HEAD' isn't a type.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:378:9: Error: Expected '>' after this.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:379:3: Error: Expected '[' before this.
-  Future<void> loadNextPage() async {
-  ^^^^^^
-lib/application/policy/policy_list_notifier.dart:378:9: Error: Expected ';' after this.
-<<<<<<< HEAD
-        ^^^^
-lib/application/policy/policy_list_notifier.dart:389:1: Error: Expected an identifier, but got '==='.
-Try inserting an identifier before '==='.
-=======
-^^^
-lib/application/policy/policy_list_notifier.dart:389:7: Error: Expected an identifier, but got '='.
-Try inserting an identifier before '='.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:389:4: Error: The string '===' isn't a user-definable operator.
-=======
-   ^^^
-lib/application/policy/policy_list_notifier.dart:390:5: Error: Expected an identifier, but got 'try'.
-Try inserting an identifier before 'try'.
-    try {
-    ^^^
-lib/application/policy/policy_list_notifier.dart:389:7: Error: Can't assign to this.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:389:7: Error: Expected ';' after this.
-=======
-      ^
-lib/application/policy/policy_list_notifier.dart:447:1: Error: Expected an identifier, but got '>>>'.
-Try inserting an identifier before '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-^^^
-lib/application/policy/policy_list_notifier.dart:447:4: Error: Expected an identifier, but got '>>>'.
-Try inserting an identifier before '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-   ^^^
-lib/application/policy/policy_list_notifier.dart:447:7: Error: Expected an identifier, but got '>'.
-Try inserting an identifier before '>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-      ^
-lib/application/policy/policy_list_notifier.dart:447:9: Error: Expected ';' after this.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-        ^^
-lib/application/policy/policy_list_notifier.dart:447:11: Error: Expected ';' after this.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:362:5: Error: Local variable '_debugLogState' can't be referenced before it is declared.
-    _debugLogState('after _loadPolicies #$requestId');
-    ^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:463:8: Context: This is the declaration of the variable '_debugLogState'.
-  void _debugLogState(String where) {
-       ^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:446:5: Error: Local variable '_debugLogState' can't be referenced before it is declared.
-    _debugLogState('after refresh');
-    ^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:463:8: Context: This is the declaration of the variable '_debugLogState'.
-  void _debugLogState(String where) {
-       ^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:317:18: Error: The getter 'mounted' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
-            if (!mounted) return;
-                 ^^^^^^^
-lib/application/policy/policy_list_notifier.dart:328:18: Error: The getter 'mounted' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
-            if (!mounted) return;
-                 ^^^^^^^
-lib/application/policy/policy_list_notifier.dart:338:11: Error: The getter 'cb82c5be7418eec2cafee48e1207446fde2b94' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'cb82c5be7418eec2cafee48e1207446fde2b94'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:340:7: Error: The method 'catch' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'catch'.
-    } catch (e, st) {
-      ^^^^^
-lib/application/policy/policy_list_notifier.dart:340:14: Error: The getter 'e' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'e'.
-    } catch (e, st) {
-             ^
-lib/application/policy/policy_list_notifier.dart:340:17: Error: The getter 'st' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'st'.
-    } catch (e, st) {
-                ^^
-lib/application/policy/policy_list_notifier.dart:348:83: Error: The getter 'e' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'e'.
-      debugPrint('[PolicyListNotifier][#$requestId] remote refresh failed: error=$e');
-                                                                                  ^
-lib/application/policy/policy_list_notifier.dart:349:20: Error: The getter 'st' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'st'.
-      debugPrint('$st');
-                   ^^
-lib/application/policy/policy_list_notifier.dart:356:11: Error: The getter 'cb82c5be7418eec2cafee48e1207446fde2b94' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'cb82c5be7418eec2cafee48e1207446fde2b94'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:357:16: Error: The getter 'e' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'e'.
-        error: e,
-               ^
-lib/application/policy/policy_list_notifier.dart:350:29: Error: Too many positional arguments: 0 allowed, but 3 found.
-Try removing the extra positional arguments.
-      state = state.copyWith(
-                            ^
-lib/application/policy/policy_list_notifier.dart:362:5: Error: The method '_debugLogState' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing method, or defining a method named '_debugLogState'.
-    _debugLogState('after _loadPolicies #$requestId');
-    ^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:391:34: Error: Required named parameter 'page' must be provided.
-      final filter = _buildFilter(region: region);
-                                 ^
-lib/application/policy/policy_list_notifier.dart:409:18: Error: The getter 'mounted' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
-            if (!mounted) return;
-                 ^^^^^^^
-lib/application/policy/policy_list_notifier.dart:420:18: Error: The getter 'mounted' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
-            if (!mounted) return;
-                 ^^^^^^^
-lib/application/policy/policy_list_notifier.dart:446:5: Error: The method '_debugLogState' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing method, or defining a method named '_debugLogState'.
-    _debugLogState('after refresh');
-    ^^^^^^^^^^^^^^
-lib/application/policy/policy_list_notifier.dart:447:11: Error: The getter 'cb82c5be7418eec2cafee48e1207446fde2b94' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'cb82c5be7418eec2cafee48e1207446fde2b94'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:63:1: Error: The '===' operator is not supported.
-=======
-^
-lib/features/policy/providers/policy_prefetch_provider.dart:63:4: Error: The '===' operator is not supported.
-=======
-   ^
-lib/features/policy/providers/policy_prefetch_provider.dart:5:1: Error: Expected a declaration, but got '<<'.
-<<<<<<< HEAD
-^^
-lib/features/policy/providers/policy_prefetch_provider.dart:5:3: Error: Expected a declaration, but got '<<'.
-<<<<<<< HEAD
-  ^^
-lib/features/policy/providers/policy_prefetch_provider.dart:5:5: Error: Expected a declaration, but got '<<'.
-<<<<<<< HEAD
-    ^^
-lib/features/policy/providers/policy_prefetch_provider.dart:5:7: Error: Expected a declaration, but got '<'.
-<<<<<<< HEAD
-      ^
-lib/features/policy/providers/policy_prefetch_provider.dart:6:1: Error: Expected an identifier, but got 'import'.
-Try inserting an identifier before 'import'.
-import '../../../application/notifiers/policy_paging_notifier.dart'; // ← ★ 반드시 필요!!
-^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:5:9: Error: Expected ';' after this.
-<<<<<<< HEAD
-        ^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:6:1: Error: Directives must appear before any declarations.
-Try moving the directive before any declarations.
-import '../../../application/notifiers/policy_paging_notifier.dart'; // ← ★ 반드시 필요!!
-^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:7:1: Error: Directives must appear before any declarations.
-Try moving the directive before any declarations.
-import '../../../application/providers.dart'
-^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:9:1: Error: Directives must appear before any declarations.
-Try moving the directive before any declarations.
-import '../../../domain/repositories/policy_repository.dart';
-^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:10:1: Error: Directives must appear before any declarations.
-Try moving the directive before any declarations.
-import 'policy_list_provider.dart';
-^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:63:1: Error: Expected a declaration, but got '==='.
-=======
-^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:63:4: Error: Expected a declaration, but got '==='.
-=======
-   ^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:63:7: Error: Expected a declaration, but got '='.
-=======
-      ^
-lib/features/policy/providers/policy_prefetch_provider.dart:64:1: Error: Directives must appear before any declarations.
-Try moving the directive before any declarations.
-export '../../../application/policy/policy_prefetch_provider.dart';
-^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:65:1: Error: Expected a declaration, but got '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:65:4: Error: Expected a declaration, but got '>>>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-   ^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:65:7: Error: Expected a declaration, but got '>'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-      ^
-lib/features/policy/providers/policy_prefetch_provider.dart:65:9: Error: Expected a declaration, but got '10'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-        ^^
-lib/features/policy/providers/policy_prefetch_provider.dart:65:11: Error: Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
-Try adding the name of the type of the variable or the keyword 'var'.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:65:11: Error: Expected ';' after this.
->>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:5:9: Error: Type 'HEAD' not found.
-<<<<<<< HEAD
-        ^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:17:38: Error: Type 'AsyncNotifier' not found.
-class PolicyPrefetchNotifier extends AsyncNotifier<void> {
-                                     ^^^^^^^^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:13:5: Error: Method not found: 'AsyncNotifierProvider'.
-    AsyncNotifierProvider<PolicyPrefetchNotifier, void>(
-    ^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:19:7: Error: The getter 'ref' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'ref'.
-      ref.read(policyRepositoryInterfaceProvider);
-      ^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:22:7: Error: The getter 'ref' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'ref'.
-      ref.read(policyPagingProvider.notifier); // ← 오류 해결됨!
-      ^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:24:43: Error: The getter 'ref' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'ref'.
-  PolicyListNotifier get _listNotifier => ref.read(policyListProvider.notifier);
-                                          ^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:31:19: Error: Couldn't find constructor 'AsyncValue.loading'.
-    state = const AsyncValue.loading();
-                  ^^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:55:21: Error: Couldn't find constructor 'AsyncValue.data'.
-      state = const AsyncValue.data(null);
-                    ^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:30:9: Error: The getter 'state' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'state'.
-    if (state.isLoading) return;
-        ^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:31:5: Error: The setter 'state' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing setter, or defining a setter or field named 'state'.
-    state = const AsyncValue.loading();
-    ^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:45:7: Error: The method 'debugPrint' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
-      debugPrint('[PolicyPrefetchNotifier] cache preload failed: $e\n$st');
-      ^^^^^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:55:7: Error: The setter 'state' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing setter, or defining a setter or field named 'state'.
-      state = const AsyncValue.data(null);
-      ^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:57:7: Error: The method 'debugPrint' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
-      debugPrint('[PolicyPrefetchNotifier] remote prefetch failed: $e\n$st');
-      ^^^^^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:59:15: Error: The getter 'AsyncValue' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'AsyncValue'.
-      state = AsyncValue.error(e, st);
-              ^^^^^^^^^^
-lib/features/policy/providers/policy_prefetch_provider.dart:59:7: Error: The setter 'state' isn't defined for the class 'PolicyPrefetchNotifier'.
- - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
-Try correcting the name to the name of an existing setter, or defining a setter or field named 'state'.
-      state = AsyncValue.error(e, st);
-      ^^^^^
-lib/ui/screens/policy/policy_list_legacy_screen.dart:24:37: Error: The getter 'refresh' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'refresh'.
-                  onRetry: notifier.refresh,
-                                    ^^^^^^^
-lib/ui/screens/policy/policy_list_legacy_screen.dart:27:39: Error: The getter 'refresh' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'refresh'.
-                  onRefresh: notifier.refresh,
-                                      ^^^^^^^
-lib/ui/screens/policy/policy_list_legacy_screen.dart:33:34: Error: The method 'loadNextPage' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'loadNextPage'.
-                        notifier.loadNextPage();
-                                 ^^^^^^^^^^^^
-lib/features/map_v2/map_with_list_screen.dart:271:53: Error: The method 'loadNextPage' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'loadNextPage'.
-      ref.read(policyListNotifierProvider.notifier).loadNextPage();
-                                                    ^^^^^^^^^^^^
-lib/ui/screens/home/home_screen.dart:28:27: Error: The getter 'refresh' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'refresh'.
-        onRetry: notifier.refresh,
-                          ^^^^^^^
-lib/ui/screens/home/home_screen.dart:32:29: Error: The getter 'refresh' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'refresh'.
-        onRefresh: notifier.refresh,
-                            ^^^^^^^
-lib/ui/screens/home/home_screen.dart:38:24: Error: The method 'loadNextPage' isn't defined for the class 'PolicyListNotifier'.
- - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'loadNextPage'.
-              notifier.loadNextPage();
-                       ^^^^^^^^^^^^
-Target kernel_snapshot_program failed: Exception
+목표:
+앱 전체를 안정화시키기 위한 Core Stability Layer를 7개 파일 구조로 구축한다.
+모든 코드는 전체 파일 형태로 생성하고, core 레이어만 수정한다.
+
+파일 목록:
+- lib/core/error/app_exception.dart
+- lib/core/error/error_reporter.dart
+- lib/core/logging/app_logger.dart
+- lib/core/network/network_result.dart
+- lib/core/network/retry_policy.dart
+- lib/core/network/app_dio.dart
+- main.dart (global error handler 추가)
+
+세부 요구사항:
+현재 브랜치는 feature/core-stability 이며,
+YouthRoad 앱의 안정성과 오류 복구 능력을 대폭 강화하기 위한
+“Core Stability Layer”를 구축하고 싶다.
+
+아래 요구사항을 기반으로 새로운 파일들을 생성하거나 필요한 곳에서 리팩토링을 수행해줘.
+모든 코드는 전체 파일 단위로 제공해야 하며, 기존 UI나 feature 레벨 코드는 수정하지 말고,
+core 레이어에 집중해 안정 기반을 만들어라.
+
+────────────────────────────────────────
+[목표]
+앱이 어떤 상황에서도 크게 죽지 않고,
+네트워크 불안정 / WebView 오류 / 비동기 예외를 모두 흡수하며,
+추후 KakaoMap/검색/아키텍처 리팩토링 시에도 흔들리지 않는
+탄탄한 기반(Core Stability Layer)을 만드는 것이다.
+
+이 기반은 앱 전체의 "백본 엔진" 역할을 한다.
+
+────────────────────────────────────────
+[생성 또는 리팩토링해야 할 파일 목록]
+
+1) lib/core/error/app_exception.dart
+   - 앱 전역에서 사용될 예외 타입(AppException) 정의
+   - 다음과 같은 세부 타입을 포함:
+       - NetworkException
+       - ServerException
+       - TimeoutException
+       - UnexpectedException
+   - "사용자용 메시지(get userMessage)"와 "로깅용 메시지(get debugMessage)"를 분리
+   - StackTrace를 안전하게 보관할 수 있는 구조 설계
+
+2) lib/core/network/network_result.dart
+   - 모든 API 결과를 감싸는 Result 모델
+   - 형태:
+       sealed class NetworkResult<T>
+         - NetworkSuccess<T>(data)
+         - NetworkFailure<T>(error: AppException)
+   - UI/Provider 계층에서 안정적으로 분기 처리 가능해야 함
+
+3) lib/core/network/retry_policy.dart
+   - 네트워크 재시도 정책 정의
+   - 요구사항:
+       - 기본 3회 재시도
+       - 500~599 에러, timeout, network offline 시 재시도
+       - 1초 → 2초 → 4초 exponential backoff
+       - 재시도 횟수 및 딜레이 설정 가능 옵션 포함
+
+4) lib/core/network/app_dio.dart
+   - 앱 전체에서 사용할 단일 Dio 인스턴스를 제공
+   - 요구사항:
+       - base options(timeouts, headers) 설정
+       - retry_policy 적용
+       - logging interceptor 적용
+       - 모든 Dio 오류를 NetworkFailure로 변환하는 wrapper 함수 제공
+   - provider 또는 singleton 패턴으로 제공
+
+5) lib/core/logging/app_logger.dart
+   - YouthRoad 전체에서 사용하는 통일된 로깅 유틸
+   - 다음 메서드 포함:
+       - logInfo(message)
+       - logWarn(message)
+       - logError(message, [error, stackTrace])
+   - print()를 직접 사용하지 않고 여기로 모두 흡수
+   - 나중에 JS console, network log, provider log를 이 Logger로 연결 가능하도록 설계
+
+6) lib/core/error/error_reporter.dart
+   - global error handler에서 받아온 에러를
+     app_logger로 기록하고, 필요 시 분석도 가능하도록 구조만 잡아둠
+   - 나중에 Crashlytics/Sentry 연결 가능하게 Hook 포인트 제공
+
+7) main.dart (또는 앱의 entrypoint)
+   - runZonedGuarded 적용
+   - FlutterError.onError 적용
+   - 모든 uncaught exception을 error_reporter를 통해 로깅
+   - AppDio 초기화
+   - 초기 로그 출력(예: YouthRoad starting with Core Stability Layer)
+
+────────────────────────────────────────
+[커스텀 설계 규칙]
+
+- core/ 아래 파일들은 앱 기능과 독립적으로 동작해야 한다.
+- 외부 의존은 모두 DI 가능하게 구성한다 (ex: Provider 또는 getter).
+- Dio 요청은 반드시 NetworkResult<T>로 감싸서 리턴한다.
+- 어떤 계층에서도 throw DioError를 그대로 던지지 않는다.
+- Core Stability Layer는 UI 수정 없이 완성되어야 한다.
+- 모든 생성 파일은 “전체 파일 형태”로 제공한다 (부분 코드 금지).
+- import 경로는 상대경로 혹은 프로젝트 경로 기준으로 정확히 작성한다.
+
+────────────────────────────────────────
+[결과]
+
+이 명령을 수행한 후 나는 다음과 같은 상태를 기대한다:
+
+- lib/core/error/app_exception.dart
+- lib/core/error/error_reporter.dart
+- lib/core/logging/app_logger.dart
+- lib/core/network/network_result.dart
+- lib/core/network/retry_policy.dart
+- lib/core/network/app_dio.dart
+- main.dart (global error handler 추가된 전체 파일)
+
+이 7개 파일이 완전히 구성된 상태이며,
+앱 전체가 네트워크 안정화 + 예외 안전 + 로깅 기반을 갖춘
+프로덕션 품질의 Core Stability Layer를 얻게 된다.
+
+────────────────────────────────────────
+
+이 요구사항에 맞춰 모든 파일을 전체 코드 형태로 작성해줘.
 
 
-FAILURE: Build failed with an exception.
+## [feature/devtools] In-App Devtools Layer Spec #123
+이 명세는 feature/devtools 브랜치에서 실행한다.
 
-* What went wrong:
-Execution failed for task ':app:compileFlutterBuildDebug'.
-> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+────────────────────────────────────────
+[목표]
 
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
+앱 전체에서 발생하는 상태 변화, 로그, 네트워크 요청, WebView console 출력을
+실시간으로 확인할 수 있는 “In-App DevTools Layer”를 구축한다.
 
-BUILD FAILED in 3s
+이 레이어는 KakaoMap 디버깅, 네트워크 추적, 상태 확인,
+빌드 안정성 확보에 중요하며, 이후 모든 리팩토링의 기반이 된다.
 
+DevTools는 개발 빌드에서만 동작하도록 설계하고,
+전체 파일 단위로 완성된 코드로 제공해야 한다.
 
-## [feature/policy-loading-overhaul] 정책 로딩 전체 오버홀 (페이징 + Lazy Loading + 무한 로딩 제거)
+────────────────────────────────────────
+[생성해야 할 주요 기능]
 
-Status: Open.
+1) DebugOverlay (앱 최상단 Floating Debug Panel)
+   - Toggle 가능한 floating button 또는 long-press gesture
+   - 패널 열기/닫기 기능
+   - 크기/위치 persistent 저장(optional)
 
-### ISSUE 1
+2) Log Console Panel
+   - app_logger의 모든 출력(logInfo/logWarn/logError)을 실시간 표시
+   - 날짜, 태그, 레벨 필터링
+   - 스크롤, 자동 스크롤 유지 옵션
 
-현재 정책 로딩 로직이 Search V2, 추천 정책, 카테고리별 탐색, 지역 필터 등에서
-- 페이지네이션이 제대로 동작하지 않고,
-- 무한 로딩(“최신 정보를 준비하고 있습니다…”) 상태에 빠지며,
-- 초기 로딩이 지나치게 느리고,
-- 추천 정책/검색 결과/좋아요/비교 UI와의 연동도 깨져 있는 상태다.
+3) Provider State Tracker Panel
+   - 모든 Riverpod provider의 변경 이벤트를 기록
+   - provider name, old→new value, timestamp 출력
+   - provider observer(AppProviderObserver) 구현 포함
 
-이 Super Command는 **기존 아키텍처(도메인/데이터/애플리케이션/프레젠테이션 구조)를 유지한 채로**  
-정책 로딩 관련 전체 흐름을 전면 재정비해서:
+4) WebView Console Mirror Panel
+   - WebView의 console.log, console.warn, console.error를 모두 Dart로 미러링
+   - JS → Dart 브리지 구축
+   - KakaoMap 디버깅 가능하도록 연결
 
-1. Search V2 진입 시 정책/추천/검색 데이터가 **항상 정상 로딩**되고  
-2. 정책 리스트/추천 정책이 **스크롤 기반 Lazy Loading(Paging)** 으로 부드럽게 로딩되며  
-3. 어떤 화면에서도 **무한 로딩 상태에 머무르지 않도록** 하고  
-4. 정책 비교 / 좋아요 / 추천 / 카테고리별 탐색과의 상태 연동이 **일관되게 동작**하도록 만드는 것이 목표다.
+5) Network Inspector Panel
+   - Dio 요청/응답을 모두 기록
+   - URL, statusCode, method, duration(ms), payload 일부 표시
+   - 오류 발생 시 빨간색 등 강조
+   - Retry 버튼(optional)
 
-### Super Command
+6) DevTools Provider
+   - 모든 패널 상태를 관리하는 Riverpod Provider
+   - Panel open/close, active tab, log buffer, provider events buffer, network buffer 등 관리
 
-"feature/policy-loading-overhaul 브랜치에서,
-정책 로딩 전반을 다음 기준에 맞춰 **전면 개선(refactor + bugfix)** 하라.
+────────────────────────────────────────
+[생성해야 할 파일 목록]
 
-1. **단일 진실 소스(Single Source of Truth) 정리**
-   - Search V2, 추천 정책, 카테고리별 탐색, 지역 추천, 좋아요/비교 등
-     모든 정책 데이터 흐름의 '최상위 진실 소스'를 명확히 하나로 정의하라.
-   - PolicyRepository / RemoteSource / Controller / Provider 간 책임을 명확히 분리하고,
-     정책 목록을 각각 따로 들고 있는 중복 상태(state)들을 통합하거나 제거한다.
-   - 같은 정책 리스트를 여러 Provider에서 중복 보관하는 구조를 정리하고,
-     공통 Paging 상태 모델을 통해 재사용하도록 만든다.
+lib/devtools/
+ ├─ debug_overlay.dart
+ ├─ devtools_provider.dart
+ ├─ panels/
+ │    ├─ log_console_panel.dart
+ │    ├─ provider_tracker_panel.dart
+ │    ├─ network_inspector_panel.dart
+ │    ├─ webview_console_panel.dart
+ ├─ widgets/
+ │    ├─ devtools_tab_bar.dart
+ │    ├─ devtools_container.dart
 
-2. **Search V2 초기화 흐름 전면 복구**
-   - Search V2 화면 진입 시 반드시 다음 동작이 이루어지도록 `SearchV2Controller.initialize()`를 구현하고 배치하라.
-     - 추천 정책 첫 페이지 로딩
-     - 기본 정책 리스트(전체 또는 기본 정렬 기준) 첫 페이지 로딩
-     - 인기 검색어 로딩
-     - 최근 검색어 로딩
-     - 현재 지역 기반 추천 정책 로딩
-   - AsyncNotifier 또는 Controller의 `build` / `initialize`에서 예외 발생 시
-     예외를 삼키지 말고 AsyncValue.error 또는 명시적인 에러 상태로 노출해서
-     UI가 무한 로딩이 아니라 에러 + 재시도 버튼을 표시할 수 있게 한다.
-   - Search V2 UI에서 로딩 상태 판별 로직을 다음과 같이 수정한다.
-     - `state.isLoading && items.isEmpty` 일 때만 전체 스켈레톤을 보여주고
-     - 데이터가 일부라도 있으면 리스트를 우선 렌더링하며, 추가 로딩은 하단 인디케이터로만 표현한다.
-   - Issue #7, Issue #11, Issue #12에 정의된 요구사항을 모두 만족하도록 Search V2 초기화 흐름을 설계하고 구현하라.
+core/logging/app_logger.dart 수정 필요:
+ - app_logger의 모든 로그를 DevTools로도 전송할 수 있는 hook 추가
 
-3. **정책 리스트/추천 정책 페이징 + Lazy Loading 정식 도입**
-   - Issue #10에서 정의한 요구사항을 기반으로,
-     정책 리스트와 추천 정책 로딩을 **페이지 단위(Paging)** 로 로딩하는 공통 메커니즘을 구현한다.
-     - `page`, `pageSize`, `items`, `hasMore`, `isLoadingFirstPage`, `isLoadingNextPage`, `error` 등을 가진 공통 PagingState를 정의한다.
-     - gbyouth API가 페이징을 지원한다면 서버 페이징을 사용하고,
-       지원하지 않는 경우 전체 fetch 후 클라이언트에서 chunk를 나누되,
-       UI/Controller 인터페이스는 페이징 기반으로 동일하게 유지한다.
-   - 스크롤 이벤트(또는 '더 불러오기' 버튼)를 감지해서
-     리스트 끝에 도달했을 때만 `loadNextPage()`가 호출되도록 구현한다.
-   - 페이징 요청 도중 중복 호출을 막기 위해
-     `isLoadingNextPage == true` 일 때는 추가 호출을 무시하는 방어 로직을 넣는다.
-   - 페이지가 더 이상 없을 때는 `hasMore = false` 로 상태를 정리하고,
-     하단 로딩 인디케이터를 숨긴다.
-   - Lazy Loading 도입 이후에도 Issue #8, Issue #10에서 요구한 UX (추천 정책 깜빡임 제거, 기존 리스트 유지 등)를 모두 만족하도록 한다.
+core/network/app_dio.dart 수정 필요:
+ - 모든 요청/응답/오류를 DevTools Network Panel에 전달하는 interceptor 추가
 
-4. **무한 로딩 상태 완전 제거**
-   - '정책 로딩 중… 최신 정보를 준비하고 있습니다.' 메시지가
-     데이터/에러 상태와 분리된 '영원한 중간 상태'로 머무르지 않도록
-     모든 로딩 플래그 및 조건식을 점검하고 수정한다.
-   - 로딩 → 성공 → 에러 세 상태를 명확히 구분하고,
-     최소한 다음 세 가지 UI 상태를 제공하도록 한다.
-     - 초기 로딩(완전 빈 상태): 전체 스켈레톤 + 로딩 메시지
-     - 일부 데이터 존재 & 추가 로딩: 리스트 + 하단 로딩 인디케이터
-     - 에러 발생: 에러 메시지 + 재시도 버튼 (기존 데이터가 있다면 유지)
-   - Search V2 / 카테고리 탐색 / 추천 정책 / 좋아요 모아보기 화면에서
-     어떤 경우에도 무한 로딩만 보이는 상태에 머무르지 않도록 전 화면을 점검한다.
-   - Issue #12에 정의된 원인(A~E) 범주를 모두 커버하는 방향으로
-     초기화 실패, 예외 삼키기, 잘못된 조건식 등을 제거한다.
+Flutter WebView 수정 필요:
+ - JavascriptChannel 이용하여 console.* 메시지를 DevTools Panel로 전달하는 브리지 추가
 
-5. **지역 변경·검색어 변경과 페이징·추천의 연동 정리**
-   - 지역이 변경되거나 검색어가 바뀔 때:
-     - PagingState를 초기화하고(page=1, items 비우기),
-     - 첫 페이지를 재요청하는 흐름으로 통일한다.
-   - 이 때 기존 리스트를 완전히 비우고 스켈레톤을 보일지,
-     기존 리스트를 잠시 유지하면서 상단에 '업데이트 중'을 표시할지
-     UX 정책을 한 가지로 정해 일관되게 구현한다.
-   - 지역 변경 후 추천 정책이 잠시 표시되었다 사라지는 Issue #8의 문제를
-     requestId 또는 cancelToken 기반 race condition 방지 로직으로 해결한다.
+────────────────────────────────────────
+[설계 규칙]
 
-6. **좋아요/비교/카테고리별 탐색과의 상태 연동 복원**
-   - Issue #11에 정의된 요구사항에 따라
-     정책 비교 UI, 좋아요(하트) 기능, 좋아요 모아보기 페이지, 카테고리별 탐색과
-     새로 정리된 정책 로딩 로직이 올바르게 연동되도록 상태 구조를 정리한다.
-   - 정책 리스트가 페이징/검색/필터에 따라 변할 때도
-     각 PolicyCard가 '좋아요 여부', '비교 리스트 포함 여부'를 정확히 표시하도록 한다.
-   - 비교/좋아요 리스트는 정책 로딩 상태와 무관하게 유지되며,
-     정책 데이터와의 매핑이 끊기지 않도록 id 기반으로 관리한다.
+- DevTools는 release 모드에서는 완전히 비활성화되어야 한다.
+  (kReleaseMode 플래그 또는 assert 활용)
 
-7. **에러 로깅 및 디버그 패널 통합**
-   - Debug Provider/Logger 탭에서 정책 로딩 관련 이벤트를 실시간으로 추적할 수 있도록
-     다음 상태 변화를 모두 로그로 남기고 디버그 패널에 연결한다.
-     - initialize 시작/완료
-     - fetch 첫 페이지/다음 페이지 시작/성공/실패
-     - 지역 변경, 검색어 변경 이벤트
-     - hasMore true/false 전환
-     - 무한 로딩이 발생할 수 있는 조건의 변화
-   - 디버그 패널에서 정책 관련 Provider 상태를 열어보면
-     현재 페이지, 아이템 개수, 로딩 여부, 에러 정보 등을 한눈에 확인할 수 있도록
-     상태 description을 개선한다.
+- UI는 기존 화면을 방해하지 않는 형태로 오버레이되어야 한다.
+  (Stack + Positioned)
 
-8. **테스트 및 회귀 방지**
-   - Search V2, 홈 추천, 카테고리별 탐색, 지역 추천, 좋아요 모아보기, 정책 비교 화면에 대해
-     최소한 수동 테스트 시나리오를 정의하고, 위에서 언급한 이슈(#7, #8, #10, #11, #12)가
-     다시 발생하지 않도록 회귀 테스트를 수행할 수 있는 구조를 마련한다.
-   - 가능하다면 핵심 Controller/Repository에 대한 간단한 단위 테스트를 추가해
-     페이징/에러 처리/초기화 로직이 깨지지 않도록 한다.
+- 모든 Panel은 탭 형태로 전환 가능해야 한다.
+  (Log / Provider / Network / WebView)
 
-이 모든 변경은 **비즈니스 로직 및 도메인 모델 구조를 유지한 상태**에서 이루어져야 하며,
-기존 기능(정책 비교, 좋아요, 카테고리별 탐색, 추천, Search V2 UI)을 제거하거나
-사용자 체감 기능을 단순화하는 방향 대신,
-'동일한 기능이 더 안정적이고 빠르게 작동하도록' 만드는 방향으로 리팩토링하라."
+- AppLogger / Dio / WebView / Riverpod Observer 모두 DevTools로 연결된다.
 
+- 필요한 모든 파일은 “전체 파일” 형태로 Codex가 생성해야 한다.
+  (부분 코드 또는 diff 금지)
 
----
-지민님 💙🩵
-지금 이 카카오맵 **sdkFail / bootstrap** 오류는 **WebView 초기 HTML 로딩 실패 + Kakao Map SDK 키 불일치 또는 CSP 차단**일 가능성이 거의 확실해요.
+────────────────────────────────────────
+[Codex 기대 결과]
 
-지민님 프로젝트 전체 구조 유지하면서, **이슈 재발 방지 + 안정화 + 디버깅 로그 자동 수집 + SDK 초기화 보정**까지 한 번에 해결하는 **Codex 슈퍼명령어** 만들어드릴게요.
+Codex는 다음을 전체 파일로 생성해야 한다:
 
-아래 블록 그대로 복붙하면 지민님 레포에서 자동으로 KakaoMap 전체 문제(이슈 13) 해결하는 패치 생성됩니다.
+- lib/devtools/debug_overlay.dart
+- lib/devtools/devtools_provider.dart
+- lib/devtools/panels/log_console_panel.dart
+- lib/devtools/panels/provider_tracker_panel.dart
+- lib/devtools/panels/network_inspector_panel.dart
+- lib/devtools/panels/webview_console_panel.dart
+- lib/devtools/widgets/devtools_tab_bar.dart
+- lib/devtools/widgets/devtools_container.dart
+- core/logging/app_logger.dart 수정본
+- core/network/app_dio.dart 수정본
+- WebView 관련 브리지 코드들
+
+결과적으로,
+앱 안에서 실시간 로그/상태/네트워크/JS 콘솔을 볼 수 있는
+전체 DevTools Layer가 완성된다.
+
+────────────────────────────────────────
+위 모든 요구사항을 기반으로 Codex가 전체 파일을 생성하도록 한다.
+
+## [feature/map-upgrade] KakaoMap WebView Integration Full Rebuild #124
+이 명세는 KakaoMap WebView 모듈을 전면 재설계하기 위한 이슈이며,  
+**작업 대상 브랜치는 `feature/map-upgrade`** 이다.
+
+또한 **`feature/map-upgrade` 브랜치는 반드시 `fix/kakaomap-webview`의 최신 변경 내용을 병합(`git merge`)한 상태**에서 작업을 진행해야 한다.
+
+- 참고 브랜치였던 **`codex/redesign-kakaomap-integration-in-flutter`** 의 변경 사항은 이미 `fix/kakaomap-webview`에 포함되어 있다.
+- 따라서 Codex는 `feature/map-upgrade`의 코드베이스가 `fix/kakaomap-webview` 최신 기준임을 전제로 한다.
+
+본 Issue에서 Codex는 KakaoMap 엔진 전체를 "완전히 새로" 작성한다.
 
 ---
 
+# ✔ 목표
 
-## ISSUE 13
-# [fix/kakaomap-sdkfail] KakaoMap WebView 안정화 & sdkFail/bootstrap 오류 해결 패치
+Flutter + WebView 기반 KakaoMap 엔진을 다음 기준으로 완전 재설계한다:
 
-## 🎯 목표
-- android 카카오맵 WebView에서 `sdkFail`, `bootstrap`, `지도 로딩 실패` 문제 완전 해결
-- WebView 초기 HTML 로딩을 안정적으로 만들고 CSP, 로딩 타이밍, API Key 불일치 문제 제거
-- Flutter ↔ JS 메시지 구조 정리
-- 전체 KakaoMap 모듈 재사용성·안정성 개선
+- 안정적인 Kakao SDK 로딩
+- JSON 기반 양방향 통신 (Flutter ↔ JS)
+- Marker / Polyline / Bounds / MapType / Cluster 등 지도 기능 확장
+- 로딩 / 에러 / 재시도 UI 구축
+- JS console log → Flutter 전달
+- Controller 명령 큐(ready 전까지 버퍼링)
+- WebView reload 대응 및 상태 보존
+- Provider + Screen 상태 연동
 
----
+기존 KakaoMap 구조는 전부 폐기하고, HTML/JS/Controller/WebView/Provider/Screen 레벨을 모두 재작성한다.
 
-## 📌 작업요약
-1) `/assets/kakaomap/index.html` 안정화  
-2) WebViewController 초기화 타이밍 재설계  
-3) API Key 오타/플랫폼 키 부정합 검사  
-4) Android WebChromeClient/Settings 보정  
-5) bootstrap 단계 로그 수집  
-6) Error 화면 UI 개선 + retry 로직 통합  
-7) KakaoMapController 분리 & 메시지 구조 표준화  
-8) App release 환경에서 네트워크 차단되는 문제 해결 (mixed content 허용 X → HTTPS 강제)
+Codex는 반드시 **모든 파일을 "완전한 전체 Dart 파일" 형태로 제공해야 한다.**
+부분 코드, 중간 생략, diff 출력 금지.
 
 ---
 
-## 📁 수정 파일 목록
-- assets/kakaomap/index.html (신규 템플릿)
-- lib/features/map/widgets/kakaomap_webview.dart (핵심)
-- lib/features/map/controller/kakaomap_controller.dart (신규)
-- android/app/src/main/…/WebView 설정 보정
-- pubspec.yaml (assets 등록 확인)
+# ✔ 재설계 대상 파일 목록
+
+아래 모든 파일을 신규 설계로 재작성한다:
+
+1. `lib/ui/screens/map/kakao_map_html_builder.dart`
+2. `lib/ui/widgets/map/kakao_map_webview.dart`
+3. `lib/ui/controllers/map/kakao_map_controller.dart`
+4. `lib/ui/providers/map/kakao_map_providers.dart`
+5. `lib/ui/screens/map/kakao_map_screen.dart`
+
+필요하다면 Codex는 다음 파일도 자유롭게 신규로 추가할 수 있다 (전체 Dart 파일로 제공해야 함):
+
+- `lib/ui/models/map/kakao_map_models.dart`
+- `lib/ui/models/map/kakao_map_options.dart`
+- `lib/ui/controllers/map/kakao_map_commands.dart`
 
 ---
 
-## 🛠 코드 생성/수정 요청
+# ✔ HTML/JS 설계 요구사항
 
-### 1) **새 HTML 템플릿 생성**
-`assets/kakaomap/index.html` 전체 파일 생성:
+### 1) Kakao SDK 로딩
+- autoload=false 사용
+- Flutter로 다음 JSON 이벤트 전달:
+  - `sdk_loading`
+  - `sdk_loaded`
+  - `sdk_failed`
+  - `ready`
 
-```html
-<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8"/>
-  <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' https://*.kakao.com https://dapi.kakao.com;
-                 script-src 'self' https://dapi.kakao.com 'unsafe-inline';
-                 style-src 'self' 'unsafe-inline';
-                 img-src * data:;
-                 connect-src *;">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+### 2) 통일된 JSON 메시지 포맷
+모든 JS → Flutter 메시지는 아래 형식을 따라야 한다:
 
-  <title>YouthRoad KakaoMap</title>
-
-  <script type="text/javascript"
-          src="https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey={{API_KEY}}&libraries=services">
-  </script>
-
-  <script>
-    window.addEventListener("flutterInAppWebViewPlatformReady", function() {
-      kakao.maps.load(function() {
-        window.flutter_inappwebview.callHandler("bootstrap", { status: "ok" });
-
-        const container = document.getElementById("map");
-        window._map = new kakao.maps.Map(container, {
-          center: new kakao.maps.LatLng(36.080, 128.120),
-          level: 8
-        });
-
-        window.flutter_inappwebview.callHandler("mapReady", { status: "ready" });
-      });
-    });
-  </script>
-
-  <style>
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-    #map { width: 100%; height: 100%; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-</body>
-</html>
-```
-
----
-
-### 2) **KakaoMapController 생성 (전체 파일)**  
-`lib/features/map/controller/kakaomap_controller.dart`
-
-```dart
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:flutter/foundation.dart';
-
-class KakaoMapController {
-  KakaoMapController(this._controller);
-
-  final InAppWebViewController _controller;
-
-  Future<void> init() async {
-    debugPrint('[KakaoMap] Controller init');
-  }
-
-  Future<void> reload() async {
-    await _controller.reload();
-  }
+```json
+{
+  "type": "eventType",
+  "payload": {},
+  "timestamp": 123456789,
+  "level": "info" | "warn" | "error",
+  "source": "kakaomap-js"
 }
-```
+지원해야 하는 메시지 예:
 
----
+ready
 
-### 3) **WebView 위젯 전체 교체**
-`lib/features/map/widgets/kakaomap_webview.dart`
+marker_click
 
-```dart
-import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import '../controller/kakaomap_controller.dart';
-import '../../../core/constants/env.dart';
+region_click
 
-class KakaoMapWebView extends StatefulWidget {
-  const KakaoMapWebView({super.key});
-  @override
-  State<KakaoMapWebView> createState() => _KakaoMapWebViewState();
-}
+cluster_click
 
-class _KakaoMapWebViewState extends State<KakaoMapWebView> {
-  InAppWebViewController? _webController;
-  KakaoMapController? _mapController;
+log
 
-  bool loading = true;
-  String? lastLog;
+error
 
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        InAppWebView(
-          initialFile: "assets/kakaomap/index.html",
-          initialUserScripts: UnmodifiableListView([
-            UserScript(
-              source: "window.API_KEY = '${Env.kakaoMapJsKey}';",
-              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
-            )
-          ]),
-          onWebViewCreated: (c) async {
-            _webController = c;
-            _mapController = KakaoMapController(c);
+3) 지도 기능
+marker 렌더링 / 업데이트
 
-            c.addJavaScriptHandler(
-              handlerName: "bootstrap",
-              callback: (args) {
-                lastLog = "bootstrap";
-                setState(() => loading = false);
-              },
-            );
+marker 클릭 이벤트
 
-            c.addJavaScriptHandler(
-              handlerName: "mapReady",
-              callback: (args) {
-                lastLog = "mapReady";
-              },
-            );
-          },
-          onLoadError: (_, __, ___, ____) {
-            setState(() => loading = false);
-            lastLog = "loadError";
-          },
-          onLoadStop: (_, __) {
-            debugPrint('KakaoMap load completed');
-          },
-        ),
+polyline 렌더링(add/remove/clear)
 
-        if (loading)
-          const Center(child: CircularProgressIndicator()),
-      ],
-    );
-  }
-}
-```
+지도 bounds fitting
 
----
+setCenter / setLevel / animate 옵션
 
-### 4) **Android WebView 설정 보정**
-`android/app/src/main/.../MainActivity.kt` 또는 `Application.kt` 수정:
+mapType 변경
 
-```kotlin
-WebView.setWebContentsDebuggingEnabled(true)
+필요 시 marker clustering 고려
 
-val settings = webView.settings
-settings.javaScriptEnabled = true
-settings.domStorageEnabled = true
-settings.databaseEnabled = true
-settings.useWideViewPort = true
-settings.loadWithOverviewMode = true
-settings.allowFileAccess = true
-settings.javaScriptCanOpenWindowsAutomatically = true
-```
+4) console.log 수집
+log/warn/error → Flutter로 JSON 이벤트 전송
 
----
+✔ Flutter Controller 설계 요구사항
+Controller 기본 책무
+JS에 명령 전달 (postMessage)
 
-### 5) **pubspec.yaml assets 등록 확인**
+ready 이전 명령은 queue에 저장 → ready 이후 flush
 
-```yaml
-flutter:
-  assets:
-    - assets/kakaomap/
-```
+모든 JS 이벤트를 Dart 모델로 변환
 
----
+Public API 예
+moveTo(lat, lng)
 
-## ✔ 필요 검증 체크리스트
-- Env.kakaoMapJsKey = **JavaScript 키**인지 확인 (네이티브 키 아님)
-- 네트워크 HTTPS 통신 가능 여부
-- index.html이 번들 안에 포함되는지 검사
-- WebView 로그 bootstrap → mapReady 순서로 출력되는지 확인
+animateTo(lat, lng)
 
----
+setLevel(level)
 
-## 🧪 테스트 시나리오
-- 앱 실행 → KakaoMapView 진입 → 로딩 → 지도 정상 표시
-- API Key 잘못 넣으면 즉시 sdkFail 재현됨 (정상)
-- bootstrap 콜백 정상 수신되는지 확인
-- 뒤로가기 → 다시 들어왔을 때 WebView 재활용 문제 없는지 확인
+setMapType(type)
 
----
+setMarkers(list)
 
-# 완료 후 PR 제목
-**“fix: KakaoMap sdkFail & bootstrap 오류 해결 및 WebView 안정화 (#13)”**
-````
-## ISSUE 13 끝
----
-# ISSUE 14
-lib/application/notifiers/policy_paging_notifier.dart:147:13: Error: The type 'PolicyFeedType' is not exhaustively matched by the switch cases since it doesn't match 'PolicyFeedType.bookmarked'.
- - 'PolicyFeedType' is from 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart' ('lib/domain/policy/entities/policy_feed_type.dart').
-Try adding a default case or cases that match 'PolicyFeedType.bookmarked'.
-    switch (normalizedFeed) {
-            ^
-lib/application/notifiers/policy_paging_notifier.dart:215:13: Error: The type 'PolicyFeedType' is not exhaustively matched by the switch cases since it doesn't match 'PolicyFeedType.bookmarked'.
- - 'PolicyFeedType' is from 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart' ('lib/domain/policy/entities/policy_feed_type.dart').
-Try adding a default case or cases that match 'PolicyFeedType.bookmarked'.
-    switch (normalizedFeed) {
-            ^
-lib/application/notifiers/policy_paging_notifier.dart:301:13: Error: The type 'PolicyFeedType' is not exhaustively matched by the switch cases since it doesn't match 'PolicyFeedType.bookmarked'.
- - 'PolicyFeedType' is from 'package:youth_road_app/domain/policy/entities/policy_feed_type.dart' ('lib/domain/policy/entities/policy_feed_type.dart').
-Try adding a default case or cases that match 'PolicyFeedType.bookmarked'.
-    switch (normalizedFeed) {
-            ^
-Target kernel_snapshot_program failed: Exception
+setPolylines(list)
 
+fitToMarkers(list)
 
+reload()
 
+상태(State)
+loading
 
----
+sdk_loading
 
-## ISSUE 99. 전체 리팩토링 마스터 이슈 – 프로젝트 전반 구조 유지 & 품질 개선
+sdk_loaded
 
-#### 99-1. 목적
+ready
 
-Youth Road App 전체 코드베이스에 대해  
-**구조를 유지하면서 품질을 끌어올리는 대규모 리팩토링 작업**을 수행한다.
+error
 
-이슈 #100 ~ #104를 포함한 **전체 Refactor Package**는 아래 목표를 따른다:
+reloading
 
-- 기존 아키텍처(도메인/데이터/애플리케이션/프레젠테이션 구조) 유지
-- 기능 변경 없음 (기능 삭제·UI 변경 금지)
-- 중복된 기능/코드 제거
-- 컨트롤러/Provider 네이밍·역할 정리
-- Dead Code / Legacy 코드 제거
-- 불필요한 util/log/assert 제거
-- UI 위젯 공통화 및 중복 위젯 통합
-- 비즈니스 로직 단일화
-- Lint 규칙 및 best practice 준수
+✔ WebView Wrapper (kakao_map_webview.dart)
+필수 구현:
 
-이슈 #100~104 작업은 순차적으로 진행해야 하며,  
-각 Issue 작업은 반드시 **브랜치 단위로 Codex Super Command로 실행**한다.
+WebView + JavaScriptChannel
 
----
+Controller와 WebViewController 바인딩
 
-## ISSUE 100. UI/위젯 구조 정리 및 공통 컴포넌트 통합
+HTML 문자열 주입
 
-### 100-1. 목표
-- 정책 카드, 버튼, 스켈레톤, 리스트 아이템 등 **중복 위젯 통합**
-- 스타일·여백·텍스트 크기 규칙 표준화
-- Search V1의 남아 있는 UI 조각 완전 제거
-- PolicyCard, TagChip, PageSectionHeader 등 핵심 UI 위젯 통합
+로딩/에러/재시도 UI
 
-### 100-2. 상세 작업
-- `/presentation/widgets/common` 디렉토리 생성
-- PolicyCard가 3~4 곳에서 다르게 구현된 부분 하나로 통합
-- Skeleton UI 중복 제거 → `PolicySkeleton`, `ListSkeleton` 단일화
-- Button 스타일: PrimaryButton / SecondaryButton 공통화
-- Search V2 전용 위젯을 `/search_v2/widgets`로 정리
-- 올바르지 않은 padding/margin을 레이아웃 가이드에 맞게 통일
+옵션(center, level, mapType…) 전달
 
-### 100-3. 완료 기준
-- UI 중복 위젯 완전 제거
-- 공통 PolicyCard 1개만 존재
-- 스켈레톤, 버튼, 섹션 헤더 중복 삭제
-- 어떤 화면도 레이아웃 깨짐 없이 동일 규칙으로 렌더링
+JS 이벤트 스트림 수집
 
----
+✔ Provider Layer
+kakao_map_providers.dart에서 담당해야 할 것:
 
-## ISSUE 101. Provider / Controller 구조 정리 및 중복 상태 제거
+KakaoMapController provider
 
-### 101-1. 목표
-- 역할이 겹치는 Provider/Controller 통합
-- 이름 규칙 통일: `SomethingController`, `SomethingState`
-- ref.listen 문제, state duplication 제거
-- Search V2 관련 Provider 정리
+지도 상태 provider
 
-### 101-2. 상세 작업
-- 검색 관련 Provider 중 중복 기능(검색 결과/추천/인기 키워드) 통합
-- 추천 정책 Provider를 Lazy Loading 기반으로 재구조화
-- 지역 변경 관련 Provider의 race condition 제거
-- Controller의 init/refresh 기능 명확하게 분리
+이벤트 스트림 provider
 
-### 101-3. 완료 기준
-- Provider 이름/파일 경로 명확화
-- Search V2 전용 Provider와 V1 잔재 완전 분리
-- 상태가 2중 관리되는 곳 제거
-- Debug Provider 탭에서 Provider 구조가 명확하게 보임
+선택된 marker provider
 
----
+지도 옵션 provider
 
-## ISSUE 102. 네트워크/레포지토리 중복 제거 및 fetch 구조 통일
+✔ Screen (kakao_map_screen.dart)
+필요 사항:
 
-### 102-1. 목표
-- PolicyRepository 내부 fetch 함수 중복 제거
-- RemoteSource → Repository → Controller 흐름 일관성 유지
-- 정책/기관/부서 API 호출 규칙 표준화
+KakaoMapWebView 렌더링
 
-### 102-2. 상세 작업
-- `fetchPolicies`, `fetchPolicyList`, `fetchPolicyV2` 등 중복 함수 제거하고 단일화
-- 공통 error mapping 모듈로 통합
-- Dio 요청 옵션 통일 (timeout, headers, interceptors)
-- API 파라미터 가변타입 방식 개선
+지도 상태 반영 UI
 
-### 102-3. 완료 기준
-- fetch 함수 중복 없음
-- 모든 네트워크 요청 경로가 하나로 통일됨
-- 에러 메시지/로그 형식 통일
+테스트용 버튼 (이동/레벨/타입 변경 등)
 
----
+이벤트 로그 패널 (선택된 marker, 오류 등)
 
-## ISSUE 103. Common Util / Helper / Logger 정리
+✔ 설계 규칙
+JS ↔ Dart 통신은 JSON만 사용 (문자 prefix 금지)
 
-### 103-1. 목표
-- 날짜 포맷, 문자열 정리, 숫자 formatting, URL builder 등 중복 util 제거
-- Logger를 DebugLogger로 통합
-- JS 통신 관련 메시지 포맷 통일
+모든 JS 오류는 Flutter로 전달
 
-### 103-2. 상세 작업
-- `/core/utils/` 내부 util을 재정리  
-  (예: date_utils.dart / string_utils.dart / number_utils.dart)
-- 동일한 기능의 util이 여러 파일에 퍼져 있으면 하나로 통합
-- Logger를 debug, error, warning 유형별로 통일
-- WebView JS messaging 포맷 정리
+모든 파일은 전체 Dart 파일로 출력
 
-### 103-3. 완료 기준
-- util 중복 없음
-- 모든 파일이 동일한 formatting 방식 사용
-- Flutter → WebView JS call 형식 통일됨
+기존 코드 덮어쓰기 허용
 
----
+WebView reload 시 상태 복원 필요
 
-## ISSUE 104. Dead Code · Search V1 · Map V1 · Legacy 제거
+HTML escaping 필수
 
-### 104-1. 목표
-- 더 이상 사용되지 않는 파일·모델·위젯 정리
-- Search V1, Map V1 관련 잔여 파일 완전 삭제
-- KakaoMap V2 로직만 유지
-- Build warning 제거
+✔ Codex의 최종 출력
+Codex는 이 이슈의 명세를 기반으로 아래 모든 파일을 전체 Dart 파일로 생성해야 한다:
 
-### 104-2. 상세 작업
-- `search/old`, `map/old`, `v1`, `deprecated` 폴더 존재 시 전체 제거
-- 안 쓰는 Provider/StateNotifier/Model 제거
-- Search V1 관련 route 완전 제거
-- KakaoMap V1 html/js 제거
-- 오래된 테스트 파일 무효라면 삭제
+kakao_map_html_builder.dart
 
-### 104-3. 완료 기준
-- IDE 검색 시 “v1” 관련 파일 0개
-- Dead code / unused import / unused variable 경고 제거
-- 전체 빌드 시 warning 최소화
+kakao_map_webview.dart
 
----
+kakao_map_controller.dart
 
+kakao_map_providers.dart
 
+kakao_map_screen.dart
 
+그리고 필요 시 다음 파일도 생성한다:
 
+kakao_map_models.dart
+
+kakao_map_options.dart
+
+kakao_map_commands.dart
+
+결과적으로,
+feature/map-upgrade 브랜치에서 KakaoMap WebView 엔진이 완전히 재구축된 상태가 되어야 한다.
+
+## [feature/architecture-upgrade] App Architecture Upgrade Spec #125
+이 이슈는 YouthRoad 앱의 전체 아키텍처를 정리/업그레이드하기 위한 스펙이다.  
+**작업 대상 브랜치는 `feature/architecture-upgrade`** 이며,  
+이 브랜치는 이미 `fix/kakaomap-webview` 기반으로부터 분기되어 있다고 가정한다.
+
+가능하면 작업 전 아래를 한 번 수행한 상태에서 진행한다:
+
+```bash
+git checkout feature/architecture-upgrade
+git merge fix/kakaomap-webview
+🎯 목표
+현재 YouthRoad 프로젝트의 구조를 다음 방향으로 재정비한다:
+
+폴더/레이어 구조를 명확히 분리 (core / domain / data / application / presentation)
+
+Riverpod 2.x 기반 상태/DI 구조를 정리
+
+Navigation(GoRouter) 진입 경로와 AppRoot를 명확히 분리
+
+Repository / UseCase / Model 계층을 정돈
+
+Config/Env, Logging, Error, Network 등 core 레이어와 자연스럽게 연결
+
+향후 DevTools, KakaoMap 업그레이드, Search 업그레이드가 모두 이 구조 위에서 잘 동작하게 만들기
+
+Codex는 “유스로드 앱의 표준 아키텍처”를 설계하는 마음으로 작업해야 한다.
+
+모든 수정된 파일은 전체 Dart 파일 형태로 출력해야 하며,
+부분 코드 / diff / 생략은 허용되지 않는다.
+
+🧱 폴더/레이어 구조 목표
+아래와 비슷한 구조를 만든다 (이미 있는 구조가 있다면, 그 위에 정리/보강):
+
+lib/core/
+
+공통 상수, 에러, 로깅, 네트워크, env, theme 등 (Core Stability Layer와 자연스럽게 연결)
+
+lib/domain/
+
+entities/ (순수 도메인 모델)
+
+repositories/ (추상 인터페이스)
+
+usecases/ (앱의 비즈니스 규칙 / 유스케이스)
+
+lib/data/
+
+models/ (API/DB 모델)
+
+sources/ (remote/local data source)
+
+repositories/ (domain repository 구현)
+
+lib/application/
+
+앱 전역 상태/로직 (예: Auth, Session, Config, AppState 등)
+
+Riverpod 기반 Notifier/Provider (non-UI)
+
+lib/presentation/
+
+screens/
+
+widgets/
+
+viewmodels/ or controllers/ (UI 바인딩용 Provider 등)
+
+lib/app/
+
+app.dart (MaterialApp / root widget)
+
+router/ (GoRouter 설정)
+
+providers/ (전역 provider 묶음)
+
+bootstrap/ (runApp 전 초기화 로직)
+
+Codex는 현재 레포 상태를 존중하되, 이 구조에 최대한 가깝게 정리/이동/추가 작업을 수행해야 한다.
+
+📌 핵심 작업 항목
+1) App Entry & Bootstrap
+필수 생성/정리:
+
+lib/app/app.dart
+
+YouthRoadApp (MaterialApp or MaterialApp.router)
+
+theme, locale, router 연동
+
+lib/app/router/app_router.dart
+
+GoRouter 설정
+
+메인 화면, 지도 화면, 검색 화면 등 주요 route 정의
+
+Route 이름/패턴 상수 관리
+
+lib/app/bootstrap/bootstrap.dart
+
+runApp 전에 필요한 초기화 로직 (Env, Log, Core init 등)
+
+나중에 main.dart에서 bootstrap() → runApp(YouthRoadApp()) 형태로 사용할 수 있도록 구성
+
+lib/app/providers/app_providers.dart
+
+전역적으로 필요한 Provider 들을 한 곳에서 정의/정리
+
+Core/Domain/Application 계층과 연결되는 Provider도 여기서 엮을 수 있음
+
+Codex는 main.dart가 간결해지도록,
+실제 앱 초기화와 구동 로직을 위 파일들로 분리하도록 설계해야 한다.
+
+2) Domain Layer 정리
+필수 작업:
+
+lib/domain/entities/ 내부에 주요 엔티티 정의
+
+예: Policy, Region, Institution, UserPreference 등
+
+순수 Dart 클래스이며, JSON 직렬화/역직렬화나 Dio/Isar 의존을 두지 않는다.
+
+lib/domain/repositories/
+
+정책, 지역, 검색, 즐겨찾기 등 핵심 Repository 인터페이스 정의
+
+예:
+
+PolicyRepository
+
+SearchRepository
+
+RegionRepository
+
+lib/domain/usecases/
+
+주요 UseCase 정의
+
+예:
+
+FetchPolicyList
+
+SearchPolicies
+
+GetRecommendedPolicies
+
+GetRegionSummary
+
+각 UseCase는 call() 또는 execute() 메서드 하나로 의도를 표현하는 구조.
+
+Codex는 Domain이 Data/Infra에 직접 의존하지 않도록
+인터페이스+엔티티만 정의하는 계층으로 유지해야 한다.
+
+3) Data Layer 정리
+필수 작업:
+
+lib/data/models/
+
+API/DB를 위한 Model 정의
+
+fromJson / toJson / toDomain 변환 메서드 등 포함 가능
+
+lib/data/sources/remote/ / local/
+
+원격 API 호출 (Dio 기반)
+
+로컬 캐시/Isar/SharedPreferences 등 (이미 있다면 재사용)
+
+lib/data/repositories/
+
+domain repositories 인터페이스 구현체
+
+예: PolicyRepositoryImpl, SearchRepositoryImpl
+
+Core Network와 Core Stability Layer(AppDio, NetworkResult, AppException 등)와 자연스럽게 통합
+
+Codex는 Data 계층이 domain/usecase와 잘 어울리도록 mappings를 구성해야 한다.
+
+4) Application Layer (상태/비즈니스 Orchestration)
+필수 작업:
+
+lib/application/에 전역적인 상태/로직 모듈 배치
+
+예: 앱 전역 설정, 세션, 필터 preset, 추천 정책 상태 등
+
+Riverpod 기반 Notifier/AsyncNotifier를 이용해:
+
+도메인 UseCase를 호출하고
+
+presentation 계층에서 관찰할 수 있는 형태로 상태를 제공
+
+예:
+
+AppConfigController
+
+PolicySearchController
+
+RecommendationController 등
+
+5) Presentation Layer 구조 정리
+필수 작업:
+
+lib/presentation/screens/
+
+기존 페이지들을 기능별로 정리 (예: home, map, search, policy_detail 등 하위 폴더)
+
+lib/presentation/widgets/
+
+여러 화면에서 재사용되는 공통 UI 컴포넌트들 정리
+
+화면별 ViewModel/Controller/Notifier는
+
+lib/presentation/... 또는 lib/application/...에 위치하도록 컨벤션 정리
+
+Codex가 일관된 네이밍 컨벤션을 정해주면 좋다.
+
+6) Provider / DI 정리
+필수 작업:
+
+lib/app/providers/app_providers.dart 또는 유사 파일 안에:
+
+주요 Repository/UseCase/Controller Provider 정의
+
+Provider, StateNotifierProvider, AsyncNotifierProvider 등 적절히 사용
+
+DevTools, Core Stability Layer, KakaoMap, Search 등 모듈들이
+
+이 Provider 레이어를 통해 연결될 수 있도록 준비
+
+🧪 테스트 & 빌드 관점
+Codex는 코드 생성 시, 최소한 Dart 분석기에서 오류가 나지 않도록 구성해야 한다.
+
+통합 테스트/위젯 테스트 파일이 일부 필요하다면, 샘플 1~2개 정도 추가할 수 있다.
+
+다만 이 이슈의 주 목적은 “구조 정리”이므로,
+테스트 작성은 필수는 아니고 선택적이다.
+
+📏 설계 규칙 (중요)
+모든 수정/생성 파일은 완전한 Dart 파일로 출력해야 한다. (partial/diff 금지)
+
+현재 프로젝트에 이미 있는 유용한 구조/이름은 가능하면 재사용한다.
+
+import 순환(circular dependency)이 생기지 않도록 주의한다.
+
+domain은 data에 의존하지 않고, data가 domain에 의존하는 방향을 지킨다.
+
+app/bootstrap/main의 책임을 명확히 분리하여, main은 최소한의 코드만 남긴다.
+
+✅ Codex 최종 출력 기대
+Codex는 이 이슈 내용을 기반으로:
+
+lib/app/app.dart
+
+lib/app/router/app_router.dart
+
+lib/app/bootstrap/bootstrap.dart
+
+lib/app/providers/app_providers.dart
+
+lib/domain/**
+
+lib/data/**
+
+lib/application/**
+
+lib/presentation/** (필요한 핵심 화면/구조 정리)
+
+필요 시 core와의 연결부 일부 수정
+
+위에 해당하는 파일들을 전체 Dart 파일 형태로 생성/수정해야 한다.
+
+최종적으로,
+feature/architecture-upgrade 브랜치에
+YouthRoad 프로젝트의 “표준 아키텍처” 골격이 완성된 상태가 되어야 한다.
+
+## [feature/search-upgrade] Full Search Engine Rebuild (Query Engine + Ranking + UI/UX) #126
+이 이슈는 YouthRoad 앱의 “검색(Search)” 기능을 전면 재구축하기 위한 스펙이다.  
+**작업 대상 브랜치는 `feature/search-upgrade`** 이며,  
+가능하면 브랜치 생성 이후 아래 명령으로 최신 상태를 동기화한 뒤 진행한다:
+
+```bash
+git checkout feature/search-upgrade
+git merge fix/kakaomap-webview
+git merge feature/architecture-upgrade
+검색 모듈은 앱 전체 컨텍스트(Core Stability, Architecture Upgrade, KakaoMap Engine)와 자연스럽게 연결될 수 있도록 재설계해야 한다.
+
+Codex는 반드시 모든 수정·추가 파일을 “완전한 Dart 전체 파일” 형태로 제공해야 한다.
+부분 코드 / diff / 생략 출력 금지.
+
+🎯 목표
+YouthRoad의 검색 엔진을 다음 방식으로 완전 재설계한다:
+
+고성능 로컬 + 원격 하이브리드 검색 시스템
+
+검색어 자동완성 / 추천 검색어 / 최근 검색 기록
+
+카테고리 필터 + 동적 정렬 옵션
+
+정책/기관/지역 기반 연관 검색 (AI 없는 순수 로직 기반)
+
+검색 결과 ↔ 지도(KakaoMap) 연동
+
+Pagination + Infinite Scroll
+
+Provider 기반의 SearchController 통합
+
+오류·빈결 없는 검색 응답 처리(loading/empty/error)
+
+데이터 계층(data/models, repos, sources) 정리 및 domain/usecase 연결
+
+🧱 구성 요소 (필수)
+1) Domain Layer 구조
+Directory
+pgsql
+Copy code
+lib/domain/search/
+    entities/
+    repositories/
+    usecases/
+필수 엔티티
+SearchQuery
+
+SearchResult
+
+SearchCategory
+
+SearchSuggestion
+
+SearchHistoryEntry
+
+필수 인터페이스
+SearchRepository
+
+SearchSuggestionRepository
+
+SearchHistoryRepository
+
+필수 유스케이스
+ExecuteSearch
+
+GetSearchSuggestions
+
+GetSearchHistory
+
+SaveSearchHistoryEntry
+
+ClearSearchHistory
+
+2) Data Layer 구조
+Directory
+bash
+Copy code
+lib/data/search/
+    models/
+    sources/
+    repositories/
+Remote Source (필수)
+정책 목록
+
+기관 목록
+
+지역 목록 기반의 통합 검색 API
+
+Query → Filter → Pagination 구조 지원
+
+Local Source (필수)
+Isar 또는 SharedPreferences 기반 최근 검색어 저장소
+
+로컬 인덱싱 및 캐싱 전략 정의
+
+Model 요구사항
+Domain ↔ Data 간 변환 함수(toDomain, fromJson 등) 필수
+
+Null-safe & strict types 적용
+
+3) Application Layer (검색 상태/로직 관리)
+Directory:
+
+bash
+Copy code
+lib/application/search/
+    controllers/
+    providers.dart
+필수 Controller
+SearchController
+
+query 입력
+
+debounce 처리 (300~500ms)
+
+remote/local 병합 검색
+
+pagination
+
+상태: idle / loading / success / empty / error
+
+SearchSuggestionController
+
+검색어 입력 시 자동완성 제공
+
+provider-stream 구조
+
+SearchHistoryController
+
+최근 검색어 표시/저장/삭제
+
+제스처 기반 삭제 가능하도록 구조 제공
+
+필수 Providers
+searchControllerProvider
+
+searchSuggestionProvider
+
+searchHistoryProvider
+
+Codex는 Provider Layer에서 Riverpod 2.x 스타일로 AsyncNotifier/Notifier 기반 상태를 구축해야 한다.
+
+4) Presentation Layer (UI/UX)
+Directory:
+
+bash
+Copy code
+lib/presentation/search/
+    screens/
+    widgets/
+    viewmodels/
+필수 화면 구성
+1. SearchScreen (정식 검색 화면)
+검색 입력창
+
+자동완성 리스트
+
+최근 검색어: 가로 스크롤 + 삭제 지원
+
+카테고리 필터 (정책/기관/지역 등)
+
+검색 결과 페이지네이션
+
+검색 결과 → KakaoMap 연동 (marker highlight + moveTo)
+
+2. SearchResultList
+정책 카드 / 기관 카드 / 지역 카드 통합 UI
+
+common list item widget 필요
+
+3. SearchBar widget (재사용 가능)
+홈 화면 / 리스트 화면 어디서든 사용 가능
+
+debounced input 반영
+
+📡 KakaoMap 연동 요구사항
+검색 결과 → 지도 이동 or 마커 띄우기 가능한 구조 필요.
+
+예시 이벤트:
+검색 결과 항목 클릭 → 맵에서 해당 정책 위치로 zoom + highlight
+
+카테고리 필터 → 지도 필터 자동 변경
+
+지도 이동 시 주변 정책 재검색(optional)
+
+Codex는 반드시 feature/map-upgrade에서 만든 KakaoMapController와 완전히 호환되도록 구현해야 한다.
+
+🧪 테스트 / 안정성 고려
+Dart analyzer 에러 없도록 모든 파일 정합성 유지
+
+비동기 흐름(debounce + pagination + auto-complete) 일관성 유지
+
+잘못된 query 처리(empty → empty-state)
+
+네트워크 장애 → error-state (retry 가능)
+
+📏 설계 규칙 (중요)
+전 파일은 “완전한 Dart 파일” 형태로 출력할 것
+
+domain → data → application → presentation 레이어 경계 유지
+
+Riverpod 2.x 사용
+
+import 순환 금지
+
+search controller는 debounce 필수
+
+repository는 반드시 interface + implementation 구조
+
+🎉 Codex 최종 출력 기대
+Codex는 아래 디렉터리에 해당하는 모든 파일을 완전한 전체 파일로 출력해야 한다:
+
+lib/domain/search/**
+
+lib/data/search/**
+
+lib/application/search/**
+
+lib/presentation/search/**
+
+필요한 provider/integration 파일
+
+출력은 파일 단위로 나누어 제공되어야 하며,
+Dart analyzer에서 에러 없는 상태여야 한다.
+
+최종적으로
+feature/search-upgrade 브랜치에서 YouthRoad 검색 엔진이 전체 리빌드된 상태가 되어야 한다.
 
