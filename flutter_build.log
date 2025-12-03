@@ -1,8 +1,0 @@
-
-Running Gradle task 'assembleDebug'...                          
-FROM APK (Debug): /home/ssm-user/YouthRoad-Gyeongbuk/android/app/build/outputs/apk/debug/app-debug.apk
-TO Flutter DIR: /home/ssm-user/YouthRoad-Gyeongbuk/android/build/app/outputs/flutter-apk
-TO Backup DIR : /home/ssm-user/YouthRoad-Gyeongbuk/android/build
-✔ APK copied successfully.
-Running Gradle task 'assembleDebug'...                             15.9s
-Gradle build failed to produce an .apk file. It's likely that this file was generated under /home/ssm-user/YouthRoad-Gyeongbuk/build, but the tool couldn't find it.
