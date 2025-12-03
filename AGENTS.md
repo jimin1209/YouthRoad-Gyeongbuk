@@ -194,8 +194,467 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 # 🌐 5. TASKS (AGENTS.md 내부 통합 TASK 목록)
 # ============================================================
 💙💙💙💙💙💙💙💙💙💙💙💙💙
-💙💙💙❤️❤️❤️💙💙💙💙💙💙💙
+💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+
+
+@chatgpt-codex
+# TASK 14 — 알림 영속화 스토리지 도입
+# (PolicyReminder Local Storage & Persistence)
+
+## 1. 시스템 정의 (System Definition)
+
+본 Task는 YouthRoad 앱의 `policy_new` 모듈에서 사용하는
+정책 알림(PolicyReminder) 데이터를 **앱 재시작 후에도 유지**하는
+로컬 스토리지 계층을 도입하는 작업이다.
+
+대상 서브시스템:
+
+- Domain: PolicyReminder 엔티티, PolicyReminderStatus 등
+- Data: PolicyReminderLocalDataSource, PolicyReminderRepository
+- Application: PolicyReminderService (cleanupExpiredReminders 포함)
+- Infra: Isar 또는 SharedPreferences 기반 로컬 저장소
+
+---
+
+## 2. 문제 정의 (Problem Statement)
+
+현재 알림 데이터 소스가 메모리 구현에 머물러 있어
+
+- 앱을 재시작하면 설정한 알림 목록이 모두 사라지고,
+- 완료/취소/만료 상태도 함께 리셋되며,
+- “오늘 어떤 정책에 알림 걸어놨는지” 사용자 입장에서 추적 불가능
+
+한 상태이다.
+
+이로 인해 알림 기능은 **실제 서비스 품질이 아닌, 데모 수준**에 머물고 있다.
+
+---
+
+## 3. 요구사항 분석 (Requirements)
+
+기능 요구사항:
+
+1. 앱 재시작 이후에도 정책 알림 목록이 그대로 복원되어야 한다.
+2. 각 알림은 다음 정보를 포함해 로컬 스토리지에 저장된다.
+   - 정책 ID (policyId)
+   - 알림 고유 ID (reminderId)  ※ Task 15에서 확장 예정
+   - 알림 종류(timeKind: D-7, D-1, custom 등)
+   - 알림 시각(UTC 기반 timestamp)
+   - 상태(status: scheduled, fired, cancelled, expired 등)
+   - 생성/업데이트 시각
+3. 기존 `PolicyReminderRepository` 인터페이스는 유지하면서
+   내부 구현체를 메모리 → 로컬 스토리지 기반으로 교체해야 한다.
+4. 앱 시작 시:
+   - 스토리지에서 모든 알림을 읽어와 in-memory 캐시/상태로 복원
+   - `cleanupExpiredReminders()`가 **영속 데이터 기준**으로 동작해야 한다.
+
+비기능 요구사항:
+
+- DB 엔진은 Isar 또는 SharedPreferences 중 하나로 결정 가능하지만,
+  추후 교체 가능하도록 DataSource 인터페이스를 단일 포트로 유지한다.
+- 읽기/쓰기 성능은 알림 목록 수백 건 기준에서도 UI 지연이 없어야 한다.
+- 마이그레이션: 기존 메모리 기반에서 DB 도입 시 앱 크래시 없이 자연스럽게 전환.
+
+---
+
+## 4. 아키텍처 설계 (Architecture)
+
+### 4.1 레이어 구조
+
+- Domain
+  - `PolicyReminder`
+- Data
+  - `PolicyReminderLocalDataSource` (추상)
+  - `IsarPolicyReminderLocalDataSource` (구현)
+  - `PolicyReminderRepositoryImpl`
+- Application
+  - `PolicyReminderService`
+
+기존 흐름:
+
+> UI → PolicyReminderService → Repository(메모리) → NoOpGateway
+
+갱신 후 흐름:
+
+> UI → PolicyReminderService  
+>   → PolicyReminderRepositoryImpl  
+>     → PolicyReminderLocalDataSource(로컬 DB)  
+>   + (Task 16 이후) NotificationGateway(실 디바이스)
+
+---
+
+## 5. 데이터 파이프라인 / 흐름도
+
+1. **알림 생성**
+   - UI가 Service에 `createReminder(policy, timeKind, fireAt)` 요청
+   - Service → Repository.save(reminder)
+   - Repository → LocalDataSource.insert(entity)
+   - 성공 시 Domain 객체 반환
+
+2. **알림 조회**
+   - Service.loadAllReminders()
+   - Repository.getAll()
+   - LocalDataSource.getAllOrderedByFireTime()
+
+3. **앱 시작 시 복원**
+   - `PolicyReminderService.init()` 또는 앱 부팅 훅에서
+   - Repository.getAll() 호출 → 메모리 캐시 or StateNotifier에 주입
+   - cleanupExpiredReminders() 호출로 만료 데이터 정리
+
+4. **알림 삭제/취소**
+   - Service.cancelReminder(reminderId / policyId, timeKind)
+   - Repository.deleteById(...)
+   - LocalDataSource.delete(...)
+   - (Task 16에서 실제 디바이스 취소 호출 연동)
+
+---
+
+## 6. Provider / Controller 상호작용 규칙
+
+- `policyReminderLocalDataSourceProvider`
+  - 구현체: `IsarPolicyReminderLocalDataSource`
+- `policyReminderRepositoryProvider`
+  - 내부에서 LocalDataSource만 사용하도록 변경
+- `policyReminderServiceProvider`
+  - 알림 목록 UI(StateNotifier)와 연동
+  - 앱 시작 시 init() 및 cleanupExpiredReminders() 호출 책임
+
+Controller/UI는 **오직 Service/Repository에만 의존**하고,
+LocalDataSource 구현체를 직접 참조하지 않는다.
+
+---
+
+## 7. UI 상태도 (State Diagram)
+
+단순화된 상태:
+
+1. Idle (알림 없음)
+2. Loading (초기 로딩/복원 중)
+3. Loaded (알림 목록 표시)
+4. Error (DB read/write 문제 발생 시)
+
+전이 예시:
+
+- 앱 시작 → Loading → Loaded
+- 알림 추가/삭제 → Loaded(목록 갱신)
+- 스토리지 오류 → Error → 사용자가 재시도 → Loading → Loaded
+
+---
+
+## 8. 이벤트 흐름 (Event Flow)
+
+- 앱 시작:
+  - `AppInitialized` → Service.init() → Repository.getAll() → UI 업데이트
+- 알림 추가:
+  - `ReminderCreated` → Local 저장 → UI 목록 업데이트
+- 알림 취소:
+  - `ReminderCancelled` → Local 삭제 → UI 목록 업데이트
+- cleanup:
+  - `ExpiredCleanupRequested` (앱 시작/주기적 호출)  
+    → 만료 알림 삭제 → UI 재로딩
+
+---
+
+## 9. 파일 구조
+
+생성/수정 파일:
+
+- `lib/features/policy_new/data/sources/policy_reminder_local_data_source.dart`
+  - abstract + Isar 구현체
+- `lib/features/policy_new/data/repositories/policy_reminder_repository_impl.dart`
+  - LocalDataSource 기반으로 수정
+- `lib/features/policy_new/application/services/policy_reminder_service.dart`
+  - init()/cleanup 로직 영속 데이터 기준으로 수정
+- `lib/features/policy_new/application/providers.dart`
+  - 각 Provider 연결 갱신
+
+---
+
+## 10. Acceptance Criteria
+
+- [ ] 앱 재시작 후에도 알림 목록이 그대로 유지된다.
+- [ ] 알림 생성/취소/만료 상태 변경 시 Local DB에 정확히 반영된다.
+- [ ] cleanupExpiredReminders()가 영속 데이터 기준으로 동작한다.
+- [ ] 기존 메모리 구현은 더 이상 사용되지 않는다.
+- [ ] Android/iOS 모두에서 기본 동작 테스트(생성/취소/재시작 후 복원)를 통과한다.
+
+
+
+# TASK 15 — 멀티 알림 및 ID 설계 개선
+# (Multi Reminder per Policy + Robust ID Scheme)
+
+## 1. 시스템 정의
+
+YouthRoad의 PolicyReminder 시스템에 대해
+
+- **한 정책에 여러 알림(D-7, D-1, 커스텀 시간 등)을 동시에 설정**할 수 있게 하고,
+- 각 알림을 안정적으로 식별/취소/업데이트할 수 있는
+  **고유 ID 규칙(reminderId)**을 도입하는 작업이다.
+
+---
+
+## 2. 문제 정의
+
+현재 구조:
+
+- 알림 ID가 `policyId`에 고정되어 있음.
+- 같은 정책에 대해 D-7, D-1 알림을 동시에 설정하면
+  마지막 알림만 남고 이전 것이 덮어써짐.
+- Repository/Service/UI 모두 “정책당 알림 1개”를 가정하고 있어
+  구조적으로 확장이 불가능하다.
+
+---
+
+## 3. 요구사항 분석
+
+기능 요구사항:
+
+1. 같은 policyId에 대해 서로 다른 timeKind(D-7, D-1, custom 등)를
+   **동시에 여러 개 저장**할 수 있어야 한다.
+2. 알림 고유 ID(reminderId)는 다음 조건을 만족해야 한다.
+   - 정책간, 정책 내부 timeKind 간 충돌 없음
+   - 플랫폼 로컬 알림 ID와 1:1 매핑 가능
+3. UI에서:
+   - 정책 상세 화면에서 “여러 알림 옵션”을 별도 토글/버튼으로 노출
+   - 알림 목록 화면에서는 정책 단위 요약 + 펼치기 시 개별 알림 표시
+
+비기능 요구사항:
+
+- ID 규칙이 문서화되어야 하고, 미래 커스텀 알림(timeKind 증가)에도 그대로 사용할 수 있어야 한다.
+- 기존 단일 알림 구조에서 멀티로 변경 시
+  마이그레이션 전략이 명확해야 한다 (최소한 크래시 없이 동작).
+
+---
+
+## 4. 아키텍처 설계
+
+### 4.1 Domain 확장
+
+- `PolicyReminder` 엔티티에 필드 추가/정리:
+  - `String reminderId`       // 내부/플랫폼 공용 키
+  - `String policyId`
+  - `PolicyReminderTimeKind timeKind` (enum: d7, d1, custom, etc)
+  - 기타 필드(UTC time, status 등)는 Task 14 정의 활용
+
+- ID 규칙 예시:
+  - `reminderId = "$policyId|$timeKind|$timestamp"`  
+    또는 
+  - UUID 기반 + 메타 데이터 별도 필드  
+  구현은 자유지만 **하나의 규칙으로 통일**해야 한다.
+
+### 4.2 Repository 변경
+
+- 기존: `getByPolicyId(policyId) → PolicyReminder?`
+- 변경: `getByPolicyId(policyId) → List<PolicyReminder>`
+- 개별 삭제 API:
+  - `deleteByReminderId(reminderId)`
+  - `deleteByPolicyIdAndTimeKind(policyId, timeKind)`
+
+Service와 UI는 이 새로운 메서드를 사용.
+
+---
+
+## 5. 데이터 파이프라인 / 흐름도
+
+1. **알림 생성 (D-7 / D-1 / Custom)**
+   - UI에서 timeKind 선택
+   - Service.createReminder(policy, timeKind)
+   - reminderId 생성 규칙 적용
+   - Repository.save(reminder)
+   - (Task16에서 reminderId로 로컬 알림 예약)
+
+2. **알림 취소**
+   - UI에서 특정 timeKind 스위치 해제
+   - Service.cancelReminder(policyId, timeKind)
+   - Repository.deleteByPolicyIdAndTimeKind(...)
+   - (Task16에서 동일 ID로 로컬 알림 취소)
+
+3. **정책 단위 요약**
+   - Service.getRemindersByPolicyId(policyId)
+   - 여러 reminder 중 “가장 가까운 알림”을 헤더로,
+     나머지는 상세 목록으로 내려줌.
+
+---
+
+## 6. Provider / Controller 상호작용 규칙
+
+- PolicyDetail 화면 전용 Provider:
+  - `policyReminderByPolicyProvider(policyId)`  
+    → List<PolicyReminder>를 반환.
+- 알림 리스트 화면 Provider:
+  - 전체 알림을 정책별로 그룹핑해서 내려줌
+- Controller는 `reminderId` / `timeKind` 기반 API만 사용하며  
+  `policyId` 단일 키 동작을 더 이상 의존하지 않는다.
+
+---
+
+## 7. UI 상태도
+
+정책 상세 화면 기준:
+
+- 상태:
+  - NoReminder (해당 정책에 알림 없음)
+  - Single / MultiReminder (1개 이상)
+- 전이:
+  - 토글 ON → 알림 생성 → MultiReminder로 전환
+  - 토글 OFF → 해당 timeKind 삭제 → 0개면 NoReminder
+
+알림 목록 화면 기준:
+
+- GroupedByPolicy 상태:
+  - 정책 카드 + 가장 가까운 알림 요약 + “자세히 보기(다른 알림)” 행동
+
+---
+
+## 8. 이벤트 흐름
+
+- `ReminderCreated(policyId, timeKind, reminderId)`
+- `ReminderCancelled(reminderId or policyId+timeKind)`
+- `ReminderListChanged(policyId)`
+  - UI에서 정책별 상태 다시 fetch
+
+이벤트 명은 코드 안에서 상수/enum으로 관리한다.
+
+---
+
+## 9. 파일 구조
+
+변경/추가 파일:
+
+- `lib/features/policy_new/domain/entities/policy_reminder.dart`
+- `lib/features/policy_new/data/repositories/policy_reminder_repository_impl.dart`
+- `lib/features/policy_new/application/services/policy_reminder_service.dart`
+- `lib/features/policy_new/presentation/reminder/**` (정책별 멀티 알림 UI)
+
+---
+
+## 10. Acceptance Criteria
+
+- [ ] 한 정책에 대해 D-7, D-1, Custom 등 여러 알림을 동시에 설정할 수 있다.
+- [ ] 각 알림은 reminderId로 안정적으로 식별/취소 가능하다.
+- [ ] 기존 단일 알림 구조에서 업그레이드해도 앱이 크래시 없이 동작한다.
+- [ ] 알림 목록/정책 상세 UI가 멀티 알림 구조를 정확히 반영한다.
+- [ ] unit test나 간단한 통합 테스트로 reminderId 충돌이 발생하지 않는 것을 확인한다.
+
+
+
+# TASK 16 — 플랫폼 알림 연동 추가
+# (Connect PolicyReminder to Real Device Notifications)
+
+## 1. 시스템 정의
+
+PolicyReminder 도메인 계층과
+실제 모바일 디바이스의 로컬/푸시 알림 시스템을 연결하는 작업이다.
+
+- Application: `NotificationGateway` 포트
+- Infra: `FlutterLocalNotifications` 또는 플랫폼별 구현
+- Service: PolicyReminderService에서 schedule/cancel 호출
+
+---
+
+## 2. 문제 정의
+
+현재:
+
+- `NotificationGateway`가 NoOp 구현체에 연결되어 있음.
+- 실제 기기에서는 어떤 알림도 예약/취소되지 않는다.
+- 알림 기능 전체가 “UI 조건 토글만 있는 데모 상태”다.
+
+---
+
+## 3. 요구사항 분석
+
+기능 요구사항:
+
+1. 알림 생성 시:
+   - 로컬 DB 저장 + 실제 디바이스 알림 예약이 둘 다 수행되어야 한다.
+2. 알림 취소 시:
+   - 로컬 DB 삭제 + 디바이스 알림 취소가 둘 다 수행되어야 한다.
+3. 타임존:
+   - 모든 비즈니스 로직은 내부적으로 UTC 기준으로 처리하되,
+     디바이스 예약 시 로컬 타임존으로 변환해야 한다.
+4. 플랫폼:
+   - 최소 Android는 완전 지원, iOS는 설정/권한 처리 포함.
+
+비기능 요구사항:
+
+- 알림 권한이 없는 경우 graceful fallback (토스트/스낵바 안내 등)
+- 동일 reminderId에 중복 예약이 발생하지 않도록 한다.
+
+---
+
+## 4. 아키텍처 설계
+
+### 4.1 Gateway 인터페이스
+
+```dart
+abstract class NotificationGateway {
+  Future<void> scheduleReminder(PolicyReminder reminder);
+  Future<void> cancelReminder(String reminderId);
+}
+
+4.2 구현체
+	•	FlutterLocalNotificationGateway (예: flutter_local_notifications 기반)
+	•	내부에서:
+	•	reminderId를 int형 ID로 매핑하거나 문자열로 유지
+	•	title/body, schedule time, 채널 ID 설정
+
+⸻
+
+5. 데이터 파이프라인 / 흐름도
+	1.	알림 생성
+	•	Service.createReminder(…)
+	•	Repository.save(…)
+	•	NotificationGateway.scheduleReminder(reminder)
+	2.	알림 취소
+	•	Service.cancelReminder(…)
+	•	Repository.delete…
+	•	NotificationGateway.cancelReminder(reminderId)
+	3.	앱 재시작 후 복원 (선택)
+	•	Task14에서 로딩한 알림 목록을 기준으로
+	•	필요 시 scheduleReminder를 다시 호출해 재등록 (플랫폼 전략에 따라 결정)
+
+⸻
+
+6. Provider / Controller 상호작용 규칙
+	•	notificationGatewayProvider
+	•	기존 NoOp 구현체 → 실제 구현체로 교체
+	•	policyReminderServiceProvider
+	•	알림 생성/취소 시 Gateway 호출을 책임지는 유일한 계층
+
+UI는 Gateway를 직접 알지 못한다.
+
+⸻
+
+7. UI 상태도 / 이벤트 흐름
+	•	알림 버튼 ON:
+	•	CreateReminderRequested → Service → Repository + Gateway.schedule
+	•	알림 버튼 OFF:
+	•	CancelReminderRequested → Service → Repository + Gateway.cancel
+	•	권한 없음:
+	•	NotificationPermissionDenied → “알림 권한을 허용해 주세요” 안내
+
+⸻
+
+8. 파일 구조
+	•	lib/features/policy_new/application/gateways/notification_gateway.dart
+	•	인터페이스 + 구현체(FlutterLocalNotificationGateway)
+	•	lib/features/policy_new/application/providers.dart
+	•	notificationGatewayProvider 교체
+	•	lib/features/policy_new/application/services/policy_reminder_service.dart
+	•	schedule/cancel 호출 추가
+
+⸻
+
+9. Acceptance Criteria
+	•	Android 실기기에서 알림 생성/취소가 정상적으로 동작한다.
+	•	정책별 D-7, D-1 알림이 설정 시간에 맞춰 뜬다.
+	•	권한이 거부된 상태에서도 앱이 크래시 없이 동작하고 적절한 안내를 제공한다.
+	•	reminderId 기준으로 예약/취소가 정확히 매칭된다.
+	•	Task14, Task15와 논리/데이터 구조 상 충돌이 없다.
+
+---
 
 
 ⸻
