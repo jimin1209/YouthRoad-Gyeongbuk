@@ -2,6 +2,77 @@ import 'package:dio/dio.dart';
 
 import '../models/policy_model.dart';
 import 'policy_remote_source.dart';
+import '../../domain/values/policy_category.dart';
+import '../../domain/values/policy_region.dart';
+
+PolicyRegion _parseRegion(String? value) {
+  if (value == null) return PolicyRegion.all;
+
+  final normalized = value.toLowerCase();
+  switch (normalized) {
+    case '전체':
+    case 'all':
+      return PolicyRegion.all;
+    case 'seoul':
+    case '서울':
+      return PolicyRegion.seoul;
+    case 'busan':
+    case '부산':
+      return PolicyRegion.busan;
+    case 'daegu':
+    case '대구':
+      return PolicyRegion.daegu;
+    case 'incheon':
+    case '인천':
+      return PolicyRegion.incheon;
+    case 'gwangju':
+    case '광주':
+      return PolicyRegion.gwangju;
+    case 'daejeon':
+    case '대전':
+      return PolicyRegion.daejeon;
+    case 'ulsan':
+    case '울산':
+      return PolicyRegion.ulsan;
+    case 'gyeongbuk':
+    case '경북':
+    case '경상북도':
+      return PolicyRegion.gyeongbuk;
+    default:
+      return PolicyRegion.all;
+  }
+}
+
+PolicyCategory _parseCategory(String? value) {
+  if (value == null) return PolicyCategory.other;
+
+  final normalized = value.toLowerCase();
+  switch (normalized) {
+    case 'employment':
+    case '취업':
+      return PolicyCategory.employment;
+    case 'startup':
+    case '창업':
+      return PolicyCategory.startup;
+    case 'housing':
+    case '주거':
+      return PolicyCategory.housing;
+    case 'life':
+    case '생활':
+      return PolicyCategory.life;
+    case 'education':
+    case '교육':
+      return PolicyCategory.education;
+    case 'welfare':
+    case '복지':
+      return PolicyCategory.welfare;
+    case 'culture':
+    case '문화':
+      return PolicyCategory.culture;
+    default:
+      return PolicyCategory.other;
+  }
+}
 
 class PolicyRemoteSourceMock extends PolicyRemoteSource {
   PolicyRemoteSourceMock() : super(Dio());
@@ -15,13 +86,26 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
     final int page = queryParameters['page'] as int? ?? 1;
     final int size = queryParameters['size'] as int? ?? 10;
     final String feedType = (queryParameters['feed_type'] as String?) ?? 'all';
-    final String region = (queryParameters['region'] as String?) ?? 'all';
-    final String category = (queryParameters['category'] as String?) ?? 'employment';
-    final List<String> tags = (queryParameters['tags'] as String?)
+    final PolicyRegion region =
+        _parseRegion((queryParameters['region'] as String?) ?? 'all');
+    final PolicyCategory category =
+        _parseCategory((queryParameters['category'] as String?) ?? 'employment');
+    final List<String> selectedTags = (queryParameters['tags'] as String?)
             ?.split(',')
             .where((tag) => tag.isNotEmpty)
             .toList() ??
         const [];
+    final List<String> filterTags = (queryParameters['tag_filters'] as String?)
+            ?.split(',')
+            .where((tag) => tag.isNotEmpty)
+            .toList() ??
+        const [];
+    final List<String> mergedTags = {
+      ...filterTags,
+      ...selectedTags,
+    }.toList();
+    final List<String> tags = mergedTags.isNotEmpty ? mergedTags : const ['sample'];
+    final List<String> keywords = tags.isNotEmpty ? tags : const ['sample'];
 
     return List.generate(
       size,
@@ -32,8 +116,8 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
         description: 'Mock description for page $page item $i',
         region: region,
         category: category,
-        tags: tags.isNotEmpty ? tags : const ['sample'],
-        keywords: tags.isNotEmpty ? tags : const ['sample'],
+        tags: tags,
+        keywords: keywords,
         applicationStartDate: DateTime.now().toIso8601String(),
         applicationEndDate:
             DateTime.now().add(const Duration(days: 10)).toIso8601String(),
@@ -65,8 +149,8 @@ class PolicyRemoteSourceMock extends PolicyRemoteSource {
       title: 'Mock Policy Detail $id',
       summary: 'Summary of mock detail $id',
       description: 'Detailed description for $id',
-      region: 'gyeongbuk',
-      category: 'employment',
+      region: PolicyRegion.gyeongbuk,
+      category: PolicyCategory.employment,
       tags: const ['mock', 'sample'],
       keywords: const ['mock', 'sample'],
       applicationStartDate: DateTime.now().toIso8601String(),
