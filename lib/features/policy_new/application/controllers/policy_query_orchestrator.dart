@@ -42,16 +42,6 @@ class PolicyQueryOrchestrator {
   }
 
   PolicyQuery _buildRecommendQuery() {
-    final filter = PolicyFilter(
-      region: _ui.region == PolicyRegion.all ? _profile.region : _ui.region,
-      category: _ui.category,
-      age: _profile.age,
-      isOnline: _ui.showOnlyOnline ? true : null,
-      isOngoing: _ui.showOnlyOngoing ? true : null,
-      institutionId: _ui.institutionId,
-      departmentId: _ui.departmentId,
-    );
-
     final baseTags = _ui.tags.isNotEmpty ? _ui.tags : _profile.recommendTags;
     final behaviorTags = _behavior.topTags();
 
@@ -69,7 +59,16 @@ class PolicyQueryOrchestrator {
 
     return PolicyQuery(
       feedType: PolicyFeedType.recommend,
-      filter: filter,
+      filter: PolicyFilter(
+        region: _ui.region == PolicyRegion.all ? _profile.region : _ui.region,
+        category: _ui.category,
+        age: _profile.age,
+        isOnline: _ui.showOnlyOnline ? true : null,
+        isOngoing: _ui.showOnlyOngoing ? true : null,
+        institutionId: _ui.institutionId,
+        departmentId: _ui.departmentId,
+        tags: baseTags,
+      ),
       tags: combinedTags,
       sort: PolicySortOption.recommendation,
     );
