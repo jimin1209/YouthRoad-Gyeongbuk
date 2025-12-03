@@ -24,6 +24,9 @@ import '../domain/values/policy_reminder_config.dart';
 import '../domain/values/policy_reminder_status.dart';
 import '../domain/values/policy_settings.dart';
 import '../domain/values/policy_sort.dart';
+import '../compare/controllers/compare_diff_service.dart';
+import '../compare/controllers/compare_feed_controller.dart';
+import '../compare/models/compare_state.dart';
 import 'behavior/policy_behavior_tracker.dart';
 import 'controllers/base_feed_controller.dart';
 import 'controllers/policy_detail_controller.dart';
@@ -56,6 +59,7 @@ import '../data/sources/policy_favorite_local_data_source.dart';
 import '../data/sources/policy_reminder_local_data_source.dart';
 import '../data/sources/policy_remote_source.dart';
 import '../data/sources/policy_remote_source_mock.dart';
+import '../data/sources/compare_local_data_source.dart';
 import '../../application/di.dart' as app_di;
 import 'recommendation/user_profile_service.dart';
 
@@ -108,6 +112,11 @@ final userProfileProvider =
   );
   notifier.load();
   return notifier;
+});
+
+final compareLocalDataSourceProvider = Provider<CompareLocalDataSource>((ref) {
+  final prefs = ref.watch(app_di.sharedPreferencesProvider);
+  return CompareLocalDataSource(prefs);
 });
 
 final compareRepositoryProvider =
@@ -317,11 +326,16 @@ final favoriteFeedControllerProvider =
   ),
 );
 
+final compareDiffServiceProvider = Provider<CompareDiffService>((ref) {
+  return CompareDiffService();
+});
+
 final compareFeedControllerProvider =
-    StateNotifierProvider<CompareFeedController, PolicyPagingState>(
+    StateNotifierProvider<CompareFeedController, AsyncValue<CompareState>>(
   (ref) => CompareFeedController(
     ref: ref,
-    queryEngine: ref.read(policyQueryEngineProvider),
+    repository: ref.read(policyRepositoryProvider),
+    diffService: ref.read(compareDiffServiceProvider),
   ),
 );
 

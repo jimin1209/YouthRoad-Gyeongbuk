@@ -6,6 +6,7 @@ import '../filters/policy_filter_bar.dart';
 import '../filters/policy_recommend_tags_bar.dart';
 import '../reminder/policy_reminder_list_screen.dart';
 import '../widgets/policy_feed_list_view.dart';
+import '../../compare/presentation/compare_tab.dart';
 
 class PolicyFeedHomeScreen extends ConsumerStatefulWidget {
   const PolicyFeedHomeScreen({super.key});
@@ -74,7 +75,8 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
       ),
       body: Column(
         children: [
-          const PolicyFilterBar(),
+          if (_tabs[_currentIndex].type != PolicyFeedType.compare)
+            const PolicyFilterBar(),
           if (_shouldShowTagsBar(_tabs[_currentIndex].type))
             const PolicyRecommendTagsBar(),
           Expanded(
@@ -82,7 +84,11 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
               controller: _tabController,
               physics: const BouncingScrollPhysics(),
               children: _tabs
-                  .map((tab) => PolicyFeedListView(feedType: tab.type))
+                  .map(
+                    (tab) => tab.type == PolicyFeedType.compare
+                        ? const CompareTab()
+                        : PolicyFeedListView(feedType: tab.type),
+                  )
                   .toList(),
             ),
           ),
