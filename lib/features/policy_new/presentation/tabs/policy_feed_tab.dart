@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../application/providers.dart';
+import '../../application/filters/policy_filter_ui_state.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../widgets/policy_feed_list_view.dart';
 
@@ -26,8 +26,8 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab>
   @override
   void initState() {
     super.initState();
-    final query = ref.read(policyQueryProvider(widget.feedType));
-    _searchController = TextEditingController(text: query.keyword ?? '');
+    final ui = ref.read(policyFilterUiStateProvider);
+    _searchController = TextEditingController(text: ui.keyword);
   }
 
   @override
@@ -39,15 +39,15 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final query = ref.watch(policyQueryProvider(widget.feedType));
+    final ui = ref.watch(policyFilterUiStateProvider);
     final content = PolicyFeedListView(feedType: widget.feedType);
 
     if (!widget.enableSearch) {
       return content;
     }
 
-    if (_searchController.text != (query.keyword ?? '')) {
-      _searchController.text = query.keyword ?? '';
+    if (_searchController.text != ui.keyword) {
+      _searchController.text = ui.keyword;
       _searchController.selection = TextSelection.fromPosition(
         TextPosition(offset: _searchController.text.length),
       );
@@ -76,9 +76,7 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab>
   }
 
   void _updateKeyword(String value) {
-    ref
-        .read(policyQueryProvider(widget.feedType).notifier)
-        .setKeyword(value.trim());
+    ref.read(policyFilterUiStateProvider.notifier).setKeyword(value.trim());
   }
 
   @override
