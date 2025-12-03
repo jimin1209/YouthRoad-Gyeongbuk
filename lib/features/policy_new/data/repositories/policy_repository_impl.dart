@@ -90,32 +90,12 @@ class PolicyRepositoryImpl implements PolicyRepository {
     if (settings.enableCache) {
       final cached = cache.getPage(page);
       if (cached != null && cached.isNotEmpty) {
-        logger.info('캐시 히트 (page: $page)');
+        _revalidateDefault(page, effectivePageSize);
         return PolicyResult.success(cached);
       }
     }
 
-    // 기본 Query: 전체 탭, 기본 지역/정렬
-    final defaultFilter = PolicyFilter(
-      region: PolicyRegion.all,
-    );
-
-    final defaultQuery = PolicyQuery(
-      filter: defaultFilter,
-      feedType: PolicyFeedType.all,
-    );
-
-    final result = await fetchPoliciesByQuery(
-      query: defaultQuery,
-      page: page,
-      pageSize: effectivePageSize,
-    );
-
-    if (settings.enableCache && result.isSuccess && result.data != null) {
-      cache.savePage(page, result.data!);
-    }
-
-    return result;
+    return _fetchAndCacheDefault(page, effectivePageSize);
   }
 
   @override
@@ -127,38 +107,130 @@ class PolicyRepositoryImpl implements PolicyRepository {
     final effectivePageSize = pageSize == 0 ? settings.pageSize : pageSize;
     final scopeKey = query.cacheScopeKey;
 
+    if (settings.enableCache) {
+      final cached = cache.getPageForScope(scopeKey, page);
+      if (cached != null && cached.isNotEmpty) {
+        logger.info('캐시 히트 (scope: $scopeKey, page: $page)');
+        _revalidateQuery(query, page, effectivePageSize);
+        return PolicyResult.success(cached);
+      }
+    }
+
+    return _fetchAndCacheQuery(
+      query: query,
+      page: page,
+      pageSize: effectivePageSize,
+      scopeKey: scopeKey,
+    );
+  }
+
+  Future<PolicyResult<List<Policy>>> _fetchAndCacheDefault(
+    int page,
+    int effectivePageSize,
+  ) async {
+    // 기본 Query: 전체 탭, 기본 지역/정렬
+    final defaultFilter = PolicyFilter(
+      region: PolicyRegion.all,
+    );
+
+    final defaultQuery = PolicyQuery(
+      filter: defaultFilter,
+      feedType: PolicyFeedType.all,
+    );
+
+    final result = await _fetchFromRemote(
+      query: defaultQuery,
+      page: page,
+      pageSize: effectivePageSize,
+    );
+
+    if (settings.enableCache && result.isSuccess && result.data != null) {
+      cache.savePage(page, result.data!);
+      cache.savePageForScope(defaultQuery.cacheScopeKey, page, result.data!);
+    }
+
+    return result;
+  }
+
+  Future<PolicyResult<List<Policy>>> _fetchAndCacheQuery({
+    required PolicyQuery query,
+    required int page,
+    required int pageSize,
+    required String scopeKey,
+  }) async {
     try {
       logger.info(
-        'fetchPoliciesByQuery(scope: $scopeKey, page: $page, size: $effectivePageSize)',
+        'fetchPoliciesByQuery(scope: $scopeKey, page: $page, size: $pageSize)',
       );
 
-      if (settings.enableCache) {
-        final cached = cache.getPageForScope(scopeKey, page);
-        if (cached != null && cached.isNotEmpty) {
-          logger.info('캐시 히트 (scope: $scopeKey, page: $page)');
-          return PolicyResult.success(cached);
-        }
-      }
-
-      final params = _buildQueryParameters(
+      final result = await _fetchFromRemote(
         query: query,
         page: page,
-        pageSize: effectivePageSize,
+        pageSize: pageSize,
       );
 
-      final models = await remote.fetchPoliciesWithParams(params);
-      final domainList = models.map((e) => e.toDomain()).toList();
-
-      if (settings.enableCache) {
-        cache.savePageForScope(scopeKey, page, domainList);
+      if (settings.enableCache && result.isSuccess && result.data != null) {
+        cache.savePageForScope(scopeKey, page, result.data!);
       }
 
-      return PolicyResult.success(domainList);
+      return result;
     } catch (e, st) {
       logger.error('fetchPoliciesByQuery 실패', e, st);
       if (e is PolicyFailure) return PolicyResult.failure(e);
       return PolicyResult.failure(const UnknownFailure());
     }
+  }
+
+  Future<PolicyResult<List<Policy>>> _fetchFromRemote({
+    required PolicyQuery query,
+    required int page,
+    required int pageSize,
+  }) async {
+    final scopeKey = query.cacheScopeKey;
+
+    final params = _buildQueryParameters(
+      query: query,
+      page: page,
+      pageSize: pageSize,
+    );
+
+    try {
+      final models = await remote.fetchPoliciesWithParams(params);
+      final domainList = models.map((e) => e.toDomain()).toList();
+
+      logger.info('원격 데이터 수신 (scope: $scopeKey, page: $page)');
+
+      return PolicyResult.success(domainList);
+    } catch (e, st) {
+      logger.error('원격 데이터 수신 실패 (scope: $scopeKey, page: $page)', e, st);
+      if (e is PolicyFailure) return PolicyResult.failure(e);
+      return PolicyResult.failure(const UnknownFailure());
+    }
+  }
+
+  void _revalidateQuery(PolicyQuery query, int page, int pageSize) {
+    Future(() async {
+      final scopeKey = query.cacheScopeKey;
+      final result = await _fetchAndCacheQuery(
+        query: query,
+        page: page,
+        pageSize: pageSize,
+        scopeKey: scopeKey,
+      );
+
+      if (!result.isSuccess) {
+        logger.warn('SWR 재검증 실패 (scope: $scopeKey, page: $page)');
+      }
+    });
+  }
+
+  void _revalidateDefault(int page, int pageSize) {
+    Future(() async {
+      final result = await _fetchAndCacheDefault(page, pageSize);
+      if (!result.isSuccess) {
+        logger.warn('SWR 재검증 실패 (page: $page)');
+      }
+    });
   }
 
   @override
