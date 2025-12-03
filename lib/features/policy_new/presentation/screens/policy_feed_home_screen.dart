@@ -17,6 +17,7 @@ class PolicyFeedHomeScreen extends ConsumerStatefulWidget {
 class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
     with TickerProviderStateMixin {
   late final TabController _tabController;
+  int _currentIndex = 0;
 
   final List<({String label, PolicyFeedType type})> _tabs = const [
     (label: '추천', type: PolicyFeedType.recommend),
@@ -31,6 +32,13 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {
+          _currentIndex = _tabController.index;
+        });
+      }
+    });
   }
 
   @override
@@ -53,7 +61,8 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
       body: Column(
         children: [
           const PolicyFilterBar(),
-          const PolicyRecommendTagsBar(),
+          if (_shouldShowTagsBar(_tabs[_currentIndex].type))
+            const PolicyRecommendTagsBar(),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -66,5 +75,11 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
         ],
       ),
     );
+  }
+
+  bool _shouldShowTagsBar(PolicyFeedType feedType) {
+    return feedType == PolicyFeedType.recommend ||
+        feedType == PolicyFeedType.all ||
+        feedType == PolicyFeedType.search;
   }
 }
