@@ -12,7 +12,7 @@ class PolicyReminderListItem extends StatelessWidget {
   });
 
   final PolicyReminder reminder;
-  final VoidCallback onCancel;
+  final VoidCallback? onCancel;
   final VoidCallback? onTap;
 
   @override
@@ -24,9 +24,10 @@ class PolicyReminderListItem extends StatelessWidget {
         ? Colors.grey
         : Colors.orange;
 
+    final title = reminder.policyTitleSnapshot ?? reminder.policyId;
     return ListTile(
       leading: Icon(iconData, color: iconColor),
-      title: Text('정책 ID: ${reminder.policyId}'),
+      title: Text(title),
       subtitle: Text(
         '${reminder.timeKind.label} · 예정 시각: ${reminder.scheduledAt.toLocal()}',
       ),

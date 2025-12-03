@@ -255,7 +255,8 @@ final policyReminderSchedulerProvider =
 final policyReminderLocalDataSourceProvider =
     Provider<PolicyReminderLocalDataSource>((ref) {
   final prefs = ref.watch(app_di.sharedPreferencesProvider);
-  return SharedPrefsPolicyReminderLocalDataSource(prefs);
+  final isar = ref.watch(app_di.isarServiceProvider);
+  return IsarPolicyReminderLocalDataSource(isar, prefs);
 });
 
 final flutterLocalNotificationsPluginProvider =
@@ -281,6 +282,7 @@ final policyReminderServiceProvider = Provider<PolicyReminderService>((ref) {
     notificationGateway: ref.watch(notificationGatewayProvider),
     eventBus: ref.read(policyEventBusProvider.notifier),
     scheduler: ref.watch(policyReminderSchedulerProvider),
+    logger: ref.watch(policyLoggerProvider),
   );
 });
 
@@ -357,7 +359,7 @@ final policyDetailProvider =
 );
 
 final policyReminderControllerProvider = StateNotifierProvider.family<
-    PolicyReminderController, AsyncValue<List<PolicyReminder>>, String>(
+    PolicyReminderController, AsyncValue<PolicyReminderViewState>, String>(
   (ref, policyId) => PolicyReminderController(
     ref: ref,
     policyId: policyId,
@@ -376,9 +378,9 @@ final policyReminderStatusProvider =
     Provider.family<PolicyReminderStatus?, String>((ref, policyId) {
   final reminderState = ref.watch(policyReminderControllerProvider(policyId));
   return reminderState.maybeWhen(
-    data: (reminders) {
-      if (reminders.isEmpty) return null;
-      final sorted = [...reminders]
+    data: (reminderState) {
+      if (reminderState.reminders.isEmpty) return null;
+      final sorted = [...reminderState.reminders]
         ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
       return sorted.first.status;
     },

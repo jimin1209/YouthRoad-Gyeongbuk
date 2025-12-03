@@ -1,27 +1,45 @@
 import '../../domain/entities/policy_reminder.dart';
 
+enum NotificationFailureReason {
+  permissionDenied,
+  scheduledInPast,
+  unknown,
+}
+
+class NotificationResult {
+  const NotificationResult.success()
+      : success = true,
+        failureReason = null;
+
+  const NotificationResult.failure(this.failureReason)
+      : success = false;
+
+  final bool success;
+  final NotificationFailureReason? failureReason;
+}
+
 abstract class NotificationGateway {
-  Future<void> scheduleReminder(PolicyReminder reminder);
-  Future<void> cancelReminder(String reminderId);
-  Future<void> cancelAllForPolicy(String policyId);
+  Future<NotificationResult> scheduleReminder(PolicyReminder reminder);
+  Future<NotificationResult> cancelReminder(String reminderId);
+  Future<NotificationResult> cancelAllForPolicy(String policyId);
 }
 
 class NoOpNotificationGateway implements NotificationGateway {
   @override
-  Future<void> cancelReminder(String reminderId) async {
+  Future<NotificationResult> cancelReminder(String reminderId) async {
     // no-op
-    return;
+    return const NotificationResult.success();
   }
 
   @override
-  Future<void> cancelAllForPolicy(String policyId) async {
+  Future<NotificationResult> cancelAllForPolicy(String policyId) async {
     // no-op
-    return;
+    return const NotificationResult.success();
   }
 
   @override
-  Future<void> scheduleReminder(PolicyReminder reminder) async {
+  Future<NotificationResult> scheduleReminder(PolicyReminder reminder) async {
     // no-op
-    return;
+    return const NotificationResult.success();
   }
 }

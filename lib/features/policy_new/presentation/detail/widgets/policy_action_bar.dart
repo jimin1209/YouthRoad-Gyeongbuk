@@ -6,6 +6,7 @@ import '../../../domain/entities/policy_reminder.dart';
 import '../../../domain/values/policy_reminder_status.dart';
 import '../../../domain/values/reminder_time_kind.dart';
 import '../../../application/controllers/policy_action_controller.dart';
+import '../../../application/controllers/policy_reminder_controller.dart';
 import '../../../application/providers.dart';
 
 class PolicyActionBar extends ConsumerWidget {
@@ -95,7 +96,7 @@ class _ReminderButton extends StatelessWidget {
 
   final Policy policy;
   final PolicyActionController controller;
-  final AsyncValue<List<PolicyReminder>> reminderState;
+  final AsyncValue<PolicyReminderViewState> reminderState;
   final bool isProcessing;
 
   @override
@@ -109,8 +110,8 @@ class _ReminderButton extends StatelessWidget {
     }
 
     return reminderState.when(
-      data: (reminders) {
-        final activeReminders = reminders
+      data: (viewState) {
+        final activeReminders = viewState.reminders
             .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
             .toList()
           ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
@@ -121,7 +122,7 @@ class _ReminderButton extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             OutlinedButton.icon(
-              onPressed: isProcessing
+              onPressed: isProcessing || viewState.isMutating
                   ? null
                   : () async {
                       final selected = await _selectOptions(context, activeOptions);
@@ -141,7 +142,8 @@ class _ReminderButton extends StatelessWidget {
             ),
             if (activeReminders.isNotEmpty)
               TextButton(
-                onPressed: isProcessing ? null : controller.cancelReminder,
+                onPressed:
+                    isProcessing || viewState.isMutating ? null : controller.cancelReminder,
                 child: const Text('알림 취소'),
               ),
           ],

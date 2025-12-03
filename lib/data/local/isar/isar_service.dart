@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../models/policy_filter.dart';
 import 'policy_isar_model.dart';
+import '../../../features/policy_new/data/local/isar/policy_reminder_isar_model.dart';
 
 class IsarService {
   Isar? _isar;
@@ -24,7 +25,10 @@ class IsarService {
     }
 
     return await Isar.open(
-      [PolicyIsarModelSchema],
+      [
+        PolicyIsarModelSchema,
+        PolicyReminderIsarModelSchema,
+      ],
       directory: dir.path,
       inspector: kDebugMode,
     );
@@ -170,5 +174,71 @@ class IsarService {
     await isar.writeTxn(() async {
       await isar.policyIsarModels.clear();
     });
+  }
+
+  // ==============================
+  // 리마인더 CRUD
+  // ==============================
+
+  Future<void> putReminder(PolicyReminderIsarModel reminder) async {
+    final isar = await instance;
+    await isar.writeTxn(() async {
+      await isar.policyReminderIsarModels.put(reminder);
+    });
+  }
+
+  Future<void> putAllReminders(List<PolicyReminderIsarModel> reminders) async {
+    final isar = await instance;
+    await isar.writeTxn(() async {
+      await isar.policyReminderIsarModels.putAll(reminders);
+    });
+  }
+
+  Future<void> deleteReminderById(String reminderId) async {
+    final isar = await instance;
+    await isar.writeTxn(() async {
+      final target = await isar.policyReminderIsarModels
+          .where()
+          .reminderIdEqualTo(reminderId)
+          .findFirst();
+      if (target != null) {
+        await isar.policyReminderIsarModels.delete(target.isarId);
+      }
+    });
+  }
+
+  Future<void> deleteRemindersByPolicy(String policyId) async {
+    final isar = await instance;
+    await isar.writeTxn(() async {
+      final targets = await isar.policyReminderIsarModels
+          .where()
+          .policyIdEqualTo(policyId)
+          .findAll();
+      for (final target in targets) {
+        await isar.policyReminderIsarModels.delete(target.isarId);
+      }
+    });
+  }
+
+  Future<PolicyReminderIsarModel?> getReminder(String reminderId) async {
+    final isar = await instance;
+    return isar.policyReminderIsarModels
+        .where()
+        .reminderIdEqualTo(reminderId)
+        .findFirst();
+  }
+
+  Future<List<PolicyReminderIsarModel>> getRemindersForPolicy(
+      String policyId) async {
+    final isar = await instance;
+    return isar.policyReminderIsarModels
+        .where()
+        .policyIdEqualTo(policyId)
+        .findAll();
+  }
+
+  Future<List<PolicyReminderIsarModel>> getAllReminders() async {
+    final isar = await instance;
+    return isar.policyReminderIsarModels.where().findAll();
   }
 }

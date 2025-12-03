@@ -5,9 +5,32 @@ import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
 import '../../domain/utils/reminder_id_util.dart';
+import '../../domain/values/policy_logger.dart';
 import '../controllers/policy_event_bus.dart';
 import '../gateways/notification_gateway.dart';
 import 'policy_reminder_scheduler.dart';
+
+class ReminderMutationFailure {
+  const ReminderMutationFailure({
+    required this.timeKind,
+    required this.reason,
+  });
+
+  final ReminderTimeKind timeKind;
+  final NotificationFailureReason reason;
+}
+
+class ReminderMutationResult {
+  const ReminderMutationResult({
+    required this.reminders,
+    required this.failures,
+  });
+
+  final List<PolicyReminder> reminders;
+  final List<ReminderMutationFailure> failures;
+
+  bool get hasFailure => failures.isNotEmpty;
+}
 
 class PolicyReminderService {
   PolicyReminderService({
@@ -15,22 +38,36 @@ class PolicyReminderService {
     required this.notificationGateway,
     required this.eventBus,
     required this.scheduler,
+    required this.logger,
   });
 
   final PolicyReminderRepository repository;
   final NotificationGateway notificationGateway;
   final PolicyEventBus eventBus;
   final PolicyReminderScheduler scheduler;
+  final PolicyLogger logger;
 
-  Future<List<PolicyReminder>> createRemindersForPolicy(
+  Future<ReminderMutationResult> createRemindersForPolicy(
     Policy policy,
     List<ReminderTimeKind> kinds,
   ) async {
     final now = DateTime.now().toUtc();
     final reminders = <PolicyReminder>[];
+    final failures = <ReminderMutationFailure>[];
 
     for (final kind in kinds) {
       final schedule = scheduler.buildSchedule(policy, option: kind);
+      if (schedule.status == PolicyReminderStatus.expired) {
+        failures.add(
+          ReminderMutationFailure(
+            timeKind: kind,
+            reason: NotificationFailureReason.scheduledInPast,
+          ),
+        );
+        logger.warn('Reminder for ${policy.id} skipped: already past.');
+        continue;
+      }
+
       final reminderId = ReminderIdUtil.buildReminderId(policy.id, kind);
       final existing = await repository.getReminder(reminderId);
 
@@ -42,13 +79,24 @@ class PolicyReminderService {
         updatedAt: now,
         timeKind: kind,
         status: schedule.status,
+        policyTitleSnapshot: policy.title,
       );
+
+      final scheduleResult = await notificationGateway.scheduleReminder(reminder);
+      if (!scheduleResult.success) {
+        failures.add(
+          ReminderMutationFailure(
+            timeKind: kind,
+            reason: scheduleResult.failureReason ??
+                NotificationFailureReason.unknown,
+          ),
+        );
+        logger.warn('Notification scheduling failed for ${reminder.reminderId}');
+        continue;
+      }
 
       reminders.add(reminder);
       await repository.upsertReminder(reminder);
-      if (reminder.status == PolicyReminderStatus.scheduled) {
-        await notificationGateway.scheduleReminder(reminder);
-      }
     }
 
     if (reminders.isNotEmpty) {
@@ -58,7 +106,7 @@ class PolicyReminderService {
       ));
     }
 
-    return reminders;
+    return ReminderMutationResult(reminders: reminders, failures: failures);
   }
 
   Future<void> cancelReminder(String reminderId) async {
@@ -66,7 +114,10 @@ class PolicyReminderService {
     if (reminder == null) return;
 
     await repository.deleteReminderById(reminder.reminderId);
-    await notificationGateway.cancelReminder(reminder.reminderId);
+    final result = await notificationGateway.cancelReminder(reminder.reminderId);
+    if (!result.success) {
+      logger.warn('Failed to cancel reminder $reminderId');
+    }
     eventBus.emit(PolicyEvent(
       PolicyEventType.reminderChanged,
       policyId: reminder.policyId,
@@ -75,9 +126,15 @@ class PolicyReminderService {
 
   Future<void> cancelAllByPolicy(String policyId) async {
     final reminders = await repository.getRemindersForPolicy(policyId);
-    await notificationGateway.cancelAllForPolicy(policyId);
+    final bulkResult = await notificationGateway.cancelAllForPolicy(policyId);
+    if (!bulkResult.success) {
+      logger.warn('Failed to cancel all reminders for $policyId');
+    }
     for (final reminder in reminders) {
-      await notificationGateway.cancelReminder(reminder.reminderId);
+      final result = await notificationGateway.cancelReminder(reminder.reminderId);
+      if (!result.success) {
+        logger.warn('Failed to cancel reminder ${reminder.reminderId}');
+      }
     }
     await repository.deleteRemindersByPolicy(policyId);
     if (reminders.isNotEmpty) {

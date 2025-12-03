@@ -3,14 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../domain/entities/policy.dart';
-import '../../domain/entities/policy_reminder.dart';
 import '../../domain/values/reminder_time_kind.dart';
 import '../providers.dart';
+import 'policy_reminder_controller.dart';
 
 class PolicyActionState {
   final bool isFavorite;
   final bool isCompared;
-  final AsyncValue<List<PolicyReminder>> reminderState;
+  final AsyncValue<PolicyReminderViewState> reminderState;
   final bool isProcessing;
   final String? errorMessage;
 
@@ -23,14 +23,14 @@ class PolicyActionState {
   });
 
   bool get hasReminder => reminderState.maybeWhen(
-        data: (reminders) => reminders.isNotEmpty,
+        data: (reminders) => reminders.reminders.isNotEmpty,
         orElse: () => false,
       );
 
   PolicyActionState copyWith({
     bool? isFavorite,
     bool? isCompared,
-    AsyncValue<List<PolicyReminder>>? reminderState,
+    AsyncValue<PolicyReminderViewState>? reminderState,
     bool? isProcessing,
     String? errorMessage,
   }) {
@@ -74,7 +74,7 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
       );
     });
 
-    ref.listen<AsyncValue<List<PolicyReminder>>> (
+    ref.listen<AsyncValue<PolicyReminderViewState>> (
       policyReminderControllerProvider(policyId),
       (previous, next) {
         state = state.copyWith(reminderState: next, errorMessage: state.errorMessage);
