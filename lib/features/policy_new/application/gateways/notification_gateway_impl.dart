@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/utils/reminder_id_util.dart';
 import '../../domain/utils/reminder_time_util.dart';
+import '../../domain/values/schedule_result.dart';
 import 'notification_gateway.dart';
 
 class FlutterLocalNotificationGateway implements NotificationGateway {
@@ -98,63 +99,99 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
   }
 
   @override
-  Future<NotificationResult> scheduleReminder(PolicyReminder reminder) async {
+  Future<ScheduleResult> scheduleReminder(PolicyReminder reminder) async {
     await _initialization;
     final hasPermission = await _ensurePermissions();
     if (!hasPermission) {
-      return const NotificationResult.failure(
-        NotificationFailureReason.permissionDenied,
+      return const ScheduleResult.failure(
+        ScheduleFailure(
+          type: ScheduleFailureType.permissionDenied,
+          message: 'Notification permission denied',
+        ),
       );
     }
 
     final scheduledLocal = ReminderTimeUtil.toUtc(reminder.scheduledAt).toLocal();
     if (scheduledLocal.isBefore(DateTime.now())) {
-      return const NotificationResult.failure(
-        NotificationFailureReason.scheduledInPast,
+      return const ScheduleResult.failure(
+        ScheduleFailure(
+          type: ScheduleFailureType.invalidDate,
+          message: 'Scheduled time is already in the past',
+        ),
       );
     }
 
     final notificationId = _notificationId(reminder.reminderId);
-    await _plugin.cancel(notificationId);
+    try {
+      await _plugin.cancel(notificationId);
 
-    final notificationTitle =
-        '[${reminder.policyTitleSnapshot ?? '정책 신청'}] ${reminder.timeKind.label}';
-    final formattedTime = DateFormat('M월 d일 a h:mm', 'ko_KR').format(scheduledLocal);
-    final notificationBody =
-        '${reminder.policyTitleSnapshot ?? reminder.policyId} 마감 ${formattedTime} 전에 신청을 완료해 주세요.';
+      final notificationTitle =
+          '[${reminder.policyTitleSnapshot ?? '정책 신청'}] ${reminder.timeKind.label}';
+      final formattedTime = DateFormat('M월 d일 a h:mm', 'ko_KR').format(scheduledLocal);
+      final notificationBody =
+          '${reminder.policyTitleSnapshot ?? reminder.policyId} 마감 ${formattedTime} 전에 신청을 완료해 주세요.';
 
-    await _plugin.schedule(
-      notificationId,
-      notificationTitle,
-      notificationBody,
-      scheduledLocal,
-      _notificationDetails(),
-      payload: _buildPayload(reminder),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
-
-    return const NotificationResult.success();
-  }
-
-  @override
-  Future<NotificationResult> cancelReminder(String reminderId) async {
-    await _initialization;
-    await _plugin.cancel(_notificationId(reminderId));
-    return const NotificationResult.success();
-  }
-
-  @override
-  Future<NotificationResult> cancelAllForPolicy(String policyId) async {
-    await _initialization;
-    final pending = await _plugin.pendingNotificationRequests();
-    for (final request in pending) {
-      final payloadPolicyId = _policyIdFromPayload(request.payload);
-      if (payloadPolicyId == policyId) {
-        await _plugin.cancel(request.id);
-      }
+      await _plugin.schedule(
+        notificationId,
+        notificationTitle,
+        notificationBody,
+        scheduledLocal,
+        _notificationDetails(),
+        payload: _buildPayload(reminder),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (error) {
+      return ScheduleResult.failure(
+        ScheduleFailure(
+          type: ScheduleFailureType.gatewayError,
+          message: 'Failed to schedule notification: $error',
+        ),
+      );
     }
-    return const NotificationResult.success();
+
+    return ScheduleResult.success(
+      localNotificationId: notificationId.toString(),
+      scheduledAt: reminder.scheduledAt,
+    );
+  }
+
+  @override
+  Future<ScheduleResult> cancelReminder(String reminderId) async {
+    await _initialization;
+    try {
+      await _plugin.cancel(_notificationId(reminderId));
+    } catch (error) {
+      return ScheduleResult.failure(
+        ScheduleFailure(
+          type: ScheduleFailureType.gatewayError,
+          message: 'Failed to cancel notification: $error',
+        ),
+      );
+    }
+    return const ScheduleResult.success();
+  }
+
+  @override
+  Future<ScheduleResult> cancelAllForPolicy(String policyId) async {
+    await _initialization;
+    try {
+      final pending = await _plugin.pendingNotificationRequests();
+      for (final request in pending) {
+        final payloadPolicyId = _policyIdFromPayload(request.payload);
+        if (payloadPolicyId == policyId) {
+          await _plugin.cancel(request.id);
+        }
+      }
+    } catch (error) {
+      return ScheduleResult.failure(
+        ScheduleFailure(
+          type: ScheduleFailureType.gatewayError,
+          message: 'Failed to cancel notifications: $error',
+        ),
+      );
+    }
+    return const ScheduleResult.success();
   }
 }

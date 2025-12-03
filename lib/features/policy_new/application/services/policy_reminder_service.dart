@@ -6,6 +6,7 @@ import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
 import '../../domain/utils/reminder_id_util.dart';
 import '../../domain/values/policy_logger.dart';
+import '../../domain/values/schedule_result.dart';
 import '../controllers/policy_event_bus.dart';
 import '../gateways/notification_gateway.dart';
 import 'policy_reminder_scheduler.dart';
@@ -13,11 +14,11 @@ import 'policy_reminder_scheduler.dart';
 class ReminderMutationFailure {
   const ReminderMutationFailure({
     required this.timeKind,
-    required this.reason,
+    required this.failure,
   });
 
   final ReminderTimeKind timeKind;
-  final NotificationFailureReason reason;
+  final ScheduleFailure failure;
 }
 
 class ReminderMutationResult {
@@ -61,7 +62,10 @@ class PolicyReminderService {
         failures.add(
           ReminderMutationFailure(
             timeKind: kind,
-            reason: NotificationFailureReason.scheduledInPast,
+            failure: const ScheduleFailure(
+              type: ScheduleFailureType.invalidDate,
+              message: 'Scheduled time already passed',
+            ),
           ),
         );
         logger.warn('Reminder for ${policy.id} skipped: already past.');
@@ -84,11 +88,15 @@ class PolicyReminderService {
 
       final scheduleResult = await notificationGateway.scheduleReminder(reminder);
       if (!scheduleResult.success) {
+        final failure = scheduleResult.failure ??
+            const ScheduleFailure(
+              type: ScheduleFailureType.unknown,
+              message: 'Unknown scheduling failure',
+            );
         failures.add(
           ReminderMutationFailure(
             timeKind: kind,
-            reason: scheduleResult.failureReason ??
-                NotificationFailureReason.unknown,
+            failure: failure,
           ),
         );
         logger.warn('Notification scheduling failed for ${reminder.reminderId}');
@@ -116,7 +124,9 @@ class PolicyReminderService {
     await repository.deleteReminderById(reminder.reminderId);
     final result = await notificationGateway.cancelReminder(reminder.reminderId);
     if (!result.success) {
-      logger.warn('Failed to cancel reminder $reminderId');
+      logger.warn(
+        'Failed to cancel reminder $reminderId: ${result.failure?.message}',
+      );
     }
     eventBus.emit(PolicyEvent(
       PolicyEventType.reminderChanged,
@@ -128,12 +138,16 @@ class PolicyReminderService {
     final reminders = await repository.getRemindersForPolicy(policyId);
     final bulkResult = await notificationGateway.cancelAllForPolicy(policyId);
     if (!bulkResult.success) {
-      logger.warn('Failed to cancel all reminders for $policyId');
+      logger.warn(
+        'Failed to cancel all reminders for $policyId: ${bulkResult.failure?.message}',
+      );
     }
     for (final reminder in reminders) {
       final result = await notificationGateway.cancelReminder(reminder.reminderId);
       if (!result.success) {
-        logger.warn('Failed to cancel reminder ${reminder.reminderId}');
+        logger.warn(
+          'Failed to cancel reminder ${reminder.reminderId}: ${result.failure?.message}',
+        );
       }
     }
     await repository.deleteRemindersByPolicy(policyId);
