@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import '../../application/controllers/policy_detail_controller.dart';
 import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_failure.dart';
 import '../widgets/policy_list_loading.dart';
-import '../reminder/policy_reminder_button.dart';
+import 'widgets/policy_action_bar.dart';
 
 class PolicyDetailBottomSheet extends ConsumerWidget {
   const PolicyDetailBottomSheet({
@@ -59,6 +57,10 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
               policy.summary,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
+            const SizedBox(height: 16),
+            PolicyActionBar(policy: policy),
+            const SizedBox(height: 16),
+            const Divider(),
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
@@ -102,19 +104,6 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
             _infoRow('담당부서', policy.department),
             _infoRow('문의처', policy.contact ?? ''),
             _infoRow('지원대상', _buildTargetText(policy)),
-            const SizedBox(height: 16),
-            PolicyReminderButton(policy: policy),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _openApplyUrl(policy.applyUrl),
-                    child: const Text('실제 정책 페이지로 이동'),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -225,12 +214,5 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
     return '신청 기간: '
         '${start!.toLocal().toString().split(" ").first} ~ '
         '${end!.toLocal().toString().split(" ").first}';
-  }
-
-  Future<void> _openApplyUrl(String url) async {
-    if (url.isEmpty) return;
-    final uri = Uri.parse(url);
-    if (!await canLaunchUrl(uri)) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }

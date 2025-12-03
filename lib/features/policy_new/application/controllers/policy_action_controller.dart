@@ -1,0 +1,171 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../domain/entities/policy.dart';
+import '../../domain/entities/policy_reminder.dart';
+import '../providers.dart';
+
+class PolicyActionState {
+  final bool isFavorite;
+  final bool isCompared;
+  final AsyncValue<PolicyReminder?> reminderState;
+  final bool isProcessing;
+  final String? errorMessage;
+
+  const PolicyActionState({
+    required this.isFavorite,
+    required this.isCompared,
+    required this.reminderState,
+    this.isProcessing = false,
+    this.errorMessage,
+  });
+
+  bool get hasReminder =>
+      reminderState.maybeWhen(data: (reminder) => reminder != null, orElse: () => false);
+
+  PolicyActionState copyWith({
+    bool? isFavorite,
+    bool? isCompared,
+    AsyncValue<PolicyReminder?>? reminderState,
+    bool? isProcessing,
+    String? errorMessage,
+  }) {
+    return PolicyActionState(
+      isFavorite: isFavorite ?? this.isFavorite,
+      isCompared: isCompared ?? this.isCompared,
+      reminderState: reminderState ?? this.reminderState,
+      isProcessing: isProcessing ?? this.isProcessing,
+      errorMessage: errorMessage,
+    );
+  }
+}
+
+class PolicyActionController extends StateNotifier<PolicyActionState> {
+  PolicyActionController({required this.ref, required this.policyId})
+      : super(
+          PolicyActionState(
+            isFavorite: ref.read(favoriteRepositoryProvider).allIds.contains(policyId),
+            isCompared: ref.read(compareRepositoryProvider).ids.contains(policyId),
+            reminderState: ref.read(policyReminderControllerProvider(policyId)),
+          ),
+        ) {
+    _listenToCollections();
+  }
+
+  final Ref ref;
+  final String policyId;
+
+  void _listenToCollections() {
+    ref.listen<FavoriteRepository>(favoriteRepositoryProvider, (prev, next) {
+      state = state.copyWith(
+        isFavorite: next.allIds.contains(policyId),
+        errorMessage: state.errorMessage,
+      );
+    });
+
+    ref.listen<CompareRepository>(compareRepositoryProvider, (prev, next) {
+      state = state.copyWith(
+        isCompared: next.ids.contains(policyId),
+        errorMessage: state.errorMessage,
+      );
+    });
+
+    ref.listen<AsyncValue<PolicyReminder?>> (
+      policyReminderControllerProvider(policyId),
+      (previous, next) {
+        state = state.copyWith(reminderState: next, errorMessage: state.errorMessage);
+      },
+    );
+  }
+
+  void _setProcessing(bool value) {
+    state = state.copyWith(isProcessing: value, errorMessage: state.errorMessage);
+  }
+
+  void _setError(String? message) {
+    state = state.copyWith(errorMessage: message);
+  }
+
+  Future<void> toggleFavorite(Policy policy) async {
+    if (state.isProcessing) return;
+    _setProcessing(true);
+    _setError(null);
+    ref.read(favoriteRepositoryProvider.notifier).toggleFavorite(policy);
+    _setProcessing(false);
+  }
+
+  Future<void> toggleCompare(Policy policy) async {
+    if (state.isProcessing) return;
+    _setProcessing(true);
+    _setError(null);
+    ref.read(compareRepositoryProvider.notifier).toggleCompare(policy);
+    _setProcessing(false);
+  }
+
+  Future<void> setReminder(Policy policy, PolicyReminderOption option) async {
+    if (state.isProcessing) return;
+    _setProcessing(true);
+    _setError(null);
+    final controller = ref.read(policyReminderControllerProvider(policy.id).notifier);
+    try {
+      await controller.setReminder(policy, option);
+    } catch (e) {
+      _setError('알림을 설정하지 못했습니다: $e');
+    } finally {
+      _setProcessing(false);
+    }
+  }
+
+  Future<void> cancelReminder() async {
+    if (state.isProcessing) return;
+    _setProcessing(true);
+    _setError(null);
+    final controller = ref.read(policyReminderControllerProvider(policyId).notifier);
+    try {
+      await controller.cancelReminder();
+    } catch (e) {
+      _setError('알림을 취소하지 못했습니다: $e');
+    } finally {
+      _setProcessing(false);
+    }
+  }
+
+  Future<bool> openPolicyLink(Policy policy) async {
+    if (state.isProcessing) return false;
+    final url = _resolveUrl(policy);
+    if (url == null) {
+      _setError('신청 링크가 제공되지 않았습니다.');
+      return false;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _setError('잘못된 링크 형식입니다.');
+      return false;
+    }
+
+    if (!await canLaunchUrl(uri)) {
+      _setError('이 링크를 열 수 없습니다.');
+      return false;
+    }
+
+    _setProcessing(true);
+    _setError(null);
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return true;
+    } catch (e) {
+      _setError('링크를 여는 중 오류가 발생했습니다: $e');
+      return false;
+    } finally {
+      _setProcessing(false);
+    }
+  }
+
+  String? _resolveUrl(Policy policy) {
+    if (policy.applyUrl.isNotEmpty) return policy.applyUrl;
+    if (policy.detailUrl != null && policy.detailUrl!.isNotEmpty) return policy.detailUrl;
+    return null;
+  }
+}

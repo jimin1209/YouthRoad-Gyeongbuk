@@ -28,6 +28,7 @@ import 'controllers/policy_event_bus.dart';
 import 'controllers/policy_feed_controllers.dart';
 import 'controllers/policy_reminder_controller.dart';
 import 'controllers/notification_center_controller.dart';
+import 'controllers/policy_action_controller.dart';
 import 'controllers/policy_paging_controller.dart';
 import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
@@ -300,6 +301,14 @@ final policyDetailProvider =
 final policyReminderControllerProvider = StateNotifierProvider.family<
     PolicyReminderController, AsyncValue<PolicyReminder?>, String>(
   (ref, policyId) => PolicyReminderController(
+    ref: ref,
+    policyId: policyId,
+  ),
+);
+
+final policyActionControllerProvider = StateNotifierProvider.family<
+    PolicyActionController, PolicyActionState, String>(
+  (ref, policyId) => PolicyActionController(
     ref: ref,
     policyId: policyId,
   ),
