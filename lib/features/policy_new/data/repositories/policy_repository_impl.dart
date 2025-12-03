@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../../domain/values/policy_failure.dart';
@@ -72,6 +74,14 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['deptNo'] = filter.departmentId;
     }
 
+    if (query.tags.isNotEmpty) {
+      params['tags'] = query.tags.join(',');
+    }
+
+    if (filter.tags.isNotEmpty) {
+      params['filterTags'] = filter.tags.join(',');
+    }
+
     return params;
   }
 
@@ -101,6 +111,15 @@ class PolicyRepositoryImpl implements PolicyRepository {
   }) async {
     final effectivePageSize = pageSize == 0 ? settings.pageSize : pageSize;
     final scopeKey = query.cacheScopeKey;
+
+    if (_isIdBasedQuery(query)) {
+      return _fetchAndCacheByIds(
+        query: query,
+        page: page,
+        pageSize: effectivePageSize,
+        scopeKey: scopeKey,
+      );
+    }
 
     if (settings.enableCache) {
       final cached = cache.getPageForScope(scopeKey, page);
@@ -176,6 +195,34 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
   }
 
+  Future<PolicyResult<List<Policy>>> _fetchAndCacheByIds({
+    required PolicyQuery query,
+    required int page,
+    required int pageSize,
+    required String scopeKey,
+  }) async {
+    final ids = query.tags;
+
+    if (ids.isEmpty) {
+      return PolicyResult.success(<Policy>[]);
+    }
+
+    if (settings.enableCache) {
+      final cached = cache.getPageForScope(scopeKey, page);
+      if (cached != null) {
+        _revalidateIds(query, page, pageSize, scopeKey);
+        return PolicyResult.success(cached);
+      }
+    }
+
+    return _loadPoliciesByIds(
+      ids: ids,
+      page: page,
+      pageSize: pageSize,
+      scopeKey: scopeKey,
+    );
+  }
+
   Future<PolicyResult<List<Policy>>> _fetchFromRemote({
     required PolicyQuery query,
     required int page,
@@ -191,19 +238,100 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
     try {
       final models = await remote.fetchPoliciesWithParams(params);
-      final domainList = _applySorting(
-        query.sort,
-        models.map((e) => e.toDomain()).toList(),
-      );
+      final domainList = models.map((e) => e.toDomain()).toList();
+      final filtered = _isIdBasedQuery(query)
+          ? domainList
+          : _applyTagFilter(query, domainList);
+      final sorted = _applySorting(query.sort, filtered);
 
       logger.info('원격 데이터 수신 (scope: $scopeKey, page: $page)');
 
-      return PolicyResult.success(domainList);
+      return PolicyResult.success(sorted);
     } catch (e, st) {
       logger.error('원격 데이터 수신 실패 (scope: $scopeKey, page: $page)', e, st);
       if (e is PolicyFailure) return PolicyResult.failure(e);
       return PolicyResult.failure(const UnknownFailure());
     }
+  }
+
+  Future<PolicyResult<List<Policy>>> _loadPoliciesByIds({
+    required List<String> ids,
+    required int page,
+    required int pageSize,
+    required String scopeKey,
+  }) async {
+    try {
+      final start = (page - 1) * pageSize;
+      if (start >= ids.length) {
+        return PolicyResult.success(<Policy>[]);
+      }
+
+      final end = min(start + pageSize, ids.length);
+      final slice = ids.sublist(start, end);
+
+      final policies = <Policy>[];
+      for (final id in slice) {
+        final detail = await fetchPolicyDetail(id);
+        if (!detail.isSuccess || detail.data == null) {
+          return PolicyResult.failure(
+            detail.failure ?? const UnknownFailure(),
+          );
+        }
+        policies.add(detail.data!);
+      }
+
+      if (settings.enableCache) {
+        cache.savePageForScope(scopeKey, page, policies);
+      }
+
+      return PolicyResult.success(policies);
+    } catch (e, st) {
+      logger.error('ID 기반 정책 조회 실패 (scope: $scopeKey, page: $page)', e, st);
+      if (e is PolicyFailure) return PolicyResult.failure(e);
+      return PolicyResult.failure(const UnknownFailure());
+    }
+  }
+
+  void _revalidateIds(
+    PolicyQuery query,
+    int page,
+    int pageSize,
+    String scopeKey,
+  ) {
+    Future(() async {
+      final result = await _loadPoliciesByIds(
+        ids: query.tags,
+        page: page,
+        pageSize: pageSize,
+        scopeKey: scopeKey,
+      );
+
+      if (!result.isSuccess) {
+        logger.warn('ID 기반 SWR 실패 (scope: $scopeKey, page: $page)');
+      }
+    });
+  }
+
+  bool _isIdBasedQuery(PolicyQuery query) =>
+      query.feedType == PolicyFeedType.favorite ||
+      query.feedType == PolicyFeedType.compare;
+
+  List<Policy> _applyTagFilter(PolicyQuery query, List<Policy> list) {
+    final combinedTags = {
+      ...query.tags,
+      ...query.filter.tags,
+    }..removeWhere((tag) => tag.trim().isEmpty);
+
+    if (combinedTags.isEmpty) return list;
+
+    return list.where((policy) {
+      final haystack =
+          '${policy.title} ${policy.summary} ${policy.institution} ${policy.department}'
+              .toLowerCase();
+      return combinedTags.any(
+        (tag) => haystack.contains(tag.toLowerCase()),
+      );
+    }).toList();
   }
 
   void _revalidateQuery(PolicyQuery query, int page, int pageSize) {

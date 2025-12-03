@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +14,7 @@ class PolicyKeywordSheet extends ConsumerStatefulWidget {
 
 class _PolicyKeywordSheetState extends ConsumerState<PolicyKeywordSheet> {
   late final TextEditingController _controller;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -22,6 +25,7 @@ class _PolicyKeywordSheetState extends ConsumerState<PolicyKeywordSheet> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -51,6 +55,7 @@ class _PolicyKeywordSheetState extends ConsumerState<PolicyKeywordSheet> {
                   hintText: '검색어를 입력하세요',
                 ),
                 textInputAction: TextInputAction.search,
+                onChanged: _onChanged,
                 onSubmitted: _onSubmit,
               ),
               const SizedBox(height: 16),
@@ -69,7 +74,19 @@ class _PolicyKeywordSheetState extends ConsumerState<PolicyKeywordSheet> {
   }
 
   void _onSubmit(String value) {
-    ref.read(policyFilterUiStateProvider.notifier).setKeyword(value.trim());
+    _debounce?.cancel();
+    _applyKeyword(value);
     Navigator.of(context).pop();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      _applyKeyword(value);
+    });
+  }
+
+  void _applyKeyword(String value) {
+    ref.read(policyFilterUiStateProvider.notifier).setKeyword(value.trim());
   }
 }
