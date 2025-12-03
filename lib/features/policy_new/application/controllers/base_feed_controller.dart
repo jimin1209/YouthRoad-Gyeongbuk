@@ -52,6 +52,9 @@ abstract class BasePolicyFeedController
               refresh();
             }
             break;
+          case PolicyEventType.reminderChanged:
+          case PolicyEventType.reminderBulkUpdated:
+            break;
         }
       },
     );

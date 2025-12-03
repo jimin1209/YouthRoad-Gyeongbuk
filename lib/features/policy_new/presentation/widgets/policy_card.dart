@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/policy.dart';
+import '../reminder/policy_reminder_badge.dart';
 
-class PolicyCard extends StatelessWidget {
+class PolicyCard extends ConsumerWidget {
   const PolicyCard({
     super.key,
     required this.policy,
@@ -13,7 +14,7 @@ class PolicyCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef _ref) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -25,9 +26,18 @@ class PolicyCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                policy.title,
-                style: Theme.of(context).textTheme.titleMedium,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      policy.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  PolicyReminderBadge(policyId: policy.id),
+                ],
               ),
               const SizedBox(height: 6),
               Text(
