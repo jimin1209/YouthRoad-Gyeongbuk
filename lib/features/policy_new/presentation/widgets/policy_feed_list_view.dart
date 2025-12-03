@@ -5,12 +5,14 @@ import '../../application/behavior/policy_behavior_tracker.dart';
 import '../../application/controllers/base_feed_controller.dart';
 import '../../application/controllers/policy_paging_state.dart';
 import '../../application/providers.dart';
+import '../../application/filters/policy_filter_ui_state.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../detail/policy_detail_bottom_sheet.dart';
 import 'policy_card.dart';
 import 'policy_list_empty.dart';
 import 'policy_list_error.dart';
 import 'policy_list_loading.dart';
+import 'policy_search_empty_view.dart';
 
 class PolicyFeedListView extends ConsumerStatefulWidget {
   const PolicyFeedListView({
@@ -59,6 +61,7 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final ui = ref.watch(policyFilterUiStateProvider);
     final (state, notifier) = _useController();
     _latestState = state;
     _latestController = notifier;
@@ -76,6 +79,22 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
 
     if (state.isLoading && state.items.isEmpty) {
       return const PolicyListLoading();
+    }
+
+    final keyword = ui.keyword.trim();
+    final hasKeyword = keyword.isNotEmpty;
+    final isKeywordTooShort = hasKeyword && keyword.length < 2;
+    final hasTags = ui.tags.isNotEmpty;
+
+    final shouldShowSearchGuide =
+        widget.feedType == PolicyFeedType.search &&
+            state.items.isEmpty &&
+            !state.isLoading &&
+            !hasTags &&
+            (!hasKeyword || isKeywordTooShort);
+
+    if (shouldShowSearchGuide) {
+      return PolicySearchEmptyView(isKeywordTooShort: isKeywordTooShort);
     }
 
     if (!state.isLoading && state.items.isEmpty) {
