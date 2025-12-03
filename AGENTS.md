@@ -194,6 +194,367 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 # 🌐 5. TASKS (AGENTS.md 내부 통합 TASK 목록)
 # ============================================================
 
+@chatgpt-codex
+# TASK 09 — PolicyNew 검색 탭(Search Tab) 풀 구현
+# (job01 스타일: 시스템 정의 / 문제 정의 / 요구사항 / 아키텍처 / 파이프라인 / 상호작용 / UI 상태 / 이벤트 흐름 / 파일 구조 / AC)
+
+---
+
+## 1. 시스템 정의 (System Definition)
+
+### 1.1 모듈 범위
+- 모듈: `policy_new`
+- 화면: **정책 메인 6탭 구조 중 `검색 탭 (Search Tab)`**
+- 역할:
+  - 사용자가 **키워드 + 필터(지역/카테고리/온라인/모집중) + 정렬 옵션**을 조합하여
+    정책을 탐색할 수 있는 **전용 검색 탭**.
+  - 실 API (경북 청년정책 OpenAPI)와 연결된 검색 결과를 보여준다.
+  - 상단 필터/정렬/검색바(TASK 06의 Filter UI)와 완전히 연동된 상태에서 동작한다.
+
+### 1.2 전제
+- `policy_new`의 작업이 다음까지 완료되어 있다고 가정:
+  - job01~job06, TASK 01~TASK 08
+  - Domain: `Policy`, `PolicyFilter`, `PolicyQuery`, `PolicyFeedType.search`, `PolicySortOption`, etc.
+  - Repository: `PolicyRepository.fetchPoliciesByQuery(...)`
+  - QueryEngine + QueryOrchestrator: `PolicyQueryEngine`, `PolicyQueryOrchestrator` (feedType에 따라 Query 생성)
+  - Filter UI State: `PolicyFilterUiState` + `policyFilterUiStateProvider`
+  - Base Controller: `BasePolicyFeedController` (feedType 파라미터 기반)
+  - Search Feed Controller: `SearchFeedController` (Base 상속, feedType=search)
+  - 메인 UI: `PolicyFeedHomeScreen`에 6개 탭 + `PolicyFilterBar` 존재
+  - 공통 리스트: `PolicyFeedListView(feedType: ...)` + `PolicyCard` + 로딩/에러/빈 상태 위젯
+
+---
+
+## 2. 문제 정의 (Problem Definition)
+
+현재 상태:
+- `PolicyFeedHomeScreen`에서 **검색 탭**은 UI 구조상 탭만 존재할 뿐:
+  - 검색 탭이 다른 탭과 동일한 리스트 UI를 재사용하지만,
+  - **검색 전용 UX/로직이 존재하지 않거나, 매우 형식적**인 상태.
+- 실제 문제들:
+  1) 키워드 입력과 검색 탭의 상태가 강하게 묶여 있지 않음.
+  2) 검색 탭에서 “이전 검색 결과 유지”, “검색어 변경 시 즉시 반영”, “필터/정렬과 함께 검색” 같은 UX 정의가 부족.
+  3) 빈 검색어 상태일 때의 동작 정의(전체/추천/최근 검색? 등)가 불명확.
+  4) 검색 실패/결과 없음/입력 최소 글자 수 등의 제약이 없음.
+  5) 특정 탭(검색 탭)만의 고유 기능(최근 검색어, 추천 키워드 강조, 검색 가이드)이 없음.
+  6) 실 API 기준 검색 파라미터(`searchPolicyNm`, `searchPolicyType` 등)와의 연결 규칙 미정.
+
+목표:
+- **검색 탭 하나만 놓고 봐도 “검색만을 위한 완성된 UX/로직”**을 가지고 있어야 함.
+- 나머지 5개 탭(추천/전체/지역/즐겨찾기/비교)과 독립적으로, 하지만 동일한 infra 위에서 안정적으로 동작하는 수준으로 끌어올리기.
+
+---
+
+## 3. 요구사항 분석 (Requirements Analysis)
+
+### 3.1 기능 요구사항 (Functional)
+
+1. **키워드 기반 검색**
+   - 상단 검색바 또는 전용 모달에서 키워드를 입력하면,
+     `PolicyFilterUiState.keyword` 에 저장되고,
+     검색 탭에서 해당 키워드를 기준으로 정책을 조회한다.
+   - 최소 글자수(예: 2자 이상) 이하일 경우 검색을 트리거하지 않고 안내 메시지 표시.
+
+2. **필터와 결합된 검색**
+   - 검색 탭은 다음 조건을 모두 반영한 결과를 보여야 한다:
+     - 지역(Region)
+     - 카테고리(Category)
+     - 온라인만 보기(Online only)
+     - 모집중만 보기(Ongoing only)
+     - 정렬 기준(SortOption)
+   - 이 값들은 모두 `PolicyFilterUiState`에서 나온다.
+
+3. **추천 태그 기반 검색**
+   - 검색 탭에서는 선택된 추천 태그(tags)가 있을 경우,
+     - 키워드 + 태그가 함께 Query에 반영되거나
+     - 키워드가 비어있을 경우 태그만으로도 검색 가능.
+
+4. **검색 결과 리스트**
+   - 무한 스크롤 + Pull-to-Refresh 지원.
+   - 로딩 / 에러 / 빈 상태 UI 정상 동작.
+
+5. **검색 상태 유지**
+   - 유저가 다른 탭(예: 전체 탭)으로 이동했다가 검색 탭으로 돌아오더라도,
+     - 최근 검색어 + 필터 상태 + 결과 리스트가 유지되어야 한다.
+   - 앱 재시작 시까지는 메모리 내에서 유지(영구 저장은 이후 TASK로 분리).
+
+6. **검색 초기 상태 UX**
+   - 아직 검색어가 입력되지 않았거나, 첫 진입 시:
+     - (옵션 A) “검색 가이드” 화면 (예: ‘검색어를 입력해보세요’, 추천 태그 리스트 등)을 보여준다.
+     - (옵션 B) 최근 검색어, 인기 키워드 등을 보여줄 수 있는 구조를 준비해둔다(구현은 추후 TASK).
+
+7. **실 API 연동 (경북 청년정책 OpenAPI)**
+   - 검색 탭에서 발생하는 Query는 실 API의 `searchPolicyNm` 등 검색 파라미터와 매핑되어야 한다.
+   - API 실패 시 graceful하게 에러 상태를 보여준다.
+
+---
+
+### 3.2 비기능 요구사항 (Non-functional)
+
+1. **반응성**
+   - 필터/정렬/검색어 변경 시, 과도한 재호출 방지를 위해 debounce/최소 길이 체크 등 고려.
+   - 다만 이 TASK 09에서는 “검색 버튼/확인” 시점에 요청 보내는 형태로 단순화 가능.
+
+2. **일관성**
+   - 다른 탭과 동일한 `PolicyFeedListView` / `PolicyCard` 구성 유지.
+   - 상태/에러 표시도 동일한 패턴 사용.
+
+3. **확장성**
+   - 향후 “최근 검색어 저장/삭제”, “서버 추천 키워드” 등을 추가해도 구조 변경 없이 기능 추가가 가능해야 한다.
+
+---
+
+## 4. 아키텍처 설계 (Architecture Design)
+
+### 4.1 핵심 아이디어
+- 검색 탭은 **다른 5개 탭과 같은 infra(Feed Controller + Query Engine + Orchestrator)를 사용**하되,
+  **입력 소스(Keyword + Tags + FilterUiState)의 의미만 다르게 해석**하는 방식으로 설계한다.
+- 즉, **검색 탭 전용 Controller는 없다**. `SearchFeedController`가 Base를 상속해 feedType만 `search`로 전달.
+- Query 생성 규칙:
+  - `feedType = PolicyFeedType.search`
+  - `keyword = ui.keyword` (빈 문자열이면 null)
+  - `filter.region/category/online/ongoing` 등 UI 상태를 그대로 전달
+  - `tags = ui.tags` (추천 태그가 있을 경우 결합)
+
+---
+
+### 4.2 컴포넌트 구성
+
+1. **UI 레이어**
+   - 상단 필터/검색/정렬 바: `PolicyFilterBar`
+   - 검색 전용 텍스트 입력 모달: `PolicyKeywordSheet`
+   - 검색 탭 컨테이너: `PolicyFeedListView(feedType: PolicyFeedType.search)`
+   - 검색 가이드/빈 상태: `PolicySearchEmptyView` (새 위젯 추가)
+
+2. **상태 레이어**
+   - `PolicyFilterUiState` + `policyFilterUiStateProvider`
+   - `PolicyPagingState` + `SearchFeedController` (Base 상속)
+
+3. **도메인/데이터 레이어**
+   - `PolicyQueryOrchestrator.buildQuery(PolicyFeedType.search)`
+   - `PolicyQueryEngine.fetch(PolicyFeedType.search, page: ..)`
+   - `PolicyRepository.fetchPoliciesByQuery(...)`
+   - `PolicyRemoteSource.fetchPoliciesWithParams(...)`
+
+---
+
+## 5. 데이터 파이프라인 / 흐름도 (Data Pipeline / Flow)
+
+### 5.1 기본 검색 흐름
+
+1. 유저가 상단 검색 영역을 탭  
+   → `PolicyKeywordSheet` 오픈
+
+2. 유저가 검색어 입력 후 “검색” 버튼 탭  
+   → `policyFilterUiStateProvider.notifier.setKeyword(inputText)`
+
+3. `PolicyFilterUiState` 변경  
+   → `BasePolicyFeedController`(feedType=search)가 이 변화를 감지  
+   → `refresh()` 호출
+
+4. `SearchFeedController.refresh()`  
+   → 내부에서 `loadFirstPage()` 실행  
+   → `PolicyQueryEngine.fetch(feedType: search, page: 1)` 호출
+
+5. `PolicyQueryEngine`  
+   → `PolicyQueryOrchestrator.buildQuery(PolicyFeedType.search)` 호출  
+   → `PolicyQuery` 생성 (keyword + filter + tags + sort)
+
+6. `PolicyRepository.fetchPoliciesByQuery(query, page, pageSize)`  
+   → HTTP 파라미터로 변환 (`searchPolicyNm` 등)  
+   → `PolicyRemoteSource.fetchPoliciesWithParams(params)`  
+   → 응답 JSON -> `PolicyModel` 리스트 -> `Policy` 리스트
+
+7. 결과 `PolicyResult<List<Policy>>`  
+   → `SearchFeedController`가 `PolicyPagingState.data(items, hasMore)`로 상태 업데이트  
+   → UI(`PolicyFeedListView`)가 rebuild, 검색 결과 표시
+
+---
+
+### 5.2 빈 상태 / 에러 상태 흐름
+
+- 검색 전(=keyword 비어있을 때):
+  - SearchFeedController는 items가 비어있고, isLoading=false, failure=null인 상태가 유지.
+  - `PolicyFeedListView(feedType: search)` 에서 **비어있으면서 keyword도 비어있다면** `PolicySearchEmptyView` 표시.
+
+- 검색 결과 없음:
+  - Repository 결과가 성공이지만 리스트 length=0
+  - `PolicyPagingState.data(items: [], hasMore: false)`  
+  - UI에서 “조건에 맞는 정책이 없습니다” 등의 메시지 표시.
+
+- 에러:
+  - Repository에서 Failure 발생 시 `PolicyPagingState.error(failure)`  
+  - UI에서 `PolicyListError` 표시.
+
+---
+
+## 6. Provider / Controller 상호작용 규칙
+
+1. `policyFilterUiStateProvider`
+   - 검색어/필터/정렬/태그를 전역으로 관리하는 **단일 소스**.
+   - `setKeyword`, `setRegion`, `setCategory`, `setSort`, `setTags`, `toggleOnlineOnly`, `toggleOngoingOnly`.
+
+2. `PolicyQueryOrchestrator`
+   - `buildQuery(PolicyFeedType.search)` 호출 시:
+     - `filter.region = ui.region`
+     - `filter.category = ui.category`
+     - `filter.isOnline = ui.showOnlyOnline ? true : null`
+     - `filter.isOngoing = ui.showOnlyOngoing ? true : null`
+     - `keyword = ui.keyword.isEmpty ? null : ui.keyword`
+     - `tags = ui.tags`
+
+3. `PolicyQueryEngine`
+   - `fetch(PolicyFeedType.search, page)` → 위 Query를 Repo에 전달.
+
+4. `SearchFeedController`
+   - BasePolicyFeedController 상속, 생성자에서 `feedType=PolicyFeedType.search` 전달.
+   - `policyFilterUiStateProvider`를 listen:
+     - keyword/필터/정렬/태그 변경 시 `supportsFilterAutoApply == true` → `refresh()`.
+   - EventBus:
+     - profileUpdated / cacheCleared / refreshRequested 등은 Base가 공통 처리.
+
+5. UI (검색 탭)
+   - **읽기 전용**: `ref.watch(searchFeedControllerProvider)`  
+   - 상태 조작은 FilterUiState/Controller를 통해 간접적으로 이루어진다.
+
+---
+
+## 7. UI 상태도 (UI State Diagram — 텍스트 버전)
+
+### 검색 탭 내 상태
+
+1. **Idle (초기 진입)**
+   - keyword: "" (비어있음)
+   - items: []
+   - isLoading: false
+   - View: `PolicySearchEmptyView` (검색 가이드, 추천 태그 등)
+
+2. **Searching (검색 중)**
+   - keyword: "청년 주거"
+   - loadFirstPage 호출 중
+   - isLoading: true, items: [] 또는 기존 items (구현 선택)
+   - View: 로딩 인디케이터 + 기존 리스트 or 로딩 전용
+
+3. **Result (검색 결과 있음)**
+   - items.length > 0
+   - View: 리스트 (PolicyCard)
+
+4. **EmptyResult (검색 결과 없음)**
+   - 요청 성공 + items.length == 0
+   - View: “조건에 맞는 정책이 없습니다” + 필터/키워드 수정 유도
+
+5. **Error**
+   - failure != null
+   - View: `PolicyListError(message, onRetry: loadFirstPage)`
+
+---
+
+## 8. 이벤트 흐름 (Event Flow)
+
+### 주요 이벤트
+
+1. **KeywordChanged**
+   - Source: `PolicyKeywordSheet`에서 “검색” 버튼 탭
+   - Action: `setKeyword(newKeyword)`
+   - Effect: SearchFeedController.refresh() → 새 검색 수행
+
+2. **FilterChanged (Region/Category/Online/Ongoing)**
+   - Source: `PolicyFilterBottomSheet`
+   - Action: `setRegion/setCategory/toggleOnlineOnly/toggleOngoingOnly`
+   - Effect:
+     - SearchFeedController.refresh() (자동)
+     - Recommend/All/Region 등도 함께 갱신
+
+3. **SortChanged**
+   - Source: `PolicySortBottomSheet`
+   - Action: `setSort(newSort)`
+   - Effect: SearchFeedController.refresh() + 다른 피드도 재정렬
+
+4. **TabSwitched (다른 탭 → 검색 탭)**
+   - Source: `PolicyFeedHomeScreen`의 TabBarView
+   - Action: 없음 (단순 포커스 이동)
+   - Effect:
+     - SearchFeedController의 현재 상태 유지 (검색 결과 재사용)
+     - 필요 시 “탭 진입 시점에만 초기 로딩” 옵션은 future TASK로 분리
+
+---
+
+## 9. 파일 구조 (File Structure)
+
+> 이 TASK 09에서 **생성/수정 대상**만 정리한다.  
+> 이미 존재하는 파일은 “기능 확장/구현 보완” 수준으로만 수정해야 한다.
+
+### 9.1 생성 (또는 없으면 새로 생성)
+
+1. `lib/features/policy_new/presentation/filters/policy_keyword_sheet.dart`
+   - 검색어 입력 UI + “검색” 버튼.
+   - `policyFilterUiStateProvider`에 keyword를 저장.
+
+2. `lib/features/policy_new/presentation/widgets/policy_search_empty_view.dart`
+   - 검색 탭 초기 상태/빈 상태에서 보여줄 가이드 뷰.
+
+### 9.2 수정 (구현 보완)
+
+1. `lib/features/policy_new/application/controllers/policy_query_orchestrator.dart`
+   - `buildQuery(PolicyFeedType.search)` 구현 확정/보완.
+
+2. `lib/features/policy_new/application/controllers/policy_query_engine.dart`
+   - `fetch(PolicyFeedType.search, page: ...)` 사용 중인지 확인 (필요 시 호출부 보완).
+
+3. `lib/features/policy_new/application/controllers/base_feed_controller.dart`
+   - FilterUiState listen → SearchFeedController도 자동 refresh 대상 포함되어 있는지 확인.
+
+4. `lib/features/policy_new/application/controllers/search_feed_controller.dart`
+   - BasePolicyFeedController 상속 + feedType=search 전달 (없으면 새로 생성).
+   - 내부에 별도 상태는 두지 않음.
+
+5. `lib/features/policy_new/presentation/widgets/policy_feed_list_view.dart`
+   - feedType가 `PolicyFeedType.search`이고,
+     - items.isEmpty && keyword.isEmpty 일 때 `PolicySearchEmptyView` 보여주도록 조건 분기 추가.
+
+6. `lib/features/policy_new/presentation/filters/policy_filter_bar.dart`
+   - 검색 영역 탭 시 `PolicyKeywordSheet`를 오픈하도록 연결.
+
+7. `lib/features/policy_new/presentation/screens/policy_feed_home_screen.dart`
+   - 이미 6탭이 있다면, 검색 탭이 `PolicyFeedType.search`로 연결되어 있는지 재확인.
+
+---
+
+## 10. Acceptance Criteria (수용 기준)
+
+1. **검색 탭 UI**
+   - [ ] 정책 메인 화면의 6개 탭 중 “검색” 탭이 존재한다.
+   - [ ] 검색 탭에서 상단 필터/검색/정렬 바가 표시된다.
+   - [ ] 검색 탭 최초 진입 시 `PolicySearchEmptyView`가 보인다(검색 가이드 상태).
+
+2. **검색 동작**
+   - [ ] 상단 검색 영역을 탭하면 `PolicyKeywordSheet`가 나타난다.
+   - [ ] 사용자가 검색어를 입력하고 “검색” 버튼을 누르면, `policyFilterUiState.keyword`가 갱신된다.
+   - [ ] 검색어 갱신 후, `SearchFeedController`가 자동으로 첫 페이지를 로드한다.
+   - [ ] 검색 결과가 있을 경우 정책 카드 리스트로 표시된다.
+   - [ ] 검색 결과가 없을 경우 “조건에 맞는 정책이 없습니다” 메시지가 표시된다.
+   - [ ] 검색 중 에러가 발생하면 에러 메시지 + “다시 시도” 버튼이 표시된다.
+
+3. **필터/정렬 연동**
+   - [ ] 검색 탭에서 지역/카테고리/온라인/모집중/정렬을 변경하면, 검색 결과가 그 조건에 맞게 다시 로드된다.
+   - [ ] Recommend/All/Region 탭에서도 같은 FilterUiState를 공유한다.
+
+4. **상태 유지**
+   - [ ] 검색어와 검색 결과는 탭 전환 후 검색 탭으로 돌아왔을 때도 유지된다.
+   - [ ] 앱을 완전히 종료하기 전까지, 검색 탭의 현재 상태(검색어+결과)가 유지된다.
+
+5. **실 API 연동 (가능한 범위에서)**
+   - [ ] Search Query가 Repository를 통해 실제 OpenAPI의 검색 파라미터(`searchPolicyNm` 등)로 전달되어야 한다.
+   - [ ] 최소 1개의 실제 검색어에 대해, API 응답 결과가 앱 내에서 정상적으로 리스트로 표시되는 것을 확인할 수 있어야 한다.
+
+6. **코드 품질**
+   - [ ] 모든 새 파일은 `policy_new` 네임스페이스를 사용하고, 기존 V1 정책코드와 의존성이 없다.
+   - [ ] 빌드시 타입 에러/미사용 import/분기 누락이 없어야 한다.
+   - [ ] Controller/Provider/Query/Filter 간 순환 참조가 없어야 한다.
+
+---
+
+
 ❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️🩵🩵🩵
 
 @chatgpt-codex
