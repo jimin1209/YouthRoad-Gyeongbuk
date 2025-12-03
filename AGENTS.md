@@ -113,6 +113,758 @@ Try correcting the name to the name of an existing method, or defining a method 
           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Target kernel_snapshot_program failed: Exception
 
+# ISSUE 21
+lib/application/providers.dart:19:1: Error: The '===' operator is not supported.
+=======
+^
+lib/application/providers.dart:19:4: Error: The '===' operator is not supported.
+=======
+   ^
+lib/application/providers.dart:14:1: Error: Expected a declaration, but got '<<'.
+<<<<<<< HEAD
+^^
+lib/application/providers.dart:14:3: Error: Expected a declaration, but got '<<'.
+<<<<<<< HEAD
+  ^^
+lib/application/providers.dart:14:5: Error: Expected a declaration, but got '<<'.
+<<<<<<< HEAD
+    ^^
+lib/application/providers.dart:14:7: Error: Expected a declaration, but got '<'.
+<<<<<<< HEAD
+      ^
+lib/application/providers.dart:15:1: Error: Expected an identifier, but got 'export'.
+Try inserting an identifier before 'export'.
+export 'policy/policy_list_notifier.dart'
+^^^^^^
+lib/application/providers.dart:14:9: Error: Expected ';' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/application/providers.dart:15:1: Error: Directives must appear before any declarations.
+Try moving the directive before any declarations.
+export 'policy/policy_list_notifier.dart'
+^^^^^^
+lib/application/providers.dart:17:1: Error: Directives must appear before any declarations.
+Try moving the directive before any declarations.
+export '../features/policy/providers/policy_prefetch_provider.dart'
+^^^^^^
+lib/application/providers.dart:19:1: Error: Expected a declaration, but got '==='.
+=======
+^^^
+lib/application/providers.dart:19:4: Error: Expected a declaration, but got '==='.
+=======
+   ^^^
+lib/application/providers.dart:19:7: Error: Expected a declaration, but got '='.
+=======
+      ^
+lib/application/providers.dart:20:1: Error: Directives must appear before any declarations.
+Try moving the directive before any declarations.
+export 'policy/policy_providers.dart'
+^^^^^^
+lib/application/providers.dart:29:1: Error: Expected a declaration, but got '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+^^^
+lib/application/providers.dart:29:4: Error: Expected a declaration, but got '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+   ^^^
+lib/application/providers.dart:29:7: Error: Expected a declaration, but got '>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+      ^
+lib/application/providers.dart:29:9: Error: Expected a declaration, but got '10'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+        ^^
+lib/application/providers.dart:29:11: Error: Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
+Try adding the name of the type of the variable or the keyword 'var'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/application/providers.dart:29:11: Error: Expected ';' after this.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/application/providers.dart:20:1: Error: 'policyPrefetchProvider' is exported from both 'package:youth_road_app/application/policy/policy_prefetch_provider.dart' and 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart'.
+export 'policy/policy_providers.dart'
+^
+lib/application/providers.dart:20:1: Error: 'PolicyPrefetchNotifier' is exported from both 'package:youth_road_app/application/policy/policy_prefetch_provider.dart' and 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart'.
+export 'policy/policy_providers.dart'
+^
+lib/application/providers.dart:14:9: Error: Type 'HEAD' not found.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_prefetch_provider.dart:64:14: Error: The getter 'mounted' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/application/policy/policy_prefetch_provider.dart' ('lib/application/policy/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
+        if (!mounted) return;
+             ^^^^^^^
+lib/application/policy/policy_prefetch_provider.dart:68:14: Error: The getter 'mounted' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/application/policy/policy_prefetch_provider.dart' ('lib/application/policy/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
+        if (!mounted) return;
+             ^^^^^^^
+lib/application/policy/policy_list_notifier.dart:137:1: Error: The '===' operator is not supported.
+=======
+^
+lib/application/policy/policy_list_notifier.dart:137:4: Error: The '===' operator is not supported.
+=======
+   ^
+lib/application/policy/policy_list_notifier.dart:185:1: Error: The '===' operator is not supported.
+=======
+^
+lib/application/policy/policy_list_notifier.dart:185:4: Error: The '===' operator is not supported.
+=======
+   ^
+lib/application/policy/policy_list_notifier.dart:302:1: Error: The '===' operator is not supported.
+=======
+^
+lib/application/policy/policy_list_notifier.dart:302:4: Error: The '===' operator is not supported.
+=======
+   ^
+lib/application/policy/policy_list_notifier.dart:355:1: Error: The '===' operator is not supported.
+=======
+^
+lib/application/policy/policy_list_notifier.dart:355:4: Error: The '===' operator is not supported.
+=======
+   ^
+lib/application/policy/policy_list_notifier.dart:389:1: Error: The '===' operator is not supported.
+=======
+^
+lib/application/policy/policy_list_notifier.dart:389:4: Error: The '===' operator is not supported.
+=======
+   ^
+lib/application/policy/policy_list_notifier.dart:69:71: Error: Can't find '}' to match '{'.
+class PolicyListNotifier extends AutoDisposeNotifier<PolicyListState> {
+                                                                      ^
+lib/application/policy/policy_list_notifier.dart:133:1: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+^^
+lib/application/policy/policy_list_notifier.dart:133:3: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+  ^^
+lib/application/policy/policy_list_notifier.dart:133:5: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+    ^^
+lib/application/policy/policy_list_notifier.dart:133:9: Error: 'HEAD' isn't a type.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:133:9: Error: Expected '>' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:134:7: Error: Expected '[' before this.
+      pageIndex: page,
+      ^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:134:7: Error: Expected ',' before this.
+      pageIndex: page,
+      ^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:137:1: Error: Expected an identifier, but got '==='.
+Try inserting an identifier before '==='.
+=======
+^^^
+lib/application/policy/policy_list_notifier.dart:137:7: Error: Expected an identifier, but got '='.
+Try inserting an identifier before '='.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:137:4: Error: The string '===' isn't a user-definable operator.
+=======
+   ^^^
+lib/application/policy/policy_list_notifier.dart:137:7: Error: Can't assign to this.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:138:15: Error: Expected ')' before this.
+      pagingYn: 'N',
+              ^
+lib/application/policy/policy_list_notifier.dart:129:24: Error: Too many positional arguments: 0 allowed, but 2 found.
+Try removing the extra positional arguments.
+    return PolicyFilter(
+                       ^
+lib/data/models/policy_filter.dart:2:9: Context: Found this candidate, but the arguments don't match.
+  const PolicyFilter({
+        ^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:168:1: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+^^
+lib/application/policy/policy_list_notifier.dart:168:3: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+  ^^
+lib/application/policy/policy_list_notifier.dart:168:5: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+    ^^
+lib/application/policy/policy_list_notifier.dart:168:9: Error: 'HEAD' isn't a type.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:168:9: Error: Expected '>' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:169:5: Error: Expected '[' before this.
+    final requestId = _nextRequestId();
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:168:9: Error: Expected ';' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:185:1: Error: Expected an identifier, but got '==='.
+Try inserting an identifier before '==='.
+=======
+^^^
+lib/application/policy/policy_list_notifier.dart:185:7: Error: Expected an identifier, but got '='.
+Try inserting an identifier before '='.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:185:4: Error: The string '===' isn't a user-definable operator.
+=======
+   ^^^
+lib/application/policy/policy_list_notifier.dart:187:1: Error: Expected an identifier, but got '>>>'.
+Try inserting an identifier before '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+^^^
+lib/application/policy/policy_list_notifier.dart:187:4: Error: Expected an identifier, but got '>>>'.
+Try inserting an identifier before '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+   ^^^
+lib/application/policy/policy_list_notifier.dart:187:7: Error: Expected an identifier, but got '>'.
+Try inserting an identifier before '>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+      ^
+lib/application/policy/policy_list_notifier.dart:185:7: Error: Can't assign to this.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:187:9: Error: Expected ';' after this.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+        ^^
+lib/application/policy/policy_list_notifier.dart:187:11: Error: 'cb82c5be7418eec2cafee48e1207446fde2b94' isn't a type.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:159:19: Error: Local variable 'state' can't be referenced before it is declared.
+        final _ = state;
+                  ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
+    state = state.copyWith(
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:171:10: Error: Local variable 'state' can't be referenced before it is declared.
+        (state.isLoadingMore || state.isLoading || !state.hasMore || page <= 1)) {
+         ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
+    state = state.copyWith(
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:171:33: Error: Local variable 'state' can't be referenced before it is declared.
+        (state.isLoadingMore || state.isLoading || !state.hasMore || page <= 1)) {
+                                ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
+    state = state.copyWith(
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:171:53: Error: Local variable 'state' can't be referenced before it is declared.
+        (state.isLoadingMore || state.isLoading || !state.hasMore || page <= 1)) {
+                                                    ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
+    state = state.copyWith(
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:175:30: Error: Local variable 'state' can't be referenced before it is declared.
+    final previousPolicies = state.policies;
+                             ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
+    state = state.copyWith(
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:13: Error: Local variable 'state' can't be referenced before it is declared.
+    state = state.copyWith(
+            ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
+    state = state.copyWith(
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:189:27: Error: Local variable 'state' can't be referenced before it is declared.
+      isLoading: append ? state.isLoading : !isUserRefresh,
+                          ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
+    state = state.copyWith(
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:192:25: Error: Local variable 'state' can't be referenced before it is declared.
+      hasMore: append ? state.hasMore : true,
+                        ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
+    state = state.copyWith(
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:193:22: Error: Local variable 'state' can't be referenced before it is declared.
+      page: append ? state.page : page,
+                     ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
+    state = state.copyWith(
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:195:25: Error: Local variable 'state' can't be referenced before it is declared.
+      isStale: append ? state.isStale : previousPolicies.isNotEmpty,
+                        ^^^^^
+lib/application/policy/policy_list_notifier.dart:188:5: Context: This is the declaration of the variable 'state'.
+    state = state.copyWith(
+    ^^^^^
+lib/application/policy/policy_list_notifier.dart:210:1: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+^^
+lib/application/policy/policy_list_notifier.dart:210:3: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+  ^^
+lib/application/policy/policy_list_notifier.dart:210:5: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+    ^^
+lib/application/policy/policy_list_notifier.dart:210:9: Error: 'HEAD' isn't a type.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:210:9: Error: Expected '>' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:211:9: Error: Expected '[' before this.
+        final merged = [...previousPolicies, ...policies];
+        ^^^^^
+lib/application/policy/policy_list_notifier.dart:210:9: Error: Expected ';' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:302:1: Error: Expected an identifier, but got '==='.
+Try inserting an identifier before '==='.
+=======
+^^^
+lib/application/policy/policy_list_notifier.dart:302:7: Error: Expected an identifier, but got '='.
+Try inserting an identifier before '='.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:302:4: Error: The string '===' isn't a user-definable operator.
+=======
+   ^^^
+lib/application/policy/policy_list_notifier.dart:302:7: Error: Can't assign to this.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:338:1: Error: Expected an identifier, but got '>>>'.
+Try inserting an identifier before '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+^^^
+lib/application/policy/policy_list_notifier.dart:338:4: Error: Expected an identifier, but got '>>>'.
+Try inserting an identifier before '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+   ^^^
+lib/application/policy/policy_list_notifier.dart:338:7: Error: Expected an identifier, but got '>'.
+Try inserting an identifier before '>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+      ^
+lib/application/policy/policy_list_notifier.dart:338:9: Error: Expected ';' after this.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+        ^^
+lib/application/policy/policy_list_notifier.dart:338:11: Error: Expected ';' after this.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:340:7: Error: 'catch' can't be used as an identifier because it's a keyword.
+Try renaming this to be an identifier that isn't a keyword.
+    } catch (e, st) {
+      ^^^^^
+lib/application/policy/policy_list_notifier.dart:340:19: Error: Expected ';' after this.
+    } catch (e, st) {
+                  ^
+lib/application/policy/policy_list_notifier.dart:353:1: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+^^
+lib/application/policy/policy_list_notifier.dart:353:3: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+  ^^
+lib/application/policy/policy_list_notifier.dart:353:5: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+    ^^
+lib/application/policy/policy_list_notifier.dart:353:9: Error: 'HEAD' isn't a type.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:353:9: Error: Expected '>' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:354:9: Error: Expected '[' before this.
+        isLoadingMore: false,
+        ^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:354:9: Error: Expected ',' before this.
+        isLoadingMore: false,
+        ^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:355:1: Error: Expected an identifier, but got '==='.
+Try inserting an identifier before '==='.
+=======
+^^^
+lib/application/policy/policy_list_notifier.dart:355:7: Error: Expected an identifier, but got '='.
+Try inserting an identifier before '='.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:355:4: Error: The string '===' isn't a user-definable operator.
+=======
+   ^^^
+lib/application/policy/policy_list_notifier.dart:356:1: Error: Expected an identifier, but got '>>>'.
+Try inserting an identifier before '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+^^^
+lib/application/policy/policy_list_notifier.dart:356:4: Error: Expected an identifier, but got '>>>'.
+Try inserting an identifier before '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+   ^^^
+lib/application/policy/policy_list_notifier.dart:356:7: Error: Expected an identifier, but got '>'.
+Try inserting an identifier before '>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+      ^
+lib/application/policy/policy_list_notifier.dart:355:7: Error: Can't assign to this.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:356:11: Error: Expected ',' before this.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:357:9: Error: Expected ',' before this.
+        error: e,
+        ^^^^^
+lib/application/policy/policy_list_notifier.dart:198:5: Error: A try block must be followed by an 'on', 'catch', or 'finally' clause.
+Try adding either a catch or finally clause, or remove the try statement.
+    try {
+    ^^^
+lib/application/policy/policy_list_notifier.dart:378:1: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+^^
+lib/application/policy/policy_list_notifier.dart:378:3: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+  ^^
+lib/application/policy/policy_list_notifier.dart:378:5: Error: Expected an identifier, but got '<<'.
+Try inserting an identifier before '<<'.
+<<<<<<< HEAD
+    ^^
+lib/application/policy/policy_list_notifier.dart:378:9: Error: 'HEAD' isn't a type.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:378:9: Error: Expected '>' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:379:3: Error: Expected '[' before this.
+  Future<void> loadNextPage() async {
+  ^^^^^^
+lib/application/policy/policy_list_notifier.dart:378:9: Error: Expected ';' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/application/policy/policy_list_notifier.dart:389:1: Error: Expected an identifier, but got '==='.
+Try inserting an identifier before '==='.
+=======
+^^^
+lib/application/policy/policy_list_notifier.dart:389:7: Error: Expected an identifier, but got '='.
+Try inserting an identifier before '='.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:389:4: Error: The string '===' isn't a user-definable operator.
+=======
+   ^^^
+lib/application/policy/policy_list_notifier.dart:390:5: Error: Expected an identifier, but got 'try'.
+Try inserting an identifier before 'try'.
+    try {
+    ^^^
+lib/application/policy/policy_list_notifier.dart:389:7: Error: Can't assign to this.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:389:7: Error: Expected ';' after this.
+=======
+      ^
+lib/application/policy/policy_list_notifier.dart:447:1: Error: Expected an identifier, but got '>>>'.
+Try inserting an identifier before '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+^^^
+lib/application/policy/policy_list_notifier.dart:447:4: Error: Expected an identifier, but got '>>>'.
+Try inserting an identifier before '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+   ^^^
+lib/application/policy/policy_list_notifier.dart:447:7: Error: Expected an identifier, but got '>'.
+Try inserting an identifier before '>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+      ^
+lib/application/policy/policy_list_notifier.dart:447:9: Error: Expected ';' after this.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+        ^^
+lib/application/policy/policy_list_notifier.dart:447:11: Error: Expected ';' after this.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:362:5: Error: Local variable '_debugLogState' can't be referenced before it is declared.
+    _debugLogState('after _loadPolicies #$requestId');
+    ^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:463:8: Context: This is the declaration of the variable '_debugLogState'.
+  void _debugLogState(String where) {
+       ^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:446:5: Error: Local variable '_debugLogState' can't be referenced before it is declared.
+    _debugLogState('after refresh');
+    ^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:463:8: Context: This is the declaration of the variable '_debugLogState'.
+  void _debugLogState(String where) {
+       ^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:317:18: Error: The getter 'mounted' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
+            if (!mounted) return;
+                 ^^^^^^^
+lib/application/policy/policy_list_notifier.dart:328:18: Error: The getter 'mounted' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
+            if (!mounted) return;
+                 ^^^^^^^
+lib/application/policy/policy_list_notifier.dart:338:11: Error: The getter 'cb82c5be7418eec2cafee48e1207446fde2b94' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'cb82c5be7418eec2cafee48e1207446fde2b94'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:340:7: Error: The method 'catch' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'catch'.
+    } catch (e, st) {
+      ^^^^^
+lib/application/policy/policy_list_notifier.dart:340:14: Error: The getter 'e' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'e'.
+    } catch (e, st) {
+             ^
+lib/application/policy/policy_list_notifier.dart:340:17: Error: The getter 'st' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'st'.
+    } catch (e, st) {
+                ^^
+lib/application/policy/policy_list_notifier.dart:348:83: Error: The getter 'e' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'e'.
+      debugPrint('[PolicyListNotifier][#$requestId] remote refresh failed: error=$e');
+                                                                                  ^
+lib/application/policy/policy_list_notifier.dart:349:20: Error: The getter 'st' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'st'.
+      debugPrint('$st');
+                   ^^
+lib/application/policy/policy_list_notifier.dart:356:11: Error: The getter 'cb82c5be7418eec2cafee48e1207446fde2b94' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'cb82c5be7418eec2cafee48e1207446fde2b94'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:357:16: Error: The getter 'e' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'e'.
+        error: e,
+               ^
+lib/application/policy/policy_list_notifier.dart:350:29: Error: Too many positional arguments: 0 allowed, but 3 found.
+Try removing the extra positional arguments.
+      state = state.copyWith(
+                            ^
+lib/application/policy/policy_list_notifier.dart:362:5: Error: The method '_debugLogState' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing method, or defining a method named '_debugLogState'.
+    _debugLogState('after _loadPolicies #$requestId');
+    ^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:391:34: Error: Required named parameter 'page' must be provided.
+      final filter = _buildFilter(region: region);
+                                 ^
+lib/application/policy/policy_list_notifier.dart:409:18: Error: The getter 'mounted' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
+            if (!mounted) return;
+                 ^^^^^^^
+lib/application/policy/policy_list_notifier.dart:420:18: Error: The getter 'mounted' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
+            if (!mounted) return;
+                 ^^^^^^^
+lib/application/policy/policy_list_notifier.dart:446:5: Error: The method '_debugLogState' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing method, or defining a method named '_debugLogState'.
+    _debugLogState('after refresh');
+    ^^^^^^^^^^^^^^
+lib/application/policy/policy_list_notifier.dart:447:11: Error: The getter 'cb82c5be7418eec2cafee48e1207446fde2b94' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'cb82c5be7418eec2cafee48e1207446fde2b94'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:63:1: Error: The '===' operator is not supported.
+=======
+^
+lib/features/policy/providers/policy_prefetch_provider.dart:63:4: Error: The '===' operator is not supported.
+=======
+   ^
+lib/features/policy/providers/policy_prefetch_provider.dart:5:1: Error: Expected a declaration, but got '<<'.
+<<<<<<< HEAD
+^^
+lib/features/policy/providers/policy_prefetch_provider.dart:5:3: Error: Expected a declaration, but got '<<'.
+<<<<<<< HEAD
+  ^^
+lib/features/policy/providers/policy_prefetch_provider.dart:5:5: Error: Expected a declaration, but got '<<'.
+<<<<<<< HEAD
+    ^^
+lib/features/policy/providers/policy_prefetch_provider.dart:5:7: Error: Expected a declaration, but got '<'.
+<<<<<<< HEAD
+      ^
+lib/features/policy/providers/policy_prefetch_provider.dart:6:1: Error: Expected an identifier, but got 'import'.
+Try inserting an identifier before 'import'.
+import '../../../application/notifiers/policy_paging_notifier.dart'; // ← ★ 반드시 필요!!
+^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:5:9: Error: Expected ';' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:6:1: Error: Directives must appear before any declarations.
+Try moving the directive before any declarations.
+import '../../../application/notifiers/policy_paging_notifier.dart'; // ← ★ 반드시 필요!!
+^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:7:1: Error: Directives must appear before any declarations.
+Try moving the directive before any declarations.
+import '../../../application/providers.dart'
+^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:9:1: Error: Directives must appear before any declarations.
+Try moving the directive before any declarations.
+import '../../../domain/repositories/policy_repository.dart';
+^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:10:1: Error: Directives must appear before any declarations.
+Try moving the directive before any declarations.
+import 'policy_list_provider.dart';
+^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:63:1: Error: Expected a declaration, but got '==='.
+=======
+^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:63:4: Error: Expected a declaration, but got '==='.
+=======
+   ^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:63:7: Error: Expected a declaration, but got '='.
+=======
+      ^
+lib/features/policy/providers/policy_prefetch_provider.dart:64:1: Error: Directives must appear before any declarations.
+Try moving the directive before any declarations.
+export '../../../application/policy/policy_prefetch_provider.dart';
+^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:65:1: Error: Expected a declaration, but got '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:65:4: Error: Expected a declaration, but got '>>>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+   ^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:65:7: Error: Expected a declaration, but got '>'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+      ^
+lib/features/policy/providers/policy_prefetch_provider.dart:65:9: Error: Expected a declaration, but got '10'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+        ^^
+lib/features/policy/providers/policy_prefetch_provider.dart:65:11: Error: Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
+Try adding the name of the type of the variable or the keyword 'var'.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:65:11: Error: Expected ';' after this.
+>>>>>>> 10cb82c5be7418eec2cafee48e1207446fde2b94
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:5:9: Error: Type 'HEAD' not found.
+<<<<<<< HEAD
+        ^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:17:38: Error: Type 'AsyncNotifier' not found.
+class PolicyPrefetchNotifier extends AsyncNotifier<void> {
+                                     ^^^^^^^^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:13:5: Error: Method not found: 'AsyncNotifierProvider'.
+    AsyncNotifierProvider<PolicyPrefetchNotifier, void>(
+    ^^^^^^^^^^^^^^^^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:19:7: Error: The getter 'ref' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'ref'.
+      ref.read(policyRepositoryInterfaceProvider);
+      ^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:22:7: Error: The getter 'ref' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'ref'.
+      ref.read(policyPagingProvider.notifier); // ← 오류 해결됨!
+      ^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:24:43: Error: The getter 'ref' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'ref'.
+  PolicyListNotifier get _listNotifier => ref.read(policyListProvider.notifier);
+                                          ^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:31:19: Error: Couldn't find constructor 'AsyncValue.loading'.
+    state = const AsyncValue.loading();
+                  ^^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:55:21: Error: Couldn't find constructor 'AsyncValue.data'.
+      state = const AsyncValue.data(null);
+                    ^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:30:9: Error: The getter 'state' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'state'.
+    if (state.isLoading) return;
+        ^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:31:5: Error: The setter 'state' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing setter, or defining a setter or field named 'state'.
+    state = const AsyncValue.loading();
+    ^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:45:7: Error: The method 'debugPrint' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+      debugPrint('[PolicyPrefetchNotifier] cache preload failed: $e\n$st');
+      ^^^^^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:55:7: Error: The setter 'state' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing setter, or defining a setter or field named 'state'.
+      state = const AsyncValue.data(null);
+      ^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:57:7: Error: The method 'debugPrint' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+      debugPrint('[PolicyPrefetchNotifier] remote prefetch failed: $e\n$st');
+      ^^^^^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:59:15: Error: The getter 'AsyncValue' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'AsyncValue'.
+      state = AsyncValue.error(e, st);
+              ^^^^^^^^^^
+lib/features/policy/providers/policy_prefetch_provider.dart:59:7: Error: The setter 'state' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/features/policy/providers/policy_prefetch_provider.dart' ('lib/features/policy/providers/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing setter, or defining a setter or field named 'state'.
+      state = AsyncValue.error(e, st);
+      ^^^^^
+lib/ui/screens/policy/policy_list_legacy_screen.dart:24:37: Error: The getter 'refresh' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'refresh'.
+                  onRetry: notifier.refresh,
+                                    ^^^^^^^
+lib/ui/screens/policy/policy_list_legacy_screen.dart:27:39: Error: The getter 'refresh' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'refresh'.
+                  onRefresh: notifier.refresh,
+                                      ^^^^^^^
+lib/ui/screens/policy/policy_list_legacy_screen.dart:33:34: Error: The method 'loadNextPage' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'loadNextPage'.
+                        notifier.loadNextPage();
+                                 ^^^^^^^^^^^^
+lib/features/map_v2/map_with_list_screen.dart:271:53: Error: The method 'loadNextPage' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'loadNextPage'.
+      ref.read(policyListNotifierProvider.notifier).loadNextPage();
+                                                    ^^^^^^^^^^^^
+lib/ui/screens/home/home_screen.dart:28:27: Error: The getter 'refresh' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'refresh'.
+        onRetry: notifier.refresh,
+                          ^^^^^^^
+lib/ui/screens/home/home_screen.dart:32:29: Error: The getter 'refresh' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'refresh'.
+        onRefresh: notifier.refresh,
+                            ^^^^^^^
+lib/ui/screens/home/home_screen.dart:38:24: Error: The method 'loadNextPage' isn't defined for the class 'PolicyListNotifier'.
+ - 'PolicyListNotifier' is from 'package:youth_road_app/application/policy/policy_list_notifier.dart' ('lib/application/policy/policy_list_notifier.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'loadNextPage'.
+              notifier.loadNextPage();
+                       ^^^^^^^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 3s
+
 
 ## [feature/policy-loading-overhaul] 정책 로딩 전체 오버홀 (페이징 + Lazy Loading + 무한 로딩 제거)
 
