@@ -1442,7 +1442,392 @@ lib/features/policy_new/
 
 
 ⸻
+@chatgpt-codex
+# TASK 05 — PolicyNew 상세 페이지 + 액션 레이어 (좋아요/비교/알림/실제 페이지 이동)
 
+> ✅ 목표: 정책 카드 탭 → 상세 보기 → 좋아요/비교/알림/실제 페이지 이동까지  
+>     **“정책 한 개”에 대해 사용자가 할 수 있는 모든 액션을 한 화면에서 완성하는 것.**  
+>     (job01 스타일의 완전한 설계 + 구현 가이드)
+
+---
+
+## 1. 시스템 정의 (System Definition)
+
+**이 TASK 05에서 다루는 “시스템”은 다음과 같음:**
+
+- 모듈 이름: `policy_new` 내 **Policy Detail & Action Layer**
+- 책임:
+  1. 정책 리스트에서 선택된 **단일 정책(Policy)** 의 상세 정보를 로드하고 보여준다.
+  2. 해당 정책에 대해:
+     - 즐겨찾기(좋아요) 토글
+     - 비교 목록 추가/제거
+     - 신청 마감일 알림 설정/해제
+     - 실제 정책 페이지(외부 링크) 이동
+     - (선택) 공유 기능
+  3. 이 액션들을 EventBus / Repository / ReminderService 에 반영한다.
+- 소비자:
+  - `policy_new`의 UI 레이어 (카드/리스트/탭/상세 바텀시트)
+- 의존 대상:
+  - `PolicyRepository` (상세 데이터 로드)
+  - `FavoriteRepository` (좋아요 관리)
+  - `CompareRepository` (비교 목록 관리)
+  - `PolicyReminderService` (신청 마감일 알림 관리)
+  - `PolicyEventBus` (다른 피드/화면에 변경 사항 브로드캐스트)
+  - `url_launcher` 또는 브라우저 열기 유틸
+
+---
+
+## 2. 문제 정의 (Problem Definition)
+
+현재 `policy_new` 구조에서:
+
+- 정책 목록(피드) 탭 UI/컨트롤러/도메인까지는 설계/구현이 진행되었지만,
+- **단일 정책 상세 화면 및 그 위에서의 사용자 액션(좋아요/비교/알림/실제 링크 이동)이 일관된 방식으로 구현되지 않음.**
+
+구체적인 문제:
+
+1. **정책 상세 로딩 책임이 명확하지 않음**
+   - 어떤 Provider/Controller가 상세 정보 책임을 지는지 정의가 필요.
+   - 네트워크 실패/로드 중/성공 상태 관리가 일관되어야 함.
+
+2. **좋아요/비교/알림 로직이 분산되거나 UI에 섞일 위험**
+   - 카드/상세/리스트 등에서 중복 구현 위험.
+   - EventBus와 Repository, ReminderService간의 관계가 명확하지 않음.
+
+3. **신청 마감일 알림 기능의 UX/데이터 흐름 부재**
+   - 언제 알림을 등록할지 (D-day, N일 전 등)
+   - 어떤 엔터티를 Reminder에 저장할지
+   - 해제/변경 시 동작 정의 없음.
+
+4. **실제 정책 페이지 이동 동작이 제각각 구현될 위험**
+   - 링크 필드가 어디에 있고, 어떤 함수로 브라우저를 여는지 통일 필요.
+
+**따라서**, 정책 상세 + 액션 레이어를 **하나의 명확한 시스템**으로 정의하고,  
+각 기능(좋아요/비교/알림/링크)이 **일관된 도메인/데이터 흐름** 위에서 동작하도록 설계해야 함.
+
+---
+
+## 3. 요구사항 분석 (Requirements)
+
+### 3.1 기능 요구사항 (Functional)
+
+1. **정책 상세 로드**
+   - 입력: `policyId: String`
+   - 처리:
+     - Repository에서 `Policy` 객체를 가져온다.
+     - 최초는 네트워크 요청, 필요 시 캐시 활용 (job03/04 설계에 따름)
+   - 출력 상태:
+     - `loading` / `data(Policy)` / `error(PolicyFailure)`
+
+2. **좋아요(즐겨찾기) 토글**
+   - 상세 화면에서 “하트 아이콘” 버튼을 눌러 ON/OFF 가능
+   - 내부 Repository: `FavoriteRepository` 사용
+   - EventBus: `PolicyEventType.favoritesChanged` 발행
+   - 피드 목록(즐겨찾기/추천 등)은 이 이벤트를 구독해서 갱신
+
+3. **비교 목록 추가/제거**
+   - “비교함에 담기” 토글 버튼
+   - `CompareRepository` 활용
+   - EventBus: `PolicyEventType.compareListChanged` (또는 refreshRequested)
+
+4. **신청 마감일 알림 설정/해제**
+   - “알림 설정” 버튼 클릭 시:
+     - Policy의 `applicationEndDate` 기준으로 알림 예약
+     - `PolicyReminderService` / `PolicyReminderRepository` 이용
+   - 이미 설정된 경우:
+     - 버튼 상태를 “알림 설정됨”으로 표시
+     - 다시 누르면 취소
+   - 알림 옵션:
+     - D-day / N일 전 (기본: 3일 전 등) — 옵션 구조는 도메인에서 관리
+
+5. **실제 정책 페이지 이동**
+   - Policy의 `applyUrl` 또는 `detailUrl` 사용
+   - `url_launcher` 또는 동일 유틸로 외부 브라우저 앱에서 오픈
+   - URL 비어 있거나 잘못된 경우 토스트/스낵바로 안내
+
+6. **(선택) 공유 기능**
+   - OS의 기본 공유 시트 호출
+   - 공유 내용: 정책 제목, 요약, 링크
+
+### 3.2 비기능 요구사항 (Non-functional)
+
+1. **일관된 상태 관리**
+   - AsyncValue 또는 명시적 상태 클래스로 `loading/error/data` 관리
+   - UI 컴포넌트에서 동일 패턴으로 처리 가능해야 함.
+
+2. **도메인 규칙 보존**
+   - Domain `Policy`는 변경하지 않고, Action 로직은 Service/Repository/Controller에 위치
+   - UI는 Domain을 표현만 하고, 비즈니스 로직 수행하지 않음
+
+3. **테스트 가능성**
+   - Controller/Notifier 로직은 순수 Dart 레벨에서 테스트 가능해야 함
+   - 외부 의존성(url_launcher, 로컬 알림 등)은 추상화된 인터페이스 통해 주입
+
+4. **EventBus 일관성**
+   - 즐겨찾기/비교/알림 관련 변경은 EventBus로 브로드캐스트
+   - 다른 화면/피드는 오직 EventBus를 통해 상태 변경을 감지
+
+---
+
+## 4. 아키텍처 설계 (Architecture Design)
+
+### 4.1 레이어 개념도
+
+- **Presentation Layer**
+  - `PolicyDetailBottomSheet`
+  - `PolicyActionBar` (버튼 영역 위젯)
+- **Application Layer**
+  - `PolicyDetailController` (상세 상태 관리)
+  - `PolicyActionController` (좋아요/비교/알림/링크/공유 액션 처리)
+- **Domain/Data Layer**
+  - `PolicyRepository` (fetchPolicyDetail)
+  - `FavoriteRepository`
+  - `CompareRepository`
+  - `PolicyReminderService` / `PolicyReminderRepository`
+  - `PolicyEventBus`
+
+설계 포인트:
+
+- **읽기(상세 로딩)** 와 **쓰기(액션)** 를 논리적으로 분리  
+  → `PolicyDetailController` (read) vs `PolicyActionController` (write & side-effects)
+
+- 정책 상세 UI는 두 컨트롤러의 상태를 조합해서 사용:
+  - `PolicyDetailController` → Policy 데이터 상태
+  - `PolicyActionController` → 좋아요/비교/알림 상태 + 액션 메서드
+
+---
+
+## 5. 데이터 파이프라인 / 흐름도 (Data Pipeline / Flow)
+
+### 5.1 정책 상세 로드 흐름
+
+1. UI (카드 탭)
+   - `PolicyCard`의 `onTap` 이벤트 → `PolicyDetailBottomSheet(policyId)` 호출
+
+2. `PolicyDetailBottomSheet`
+   - `ref.watch(policyDetailControllerProvider(policyId))` 구독
+   - 첫 빌드 시 Controller가 Repository에 `fetchPolicyDetail(policyId)` 호출
+
+3. `PolicyRepository`
+   - RemoteSource + Cache 구성에 따라 PolicyModel → Policy 변환 반환
+
+4. `PolicyDetailController`
+   - `state = loading → data(policy)` 또는 `error(failure)`
+
+5. UI 표현
+   - 상태에 따라 로딩/에러/정상 상세 UI 렌더링
+
+### 5.2 좋아요/비교/알림/링크 액션 흐름 (한 예: 좋아요)
+
+1. UI: 상세 화면에서 좋아요 버튼 탭
+2. `PolicyActionController.toggleFavorite(policyId)` 호출
+3. `FavoriteRepository` 갱신
+4. `PolicyEventBus`에 `favoritesChanged` 이벤트 발행
+5. 즐겨찾기/추천 Feed Controller들은 eventBus를 통해 이벤트 수신 → `refresh()`
+6. UI:
+   - 상세 화면 내 좋아요 버튼 state 업데이트
+   - 리스트 카드의 상태는 FeedController 리로드 시 반영
+
+### 5.3 알림 설정 흐름
+
+1. UI: “알림 설정” 버튼 탭
+2. `PolicyActionController.toggleReminder(policy)` 호출
+3. 내부 로직:
+   - 현재 Policy에 대한 Reminder 존재 여부 확인 (Repository)
+   - 없다면:
+     - `PolicyReminderService.schedule(policy, option)`
+     - `PolicyReminderRepository.save(reminder)`
+   - 있다면:
+     - `PolicyReminderService.cancel(reminder.id)`
+     - `PolicyReminderRepository.delete(reminder.id)`
+4. `PolicyEventBus`에 `reminderChanged` 이벤트 발행
+5. 다른 화면에서 “알림 켜진 정책만 보기” 등의 기능이 있을 경우 이를 구독하여 반영
+
+---
+
+## 6. Provider / Controller 상호작용 규칙
+
+### 6.1 Provider 정의
+
+- `policyDetailControllerProvider = StateNotifierProvider.family<PolicyDetailController, PolicyDetailState, String>`
+- `policyActionControllerProvider = StateNotifierProvider.family<PolicyActionController, PolicyActionState, String>`
+
+각각 `policyId`를 파라미터로 받는다.
+
+### 6.2 PolicyDetailController 규칙
+
+- 책임:
+  - `Policy` 개체 로드
+  - 로딩/에러 상태 관리
+- 메서드:
+  - `Future<void> load()` – 최초/재시도
+- 의존:
+  - `PolicyRepository`
+  - `PolicyLogger`
+
+### 6.3 PolicyActionController 규칙
+
+- 책임:
+  - 좋아요 토글
+  - 비교 토글
+  - 알림 설정/해제
+  - 브라우저 링크/공유 호출
+- 상태:
+  - `isFavorite: bool`
+  - `isInCompare: bool`
+  - `hasReminder: bool`
+  - `isBusy: bool` (액션 처리 중)
+- 메서드:
+  - `Future<void> toggleFavorite(Policy policy)`
+  - `Future<void> toggleCompare(Policy policy)`
+  - `Future<void> toggleReminder(Policy policy)`
+  - `Future<void> openApplyUrl(Policy policy)`
+  - `Future<void> share(Policy policy)` (선택)
+- 의존:
+  - FavoriteRepository
+  - CompareRepository
+  - PolicyReminderService + PolicyReminderRepository
+  - PolicyEventBus
+  - ExternalLauncher(브라우저/공유)
+
+### 6.4 UI와의 상호작용
+
+- 상세 화면 위젯은 항상 두 Provider를 동시에 사용:
+  - `final detailState = ref.watch(policyDetailControllerProvider(policyId));`
+  - `final actionState = ref.watch(policyActionControllerProvider(policyId));`
+- 버튼들은 `ref.read(policyActionControllerProvider(policyId).notifier)` 를 통해 액션 호출
+
+---
+
+## 7. UI 상태도 (UI State Diagram)
+
+### 7.1 상세 화면 상단(컨텐츠 영역) 상태
+
+- `Loading`: 원형 로딩 인디케이터 중앙 표시
+- `Error`: “정책 정보를 불러오지 못했습니다” + 재시도 버튼
+- `Data`:
+  - 제목
+  - 요약
+  - 태그(지역/카테고리/상태 등)
+  - 상세 설명
+  - 신청 기간 텍스트
+  - 기관/부서/문의 정보 (가능한 경우)
+
+### 7.2 상세 화면 하단(액션 바) 상태
+
+- 버튼 구성 (예시):
+  - 좌측: 좋아요 토글 (채워진 하트/빈 하트)
+  - 중간 좌측: 비교함 토글
+  - 중간 우측: 알림 토글 (종 아이콘)
+  - 우측: “신청 페이지 열기” 버튼 (primary)
+  - (상단이나 메뉴로 공유 버튼 추가 가능)
+
+- 각 버튼은 `PolicyActionState`에 따라 활성/비활성/ON/OFF 상태가 변함.
+
+### 7.3 상태 전이 예시 (알림 버튼)
+
+- 초기: `hasReminder = false` → 상태: “알림 설정”
+- 탭 → `isBusy = true`
+- 성공:
+  - `hasReminder = true`, `isBusy = false`
+  - 버튼 텍스트: “알림 설정됨”
+- 다시 탭:
+  - 해제 로직 후 `hasReminder = false` 반환
+
+---
+
+## 8. 이벤트 흐름 (Event Flow)
+
+### 8.1 사용 이벤트 타입 (예시)
+
+- `PolicyEventType.favoritesChanged`
+- `PolicyEventType.compareListChanged`
+- `PolicyEventType.reminderChanged`
+- `PolicyEventType.refreshRequested`
+- `PolicyEventType.profileUpdated` (기존)
+
+### 8.2 이벤트 발행 규칙
+
+- `toggleFavorite` 성공 시:
+  - `PolicyEvent(favoritesChanged, policyId: policy.id)` 발행
+- `toggleCompare` 성공 시:
+  - `PolicyEvent(compareListChanged, policyId: policy.id)` 발행
+- `toggleReminder` 성공 시:
+  - `PolicyEvent(reminderChanged, policyId: policy.id)` 발행
+
+### 8.3 이벤트 구독 측
+
+- FeedController (Recommend/All/Region/Search/Favorite/Compare):
+  - `favoritesChanged` 수신 시:
+    - Favorite/추천 피드: `refresh()`
+  - `compareListChanged` 수신 시:
+    - Compare 피드: `refresh()`
+  - `reminderChanged` 수신 시:
+    - 별도 알림 필터가 있을 경우 해당 피드에서 `refresh()`
+- 상세 화면 자체는 로컬 상태만 업데이트하므로 EventBus 의존은 선택적이지만,
+  상태 일관성을 위해 동일 이벤트를 활용할 수 있음.
+
+---
+
+## 9. 파일 구조 (File Structure)
+
+이 TASK 05에서 생성/수정해야 할 파일 구조:
+
+```txt
+lib/features/policy_new/
+  application/
+    controllers/
+      policy_detail_controller.dart           # NEW — 단일 Policy 상세 로딩 전담
+      policy_action_controller.dart           # NEW — 좋아요/비교/알림/링크/공유 전담
+  presentation/
+    detail/
+      policy_detail_bottom_sheet.dart         # (job05 버전 확장/교체) 상세 + 액션바 UI
+      widgets/
+        policy_action_bar.dart                # NEW — 좋아요/비교/알림/링크 버튼 묶음
+
+	•	policy_detail_bottom_sheet.dart는 job05 버전이 이미 있다면, 본 TASK 05 설계에 맞게 전체 교체한다.
+	•	policy_action_bar.dart는 독립적인 재사용 가능 위젯으로 만든다.
+
+⸻
+
+10. Acceptance Criteria (완료 기준)
+
+이 TASK 05가 “완료”로 간주되기 위해 반드시 충족해야 하는 조건:
+	1.	상세 로딩
+	•	policyDetailControllerProvider(policyId)가 존재하며,
+loading → data(Policy) → error 상태를 명확하게 관리한다.
+	•	PolicyDetailBottomSheet가 이 Provider를 사용해 상세 정보 렌더링을 수행한다.
+	2.	좋아요 (즐겨찾기)
+	•	상세 화면에서 좋아요 버튼을 누르면, 아이콘 상태가 즉시 반영되고,
+FavoriteRepository에 저장/삭제가 수행된다.
+	•	같은 정책이 포함된 피드(즐겨찾기/추천 등)를 다시 열면, 좋아요 상태가 반영되어 있다.
+	•	PolicyEventType.favoritesChanged 이벤트가 발행되고, 관련 피드가 이를 수신해 refresh 한다.
+	3.	비교 목록
+	•	상세 화면에서 “비교함” 버튼 토글 시, CompareRepository에 정책이 추가/제거된다.
+	•	Compare 탭에서 해당 정책이 나타나거나 사라진다.
+	•	PolicyEventType.compareListChanged 이벤트가 발행되고, Compare 피드가 이를 반영한다.
+	4.	신청 마감일 알림
+	•	Policy에 applicationEndDate가 있는 경우, “알림 설정” 버튼이 활성화된다.
+	•	버튼 탭 시 Reminder가 생성되고, 다시 탭 시 Reminder가 해제된다.
+	•	알림 상태가 버튼에 시각적으로 반영된다 (ON/OFF).
+	•	Reminder 생성/해제는 PolicyReminderService / PolicyReminderRepository를 통해 처리된다.
+	•	PolicyEventType.reminderChanged 이벤트가 발행된다.
+	5.	실제 정책 페이지 이동
+	•	“신청 페이지 열기” 버튼이 존재하며, policy.applyUrl 또는 동등 필드를 사용해 외부 브라우저를 연다.
+	•	잘못된 URL 또는 빈 값인 경우, 사용자에게 적절한 안내를 제공한다 (토스트/스낵바 등).
+	6.	UI/UX 일관성
+	•	상세 화면은 로딩/에러/성공 상태를 모두 처리하며, 에러 시 재시도 버튼이 제공된다.
+	•	액션 버튼들은 PolicyActionState에 따라 ON/OFF/Busy 상태를 correctly 반영한다.
+	•	빌드 시 타입 에러/Provider 참조 오류/DI 충돌이 없어야 한다.
+	7.	아키텍처 규칙 준수
+	•	Domain Policy 구조를 변경하지 않고, Action 로직은 Controller/Service/Repository에서만 수행한다.
+	•	UI는 Domain/Controller/Provider에만 의존하고, Repository/Remote에 직접 접근하지 않는다.
+	•	EventBus는 “상태 동기화”에만 사용되며, 비즈니스 로직 핵심 분기는 Controller/Service에서 처리한다.
+
+⸻
+
+
+#END OF TASK 05
 
 
 
