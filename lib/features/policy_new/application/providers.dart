@@ -31,6 +31,7 @@ import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
 import 'gateways/notification_gateway.dart';
 import 'services/policy_reminder_service.dart';
+import 'services/policy_reminder_scheduler.dart';
 import 'filters/policy_filter_ui_state.dart';
 import '../data/cache/policy_cache.dart';
 import '../data/repositories/policy_repository_impl.dart';
@@ -206,6 +207,13 @@ final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
 final policyReminderConfigProvider =
     Provider<PolicyReminderConfig>((ref) => const PolicyReminderConfig());
 
+final policyReminderSchedulerProvider =
+    Provider<PolicyReminderScheduler>((ref) {
+  return PolicyReminderScheduler(
+    config: ref.watch(policyReminderConfigProvider),
+  );
+});
+
 final policyReminderLocalDataSourceProvider =
     Provider<PolicyReminderLocalDataSource>((ref) {
   return InMemoryPolicyReminderLocalDataSource();
@@ -227,6 +235,7 @@ final policyReminderServiceProvider = Provider<PolicyReminderService>((ref) {
     repository: ref.watch(policyReminderRepositoryProvider),
     notificationGateway: ref.watch(notificationGatewayProvider),
     eventBus: ref.read(policyEventBusProvider.notifier),
+    scheduler: ref.watch(policyReminderSchedulerProvider),
   );
 });
 
