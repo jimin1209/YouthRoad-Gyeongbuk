@@ -1,13 +1,13 @@
 import '../../domain/entities/policy_reminder.dart';
 
-abstract class ReminderScheduler {
+abstract class NotificationGateway {
   Future<void> scheduleReminder(PolicyReminder reminder);
-  Future<void> cancelReminder(String policyId);
+  Future<void> cancelReminder(String reminderId);
 }
 
-class NoOpReminderScheduler implements ReminderScheduler {
+class NoOpNotificationGateway implements NotificationGateway {
   @override
-  Future<void> cancelReminder(String policyId) async {
+  Future<void> cancelReminder(String reminderId) async {
     // no-op
     return;
   }

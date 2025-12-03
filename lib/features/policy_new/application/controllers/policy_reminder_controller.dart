@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
+import '../../domain/values/policy_reminder_status.dart';
 import '../providers.dart';
 import '../services/policy_reminder_service.dart';
 
@@ -11,7 +12,7 @@ class PolicyReminderController
     required this.ref,
     required this.policyId,
   }) : super(const AsyncLoading()) {
-    load();
+    initialize();
   }
 
   final Ref ref;
@@ -19,10 +20,17 @@ class PolicyReminderController
 
   PolicyReminderService get _service => ref.read(policyReminderServiceProvider);
 
+  Future<void> initialize() async {
+    await _service.cleanupExpiredReminders();
+    await load();
+  }
+
   Future<void> load() async {
     state = const AsyncLoading();
     final existing =
-        await ref.read(policyReminderRepositoryProvider).getByPolicyId(policyId);
+        await ref.read(policyReminderRepositoryProvider).getReminderByPolicyId(
+              policyId,
+            );
     state = AsyncData(existing);
   }
 
@@ -39,10 +47,14 @@ class PolicyReminderController
   Future<void> cancelReminder() async {
     state = const AsyncLoading();
     try {
-      await _service.cancelReminder(policyId);
+      await _service.cancelReminderByPolicyId(policyId);
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
+  }
+
+  PolicyReminderStatus? currentStatus() {
+    return state.maybeWhen(data: (reminder) => reminder?.status, orElse: () => null);
   }
 }
