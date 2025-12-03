@@ -6063,3 +6063,28 @@ Execution failed for task ':app:compileFlutterBuildDebug'.
 > Get more help at https://help.gradle.org.
 
 BUILD FAILED in 10s
+
+# ISSUE 46
+
+lib/features/policy_new/application/controllers/policy_paging_controller.dart:100:14: Error: The method 'removeListener' isn't defined for the class 'PolicyEventBus'.
+ - 'PolicyEventBus' is from 'package:youth_road_app/features/policy_new/application/controllers/policy_event_bus.dart' ('lib/features/policy_new/application/controllers/policy_event_bus.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'removeListener'.
+    eventBus.removeListener(_eventListener);
+             ^^^^^^^^^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 9s
+Running Gradle task 'assembleDebug'...                            
