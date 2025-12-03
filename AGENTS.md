@@ -196,6 +196,261 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+
+
+⸻
+
+💎 최종 완성본 — Task 25~28 (Ultra-High Spec)
+
+────────────────────────────────────────
+📘 Task 25 — Scheduling Result 모델 설계 (Feedback Loop Model)
+────────────────────────────────────────
+
+# 1. System Definition
+YouthRoad 알림 시스템은 “예약/취소/변경” 같은 Scheduling 동작 후,
+UI·상태머신·저장소가 서로 정확히 반영되려면 “스케줄링 결과 모델(Result)”이 필요하다.
+현재는 boolean 또는 void 기반으로 처리되어 일관된 피드백 구조가 없다.
+
+# 2. Problem Statement
+- 알림 예약 성공/실패 여부가 일관된 구조로 반환되지 않음.
+- 네이티브 Gateway(flutter_local_notifications) → Repository → Controller → UI 흐름을 통합하는 결과 모델 부재.
+- 실패 사유 명세 없음 → 디버깅 불가.
+- 여러 알림을 동시에 수행할 때 개별 결과 추적 불가.
+
+# 3. Requirements
+- 모든 Scheduling 동작은 Result 객체를 반환해야 한다.
+- Result는 success/failure 상태와 상세 사유를 포함해야 한다.
+- UI는 Result를 기반으로 Optimistic Update를 수행할 수 있어야 한다.
+- Repository, Domain, Gateway 계층 모두에서 공통으로 사용하는 표준 모델이어야 한다.
+
+# 4. Architecture
+**Domain Value Object: ScheduleResult**
+
+class ScheduleResult {
+final bool success;
+final ScheduleFailure? failure;
+final String? localNotificationId;
+final DateTime? scheduledAt;
+}
+
+**Failure 모델**
+
+enum ScheduleFailureType {
+invalidDate,
+permissionDenied,
+gatewayError,
+idCollision,
+unknown,
+}
+class ScheduleFailure {
+final ScheduleFailureType type;
+final String message;
+}
+
+# 5. Data Flow / Pipeline
+
+UI → Controller → ReminderService → NotificationGateway → (native scheduling)
+↓
+←———————— ScheduleResult —————————→
+
+# 6. Provider / Controller Interaction Rules
+- Controller는 항상 `Future<ScheduleResult>`를 받아 UI 업데이트 수행.
+- 실패 시 Failure 내용을 그대로 UI에 전달.
+- 모든 스케줄 동작은 Transactional: 저장소 반영은 성공 시에만 수행.
+
+# 7. Acceptance Criteria
+- Scheduling 관련 모든 public method가 ScheduleResult 반환.
+- 실패 사유가 표준화된 Enum으로 분류됨.
+- Gateway, Repository, Controller, UI 계층에서 단일 Result 모델 사용.
+- log/analytics는 ScheduleResult 기반으로 일관 기록.
+
+
+────────────────────────────────────────
+📘 Task 26 — 알림 영속화 구조 Isar로 완전 교체 (Full Persistence Rewrite)
+────────────────────────────────────────
+
+# 1. System Definition
+기존 알림 저장소는 In-Memory or SharedPreferences 기반으로 설계되어 있으며,
+멀티 알림/복원/삭제/옵션 관리가 불가능하다.
+Task26에서는 영속 계층을 완전히 Isar 기반 구조로 재설계한다.
+
+# 2. Problem Statement
+- 앱 재시작 시 알림 데이터 전부 소실.
+- 정책당 여러 알림 저장 불가.
+- 삭제/변경/복원 기능 없음.
+- 알림 옵션의 상세 데이터가 DB에 저장되지 않음.
+- 구조적으로 확장 불가.
+
+# 3. Requirements
+- 정책 1개에 0~N개의 알림을 저장할 수 있어야 한다.
+- 알림 ID, policyId, 옵션, 예정시간, 상태(active/cancelled) 저장.
+- Isar Collection 1:N 구조를 가져야 한다.
+- App 시작 시 DB → 메모리 로 복원.
+- 스케줄 성공 시 DB에 반영, 실패 시 롤백.
+
+# 4. Architecture
+**Isar Collection Structure**
+
+@collection
+class ReminderEntity {
+Id id = Isar.autoIncrement;
+late String policyId;
+late String localNotificationId;
+late DateTime scheduledAt;
+late String optionCode; // ‘D-1’, ‘D-7’, custom
+late bool isActive;
+late DateTime createdAt;
+DateTime? cancelledAt;
+}
+
+**Repository Methods**
+
+Future<List> getByPolicy(String policyId)
+Future add(ReminderEntity entity)
+Future markCancelled(String localNotificationId)
+Future delete(String localNotificationId)
+
+# 5. Data Flow / Pipeline
+
+Controller → ReminderService
+ReminderService → NotificationGateway.schedule()
+↓ returns ScheduleResult
+If success → save to Isar
+If failure → do NOT save
+
+# 6. Interaction Rules
+- UI는 always Repository → Entity → Domain 변환을 통해서만 읽는다.
+- 삭제/취소 요청 시 Gateway → Result → DB 업데이트 순으로 처리한다.
+- Option(D-1, D-7 등)은 DB에 문자열로 저장하되, Domain에서는 enum 변환.
+
+# 7. Acceptance Criteria
+- InMemory 구현 완전 제거.
+- 모든 CRUD가 Isar 기반.
+- 앱 재시작 후 알림 목록 정확히 복원.
+- 다중 알림 저장/조회 가능.
+
+
+────────────────────────────────────────
+📘 Task 27 — 알림 센터 상태머신 개선 (Optimistic UI + Multi-State)
+────────────────────────────────────────
+
+# 1. System Definition
+기존 알림 UI는 단일 상태(loading, loaded)로 단순 운영됨.
+다중 알림·스케줄링·취소 등 비동기 이벤트가 들어올 때 상태 일관성이 깨짐.
+Task27은 “알림 센터 상태머신(State Machine)”를 완전히 재설계한다.
+
+# 2. Problem Statement
+- 스케줄 응답 지연 시 UI 정합성 깨짐.
+- Action 실패 시 rollback 처리 없음.
+- Optimistic Update 지원되지 않음.
+- multiple reminders → race condition 발생.
+
+# 3. Requirements
+- 모든 상태는 다음 중 하나여야 함:
+  - idle
+  - loading
+  - optimisticMutating
+  - success
+  - failure(retryable)
+- optimistic update 가능해야 함.
+- rollback 규칙 존재해야 함.
+- action queue 기반으로 비동기 이벤트 순서를 보장해야 함.
+
+# 4. Architecture
+**State Model**
+
+class ReminderCenterState {
+final List reminders;
+final bool isLoading;
+final bool isOptimistic;
+final ReminderFailure? error;
+}
+
+**ActionQueue**
+
+enqueue(Action)
+process next when previous complete
+Action:
+	•	schedule
+	•	cancel
+	•	delete
+	•	reload
+
+# 5. Data Flow
+
+UI → ActionQueue → Service → Gateway → Result → StateReducer → UI
+
+Optimistic Flow:
+
+user taps → optimistic state apply → gateway call →
+if success → commit
+if failure → rollback + UI notify
+
+# 6. Acceptance Criteria
+- Optimistic UI 동작: 알림 추가/삭제가 즉시 UI에 반영됨.
+- 실패 시 롤백 정확히 동작.
+- ActionQueue가 race condition을 방지.
+- 로딩/성공/실패/optimistic 상태 구분 정확.
+
+
+────────────────────────────────────────
+📘 Task 28 — 정책명·옵션 기반 상세 UI 확장 (Detail View Enrichment)
+────────────────────────────────────────
+
+# 1. System Definition
+기존 정책 상세 페이지에는 알림 관련 정보를 충분히 표현하지 못함.
+Task28은 정책 상세에서 알림 옵션(D-1, D-3, D-7 등), 현재 등록된 알림 목록,
+정책 정보 기반 UX를 강화하는 작업이다.
+
+# 2. Problem Statement
+- 정책 상세 화면에 “현재 설정된 알림들” 표시되지 않음.
+- 알림 옵션 목록 UI 없음.
+- 정책별 알림 현황 파악 불가.
+- D-1/D-7 등 옵션을 직관적으로 선택할 수 없음.
+- 멀티 알림 구조가 반영되지 않음.
+
+# 3. Requirements
+- 정책 상세 화면에 현재 이 정책에 설정된 reminders 목록 표시.
+- 옵션 선택 컴포넌트 제공 (Segmented / Chips / BottomSheet).
+- “알림 등록 → optimistic → commit” UI 흐름 지원.
+- “알림 취소/변경” 기능 지원.
+
+# 4. Architecture
+**UI 구성**
+
+PolicyDetailScreen
+├─ Header(정책 제목, 기관)
+├─ Description
+├─ ReminderSection
+│    ├─ ExistingReminderList
+│    ├─ AddReminderOptions(D-1, D-3, D-7, Custom)
+│    └─ Remove / Modify actions
+└─ Apply URL Button
+
+**State Source**
+- reminderCenterProvider(policyId)
+- policyRepositoryProvider.fetchDetail(policyId)
+
+# 5. Interaction Rules
+- 옵션 선택 시 → optimistic insert → gateway 결과 확인
+- 삭제 시 → optimistic remove → commit or rollback
+- 정책 상세 화면은 reminderCenterProvider(policyId)를 watch
+
+# 6. Acceptance Criteria
+- 정책 상세 화면에서 알림 목록 표시됨.
+- 각 옵션(D-1/3/7) 선택 가능.
+- optimistic UI 정확히 반영.
+- 실패 시 롤백 + 에러 표시.
+- 기존 정책 상세 기능과 충돌 없음.
+
+────────────────────────────────────────
+END OF TASK 25~28 SPEC
+────────────────────────────────────────
+
+
+⸻
+
+
 TASK 24: 신청 알림 미비사항 및 개선 작업"
 
 # 1. 시스템/맥락 정의
