@@ -5444,3 +5444,36 @@ lib/features/policy_new/
    * [ ] job01~job10에서 정의된 구조와 충돌하는 import/네이밍 없이 작동한다.
 
 ---
+
+
+
+
+
+
+#ISSUE 40
+lib/application/policy/policy_prefetch_provider.dart:64:14: Error: The getter 'mounted' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/application/policy/policy_prefetch_provider.dart' ('lib/application/policy/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
+        if (!mounted) return;
+             ^^^^^^^
+lib/application/policy/policy_prefetch_provider.dart:68:14: Error: The getter 'mounted' isn't defined for the class 'PolicyPrefetchNotifier'.
+ - 'PolicyPrefetchNotifier' is from 'package:youth_road_app/application/policy/policy_prefetch_provider.dart' ('lib/application/policy/policy_prefetch_provider.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'mounted'.
+        if (!mounted) return;
+             ^^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 10s
