@@ -17,51 +17,71 @@ class PolicyReminderListScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('내 알림 관리')),
       body: reminderState.when(
         data: (centerState) {
-          if (centerState.upcoming.isEmpty && centerState.past.isEmpty) {
-            return const Center(child: Text('설정된 알림이 없습니다'));
-          }
-
-          return RefreshIndicator(
-            onRefresh: controller.load,
-            child: ListView(
-              children: [
-                if (centerState.upcoming.isNotEmpty) ...[
-                  const ListTile(
-                    title: Text(
-                      '예정된 알림',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  for (final reminder in centerState.upcoming)
-                    PolicyReminderListItem(
-                      reminder: reminder,
-                      onCancel: () =>
-                          controller.cancelReminder(reminder.reminderId),
-                      onTap: () =>
-                          _openDetail(context: context, policyId: reminder.policyId),
-                    ),
-                  const Divider(height: 1),
-                ],
-                if (centerState.past.isNotEmpty) ...[
-                  const ListTile(
-                    title: Text(
-                      '지난 알림',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  for (final reminder in centerState.past)
-                    PolicyReminderListItem(
-                      reminder: reminder,
-                      onCancel: () =>
-                          controller.cancelReminder(reminder.reminderId),
-                      onTap: () =>
-                          _openDetail(context: context, policyId: reminder.policyId),
-                    ),
-                ],
-              ],
-            ),
+          final hasData =
+              centerState.upcoming.isNotEmpty || centerState.past.isNotEmpty;
+          return Column(
+            children: [
+              if (centerState.isRefreshing)
+                const LinearProgressIndicator(minHeight: 2),
+              Expanded(
+                child: hasData
+                    ? RefreshIndicator(
+                        onRefresh: controller.load,
+                        child: ListView(
+                          children: [
+                            if (centerState.upcoming.isNotEmpty) ...[
+                              const ListTile(
+                                title: Text(
+                                  '예정된 알림',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const Divider(height: 1),
+                              for (final reminder in centerState.upcoming)
+                                PolicyReminderListItem(
+                                  reminder: reminder,
+                                  onCancel: centerState.isMutating
+                                      ? null
+                                      : () => controller
+                                          .cancelReminder(reminder.reminderId),
+                                  onTap: () => _openDetail(
+                                      context: context, policyId: reminder.policyId),
+                                ),
+                              const Divider(height: 1),
+                            ],
+                            if (centerState.past.isNotEmpty) ...[
+                              const ListTile(
+                                title: Text(
+                                  '지난 알림',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const Divider(height: 1),
+                              for (final reminder in centerState.past)
+                                PolicyReminderListItem(
+                                  reminder: reminder,
+                                  onCancel: centerState.isMutating
+                                      ? null
+                                      : () => controller
+                                          .cancelReminder(reminder.reminderId),
+                                  onTap: () => _openDetail(
+                                      context: context, policyId: reminder.policyId),
+                                ),
+                            ],
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: controller.load,
+                        child: ListView(
+                          children: const [
+                            SizedBox(height: 120),
+                            Center(child: Text('설정된 알림이 없습니다')),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

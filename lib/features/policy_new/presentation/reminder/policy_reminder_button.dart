@@ -18,7 +18,8 @@ class PolicyReminderButton extends ConsumerWidget {
     final controller = ref.read(policyReminderControllerProvider(policy.id).notifier);
 
     return reminderState.when(
-      data: (reminders) {
+      data: (viewState) {
+        final reminders = viewState.reminders;
         final activeReminders = reminders
             .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
             .toList()
@@ -31,15 +32,40 @@ class PolicyReminderButton extends ConsumerWidget {
             : '신청일자 알림 설정';
         final activeOptions =
             activeReminders.map((reminder) => reminder.timeKind).toSet();
+
+        if (viewState.messages.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final messenger = ScaffoldMessenger.maybeOf(context);
+            if (messenger != null) {
+              messenger.showSnackBar(
+                SnackBar(content: Text(viewState.messages.first)),
+              );
+            }
+          });
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (viewState.isRefreshing)
+              const LinearProgressIndicator(minHeight: 2),
             ElevatedButton.icon(
-              onPressed: () async {
-                final selected = await _selectOptions(context, activeOptions);
-                if (selected == null) return;
-                await controller.setReminders(policy, selected.toList());
-              },
+              onPressed: viewState.isMutating
+                  ? null
+                  : () async {
+                      final selected = await _selectOptions(context, activeOptions);
+                      if (selected == null) return;
+                      final result =
+                          await controller.setReminders(policy, selected.toList());
+                      if (result.hasFailure && context.mounted) {
+                        final messages = controller.state.value?.messages ?? [];
+                        final message =
+                            messages.isNotEmpty ? messages.first : '알림을 설정하지 못했습니다.';
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(message)),
+                        );
+                      }
+                    },
               icon: const Icon(Icons.notifications),
               label: Text(label),
             ),
@@ -51,7 +77,9 @@ class PolicyReminderButton extends ConsumerWidget {
                   for (final reminder in activeReminders)
                     InputChip(
                       label: Text(_chipLabel(reminder)),
-                      onDeleted: () => controller.removeReminder(reminder.reminderId),
+                      onDeleted: viewState.isMutating
+                          ? null
+                          : () => controller.removeReminder(reminder.reminderId),
                     ),
                 ],
               ),

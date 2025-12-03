@@ -10,6 +10,7 @@ class PolicyReminder {
   final DateTime updatedAt;
   final ReminderTimeKind timeKind;
   final PolicyReminderStatus status;
+  final String? policyTitleSnapshot;
 
   const PolicyReminder({
     required this.reminderId,
@@ -19,6 +20,7 @@ class PolicyReminder {
     required this.updatedAt,
     required this.timeKind,
     this.status = PolicyReminderStatus.scheduled,
+    this.policyTitleSnapshot,
   });
 
   bool get isExpired => scheduledAt.isBefore(DateTime.now());
@@ -29,6 +31,7 @@ class PolicyReminder {
     DateTime? updatedAt,
     ReminderTimeKind? timeKind,
     PolicyReminderStatus? status,
+    String? policyTitleSnapshot,
   }) {
     return PolicyReminder(
       reminderId: reminderId,
@@ -38,6 +41,7 @@ class PolicyReminder {
       updatedAt: updatedAt ?? this.updatedAt,
       timeKind: timeKind ?? this.timeKind,
       status: status ?? this.status,
+      policyTitleSnapshot: policyTitleSnapshot ?? this.policyTitleSnapshot,
     );
   }
 }

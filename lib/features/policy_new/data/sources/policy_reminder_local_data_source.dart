@@ -2,10 +2,12 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../data/local/isar/isar_service.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/utils/reminder_time_util.dart';
 import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
+import '../local/isar/policy_reminder_isar_model.dart';
 
 abstract class PolicyReminderLocalDataSource {
   Future<void> upsertReminder(PolicyReminder reminder);
@@ -16,146 +18,28 @@ abstract class PolicyReminderLocalDataSource {
   Future<List<PolicyReminder>> getAllReminders();
 }
 
-class InMemoryPolicyReminderLocalDataSource
-    implements PolicyReminderLocalDataSource {
-  final Map<String, PolicyReminder> _reminders = {};
+class LegacyReminderPrefsAdapter {
+  const LegacyReminderPrefsAdapter._();
 
-  @override
-  Future<void> upsertReminder(PolicyReminder reminder) async {
-    _reminders[reminder.reminderId] = reminder;
-  }
+  static const remindersKey = 'policy_new_reminders';
 
-  @override
-  Future<void> deleteReminderById(String reminderId) async {
-    _reminders.remove(reminderId);
-  }
+  static List<PolicyReminder> load(SharedPreferences prefs) {
+    final raw = prefs.getStringList(remindersKey);
+    if (raw == null) return [];
 
-  @override
-  Future<void> deleteRemindersByPolicy(String policyId) async {
-    _reminders.removeWhere((key, value) => value.policyId == policyId);
-  }
-
-  @override
-  Future<PolicyReminder?> getReminder(String reminderId) async {
-    return _reminders[reminderId];
-  }
-
-  @override
-  Future<List<PolicyReminder>> getRemindersForPolicy(String policyId) async {
-    return _reminders.values
-        .where((reminder) => reminder.policyId == policyId)
-        .toList()
-      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-  }
-
-  @override
-  Future<List<PolicyReminder>> getAllReminders() async {
-    return _reminders.values.toList()
-      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-  }
-}
-
-class SharedPrefsPolicyReminderLocalDataSource
-    implements PolicyReminderLocalDataSource {
-  SharedPrefsPolicyReminderLocalDataSource(this._prefs);
-
-  static const _remindersKey = 'policy_new_reminders';
-
-  final SharedPreferences _prefs;
-
-  @override
-  Future<void> upsertReminder(PolicyReminder reminder) async {
-    final reminders = await _loadReminders();
-    final updated = [
-      for (final existing in reminders)
-        if (existing.reminderId != reminder.reminderId) existing,
-      reminder,
-    ];
-    await _saveReminders(updated);
-  }
-
-  @override
-  Future<void> deleteReminderById(String reminderId) async {
-    final reminders = await _loadReminders();
-    final updated = [
-      for (final reminder in reminders)
-        if (reminder.reminderId != reminderId) reminder,
-    ];
-    await _saveReminders(updated);
-  }
-
-  @override
-  Future<void> deleteRemindersByPolicy(String policyId) async {
-    final reminders = await _loadReminders();
-    final updated = [
-      for (final reminder in reminders)
-        if (reminder.policyId != policyId) reminder,
-    ];
-    await _saveReminders(updated);
-  }
-
-  @override
-  Future<PolicyReminder?> getReminder(String reminderId) async {
-    final reminders = await _loadReminders();
-    for (final reminder in reminders) {
-      if (reminder.reminderId == reminderId) {
-        return reminder;
+    final reminders = <PolicyReminder>[];
+    for (final item in raw) {
+      try {
+        final map = jsonDecode(item) as Map<String, dynamic>;
+        reminders.add(_decodeReminder(map));
+      } catch (_) {
+        continue;
       }
     }
-    return null;
-  }
-
-  @override
-  Future<List<PolicyReminder>> getRemindersForPolicy(String policyId) async {
-    final reminders = await _loadReminders();
-    return reminders
-        .where((reminder) => reminder.policyId == policyId)
-        .toList()
-      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-  }
-
-  @override
-  Future<List<PolicyReminder>> getAllReminders() async {
-    final reminders = await _loadReminders();
-    reminders.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
     return reminders;
   }
 
-  Future<void> _saveReminders(List<PolicyReminder> reminders) async {
-    final encoded = reminders
-        .map(
-          (reminder) => jsonEncode(
-            {
-              'id': reminder.reminderId,
-              'reminderId': reminder.reminderId,
-              'policyId': reminder.policyId,
-              'scheduledAt': ReminderTimeUtil.toUtc(reminder.scheduledAt)
-                  .toIso8601String(),
-              'createdAt': ReminderTimeUtil.toUtc(reminder.createdAt)
-                  .toIso8601String(),
-              'updatedAt': ReminderTimeUtil.toUtc(reminder.updatedAt)
-                  .toIso8601String(),
-              'timeKind': reminder.timeKind.name,
-              'status': reminder.status.name,
-            },
-          ),
-        )
-        .toList();
-
-    await _prefs.setStringList(_remindersKey, encoded);
-  }
-
-  Future<List<PolicyReminder>> _loadReminders() async {
-    final raw = _prefs.getStringList(_remindersKey);
-    if (raw == null) return [];
-
-    return raw
-        .map((item) => jsonDecode(item) as Map<String, dynamic>)
-        .map(_decodeReminder)
-        .toList();
-  }
-
-  PolicyReminder _decodeReminder(Map<String, dynamic> map) {
+  static PolicyReminder _decodeReminder(Map<String, dynamic> map) {
     final timeKindValue = map['timeKind'] as String?;
     final statusValue = map['status'] as String?;
     final reminderId = (map['reminderId'] as String?) ?? (map['id'] as String);
@@ -175,12 +59,116 @@ class SharedPrefsPolicyReminderLocalDataSource
       policyId: map['policyId'] as String,
       scheduledAt:
           ReminderTimeUtil.toUtc(DateTime.parse(map['scheduledAt'] as String)),
-      createdAt:
-          ReminderTimeUtil.toUtc(DateTime.parse(map['createdAt'] as String)),
-      updatedAt:
-          ReminderTimeUtil.toUtc(DateTime.parse(map['updatedAt'] as String)),
+      createdAt: ReminderTimeUtil.toUtc(DateTime.parse(map['createdAt'] as String)),
+      updatedAt: ReminderTimeUtil.toUtc(DateTime.parse(map['updatedAt'] as String)),
       timeKind: timeKind,
       status: status,
+    );
+  }
+}
+
+class IsarPolicyReminderLocalDataSource
+    implements PolicyReminderLocalDataSource {
+  IsarPolicyReminderLocalDataSource(this._isarService, this._prefs);
+
+  final IsarService _isarService;
+  final SharedPreferences _prefs;
+  bool _migrationDone = false;
+  static const _migrationFlag = 'policy_new_reminders_migrated_v2';
+
+  Future<void> _ensureMigrated() async {
+    if (_migrationDone || _prefs.getBool(_migrationFlag) == true) {
+      _migrationDone = true;
+      return;
+    }
+
+    final legacy = LegacyReminderPrefsAdapter.load(_prefs);
+    if (legacy.isNotEmpty) {
+      final models = legacy.map(_toIsarModel).toList();
+      await _isarService.putAllReminders(models);
+    }
+
+    await _prefs.setBool(_migrationFlag, true);
+    await _prefs.remove(LegacyReminderPrefsAdapter.remindersKey);
+    _migrationDone = true;
+  }
+
+  @override
+  Future<void> upsertReminder(PolicyReminder reminder) async {
+    await _ensureMigrated();
+    final model = _toIsarModel(reminder);
+    await _isarService.putReminder(model);
+  }
+
+  @override
+  Future<void> deleteReminderById(String reminderId) async {
+    await _ensureMigrated();
+    await _isarService.deleteReminderById(reminderId);
+  }
+
+  @override
+  Future<void> deleteRemindersByPolicy(String policyId) async {
+    await _ensureMigrated();
+    await _isarService.deleteRemindersByPolicy(policyId);
+  }
+
+  @override
+  Future<PolicyReminder?> getReminder(String reminderId) async {
+    await _ensureMigrated();
+    final model = await _isarService.getReminder(reminderId);
+    if (model == null) return null;
+    return _toDomain(model);
+  }
+
+  @override
+  Future<List<PolicyReminder>> getRemindersForPolicy(String policyId) async {
+    await _ensureMigrated();
+    final models = await _isarService.getRemindersForPolicy(policyId);
+    return models.map(_toDomain).toList()
+      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+  }
+
+  @override
+  Future<List<PolicyReminder>> getAllReminders() async {
+    await _ensureMigrated();
+    final models = await _isarService.getAllReminders();
+    final reminders = models.map(_toDomain).toList();
+    reminders.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    return reminders;
+  }
+
+  PolicyReminder _toDomain(PolicyReminderIsarModel model) {
+    final timeKind = ReminderTimeKind.values.firstWhere(
+      (value) => value.name == model.timeKind,
+      orElse: () => ReminderTimeKind.day1,
+    );
+    final status = PolicyReminderStatus.values.firstWhere(
+      (value) => value.name == model.status,
+      orElse: () => PolicyReminderStatus.scheduled,
+    );
+
+    return PolicyReminder(
+      reminderId: model.reminderId,
+      policyId: model.policyId,
+      scheduledAt: ReminderTimeUtil.toUtc(model.scheduledAtUtc),
+      createdAt: ReminderTimeUtil.toUtc(model.createdAtUtc),
+      updatedAt: ReminderTimeUtil.toUtc(model.updatedAtUtc),
+      timeKind: timeKind,
+      status: status,
+      policyTitleSnapshot: model.policyTitleSnapshot,
+    );
+  }
+
+  PolicyReminderIsarModel _toIsarModel(PolicyReminder reminder) {
+    return PolicyReminderIsarModel(
+      reminderId: reminder.reminderId,
+      policyId: reminder.policyId,
+      timeKind: reminder.timeKind.name,
+      status: reminder.status.name,
+      scheduledAtUtc: ReminderTimeUtil.toUtc(reminder.scheduledAt),
+      createdAtUtc: ReminderTimeUtil.toUtc(reminder.createdAt),
+      updatedAtUtc: ReminderTimeUtil.toUtc(reminder.updatedAt),
+      policyTitleSnapshot: reminder.policyTitleSnapshot,
     );
   }
 }

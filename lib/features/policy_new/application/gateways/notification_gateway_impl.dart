@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
 
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/utils/reminder_id_util.dart';
@@ -97,25 +98,35 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
   }
 
   @override
-  Future<void> scheduleReminder(PolicyReminder reminder) async {
+  Future<NotificationResult> scheduleReminder(PolicyReminder reminder) async {
     await _initialization;
     final hasPermission = await _ensurePermissions();
     if (!hasPermission) {
-      return;
+      return const NotificationResult.failure(
+        NotificationFailureReason.permissionDenied,
+      );
     }
 
     final scheduledLocal = ReminderTimeUtil.toUtc(reminder.scheduledAt).toLocal();
     if (scheduledLocal.isBefore(DateTime.now())) {
-      return;
+      return const NotificationResult.failure(
+        NotificationFailureReason.scheduledInPast,
+      );
     }
 
     final notificationId = _notificationId(reminder.reminderId);
     await _plugin.cancel(notificationId);
 
+    final notificationTitle =
+        '[${reminder.policyTitleSnapshot ?? '정책 신청'}] ${reminder.timeKind.label}';
+    final formattedTime = DateFormat('M월 d일 a h:mm', 'ko_KR').format(scheduledLocal);
+    final notificationBody =
+        '${reminder.policyTitleSnapshot ?? reminder.policyId} 마감 ${formattedTime} 전에 신청을 완료해 주세요.';
+
     await _plugin.schedule(
       notificationId,
-      '신청 알림: ${reminder.timeKind.label}',
-      '정책 ID ${reminder.policyId} 신청 마감 전에 확인해 주세요.',
+      notificationTitle,
+      notificationBody,
       scheduledLocal,
       _notificationDetails(),
       payload: _buildPayload(reminder),
@@ -123,16 +134,19 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
+
+    return const NotificationResult.success();
   }
 
   @override
-  Future<void> cancelReminder(String reminderId) async {
+  Future<NotificationResult> cancelReminder(String reminderId) async {
     await _initialization;
     await _plugin.cancel(_notificationId(reminderId));
+    return const NotificationResult.success();
   }
 
   @override
-  Future<void> cancelAllForPolicy(String policyId) async {
+  Future<NotificationResult> cancelAllForPolicy(String policyId) async {
     await _initialization;
     final pending = await _plugin.pendingNotificationRequests();
     for (final request in pending) {
@@ -141,5 +155,6 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         await _plugin.cancel(request.id);
       }
     }
+    return const NotificationResult.success();
   }
 }
