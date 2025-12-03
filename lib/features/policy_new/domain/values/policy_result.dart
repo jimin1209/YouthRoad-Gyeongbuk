@@ -12,4 +12,14 @@ class PolicyResult<T> {
 
   factory PolicyResult.failure(PolicyFailure failure) =>
       PolicyResult._(failure: failure);
+
+  R fold<R>({
+    required R Function(T data) onSuccess,
+    required R Function(PolicyFailure failure) onFailure,
+  }) {
+    if (data != null) {
+      return onSuccess(data as T);
+    }
+    return onFailure(failure as PolicyFailure);
+  }
 }

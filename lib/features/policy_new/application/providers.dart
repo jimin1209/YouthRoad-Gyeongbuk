@@ -9,6 +9,8 @@ import '../domain/values/policy_logger.dart';
 import '../domain/values/policy_filter.dart';
 import '../domain/values/policy_query.dart';
 import '../domain/values/policy_region.dart';
+import '../domain/values/policy_event.dart';
+import '../domain/values/policy_feed_type.dart';
 import '../domain/values/policy_settings.dart';
 import '../domain/values/policy_sort.dart';
 import 'controllers/base_feed_controller.dart';
