@@ -195,6 +195,307 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 # ============================================================
 
 @chatgpt-codex
+# TASK 10 — Recommendation UX System (Full Specification)
+# 온보딩 기반 개인화 추천 + 추천 키워드 UX + FeedType=RECOMMEND 고도화
+
+────────────────────────────────────────────────────
+1. SYSTEM DEFINITION
+────────────────────────────────────────────────────
+YouthRoad PolicyNew 모듈은 6개의 Feed 탭(추천/전체/지역/검색/즐겨찾기/비교)을 기반으로
+정책 탐색 경험을 제공한다. 이 중 "추천(Recommendation)" 탭은 개인화된 정책 제안을
+제공하는 핵심 기능이다.
+
+TASK 10은 다음 3가지의 "개인화 추천 시스템" 전 영역을 구축하기 위한 전면 설계이다:
+
+1) 온보딩(사용자 프로필 입력)
+2) 추천 키워드 기반 정책 추천 UX
+3) 개인화 추천 Query 조합 알고리즘
+
+이 시스템은 job01~job07에서 만든 Domain / Query / Controller / FilterState를 그대로 사용하면서,
+"추천 전용 레이어"를 추가하여 개인화 품질과 UX를 극대화하는 목적을 가진다.
+
+
+────────────────────────────────────────────────────
+2. PROBLEM DEFINITION
+────────────────────────────────────────────────────
+현재 YouthRoad PolicyNew의 추천 탭은 다음 문제를 가지고 있다:
+
+(1) 추천 기준이 부족함
+    - 나이, 지역, 관심 정책 유형, 태그 등의 정보 없이 추천 Feed를 구성하면 추천 품질이 낮다.
+    - 별도의 온보딩 과정이 없기 때문에 개인화가 불가능하다.
+
+(2) 추천 UX가 없음
+    - 추천 키워드(관심사 기반 태그), 필터 기반 추천, 상황별 추천 등이 UI에서 제공되지 않음.
+
+(3) 추천 알고리즘이 단일 규칙
+    - 현재 Query는 단순 filter + sort 기반이며,
+      사용자 컨텍스트(나이, 지역, 선정장려금/취업/주거 관심도 등)를 반영하지 못한다.
+
+(4) 사용자 Action 기반 재추천 기능 부재
+    - 좋아요/비교/검색/클릭 이력 기반 태그 업데이트 없음.
+
+→ TASK 10은 위 문제를 해결하여 **YouthRoad의 핵심 차별화 포인트가 되는 추천 시스템을 구축하는 것**이다.
+
+
+────────────────────────────────────────────────────
+3. REQUIREMENT ANALYSIS
+────────────────────────────────────────────────────
+
+(1) 온보딩(UserProfile Form)
+    - 입력 요소:
+      • 나이(age)
+      • 관심 분야(정책 카테고리 1~3개 선택)
+      • 관심 키워드(자유 입력 + 추천된 키워드 중 선택)
+      • 희망 지역(시·군·구 선택)
+    - 저장 위치: local DB(Isar) + ProviderState
+    - 앱 첫 실행 또는 추천 탭 접근 시 프로필 미완성 → 온보딩 요구
+
+(2) 추천 키워드 UX
+    - 추천 탭 상단에 키워드 Chip 영역 추가
+    - 추천 키워드는 두 가지 원천:
+      ① 사용자 온보딩 입력
+      ② 최근 사용 행동 기반(CLICK, LIKE, COMPARE)
+
+(3) 개인화 추천 알고리즘
+    - 점수 기반 추천 랭킹 모델(가중치 방식)
+    - 점수 구성:
+      Score = (카테고리 일치 40%) +
+              (정책 지역 일치 25%) +
+              (키워드 매칭 25%) +
+              (좋아요/비교 interaction 10%)
+
+(4) FeedType=RECOMMEND 연동
+    - 기존 검색/필터와 독립적으로 추천 Feed 생성
+    - FilterState 변경 시 영향받을 항목:
+      • region override(필수)
+      • category override(선택)
+      • recommendTags override(선택)
+
+(5) 추천 세션 UX
+    - 추천 탭 최초 진입 시:
+      “오늘의 추천 정책 3개” 메인 블록
+      그 아래 추천 키워드 기반 무한 스크롤
+
+(6) 개인화 업데이트 규칙
+    - 좋아요: 해당 정책의 카테고리, 지역, 키워드를 1점씩 상승
+    - 비교: 카테고리 스코어 0.5 상승
+    - 클릭: 키워드 스코어 0.3 상승
+    - 검색어 입력: 해당 키워드 스코어 0.2 상승
+
+(7) 백엔드 API 변경 불필요
+    - 기존 Query + tags 기반으로 최대한 개인화 로직 구현
+    - 프론트에서 개인화 scoring 후 Query.tags로 반영
+
+
+────────────────────────────────────────────────────
+4. ARCHITECTURE DESIGN
+────────────────────────────────────────────────────
+
+아키텍처는 다음 3-layer 구조로 구성:
+
+                        ┌────────────────────┐
+                        │   UI Layer         │
+                        │ (Onboarding Screen,│
+                        │  RecommendFeed     │
+                        │  Keyword Chips)    │
+                        └─────────▲──────────┘
+                                  │
+                                  │Filter/Tags 선택
+                                  │User Profile Input
+                                  ▼
+                     ┌────────────────────────────┐
+                     │ Interaction Layer(Task10)  │
+                     │  • RecommendationEngine    │
+                     │  • UserProfileService      │
+                     │  • KeywordScoringLayer     │
+                     └────────────▲───────────────┘
+                                  │
+                                  │PolicyQueryOrchestrator(buildQuery)
+                                  ▼
+                 ┌────────────────────────────────────────┐
+                 │ Application Layer(job04~07 기반)       │
+                 │  • FeedController                      │
+                 │  • QueryEngine                         │
+                 │  • Repository(fetchPoliciesByQuery)    │
+                 │  • SWR Cache                           │
+                 └────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────
+5. DATA PIPELINE (Flow)
+────────────────────────────────────────────────────
+
+(1) 온보딩 입력
+UI → UserProfileService.save() → Isar DB → userProfileProvider 업데이트
+
+(2) 추천 탭 진입
+RecommendFeedController.loadFirstPage()
+
+(3) Query 조립
+PolicyQueryOrchestrator.buildQuery(FeedType.recommend)
+    • profile.age 적용
+    • profile.region(필수)
+    • profile.recommendCategories
+    • combinedTags = profile.recommendTags + behaviorBasedTags
+
+(4) Repository 호출
+queryEngine.fetch(feedType=RECOMMEND, page)
+
+(5) 정책 리스트 렌더링
+PolicyFeedListView(feedType=RECOMMEND)
+
+(6) 사용자 행동 기록 (클릭/좋아요/비교)
+→ RecommendationBehaviorTracker
+→ KeywordScoringLayer.updateScores()
+
+(7) 추천 키워드 업데이트
+→ policyFilterUiStateProvider.setTags()
+
+
+────────────────────────────────────────────────────
+6. PROVIDER / CONTROLLER INTERACTION RULES
+────────────────────────────────────────────────────
+
+1) userProfileProvider
+   - 온보딩 정보 제공
+   - RecommendationEngine이 이를 기반으로 Query 재조합
+
+2) recommendationBehaviorProvider
+   - 클릭/좋아요/비교 이벤트를 기록
+   - 추천 점수 업데이트
+
+3) policyFilterUiStateProvider
+   - 기본 region/category는 반영하되
+   - 추천 탭에서는 tags가 최우선 입력
+
+4) PolicyQueryOrchestrator
+   - RecommendationEngine(특) 적용 지점:
+     combinedTags = top 5 scored tags
+   - recommended categories override
+
+5) RecommendFeedController
+   - 다른 탭과 다르게 FilterState보다 Profile 기반 우선
+
+
+────────────────────────────────────────────────────
+7. UI STATE DIAGRAM
+────────────────────────────────────────────────────
+
+ 추천 탭 상태머신:
+
+        ┌───────────────┐
+        │  INIT         │
+        └───────┬───────┘
+                │ userProfile incomplete
+                ▼
+        ┌───────────────┐
+        │ ONBOARDING    │
+        └───────┬───────┘
+                │ save profile
+                ▼
+        ┌───────────────┐
+        │ RECOMMEND_UI  │
+        └───────┬───────┘
+                │ keyword/tag change
+                ▼
+        ┌───────────────┐
+        │ REFRESH FEED  │
+        └───────┬───────┘
+                │ scroll end
+                ▼
+        ┌───────────────┐
+        │ NEXT PAGE     │
+        └───────────────┘
+
+
+────────────────────────────────────────────────────
+8. EVENT FLOW
+────────────────────────────────────────────────────
+
+(1) Onboarding Completed
+→ userProfileProvider.set()
+→ eventBus.emit(profileUpdated)
+→ RecommendFeedController.refresh()
+
+(2) Keyword Chip Selected
+→ policyFilterUiStateProvider.setTags([...])
+→ RecommendFeedController.refresh()
+
+(3) Policy Clicked
+→ recommendationBehaviorTracker.addClick()
+→ update keyword weight
+→ no immediate refresh(UX)
+
+(4) Policy Liked
+→ eventBus.emit(favoritesChanged)
+→ update behavior scores
+→ RecommendFeedController.refresh()
+
+(5) Scroll to End
+→ RecommendFeedController.loadNextPage()
+
+
+────────────────────────────────────────────────────
+9. FILE STRUCTURE (TASK 10 ADDITIONS)
+────────────────────────────────────────────────────
+
+lib/features/policy_new/
+  domain/
+    recommendation/
+      user_profile.dart
+      user_profile_repository.dart
+      recommendation_score.dart
+      behavior_event.dart
+
+  data/
+    recommendation/
+      user_profile_local_source.dart
+      user_profile_repository_impl.dart
+
+  application/
+    recommendation/
+      recommendation_engine.dart
+      recommendation_behavior_tracker.dart
+      user_profile_service.dart
+
+  presentation/
+    onboarding/
+      profile_onboarding_screen.dart
+      profile_interest_form.dart
+    recommend/
+      recommend_keyword_bar.dart
+      recommend_header_section.dart
+      recommend_empty_state.dart
+
+
+────────────────────────────────────────────────────
+10. ACCEPTANCE CRITERIA
+────────────────────────────────────────────────────
+
+[온보딩]
+- [ ] 앱 처음 실행 시 또는 추천 탭 접근 시 프로필이 없으면 온보딩 화면 출력
+- [ ] 나이/관심 정책 카테고리/관심 키워드/지역 입력 가능
+- [ ] 모든 데이터 local DB + Provider로 저장됨
+
+[추천 키워드]
+- [ ] 추천 탭 상단에 개인화 키워드 Chip 영역 표시
+- [ ] 최소 1개의 추천 태그가 항상 존재
+
+[추천 알고리즘]
+- [ ] combinedTags = top 5 tags
+- [ ] categoryAffinity, regionAffinity, keywordAffinity 점수 반영
+- [ ] QueryOrchestrator에서 RecommendationEngine 결과를 받아 Query.tags에 반영
+
+[연동]
+- [ ] RecommendFeedController는 필터보다 Profile 기반 우선
+- [ ] behavior(좋아요/클릭/비교) 발생 시 점수 업데이트
+
+[UI/UX]
+- [ ] 추천 Feed는 상단 “오늘의 추천” 블록 + 리스트로 구성
+- [ ] 전체 구조가 policy_new 하위에서 기존 시스템과 충돌 없음
+
+
+@chatgpt-codex
 # TASK 09 — PolicyNew 검색 탭(Search Tab) 풀 구현
 # (job01 스타일: 시스템 정의 / 문제 정의 / 요구사항 / 아키텍처 / 파이프라인 / 상호작용 / UI 상태 / 이벤트 흐름 / 파일 구조 / AC)
 
