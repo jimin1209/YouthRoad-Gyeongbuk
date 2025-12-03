@@ -1,66 +1,137 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_feed_type.dart';
-import '../../domain/values/policy_failure.dart';
-import '../../domain/values/policy_query.dart';
+import '../filters/policy_filter_ui_state.dart';
 import '../providers.dart';
 import 'policy_paging_state.dart';
 import 'policy_query_engine.dart';
 
-abstract class BasePolicyFeedController extends StateNotifier<PolicyPagingState> {
+abstract class BasePolicyFeedController
+    extends StateNotifier<PolicyPagingState> {
   BasePolicyFeedController({
     required this.ref,
+    required this.feedType,
     required this.queryEngine,
   }) : super(const PolicyPagingState.initial()) {
-    ref.listen<PolicyEvent?>(
-      policyEventBusProvider,
-      (previous, next) => handlePolicyEvent(next),
+    ref.listen<PolicyFilterUiState>(
+      policyFilterUiStateProvider,
+      (previous, next) {
+        if (_shouldRefreshForFilterChange(previous, next)) {
+          refresh();
+        }
+      },
     );
 
-    ref.listen<PolicyQuery>(
-      policyQueryProvider(feedType),
+    ref.listen<PolicyEvent?>(
+      policyEventBusProvider,
       (previous, next) {
-        if (previous == null || previous == next) return;
-        refresh();
+        if (next == null) return;
+        switch (next.type) {
+          case PolicyEventType.cacheCleared:
+            _resetPaging();
+            break;
+          case PolicyEventType.refreshRequested:
+            refresh();
+            break;
+          case PolicyEventType.favoritesChanged:
+            if (feedType == PolicyFeedType.favorite ||
+                feedType == PolicyFeedType.recommend) {
+              refresh();
+            }
+            break;
+          case PolicyEventType.profileUpdated:
+            if (feedType == PolicyFeedType.recommend ||
+                feedType == PolicyFeedType.region) {
+              refresh();
+            }
+            break;
+          case PolicyEventType.compareListChanged:
+            if (feedType == PolicyFeedType.compare) {
+              refresh();
+            }
+            break;
+        }
       },
     );
   }
 
   final Ref ref;
+  final PolicyFeedType feedType;
   final PolicyQueryEngine queryEngine;
 
-  bool _hasRequestedInitial = false;
   int _page = 1;
-  bool _isLoadingPage = false;
+  bool _isLoading = false;
 
-  PolicyFeedType get feedType;
-  PolicyQuery buildBaseQuery();
+  bool get supportsFilterAutoApply =>
+      feedType == PolicyFeedType.recommend ||
+      feedType == PolicyFeedType.all ||
+      feedType == PolicyFeedType.region ||
+      feedType == PolicyFeedType.search;
 
-  void handlePolicyEvent(PolicyEvent? event) {
-    if (event == null) return;
-
-    if (event.type == PolicyEventType.refreshRequested ||
-        event.type == PolicyEventType.cacheCleared) {
-      refresh();
+  bool _shouldRefreshForFilterChange(
+    PolicyFilterUiState? previous,
+    PolicyFilterUiState next,
+  ) {
+    switch (feedType) {
+      case PolicyFeedType.recommend:
+        return previous == null ||
+            previous.region != next.region ||
+            previous.category != next.category ||
+            previous.showOnlyOnline != next.showOnlyOnline ||
+            previous.showOnlyOngoing != next.showOnlyOngoing ||
+            !listEquals(previous.tags, next.tags);
+      case PolicyFeedType.all:
+        return previous == null ||
+            previous.region != next.region ||
+            previous.category != next.category ||
+            previous.sort != next.sort ||
+            previous.showOnlyOnline != next.showOnlyOnline ||
+            previous.showOnlyOngoing != next.showOnlyOngoing;
+      case PolicyFeedType.region:
+        return previous == null ||
+            previous.region != next.region ||
+            previous.category != next.category ||
+            previous.sort != next.sort ||
+            previous.showOnlyOnline != next.showOnlyOnline ||
+            previous.showOnlyOngoing != next.showOnlyOngoing;
+      case PolicyFeedType.search:
+        return previous == null ||
+            previous.keyword != next.keyword ||
+            previous.region != next.region ||
+            previous.category != next.category ||
+            previous.sort != next.sort ||
+            previous.showOnlyOnline != next.showOnlyOnline ||
+            previous.showOnlyOngoing != next.showOnlyOngoing ||
+            !listEquals(previous.tags, next.tags);
+      case PolicyFeedType.favorite:
+      case PolicyFeedType.compare:
+        return previous == null ||
+            previous.sort != next.sort ||
+            previous.showOnlyOnline != next.showOnlyOnline ||
+            previous.showOnlyOngoing != next.showOnlyOngoing;
     }
   }
 
-  void ensureInitialized() {
-    if (_hasRequestedInitial) return;
-    _hasRequestedInitial = true;
-    loadFirstPage();
+  void _resetPaging() {
+    _page = 1;
+    _isLoading = false;
+    state = const PolicyPagingState.initial();
+  }
+
+  Future<void> ensureInitialized() async {
+    if (state.items.isNotEmpty || state.isLoading) return;
+    await loadFirstPage();
   }
 
   Future<void> loadFirstPage() async {
     _page = 1;
-    _isLoadingPage = false;
-
-    final query = buildBaseQuery();
+    _isLoading = true;
     state = const PolicyPagingState.loading();
 
-    final result = await queryEngine.fetch(query, page: _page);
+    final result = await queryEngine.fetch(feedType, page: _page);
+
     result.fold(
       onSuccess: (list) {
         state = PolicyPagingState.data(
@@ -68,21 +139,22 @@ abstract class BasePolicyFeedController extends StateNotifier<PolicyPagingState>
           hasMore: list.length == queryEngine.pageSize,
         );
       },
-      onFailure: (err) {
-        state = PolicyPagingState.error(err);
+      onFailure: (failure) {
+        state = PolicyPagingState.error(failure);
       },
     );
+
+    _isLoading = false;
   }
 
   Future<void> loadNextPage() async {
-    if (_isLoadingPage) return;
-    if (!state.hasMore) return;
+    if (_isLoading || !state.hasMore) return;
 
-    _isLoadingPage = true;
+    _isLoading = true;
     final nextPage = _page + 1;
-    final query = buildBaseQuery();
 
-    final result = await queryEngine.fetch(query, page: nextPage);
+    final result = await queryEngine.fetch(feedType, page: nextPage);
+
     result.fold(
       onSuccess: (list) {
         final merged = [...state.items, ...list];
@@ -92,12 +164,12 @@ abstract class BasePolicyFeedController extends StateNotifier<PolicyPagingState>
         );
         _page = nextPage;
       },
-      onFailure: (err) {
-        state = PolicyPagingState.error(err);
+      onFailure: (failure) {
+        state = PolicyPagingState.error(failure);
       },
     );
 
-    _isLoadingPage = false;
+    _isLoading = false;
   }
 
   Future<void> refresh() async {
