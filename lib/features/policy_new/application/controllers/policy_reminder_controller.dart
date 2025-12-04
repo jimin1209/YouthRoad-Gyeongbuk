@@ -54,7 +54,7 @@ class PolicyReminderController
   PolicyReminderService get _service => ref.read(policyReminderServiceProvider);
 
   Future<void> initialize() async {
-    await _service.cleanupExpiredReminders();
+    await _service.syncScheduledReminders();
     await load();
   }
 

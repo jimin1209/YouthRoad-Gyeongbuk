@@ -92,7 +92,7 @@ class NotificationCenterController
 
     await _enqueue(() async {
       try {
-        await _service.cleanupExpiredReminders();
+        await _service.syncScheduledReminders();
         final reminders =
             await ref.read(policyReminderRepositoryProvider).getAllReminders();
         final now = DateTime.now().toUtc();

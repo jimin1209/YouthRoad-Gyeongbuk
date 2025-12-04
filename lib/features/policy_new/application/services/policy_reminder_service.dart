@@ -7,6 +7,7 @@ import '../../domain/values/reminder_time_kind.dart';
 import '../../domain/utils/reminder_id_util.dart';
 import '../../domain/values/policy_logger.dart';
 import '../../domain/values/schedule_result.dart';
+import '../../domain/values/reminder_sync_report.dart';
 import '../controllers/policy_event_bus.dart';
 import '../gateways/notification_gateway.dart';
 import 'policy_reminder_scheduler.dart';
@@ -40,19 +41,21 @@ class PolicyReminderService {
     required this.eventBus,
     required this.scheduler,
     required this.logger,
-  });
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
 
   final PolicyReminderRepository repository;
   final NotificationGateway notificationGateway;
   final PolicyEventBus eventBus;
   final PolicyReminderScheduler scheduler;
   final PolicyLogger logger;
+  final DateTime Function() _now;
 
   Future<ReminderMutationResult> createRemindersForPolicy(
     Policy policy,
     List<ReminderTimeKind> kinds,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _now().toUtc();
     final reminders = <PolicyReminder>[];
     final failures = <ReminderMutationFailure>[];
 
@@ -124,7 +127,7 @@ class PolicyReminderService {
       return;
     }
 
-    final now = DateTime.now().toUtc();
+    final now = _now().toUtc();
     final canceledReminder = reminder.copyWith(
       status: PolicyReminderStatus.canceled,
       isActive: false,
@@ -153,7 +156,7 @@ class PolicyReminderService {
         'Failed to cancel all reminders for $policyId: ${bulkResult.failure?.message}',
       );
     }
-    final now = DateTime.now().toUtc();
+    final now = _now().toUtc();
     for (final reminder in reminders) {
       final result = await notificationGateway.cancelReminder(reminder.reminderId);
       if (!result.success) {
@@ -180,26 +183,94 @@ class PolicyReminderService {
 
   Future<List<PolicyReminder>> cleanupExpiredReminders() async {
     final all = await repository.getAllReminders();
-    final now = DateTime.now().toUtc();
+    final now = _now().toUtc();
     final updated = <PolicyReminder>[];
 
     for (final reminder in all) {
-      if (reminder.status == PolicyReminderStatus.scheduled &&
-          reminder.scheduledAt.isBefore(now)) {
-        final expiredReminder = reminder.copyWith(
-          status: PolicyReminderStatus.expired,
-          isActive: false,
-          updatedAt: now,
-        );
-        await repository.upsertReminder(expiredReminder);
-        await notificationGateway.cancelReminder(expiredReminder.reminderId);
-        updated.add(expiredReminder);
-      }
+      if (reminder.status == PolicyReminderStatus.canceled) continue;
+      if (reminder.scheduledAt.isAfter(now)) continue;
+
+      final resolvedStatus = reminder.status == PolicyReminderStatus.expired
+          ? PolicyReminderStatus.expired
+          : PolicyReminderStatus.fired;
+      final expiredReminder = reminder.copyWith(
+        status: resolvedStatus,
+        isActive: false,
+        updatedAt: now,
+      );
+      await repository.upsertReminder(expiredReminder);
+      await notificationGateway.cancelReminder(expiredReminder.reminderId);
+      updated.add(expiredReminder);
     }
 
     if (updated.isNotEmpty) {
       eventBus.emit(const PolicyEvent(PolicyEventType.reminderBulkUpdated));
     }
     return updated;
+  }
+
+  Future<ReminderSyncReport> syncScheduledReminders() async {
+    final expired = await cleanupExpiredReminders();
+    final reminders = await repository.getAllReminders();
+    final now = _now().toUtc();
+    var rescheduledCount = 0;
+    var hasUpdated = expired.isNotEmpty;
+    var firedCount = expired
+        .where((reminder) => reminder.status == PolicyReminderStatus.fired)
+        .length;
+    final failures = <ScheduleFailure>[];
+
+    for (final reminder in reminders) {
+      if (reminder.status == PolicyReminderStatus.canceled) {
+        await notificationGateway.cancelReminder(reminder.reminderId);
+        continue;
+      }
+
+      if (reminder.scheduledAt.isBefore(now)) {
+        // Already marked as expired above.
+        continue;
+      }
+
+      final scheduleResult = await notificationGateway.scheduleReminder(reminder);
+      if (!scheduleResult.success) {
+        failures.add(
+          scheduleResult.failure ??
+              const ScheduleFailure(
+                type: ScheduleFailureType.unknown,
+                message: 'Unknown scheduling failure during sync',
+              ),
+        );
+        logger.warn(
+          'Failed to reschedule reminder ${reminder.reminderId}: ${scheduleResult.failure?.message}',
+        );
+        continue;
+      }
+
+      rescheduledCount++;
+
+      if (!reminder.isActive ||
+          reminder.status != PolicyReminderStatus.scheduled) {
+        final activeReminder = reminder.copyWith(
+          status: PolicyReminderStatus.scheduled,
+          isActive: true,
+          updatedAt: now,
+        );
+        await repository.upsertReminder(activeReminder);
+        hasUpdated = true;
+      }
+    }
+
+    if (hasUpdated) {
+      eventBus.emit(const PolicyEvent(PolicyEventType.reminderBulkUpdated));
+    }
+
+    return ReminderSyncReport(
+      rescheduledCount: rescheduledCount,
+      expiredCount: expired
+          .where((reminder) => reminder.status == PolicyReminderStatus.expired)
+          .length,
+      firedCount: firedCount,
+      failures: failures,
+    );
   }
 }
