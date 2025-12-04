@@ -10,6 +10,8 @@ import '../../../application/search/providers.dart';
 import '../../../data/sources/local/search_history_source.dart';
 import '../../../domain/search/entities/search_category.dart';
 import '../../../domain/search/entities/search_result_item.dart';
+import '../../components/policy_filter_bottom_sheet.dart';
+import '../../components/policy_tag.dart';
 import '../../components/policy_search_suggestion_panel.dart';
 import '../../widgets/app_appbar.dart';
 import '../../widgets/global_error_view.dart';
@@ -32,8 +34,16 @@ class _PolicySearchScreenState extends ConsumerState<PolicySearchScreen> {
     '금융 지원',
   ];
 
+  static const _filterOptions = PolicyFilterOptions(
+    regions: ['경북', '서울', '부산', '대구', '인천', '광주', '대전'],
+    categories: ['주거', '취업', '창업', '교육', '금융', '생활', '문화'],
+    organizations: ['경상북도', '경산시', '안동시', '포항시', '청년센터'],
+    departments: ['청년정책과', '일자리정책과', '경제기업과', '복지정책과'],
+  );
+
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
+  PolicyFilterUiState _filterState = const PolicyFilterUiState();
   Timer? _debounce;
 
   @override
@@ -73,7 +83,13 @@ class _PolicySearchScreenState extends ConsumerState<PolicySearchScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: _buildSearchField(),
+                child: Row(
+                  children: [
+                    Expanded(child: _buildSearchField()),
+                    const SizedBox(width: 8),
+                    _buildFilterButton(context),
+                  ],
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -92,6 +108,23 @@ class _PolicySearchScreenState extends ConsumerState<PolicySearchScreen> {
                   onCategoryTap: _onTapCategory,
                 ),
               ),
+              if (_filterState.isEmpty)
+                const SizedBox(height: 4)
+              else
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: _selectedFilterLabels()
+                          .map((label) => PolicyTag(label: label))
+                          .toList(),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 12),
               Expanded(
                 child: AnimatedSwitcher(
@@ -105,6 +138,14 @@ class _PolicySearchScreenState extends ConsumerState<PolicySearchScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFilterButton(BuildContext context) {
+    return IconButton.filledTonal(
+      onPressed: _openFilterSheet,
+      icon: const Icon(Icons.filter_alt_outlined),
+      tooltip: '필터',
     );
   }
 
@@ -183,6 +224,39 @@ class _PolicySearchScreenState extends ConsumerState<PolicySearchScreen> {
       setState(() {});
     });
     setState(() {});
+  }
+
+  Future<void> _openFilterSheet() async {
+    final result = await showPolicyFilterBottomSheet(
+      context: context,
+      initialState: _filterState,
+      options: _filterOptions,
+    );
+
+    if (result != null) {
+      setState(() {
+        _filterState = result;
+      });
+      _submit();
+    }
+  }
+
+  List<String> _selectedFilterLabels() {
+    final labels = <String>[];
+    if (_filterState.onlyRecruiting) {
+      labels.add('모집 중');
+    }
+    if (_filterState.onlyOnline) {
+      labels.add('온라인 신청');
+    }
+
+    labels
+      ..addAll(_filterState.regions)
+      ..addAll(_filterState.categories)
+      ..addAll(_filterState.organizations)
+      ..addAll(_filterState.departments);
+
+    return labels;
   }
 
   void _submit() {
