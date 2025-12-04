@@ -337,6 +337,8 @@ class _ReminderTile extends StatelessWidget {
     switch (status) {
       case PolicyReminderStatus.scheduled:
         return Icons.alarm_on;
+      case PolicyReminderStatus.fired:
+        return Icons.notifications_active;
       case PolicyReminderStatus.expired:
         return Icons.history_toggle_off;
       case PolicyReminderStatus.canceled:
@@ -348,6 +350,8 @@ class _ReminderTile extends StatelessWidget {
     switch (reminder.status) {
       case PolicyReminderStatus.scheduled:
         return scheme.primary;
+      case PolicyReminderStatus.fired:
+        return scheme.secondary;
       case PolicyReminderStatus.expired:
         return scheme.tertiary;
       case PolicyReminderStatus.canceled:
