@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../devtools_provider.dart';
+import '../widgets/devtools_split_pane.dart';
 
 class AppProviderObserver extends ProviderObserver {
   String _resolveProviderName(ProviderBase<Object?> provider) {
@@ -72,53 +73,44 @@ class ProviderTrackerPanel extends ConsumerWidget {
     }
 
     final reversed = entries.reversed.toList();
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: ListView.separated(
-            itemCount: reversed.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
-            itemBuilder: (context, index) {
-              final entry = reversed[index];
-              final isError = entry.error != null || entry.state == 'error';
-              final subtitle = entry.error != null
-                  ? 'STATE: ${entry.state.toUpperCase()} • ${entry.error}'
-                  : 'STATE: ${entry.state.toUpperCase()}';
-              return ListTile(
-                dense: true,
-                selected: selected == entry,
-                selectedTileColor: const Color(0xFFE2E8F0),
-                title: Text(
-                  entry.providerName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isError ? const Color(0xFFDC2626) : const Color(0xFF0F172A),
-                    fontWeight: isError ? FontWeight.w700 : FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: Text(
-                  _formatTimestamp(entry.timestamp),
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                ),
-                onTap: () => notifier.selectProviderEvent(entry),
-              );
-            },
-          ),
-        ),
-        const VerticalDivider(width: 1, color: Color(0xFFE2E8F0)),
-        Expanded(
-          flex: 2,
-          child: _ProviderDetailView(entry: selected),
-        ),
-      ],
+    return DevtoolsSplitPane(
+      list: ListView.separated(
+        itemCount: reversed.length,
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        itemBuilder: (context, index) {
+          final entry = reversed[index];
+          final isError = entry.error != null || entry.state == 'error';
+          final subtitle = entry.error != null
+              ? 'STATE: ${entry.state.toUpperCase()} • ${entry.error}'
+              : 'STATE: ${entry.state.toUpperCase()}';
+          return ListTile(
+            dense: true,
+            selected: selected == entry,
+            selectedTileColor: const Color(0xFFE2E8F0),
+            title: Text(
+              entry.providerName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isError ? const Color(0xFFDC2626) : const Color(0xFF0F172A),
+                fontWeight: isError ? FontWeight.w700 : FontWeight.w600,
+              ),
+            ),
+            subtitle: Text(
+              subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Text(
+              _formatTimestamp(entry.timestamp),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            ),
+            onTap: () => notifier.selectProviderEvent(entry),
+          );
+        },
+      ),
+      detail: _ProviderDetailView(entry: selected),
     );
   }
 

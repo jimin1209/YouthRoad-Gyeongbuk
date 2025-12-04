@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -222,42 +224,79 @@ class DevtoolsNotifier extends StateNotifier<DevtoolsState>
     }
   }
 
+  final List<DevtoolsState Function(DevtoolsState)> _pendingUpdates = [];
+  bool _hasScheduledFlush = false;
+
   @override
   void dispose() {
     DevtoolsBinding.instance.unregister(this);
     super.dispose();
   }
 
+  void _enqueue(DevtoolsState Function(DevtoolsState) operation) {
+    _pendingUpdates.add(operation);
+    if (_hasScheduledFlush) return;
+    _hasScheduledFlush = true;
+    scheduleMicrotask(_flush);
+  }
+
+  void _flush() {
+    if (!mounted) {
+      _pendingUpdates.clear();
+      _hasScheduledFlush = false;
+      return;
+    }
+
+    var next = state;
+    for (final operation in _pendingUpdates) {
+      next = operation(next);
+    }
+    _pendingUpdates.clear();
+    _hasScheduledFlush = false;
+
+    if (next != state) {
+      state = next;
+    }
+  }
+
   void toggleOverlay() {
-    state = state.copyWith(isOpen: !state.isOpen);
+    _enqueue((current) => current.copyWith(isOpen: !current.isOpen));
+  }
+
+  void openOverlay() {
+    _enqueue((current) => current.copyWith(isOpen: true));
   }
 
   void closeOverlay() {
-    state = state.copyWith(isOpen: false);
+    _enqueue((current) => current.copyWith(isOpen: false));
   }
 
   void toggleLogCollection() {
-    state = state.copyWith(isCollectionEnabled: !state.isCollectionEnabled);
+    _enqueue(
+      (current) => current.copyWith(
+        isCollectionEnabled: !current.isCollectionEnabled,
+      ),
+    );
   }
 
   void setActiveTab(int index) {
-    state = state.copyWith(activeTab: index);
+    _enqueue((current) => current.copyWith(activeTab: index));
   }
 
   void selectLog(DevLogEntry? log) {
-    state = state.copyWith(selectedLog: log);
+    _enqueue((current) => current.copyWith(selectedLog: log));
   }
 
   void selectProviderEvent(ProviderEventEntry? entry) {
-    state = state.copyWith(selectedProviderEvent: entry);
+    _enqueue((current) => current.copyWith(selectedProviderEvent: entry));
   }
 
   void selectNetworkEvent(NetworkEvent? event) {
-    state = state.copyWith(selectedNetworkEvent: event);
+    _enqueue((current) => current.copyWith(selectedNetworkEvent: event));
   }
 
   void selectWebViewEvent(WebViewConsoleEntry? event) {
-    state = state.copyWith(selectedWebViewEvent: event);
+    _enqueue((current) => current.copyWith(selectedWebViewEvent: event));
   }
 
   @override
@@ -269,64 +308,76 @@ class DevtoolsNotifier extends StateNotifier<DevtoolsState>
     StackTrace? stackTrace,
     Map<String, dynamic>? extra,
   }) {
-    if (!state.isCollectionEnabled) return;
+    _enqueue((current) {
+      if (!current.isCollectionEnabled) return current;
 
-    final updated = <DevLogEntry>[...
-      state.logs,
-      DevLogEntry(
-        level: level,
-        message: message,
-        source: source,
-        error: error,
-        stackTrace: stackTrace,
-        extra: extra,
-      ),
-    ];
-    final trimmed = _keepTail(updated, _maxLogCount);
-    final selectedLog = trimmed.contains(state.selectedLog) ? state.selectedLog : null;
-    state = state.copyWith(logs: trimmed, selectedLog: selectedLog);
+      final updated = <DevLogEntry>[...
+        current.logs,
+        DevLogEntry(
+          level: level,
+          message: message,
+          source: source,
+          error: error,
+          stackTrace: stackTrace,
+          extra: extra,
+        ),
+      ];
+      final trimmed = _keepTail(updated, _maxLogCount);
+      final selectedLog =
+          trimmed.contains(current.selectedLog) ? current.selectedLog : null;
+      return current.copyWith(logs: trimmed, selectedLog: selectedLog);
+    });
   }
 
   @override
   void addProviderEvent(ProviderEventEntry entry) {
-    if (!state.isCollectionEnabled) return;
+    _enqueue((current) {
+      if (!current.isCollectionEnabled) return current;
 
-    final updated = <ProviderEventEntry>[...state.providerEvents, entry];
-    final trimmed = _keepTail(updated, _maxProviderCount);
-    final selectedProviderEvent =
-        trimmed.contains(state.selectedProviderEvent) ? state.selectedProviderEvent : null;
-    state = state.copyWith(
-      providerEvents: trimmed,
-      selectedProviderEvent: selectedProviderEvent,
-    );
+      final updated = <ProviderEventEntry>[...current.providerEvents, entry];
+      final trimmed = _keepTail(updated, _maxProviderCount);
+      final selectedProviderEvent = trimmed.contains(current.selectedProviderEvent)
+          ? current.selectedProviderEvent
+          : null;
+      return current.copyWith(
+        providerEvents: trimmed,
+        selectedProviderEvent: selectedProviderEvent,
+      );
+    });
   }
 
   @override
   void addNetwork(NetworkEvent event) {
-    if (!state.isCollectionEnabled) return;
+    _enqueue((current) {
+      if (!current.isCollectionEnabled) return current;
 
-    final updated = <NetworkEvent>[...state.networkEvents, event];
-    final trimmed = _keepTail(updated, _maxNetworkCount);
-    final selectedNetworkEvent =
-        trimmed.contains(state.selectedNetworkEvent) ? state.selectedNetworkEvent : null;
-    state = state.copyWith(
-      networkEvents: trimmed,
-      selectedNetworkEvent: selectedNetworkEvent,
-    );
+      final updated = <NetworkEvent>[...current.networkEvents, event];
+      final trimmed = _keepTail(updated, _maxNetworkCount);
+      final selectedNetworkEvent = trimmed.contains(current.selectedNetworkEvent)
+          ? current.selectedNetworkEvent
+          : null;
+      return current.copyWith(
+        networkEvents: trimmed,
+        selectedNetworkEvent: selectedNetworkEvent,
+      );
+    });
   }
 
   @override
   void addWebViewConsole(WebViewConsoleEntry entry) {
-    if (!state.isCollectionEnabled) return;
+    _enqueue((current) {
+      if (!current.isCollectionEnabled) return current;
 
-    final updated = <WebViewConsoleEntry>[...state.webViewEvents, entry];
-    final trimmed = _keepTail(updated, _maxWebViewCount);
-    final selectedWebViewEvent =
-        trimmed.contains(state.selectedWebViewEvent) ? state.selectedWebViewEvent : null;
-    state = state.copyWith(
-      webViewEvents: trimmed,
-      selectedWebViewEvent: selectedWebViewEvent,
-    );
+      final updated = <WebViewConsoleEntry>[...current.webViewEvents, entry];
+      final trimmed = _keepTail(updated, _maxWebViewCount);
+      final selectedWebViewEvent = trimmed.contains(current.selectedWebViewEvent)
+          ? current.selectedWebViewEvent
+          : null;
+      return current.copyWith(
+        webViewEvents: trimmed,
+        selectedWebViewEvent: selectedWebViewEvent,
+      );
+    });
   }
 
   List<T> _keepTail<T>(List<T> items, int max) {

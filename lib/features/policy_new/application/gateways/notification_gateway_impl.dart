@@ -13,14 +13,24 @@ import '../../domain/values/schedule_result.dart';
 import 'notification_gateway.dart';
 
 class FlutterLocalNotificationGateway implements NotificationGateway {
-  FlutterLocalNotificationGateway({
+  FlutterLocalNotificationGateway._(
+    this._plugin,
+    this._initialization,
+  );
+
+  factory FlutterLocalNotificationGateway({
     FlutterLocalNotificationsPlugin? plugin,
-  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin() {
-    _initialization = _initializePlugin();
+  }) {
+    final resolvedPlugin = plugin ?? FlutterLocalNotificationsPlugin();
+    final initialization = _initializePlugin(resolvedPlugin);
+    return FlutterLocalNotificationGateway._(
+      resolvedPlugin,
+      initialization,
+    );
   }
 
   final FlutterLocalNotificationsPlugin _plugin;
-  late final Future<void> _initialization;
+  final Future<void> _initialization;
 
   static const _channelId = 'policy_reminder_channel';
   static const _channelName = '정책 신청 알림';
@@ -43,13 +53,15 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
     );
   }
 
-  Future<void> _initializePlugin() async {
+  static Future<void> _initializePlugin(
+    FlutterLocalNotificationsPlugin plugin,
+  ) async {
     _initializeTimeZones();
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const darwinSettings = DarwinInitializationSettings();
 
-    await _plugin.initialize(
+    await plugin.initialize(
       const InitializationSettings(
         android: androidSettings,
         iOS: darwinSettings,
@@ -57,7 +69,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
     );
   }
 
-  void _initializeTimeZones() {
+  static void _initializeTimeZones() {
     tzdata.initializeTimeZones();
     try {
       final timeZoneName = DateTime.now().timeZoneName;

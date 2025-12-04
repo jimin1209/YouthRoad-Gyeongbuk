@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/logging/app_log_level.dart';
 import '../devtools_provider.dart';
+import '../widgets/devtools_split_pane.dart';
 
 class LogConsolePanel extends ConsumerStatefulWidget {
   const LogConsolePanel({super.key});
@@ -160,48 +161,39 @@ class _LogConsolePanelState extends ConsumerState<LogConsolePanel> {
         ),
         const Divider(height: 1),
         Expanded(
-          child: Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: ListView.separated(
-                  controller: _scrollController,
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final log = filtered[index];
-                    final color = _colorForLevel(log.level);
-                    return ListTile(
-                      dense: true,
-                      selected: selected == log,
-                      selectedTileColor: const Color(0xFFE2E8F0),
-                      title: Text(
-                        log.message,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: color),
-                      ),
-                      subtitle: Text(
-                        '${_sourceLabel(log.source)} • ${log.level.name.toUpperCase()}',
-                        style: const TextStyle(color: Color(0xFF475569)),
-                      ),
-                      trailing: Text(
-                        _formatTimestamp(log.timestamp),
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                      ),
-                      onTap: () => notifier.selectLog(log),
-                    );
-                  },
-                ),
-              ),
-              const VerticalDivider(width: 1, color: Color(0xFFE2E8F0)),
-              Expanded(
-                flex: 3,
-                child: _LogDetailView(
-                  entry: selected,
-                ),
-              ),
-            ],
+          child: DevtoolsSplitPane(
+            list: ListView.separated(
+              controller: _scrollController,
+              itemCount: filtered.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final log = filtered[index];
+                final color = _colorForLevel(log.level);
+                return ListTile(
+                  dense: true,
+                  selected: selected == log,
+                  selectedTileColor: const Color(0xFFE2E8F0),
+                  title: Text(
+                    log.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: color),
+                  ),
+                  subtitle: Text(
+                    '${_sourceLabel(log.source)} • ${log.level.name.toUpperCase()}',
+                    style: const TextStyle(color: Color(0xFF475569)),
+                  ),
+                  trailing: Text(
+                    _formatTimestamp(log.timestamp),
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  ),
+                  onTap: () => notifier.selectLog(log),
+                );
+              },
+            ),
+            detail: _LogDetailView(
+              entry: selected,
+            ),
           ),
         ),
       ],

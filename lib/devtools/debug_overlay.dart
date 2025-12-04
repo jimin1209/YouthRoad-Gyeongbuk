@@ -26,6 +26,9 @@ class _DevtoolsOverlayState extends ConsumerState<DevtoolsOverlay> {
   bool _buttonVisible = false;
   Timer? _revealTimer;
   ProviderSubscription<bool>? _debugPanelSubscription;
+  ProviderSubscription<DevtoolsState>? _devtoolsSubscription;
+  OverlayEntry? _overlayEntry;
+  ValueNotifier<bool>? _overlayVisible;
 
   @override
   void initState() {
@@ -34,10 +37,21 @@ class _DevtoolsOverlayState extends ConsumerState<DevtoolsOverlay> {
     if (enabled) {
       _scheduleReveal();
     }
+    _devtoolsSubscription =
+        ref.listenManual<DevtoolsState>(devtoolsProvider, (previous, next) {
+      if (previous?.isOpen != next.isOpen) {
+        _toggleOverlayEntry(next.isOpen);
+      }
+    });
     _debugPanelSubscription =
         ref.listenManual<bool>(debugPanelEnabledProvider, (previous, next) {
       if (!next) {
         _revealTimer?.cancel();
+        _toggleOverlayEntry(false);
+        scheduleMicrotask(() {
+          if (!mounted) return;
+          ref.read(devtoolsProvider.notifier).closeOverlay();
+        });
         if (mounted) {
           setState(() => _buttonVisible = false);
         }
@@ -50,7 +64,10 @@ class _DevtoolsOverlayState extends ConsumerState<DevtoolsOverlay> {
   @override
   void dispose() {
     _revealTimer?.cancel();
+    _overlayVisible?.dispose();
+    _overlayEntry?.remove();
     _debugPanelSubscription?.close();
+    _devtoolsSubscription?.close();
     super.dispose();
   }
 
@@ -71,6 +88,38 @@ class _DevtoolsOverlayState extends ConsumerState<DevtoolsOverlay> {
     });
   }
 
+  void _toggleOverlayEntry(bool shouldOpen) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!shouldOpen && _overlayEntry == null) {
+        return;
+      }
+
+      _overlayVisible ??= ValueNotifier<bool>(false);
+      if (_overlayEntry == null) {
+        _overlayEntry = OverlayEntry(
+          maintainState: true,
+          builder: (context) => ValueListenableBuilder<bool>(
+            valueListenable: _overlayVisible!,
+            builder: (context, isVisible, _) {
+              return Offstage(
+                offstage: !isVisible,
+                child: _DevtoolsSheet(
+                  onClose: ref.read(devtoolsProvider.notifier).closeOverlay,
+                ),
+              );
+            },
+          ),
+        );
+        Overlay.of(context, rootOverlay: true)?.insert(_overlayEntry!);
+      }
+
+      if (_overlayVisible!.value != shouldOpen) {
+        _overlayVisible!.value = shouldOpen;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!kDebugMode) {
@@ -83,43 +132,52 @@ class _DevtoolsOverlayState extends ConsumerState<DevtoolsOverlay> {
     }
 
     final state = ref.watch(devtoolsProvider);
-    final notifier = ref.read(devtoolsProvider.notifier);
-
     return Stack(
       children: [
         widget.child,
-        if (state.isOpen)
-          DevtoolsContainer(
-            onClose: notifier.closeOverlay,
-            builder: (context) => _DevtoolsTabView(
-              initialIndex: state.activeTab,
-              onTabChanged: notifier.setActiveTab,
-            ),
-          ),
-        if (!state.isOpen)
-          Positioned(
-            right: 20,
-            bottom: 24,
-            child: GestureDetector(
-              onLongPress: _revealButton,
-              behavior: HitTestBehavior.opaque,
-              child: SizedBox(
-                width: 56,
-                height: 56,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 240),
-                  opacity: _buttonVisible ? 1 : 0,
-                  child: FloatingActionButton(
-                    mini: true,
-                    onPressed: notifier.toggleOverlay,
-                    backgroundColor: const Color(0xFF1E293B).withOpacity(0.82),
-                    child: const Icon(Icons.bug_report, color: Colors.white),
-                  ),
+        Positioned(
+          right: 20,
+          bottom: 24,
+          child: GestureDetector(
+            onLongPress: _revealButton,
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              width: 56,
+              height: 56,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 240),
+                opacity: !_buttonVisible || state.isOpen ? 0 : 1,
+                child: FloatingActionButton(
+                  mini: true,
+                  onPressed: ref.read(devtoolsProvider.notifier).openOverlay,
+                  backgroundColor: const Color(0xFF1E293B).withOpacity(0.82),
+                  child: const Icon(Icons.bug_report, color: Colors.white),
                 ),
               ),
             ),
           ),
+        ),
       ],
+    );
+  }
+}
+
+class _DevtoolsSheet extends ConsumerWidget {
+  const _DevtoolsSheet({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(devtoolsProvider);
+    final notifier = ref.read(devtoolsProvider.notifier);
+
+    return DevtoolsContainer(
+      onClose: onClose,
+      builder: (context) => _DevtoolsTabView(
+        initialIndex: state.activeTab,
+        onTabChanged: notifier.setActiveTab,
+      ),
     );
   }
 }

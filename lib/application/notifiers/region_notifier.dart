@@ -8,21 +8,25 @@ final regionProvider =
 
 class RegionNotifier extends AutoDisposeNotifier<String?> {
   static const _key = 'selected_region';
-  late final SharedPreferences _prefs;
+  SharedPreferences? _prefs;
 
   @override
   String? build() {
-    _prefs = ref.read(sharedPreferencesProvider);
-    return _prefs.getString(_key);
+    _prefs ??= ref.read(sharedPreferencesProvider);
+    return _prefs?.getString(_key);
   }
 
   void select(String region) {
-    _prefs.setString(_key, region);
+    final prefs = _prefs ?? ref.read(sharedPreferencesProvider);
+    _prefs = prefs;
+    prefs.setString(_key, region);
     state = region;
   }
 
   void clear() {
-    _prefs.remove(_key);
+    final prefs = _prefs ?? ref.read(sharedPreferencesProvider);
+    _prefs = prefs;
+    prefs.remove(_key);
     state = null;
   }
 }

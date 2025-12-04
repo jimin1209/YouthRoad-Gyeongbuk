@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../devtools_provider.dart';
+import '../widgets/devtools_split_pane.dart';
 
 class DevtoolsWebViewBridge {
   static const channelName = 'DevtoolsConsole';
@@ -52,48 +53,39 @@ class WebViewConsolePanel extends ConsumerWidget {
     }
 
     final reversed = entries.reversed.toList();
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: ListView.separated(
-            itemCount: reversed.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final entry = reversed[index];
-              final color = entry.level.toLowerCase().contains('error')
-                  ? const Color(0xFFDC2626)
-                  : entry.level.toLowerCase().contains('warn')
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF0F172A);
-              return ListTile(
-                dense: true,
-                selected: selected == entry,
-                selectedTileColor: const Color(0xFFE2E8F0),
-                title: Text(
-                  entry.message,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: color),
-                ),
-                subtitle: Text(
-                  '${entry.level.toUpperCase()} • ${entry.source ?? 'console'}',
-                ),
-                trailing: Text(
-                  _formatTimestamp(entry.timestamp),
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                ),
-                onTap: () => notifier.selectWebViewEvent(entry),
-              );
-            },
-          ),
-        ),
-        const VerticalDivider(width: 1, color: Color(0xFFE2E8F0)),
-        Expanded(
-          flex: 2,
-          child: _WebViewDetailView(entry: selected),
-        ),
-      ],
+    return DevtoolsSplitPane(
+      list: ListView.separated(
+        itemCount: reversed.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final entry = reversed[index];
+          final color = entry.level.toLowerCase().contains('error')
+              ? const Color(0xFFDC2626)
+              : entry.level.toLowerCase().contains('warn')
+                  ? const Color(0xFFF59E0B)
+                  : const Color(0xFF0F172A);
+          return ListTile(
+            dense: true,
+            selected: selected == entry,
+            selectedTileColor: const Color(0xFFE2E8F0),
+            title: Text(
+              entry.message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color),
+            ),
+            subtitle: Text(
+              '${entry.level.toUpperCase()} • ${entry.source ?? 'console'}',
+            ),
+            trailing: Text(
+              _formatTimestamp(entry.timestamp),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            ),
+            onTap: () => notifier.selectWebViewEvent(entry),
+          );
+        },
+      ),
+      detail: _WebViewDetailView(entry: selected),
     );
   }
 
