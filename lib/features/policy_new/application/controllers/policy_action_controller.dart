@@ -6,6 +6,7 @@ import '../../domain/entities/policy.dart';
 import '../../domain/values/reminder_time_kind.dart';
 import '../providers.dart';
 import 'policy_reminder_controller.dart';
+import '../models/user_collections.dart';
 
 class PolicyActionState {
   final bool isFavorite;

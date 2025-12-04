@@ -62,7 +62,7 @@ import '../data/sources/policy_reminder_local_data_source.dart';
 import '../data/sources/policy_remote_source.dart';
 import '../data/sources/policy_remote_source_mock.dart';
 import '../data/sources/compare_local_data_source.dart';
-import '../../application/di.dart' as app_di;
+import '../../../application/di.dart' as app_di;
 import 'recommendation/user_profile_service.dart';
 
 class ConsolePolicyLogger implements PolicyLogger {
