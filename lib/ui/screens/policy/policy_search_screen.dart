@@ -7,6 +7,7 @@ import '../../../application/search/controllers/search_controller.dart';
 import '../../../application/search/controllers/search_history_controller.dart';
 import '../../../application/search/controllers/search_suggestion_controller.dart';
 import '../../../application/search/providers.dart';
+import '../../../data/sources/local/search_history_source.dart';
 import '../../../domain/search/entities/search_category.dart';
 import '../../../domain/search/entities/search_result_item.dart';
 import '../../components/policy_search_suggestion_panel.dart';
