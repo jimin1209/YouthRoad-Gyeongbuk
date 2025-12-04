@@ -27,9 +27,9 @@ class BottomNav extends StatelessWidget {
           label: AppStrings.homeTitle,
         ),
         NavigationDestination(
-          icon: Icon(Icons.category_outlined),
-          selectedIcon: Icon(Icons.category),
-          label: AppStrings.categoryTitle,
+          icon: Icon(Icons.map_outlined),
+          selectedIcon: Icon(Icons.map),
+          label: AppStrings.kakaoMapTitle,
         ),
         NavigationDestination(
           icon: Icon(Icons.chat_outlined),
