@@ -113,6 +113,16 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
     }
   }
 
+  String? _reminderIdFromPayload(String? payload) {
+    if (payload == null) return null;
+    try {
+      final decoded = jsonDecode(payload) as Map<String, dynamic>;
+      return decoded['reminderId'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Future<ScheduleResult> scheduleReminder(PolicyReminder reminder) async {
     await _initialization;
@@ -213,6 +223,24 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
       );
     }
     return const ScheduleResult.success();
+  }
+
+  @override
+  Future<Set<String>> listScheduledReminderIds() async {
+    await _initialization;
+    try {
+      final pending = await _plugin.pendingNotificationRequests();
+      final ids = <String>{};
+      for (final request in pending) {
+        final reminderId = _reminderIdFromPayload(request.payload);
+        if (reminderId != null) {
+          ids.add(reminderId);
+        }
+      }
+      return ids;
+    } catch (_) {
+      return {};
+    }
   }
 
   @override
