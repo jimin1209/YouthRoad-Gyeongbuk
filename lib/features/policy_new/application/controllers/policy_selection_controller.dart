@@ -6,6 +6,7 @@ import '../behavior/policy_behavior_tracker.dart';
 import '../models/user_collections.dart';
 import '../providers.dart';
 import 'policy_event_bus.dart';
+import '../../data/sources/compare_local_data_source.dart';
 
 class CompareController extends StateNotifier<CompareRepository> {
   CompareController(this.ref) : super(const CompareRepository()) {

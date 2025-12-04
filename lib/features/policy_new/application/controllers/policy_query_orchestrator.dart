@@ -8,6 +8,7 @@ import '../../domain/values/policy_sort.dart';
 import '../filters/policy_filter_ui_state.dart';
 import '../providers.dart';
 import '../behavior/policy_behavior_tracker.dart';
+import '../../domain/recommendation/user_profile.dart';
 
 class PolicyQueryOrchestrator {
   PolicyQueryOrchestrator(this.ref);

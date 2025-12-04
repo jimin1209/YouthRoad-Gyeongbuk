@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/entities/policy_reminder.dart';
 import '../../../domain/values/policy_reminder_status.dart';
+import '../../../domain/values/reminder_time_kind.dart';
 
 class PolicyReminderListItem extends StatelessWidget {
   const PolicyReminderListItem({
