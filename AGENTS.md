@@ -433,6 +433,520 @@ class PolicyCompareModel {
 
 ---
 
+# 📌 TASK 304 — 정책 상세 화면 전체 파일 리팩토링 (디자인 완성도 MAX)
+
+````md
+# TASK 304  
+## 정책 상세 화면 전체 파일 리팩토링 (디자인 완성도 MAX)  
+### Status: OPEN  
+### Owner: UI/UX Layer
+
+---
+
+## 1. 목적
+
+- 기존 `policy_detail_screen.dart`를 **TASK 300/301/302 디자인 시스템** 기반으로
+  **완전히 새로 설계된 상세 화면 UI**로 교체한다.
+- 데이터/알림/신청 로직은 외부에서 주입하는 형태로 분리하고,
+  본 파일은 **UI 레이아웃 & 디자인에만 집중**한다.
+- 정책 상세 화면의 UX를:
+  - 상단 정보 구조 명확
+  - 알림 옵션 2×2 Grid
+  - 지원내용/기관/문의처 섹션 분리
+  - CTA 버튼(신청 페이지 열기)을 강하게 강조  
+  하는 방향으로 리디자인한다.
+
+---
+
+## 2. 적용 범위
+
+- 파일 경로(예시):  
+  `lib/ui/screens/policy/policy_detail_screen.dart`
+
+- 이 화면이 담당하는 기능:
+  - 정책 제목/태그/기간/요약 정보 표시
+  - “신청 페이지 열기” CTA
+  - 알림 옵션 (1일 전/3일 전/7일 전/당일)
+  - 지원내용 섹션
+  - 기관/부서/문의처 섹션
+  - (선택) 하단 기타 정보 섹션
+
+> ⚠ 실제 데이터 바인딩(Policy 엔티티, Provider, 알림 서비스 연동 등)은  
+>   이 파일 바깥에서 주입하는 방식으로 설계했습니다.  
+>   → UI만 깔끔하게 분리하기 위한 구조입니다.
+
+---
+
+## 3. 전체 코드  
+### 📁 lib/ui/screens/policy/policy_detail_screen.dart
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:youth_road_app/theme/app_theme.dart';
+import 'package:youth_road_app/ui/components/policy_tag.dart';
+import 'package:youth_road_app/ui/components/policy_cta_button.dart';
+import 'package:youth_road_app/ui/components/section_title.dart';
+import 'package:youth_road_app/ui/components/policy_info_row.dart';
+
+/// 정책 상세 화면
+///
+/// - DESIGN:
+///   - 상단: 제목 + 태그 + 즐겨찾기/공유/알림 아이콘
+///   - CTA: "신청 페이지 열기" Primary 버튼
+///   - 알림: 2×2 Grid 버튼
+///   - 섹션: 지원내용 / 접수기간 / 기관·부서·문의처
+///
+/// - NOTE:
+///   여기서는 UI에만 집중하고, 실제 데이터/로직은
+///   상위에서 주입하거나 callback 으로 연결하는 구조로 설계함.
+class PolicyDetailScreen extends StatelessWidget {
+  /// 화면 타이틀 (정책 이름)
+  final String title;
+
+  /// 정책 태그 목록 (예: ["청년", "주거", "경북"])
+  final List<String> tags;
+
+  /// 신청/접수 기간 텍스트
+  final String periodText;
+
+  /// 지원 내용(본문)
+  final String supportContent;
+
+  /// 기관명
+  final String organizationName;
+
+  /// 담당 부서
+  final String departmentName;
+
+  /// 문의처 (전화번호/이메일 등)
+  final String contactInfo;
+
+  /// (선택) 정책 요약 설명
+  final String? summary;
+
+  /// (선택) 신청 페이지 URL 표시용
+  final String? applyUrlForDisplay;
+
+  /// 액션 콜백들
+  final VoidCallback? onTapOpenApplyPage;
+  final VoidCallback? onTapFavorite;
+  final VoidCallback? onTapShare;
+
+  /// 알림 옵션 콜백들
+  final VoidCallback? onTapReminder1DayBefore;
+  final VoidCallback? onTapReminder3DaysBefore;
+  final VoidCallback? onTapReminder7DaysBefore;
+  final VoidCallback? onTapReminderOnDue;
+
+  /// 현재 선택된 알림 옵션 상태 (UI 하이라이트용)
+  final ReminderOption? selectedReminder;
+
+  const PolicyDetailScreen({
+    super.key,
+    required this.title,
+    required this.tags,
+    required this.periodText,
+    required this.supportContent,
+    required this.organizationName,
+    required this.departmentName,
+    required this.contactInfo,
+    this.summary,
+    this.applyUrlForDisplay,
+    this.onTapOpenApplyPage,
+    this.onTapFavorite,
+    this.onTapShare,
+    this.onTapReminder1DayBefore,
+    this.onTapReminder3DaysBefore,
+    this.onTapReminder7DaysBefore,
+    this.onTapReminderOnDue,
+    this.selectedReminder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('정책 상세'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.favorite_border),
+            onPressed: onTapFavorite,
+            tooltip: '관심 정책',
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            onPressed: onTapShare,
+            tooltip: '공유하기',
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Scrollbar(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 제목 + 태그
+                _buildHeader(context),
+
+                const SizedBox(height: 16),
+
+                // 요약
+                if (summary != null && summary!.trim().isNotEmpty) ...[
+                  Text(
+                    summary!,
+                    style: textTheme.bodyMedium!.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // 접수기간 간단 강조
+                _buildPeriodHighlight(context),
+
+                const SizedBox(height: 20),
+
+                // 신청 페이지 열기 CTA
+                PolicyCtaButton(
+                  text: '신청 페이지 열기',
+                  onTap: onTapOpenApplyPage,
+                ),
+
+                if (applyUrlForDisplay != null &&
+                    applyUrlForDisplay!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    applyUrlForDisplay!,
+                    style: textTheme.bodySmall!.copyWith(
+                      color: scheme.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 24),
+
+                // 알림 설정 영역
+                SectionTitle(title: '알림 설정'),
+                const SizedBox(height: 8),
+                Text(
+                  '마감 전에 알림을 받아보고 싶다면 원하는 시점을 선택하세요.',
+                  style: textTheme.bodySmall!.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildReminderGrid(context),
+
+                const SizedBox(height: 24),
+
+                // 지원 내용
+                SectionTitle(title: '지원 내용'),
+                const SizedBox(height: 8),
+                Text(
+                  supportContent,
+                  style: textTheme.bodyMedium,
+                ),
+
+                const SizedBox(height: 24),
+
+                // 접수 기간 상세 섹션
+                SectionTitle(title: '접수 기간'),
+                const SizedBox(height: 4),
+                Text(
+                  periodText,
+                  style: textTheme.bodyMedium!.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // 기관 / 부서 / 문의처
+                SectionTitle(title: '기관 및 문의'),
+                const SizedBox(height: 4),
+                PolicyInfoRow(
+                  label: '주관 기관',
+                  value: organizationName,
+                ),
+                PolicyInfoRow(
+                  label: '담당 부서',
+                  value: departmentName,
+                ),
+                PolicyInfoRow(
+                  label: '문의처',
+                  value: contactInfo,
+                ),
+
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 상단 헤더 (정책 제목 + 태그)
+  Widget _buildHeader(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: textTheme.titleLarge!.copyWith(
+            color: scheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: tags.map((label) => PolicyTag(label: label)).toList(),
+        ),
+      ],
+    );
+  }
+
+  /// 상단 기간 강조 박스
+  Widget _buildPeriodHighlight(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.event_available_outlined,
+            color: scheme.primary,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              periodText,
+              style: textTheme.bodyMedium!.copyWith(
+                color: scheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 2×2 알림 옵션 Grid
+  Widget _buildReminderGrid(BuildContext context) {
+    final options = [
+      _ReminderTileConfig(
+        label: '마감 하루 전',
+        description: 'D-1',
+        option: ReminderOption.oneDayBefore,
+        onTap: onTapReminder1DayBefore,
+      ),
+      _ReminderTileConfig(
+        label: '마감 3일 전',
+        description: 'D-3',
+        option: ReminderOption.threeDaysBefore,
+        onTap: onTapReminder3DaysBefore,
+      ),
+      _ReminderTileConfig(
+        label: '마감 7일 전',
+        description: 'D-7',
+        option: ReminderOption.sevenDaysBefore,
+        onTap: onTapReminder7DaysBefore,
+      ),
+      _ReminderTileConfig(
+        label: '마감 당일',
+        description: '마감날 아침',
+        option: ReminderOption.onDueDate,
+        onTap: onTapReminderOnDue,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = (constraints.maxWidth - 12) / 2; // 2열 + 가로 간격 12
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: options.map((cfg) {
+            final isSelected = selectedReminder == cfg.option;
+            return SizedBox(
+              width: width,
+              child: _ReminderTile(
+                label: cfg.label,
+                description: cfg.description,
+                selected: isSelected,
+                onTap: cfg.onTap,
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+}
+
+/// 알림 옵션 enum (UI 하이라이트용)
+enum ReminderOption {
+  oneDayBefore,
+  threeDaysBefore,
+  sevenDaysBefore,
+  onDueDate,
+}
+
+/// 알림 타일 구성 정보
+class _ReminderTileConfig {
+  final String label;
+  final String description;
+  final ReminderOption option;
+  final VoidCallback? onTap;
+
+  const _ReminderTileConfig({
+    required this.label,
+    required this.description,
+    required this.option,
+    this.onTap,
+  });
+}
+
+/// 알림 옵션 개별 타일 UI
+class _ReminderTile extends StatelessWidget {
+  final String label;
+  final String description;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _ReminderTile({
+    required this.label,
+    required this.description,
+    required this.selected,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final bgColor =
+        selected ? scheme.primaryContainer : scheme.surfaceVariant;
+    final borderColor =
+        selected ? scheme.primary : scheme.outlineVariant;
+    final labelColor =
+        selected ? scheme.primary : scheme.onSurface;
+    final descColor =
+        selected ? scheme.primary : scheme.onSurfaceVariant;
+
+    return Material(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: textTheme.bodyMedium!.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: labelColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: textTheme.bodySmall!.copyWith(
+                  color: descColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+````
+
+---
+
+## 4. 연결 시 참고 메모
+
+* 기존 `PolicyDetailScreen`가 `policyId` 또는 `Policy` 엔티티를 직접 받던 구조라면,
+  상위에서 데이터를 가져와서 이 새로운 `PolicyDetailScreen`에 아래처럼 넘기면 됩니다:
+
+```dart
+// 예시 (상위 위젯/라우트에서)
+return PolicyDetailScreen(
+  title: policy.title,
+  tags: policy.tags,
+  periodText: policy.periodText,
+  supportContent: policy.supportContent,
+  organizationName: policy.organizationName,
+  departmentName: policy.departmentName,
+  contactInfo: policy.contact,
+  summary: policy.summary,
+  applyUrlForDisplay: policy.applyUrl,
+  onTapOpenApplyPage: () => openPolicyApplyPage(policy),
+  onTapFavorite: () => toggleFavorite(policy),
+  onTapShare: () => sharePolicy(policy),
+  onTapReminder1DayBefore: () => setReminder(policy, ReminderOption.oneDayBefore),
+  onTapReminder3DaysBefore: () => setReminder(policy, ReminderOption.threeDaysBefore),
+  onTapReminder7DaysBefore: () => setReminder(policy, ReminderOption.sevenDaysBefore),
+  onTapReminderOnDue: () => setReminder(policy, ReminderOption.onDueDate),
+  selectedReminder: currentSelectedOption,
+);
+```
+
+---
+
+## 5. 기대 효과
+
+* 상세 화면의 정보 구조가 명확해져서,
+  사용자가 **“이 정책이 뭔지 / 언제까지 / 어디에 문의해야 하는지”**를
+  한 번에 이해할 수 있음.
+* 알림 옵션이 눈에 잘 들어오는 2×2 Grid로 정리되어
+  알림 기능 사용률 증가 기대.
+* 전체 UI가 TASK 300/301/302의 디자인 시스템과 완전히 일관된 느낌으로 통일.
+
+---
+
+# END OF TASK 304
+
+```
+
+---
+
+```
+
+
+---
+
 # 🚀 **TASK 303 — 정책탐색 UI 전체 리디자인 적용 Codex 슈퍼명령어 (ULTRA PREMIUM Edition)**
 
 ### **YouthRoad Project 전용 · 안전장치 3중 적용 · UI Layer 100% 리빌드**
