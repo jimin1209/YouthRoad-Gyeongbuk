@@ -196,6 +196,170 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+# TASK 600
+# Codex Task: In-App DevTools 전체 로그 + WebView 콘솔 통합 관리 기능 구현
+
+## 최종 목표
+1) Flutter의 모든 로그(print, debugPrint, FlutterError, Logger 등)와  
+2) Network 요청/응답 로그,  
+3) WebView 콘솔 로그(onConsoleMessage 등)을  
+
+→ In-App DevTools의 단일 화면에서 **시간 순으로 통합 조회**할 수 있도록 구현하고,  
+기존 탭(Provider / Network / WebView / Logs)도 각각의 역할에 맞게 동작하도록 복구한다.
+
+---
+
+## 1. 현재 In-App DevTools 구조 분석 (확인 필요 – Codex가 직접 점검)
+- InAppDevTools 위젯 파일 위치 및 구조 분석
+  - 어떤 상태관리(Riverpod, Provider, Bloc, setState 등)를 사용하는지 확인
+- 기존 탭(Provider / Network / WebView / Logs)이 어떤 데이터 소스를 바라보도록 설계되어 있는지 파악
+- InAppDevTools가 실제로 MaterialApp/Navigator 트리에 정상적으로 포함되어 렌더링되는지 확인
+
+---
+
+## 2. 전역 Log Interceptor 구현 (App 로그 수집)
+
+### 2-1. debugPrint / print 가로채기
+- `debugPrint`를 커스텀 함수로 override하여 모든 메시지를 중앙 로그 디스패처로 전달
+- 필요 시 `Zone` 기반으로 `print`도 가로채 동일한 경로로 전달
+
+### 2-2. FlutterError 처리
+- `FlutterError.onError`를 재정의하여 에러/스택트레이스를 동일 디스패처로 전달
+
+### 2-3. Logger 패키지 사용 시
+- logger 패키지를 사용하고 있다면 `LogOutput` 또는 커스텀 프린터를 구현하여
+  - level, tag, message, error, stackTrace 정보를 함께 중앙 로그 버퍼로 전달
+
+---
+
+## 3. LogBuffer 서비스 구현 (공통 로그 버퍼)
+
+### 3-1. 전역 싱글톤/프로바이더 구성
+- 프로젝트 스타일에 맞는 방식 선택 (예: Riverpod의 `StateNotifier` 또는 `Notifier`, Provider, 단순 싱글톤 클래스 등)
+- 이름 예시: `AppLogBuffer` 또는 `DevToolsLogStore`
+
+### 3-2. 롤링 버퍼
+- 최근 500~2000개의 로그만 유지하는 리스트 형태
+- 로그 구조 예시:
+  - timestamp
+  - source: App / Network / WebView
+  - level: verbose / debug / info / warn / error
+  - message
+  - extra(optional): url, statusCode, stackTrace 등
+
+### 3-3. 스트림 제공
+- `StreamController.broadcast()`를 사용하여 로그 변경 시 구독 UI가 즉시 업데이트되도록 구현
+
+---
+
+## 4. Network 로그 수집 (Network 탭 + 통합 타임라인에 반영)
+
+### 4-1. HTTP 클라이언트 구조 확인
+- dio 사용 여부 확인
+  - dio 사용 시: custom `InterceptorsWrapper` 추가
+  - http 패키지 사용 시: wrapper client 구현 또는 override
+
+### 4-2. 요청/응답/에러 가로채기
+- 요청 시: 메서드, URL, 헤더, body 일부를 로그 버퍼에 `source = Network`, `level = info`로 추가
+- 응답 시: statusCode, duration, body 길이 등을 로그 버퍼에 추가
+- 에러 시: `level = error`, 에러 내용과 스택을 함께 기록
+
+---
+
+## 5. WebView 콘솔 로그 수집 (WebView 탭 + 통합 타임라인에 반영)
+
+### 5-1. WebView 사용 방식 확인
+- `webview_flutter`, `flutter_inappwebview` 등 어떤 패키지를 사용하는지 Codex가 확인
+- 각 패키지에서 JS 콘솔 로그 이벤트를 받을 수 있는 콜백(onConsoleMessage 등)을 찾는다
+
+### 5-2. 콘솔 로그 핸들링
+- WebView 컨트롤러 초기화 시:
+  - `onConsoleMessage` / `onConsoleMessageReceived` 등 콜백에 핸들러 연결
+- 콜백에서:
+  - message, level, source(line, file) 등을 추출
+  - 로그 버퍼에 `source = WebView`, `level`은 console level에 맞게 맵핑해서 추가
+
+---
+
+## 6. In-App DevTools UI – 통합 로그 화면 구현 (Logs 탭 확장)
+
+### 6-1. Logs 탭을 “통합 타임라인”으로 확장
+- Logs 탭에서 App / Network / WebView의 모든 로그를 **단일 리스트로 시간 순 정렬**하여 보여준다
+- 각 항목에 다음 정보 표시:
+  - 시간(HH:mm:ss.SSS)
+  - 소스(Source): App / Network / WebView (아이콘 또는 라벨)
+  - 레벨(Level) 색상 구분 (debug, info, warn, error 등)
+  - 메시지
+  - 필요 시 펼침/접기(세부 정보: 스택트레이스, HTTP 요청/응답 상세 등)
+
+### 6-2. 필터 기능
+- Logs 탭 상단에 필터 UI 추가:
+  - Source 필터: [All, App, Network, WebView]
+  - Level 필터: [All, Debug, Info, Warn, Error]
+  - 텍스트 검색: message 내 substring 필터
+
+### 6-3. 자동 스크롤
+- 새로운 로그가 들어올 때 리스트가 맨 아래로 스크롤되도록 auto-scroll 기능 추가
+- “자동 스크롤 켜기/끄기” 토글 버튼 제공
+
+---
+
+## 7. 기존 탭 역할 정리 및 동작 복구
+
+### 7-1. Provider 탭
+- Riverpod 사용 시:
+  - `ProviderObserver` 또는 `ProviderContainer`의 observer를 구현하여
+    - 프로바이더 생성/업데이트/삭제 이벤트를 Provider 탭에 전달
+- 기존 설계가 있으면 최대한 그대로 활용하되, 실제 데이터가 표시되도록 연결 복구
+
+### 7-2. Network 탭
+- Network 탭에서는:
+  - 통합 로그와 별도로, “요청 단위”로 묶인 목록을 보여준다
+  - 요청 URL, 메서드, statusCode, duration 등을 요약하여 보여주고
+  - 클릭 시 상세 보기(요청/응답 header/body 요약)를 표시
+
+### 7-3. WebView 탭
+- WebView 탭에서는:
+  - 특정 WebView 인스턴스 단위로 콘솔 로그를 필터링해 볼 수 있도록 한다
+  - 예: 현재 활성 WebView별 드롭다운 + 해당 WebView 콘솔 로그만 리스트업
+- 이 로그 또한 동일한 LogBuffer를 쓰되, source = WebView로 필터링하여 표시
+
+---
+
+## 8. DevTools 내 토글 / 성능 고려
+
+### 8-1. 로그 수집 토글
+- In-App DevTools 내에 “로그 수집 ON/OFF” 스위치 추가
+- OFF일 때는 버퍼에 새 로그를 추가하지 않고, 기존 버퍼만 조회 가능
+
+### 8-2. 빌드 모드에 따른 동작
+- `kReleaseMode`에서는 기본적으로 로그 수집/표시 비활성화
+  - 필요 시 `kProfileMode`에서는 일부 기능만 허용
+
+### 8-3. 성능
+- 로그 추가/필터링/표시는 메인 쓰레드를 과도하게 점유하지 않도록 구현
+- 문자열 포매팅 및 json pretty-print는 필요 시 lazy하게 수행
+
+---
+
+## 9. 산출물 및 검증 방법
+
+### 9-1. 필수 코드 산출물
+- 글로벌 로그 인터셉터(Dart 코드)
+- `AppLogBuffer`(또는 유사 이름)의 구현
+- InAppDevTools Logs 탭 UI 수정 + 필터/자동스크롤 기능
+- Network Interceptor + WebView 콘솔 핸들러
+- Provider 탭/Network 탭/WebView 탭의 동작 복구 및 데이터 연결
+
+### 9-2. 검증 시나리오
+1) `print("HELLO APP LOG");` 호출 시 Logs 탭에 source=App, level=debug로 표시되는지 확인
+2) dio/http 요청 1건 수행 후, Logs 탭과 Network 탭 양쪽에 동일 요청이 표시되는지 확인
+3) WebView에서 `console.log("HELLO WEBVIEW");` 실행 시 Logs 탭에 source=WebView로 표시되는지, WebView 탭에서도 필터링되어 보이는지 확인
+4) Source/Level 필터 및 검색 기능이 정상 동작하는지 확인
+
+
+# END OF TASK 600
+
 # TASK 501 — 정책 데이터 파이프라인 전면 재구축 (Full Pipeline Rebuild)
 
 목표:
