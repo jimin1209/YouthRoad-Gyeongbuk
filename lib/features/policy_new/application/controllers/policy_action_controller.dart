@@ -103,6 +103,15 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     if (state.isProcessing) return;
     _setProcessing(true);
     _setError(null);
+
+    final compareState = ref.read(compareRepositoryProvider);
+    final alreadyAdded = compareState.ids.contains(policy.id);
+    if (!alreadyAdded && compareState.ids.length >= 4) {
+      _setError('비교는 최대 4개까지만 선택할 수 있습니다.');
+      _setProcessing(false);
+      return;
+    }
+
     ref.read(compareRepositoryProvider.notifier).toggleCompare(policy);
     _setProcessing(false);
   }

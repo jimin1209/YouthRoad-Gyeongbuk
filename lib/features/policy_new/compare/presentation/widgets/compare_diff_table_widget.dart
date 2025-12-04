@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../controllers/compare_diff_service.dart';
 import '../../../domain/entities/policy.dart';
+import '../../models/compare_state.dart';
 
 class CompareDiffTableWidget extends StatelessWidget {
   const CompareDiffTableWidget({
     super.key,
     required this.policies,
     required this.diffs,
+    required this.insights,
     required this.fields,
     required this.labelWidth,
     required this.columnWidth,
@@ -15,6 +17,7 @@ class CompareDiffTableWidget extends StatelessWidget {
 
   final List<Policy> policies;
   final Map<String, bool> diffs;
+  final CompareInsights insights;
   final List<CompareFieldDefinition> fields;
   final double labelWidth;
   final double columnWidth;
@@ -43,15 +46,14 @@ class CompareDiffTableWidget extends StatelessWidget {
                     (p) {
                       final isDiff = diffs[field.key] ?? false;
                       final value = field.valueBuilder(p);
+                      final bgColor = _cellColor(field.key, p.id, isDiff, context);
                       return Padding(
                         padding: const EdgeInsets.only(left: 12),
                         child: Container(
                           width: columnWidth,
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isDiff
-                                ? Colors.lightBlueAccent.withOpacity(0.08)
-                                : Colors.grey.withOpacity(0.06),
+                            color: bgColor,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -68,5 +70,32 @@ class CompareDiffTableWidget extends StatelessWidget {
           )
           .toList(),
     );
+  }
+
+  Color _cellColor(
+    String fieldKey,
+    String policyId,
+    bool isDiff,
+    BuildContext context,
+  ) {
+    final theme = Theme.of(context);
+    if (insights.nearestDeadlinePolicyId == policyId &&
+        (fieldKey == 'application' || fieldKey == 'dday')) {
+      return theme.colorScheme.error.withOpacity(0.12);
+    }
+
+    if (insights.recommendedPolicyId == policyId) {
+      return theme.colorScheme.primary.withOpacity(0.12);
+    }
+
+    if (insights.broadEligibilityPolicyId == policyId &&
+        fieldKey == 'eligibility') {
+      return theme.colorScheme.tertiary.withOpacity(0.12);
+    }
+
+    if (isDiff) {
+      return Colors.lightBlueAccent.withOpacity(0.08);
+    }
+    return Colors.grey.withOpacity(0.06);
   }
 }

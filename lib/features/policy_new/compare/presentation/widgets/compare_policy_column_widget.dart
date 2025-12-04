@@ -10,12 +10,16 @@ class ComparePolicyColumnWidget extends StatelessWidget {
     required this.onRemove,
     required this.onTap,
     required this.width,
+    this.recommendedLabel,
+    this.nearestDeadlineLabel,
   });
 
   final Policy policy;
   final VoidCallback onRemove;
   final VoidCallback onTap;
   final double width;
+  final String? recommendedLabel;
+  final String? nearestDeadlineLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +61,10 @@ class ComparePolicyColumnWidget extends StatelessWidget {
                   spacing: 6,
                   runSpacing: 4,
                   children: [
+                    if (recommendedLabel != null)
+                      _chip(recommendedLabel!, color: Colors.orange.shade100),
+                    if (nearestDeadlineLabel != null)
+                      _chip(nearestDeadlineLabel!, color: Colors.red.shade100),
                     _chip(policy.region.name),
                     _chip(policy.category.name),
                     if (policy.isOngoing) _chip('모집중'),
@@ -72,11 +80,11 @@ class ComparePolicyColumnWidget extends StatelessWidget {
     );
   }
 
-  Widget _chip(String label) {
+  Widget _chip(String label, {Color? color}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.blueGrey.withOpacity(0.08),
+        color: color ?? Colors.blueGrey.withOpacity(0.08),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(label, style: const TextStyle(fontSize: 11)),

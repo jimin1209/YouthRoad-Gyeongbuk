@@ -29,6 +29,10 @@ class CompareController extends StateNotifier<CompareRepository> {
 
   Future<void> toggleCompare(Policy policy) async {
     final exists = state.ids.contains(policy.id);
+    if (!exists && state.ids.length >= 4) {
+      return;
+    }
+
     final updated = [
       for (final id in state.ids)
         if (id != policy.id) id,
