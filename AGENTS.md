@@ -196,6 +196,30 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+# ERROR 201
+lib/ui/screens/policy/policy_search_screen.dart:60:39: Error: The getter 'popularSearchKeywordListProvider' isn't defined for the class '_PolicySearchScreenState'.
+ - '_PolicySearchScreenState' is from 'package:youth_road_app/ui/screens/policy/policy_search_screen.dart' ('lib/ui/screens/policy/policy_search_screen.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'popularSearchKeywordListProvider'.
+    final popularKeywords = ref.watch(popularSearchKeywordListProvider);
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 11s
+
+
 # ERROR 200
 
 lib/navigation/motion_transitions.dart:3:1: Error: Type 'CustomTransitionPage' not found.
