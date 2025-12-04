@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants/app_strings.dart';
 import '../devtools/debug_overlay.dart';
-import '../navigation/app_router.dart';
 import '../debug/debug_wrapper.dart';
 import '../theme/app_theme.dart';
 import 'providers/app_providers.dart';
