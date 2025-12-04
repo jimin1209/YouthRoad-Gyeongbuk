@@ -25,9 +25,17 @@ import 'services/memo_repository.dart';
 
 import 'package:dio/dio.dart';
 
+SharedPreferences? _sharedPreferencesInstance;
+
+void initializeSharedPreferences(SharedPreferences prefs) {
+  _sharedPreferencesInstance = prefs;
+}
+
 /// SharedPreferences Provider
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
-  throw UnimplementedError('SharedPreferences not initialized');
+  final instance = _sharedPreferencesInstance;
+  if (instance != null) return instance;
+  throw StateError('SharedPreferences not initialized');
 });
 
 /// Dio Provider (with Network Logger)
