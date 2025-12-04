@@ -101,11 +101,26 @@ class _ReminderButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (policy.applicationEndDate == null) {
-      return OutlinedButton.icon(
-        onPressed: null,
-        icon: const Icon(Icons.notifications_off_outlined),
-        label: const Text('마감일 정보 없음'),
+    final hasScheduleWindow =
+        policy.applicationEndDate != null || policy.applicationStartDate != null;
+
+    if (!hasScheduleWindow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OutlinedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.notifications_off_outlined),
+            label: const Text('신청 일정 없음'),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '신청 일정 정보가 없어 알림을 설정할 수 없습니다.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+          ),
+        ],
       );
     }
 
@@ -146,6 +161,17 @@ class _ReminderButton extends StatelessWidget {
                     isProcessing || viewState.isMutating ? null : controller.cancelReminder,
                 child: const Text('알림 취소'),
               ),
+            if (viewState.messages.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              ...viewState.messages.map(
+                (message) => Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                ),
+              ),
+            ],
           ],
         );
       },
