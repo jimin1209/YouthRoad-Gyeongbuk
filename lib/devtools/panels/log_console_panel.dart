@@ -260,9 +260,9 @@ class _LogDetailView extends StatelessWidget {
       'level': entry!.level.name,
       'message': entry!.message,
       'timestamp': entry!.timestamp.toIso8601String(),
-      if (entry!.extra != null) 'extra': entry!.extra,
-      if (entry!.error != null) 'error': entry!.error.toString(),
-      if (entry!.stackTrace != null) 'stackTrace': entry!.stackTrace.toString(),
+      if (entry!.extra != null) 'extra': _serialize(entry!.extra),
+      if (entry!.error != null) 'error': _serialize(entry!.error),
+      if (entry!.stackTrace != null) 'stackTrace': _serialize(entry!.stackTrace),
     };
     final formattedPayload = _prettyPrint(payload);
 
@@ -303,6 +303,26 @@ class _LogDetailView extends StatelessWidget {
     } catch (_) {
       return data.toString();
     }
+  }
+
+  dynamic _serialize(dynamic value) {
+    const maxLength = 2000;
+
+    if (value is Map) {
+      return value.map((key, v) => MapEntry(key.toString(), _serialize(v)));
+    }
+    if (value is Iterable) {
+      return value.map(_serialize).toList();
+    }
+    if (value is num || value is bool || value == null) {
+      return value;
+    }
+
+    final text = value.toString();
+    if (text.length > maxLength) {
+      return '${text.substring(0, maxLength)}…(truncated)';
+    }
+    return text;
   }
 
   String _formatTimestamp(DateTime time) {
