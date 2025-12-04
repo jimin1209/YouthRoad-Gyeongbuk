@@ -51,6 +51,10 @@ class Policy {
   final bool? isOngoing;
 
   String? get detailUrl => dtlLinkUrl;
+  String get displayRegion => regionName ?? '지역 정보 없음';
+  String get displayOperator => operatorName ?? '운영 기관 정보 없음';
+  String get displaySummary => policyCn ?? '지원 내용 정보 없음';
+  String get displayInquiry => policyEnq ?? '문의처 정보 없음';
   String? get supervisorName => sprvsnInstNm;
   String? get operatorName => operInstNm;
   String? get regionName => rgnSeNm;

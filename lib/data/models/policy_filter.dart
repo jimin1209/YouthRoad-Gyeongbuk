@@ -39,6 +39,45 @@ class PolicyFilter {
   final String? pagingYn;
   final String? searchDsplyYn;
 
+  /// 비어있는 문자열, '전체'와 같은 의미 없는 값들을 제거한 정상화된 필터를 반환한다.
+  ///
+  /// - 지역: '전체', '경북 전체' 등은 null 처리
+  /// - 카테고리: '전체' 문자열은 제거
+  /// - 검색어: searchText와 searchPolicyNm을 통합 후 trim
+  /// - 페이징: pageIndex/recordCount를 안전한 범위로 보정하고 pagingYn 기본값을 지정
+  PolicyFilter normalize() {
+    final normalizedRegion = _normalizeRegion(searchRgnSe);
+    final normalizedCategory = _normalizeCategory(searchPolicyType ?? category);
+    final normalizedSearchText = _normalizeText(searchText ?? searchPolicyNm);
+
+    final normalizedPageIndex = (pageIndex ?? 1).clamp(1, 9999);
+    final normalizedRecordCount = (recordCount ??
+            ((pagingYn ?? 'N').toUpperCase() == 'Y' ? 20 : 2000))
+        .clamp(1, 2000);
+
+    return PolicyFilter(
+      searchRgnSe: normalizedRegion,
+      searchPolicyType: normalizedCategory,
+      searchPolicyNm: normalizedSearchText,
+      searchText: normalizedSearchText,
+      category: normalizedCategory,
+      searchYear: _normalizeEmpty(searchYear),
+      instNo: _normalizeEmpty(instNo),
+      deptNo: _normalizeEmpty(deptNo),
+      startDate: startDate,
+      endDate: endDate,
+      availableOnly: availableOnly,
+      pageIndex: normalizedPageIndex,
+      recordCount: normalizedRecordCount,
+      pageSize: pageSize ?? normalizedRecordCount,
+      pagingYn: (pagingYn ?? (normalizedPageIndex > 1 ? 'Y' : 'N')).toUpperCase(),
+      searchDsplyYn: (searchDsplyYn?.isNotEmpty == true
+              ? searchDsplyYn
+              : 'all')
+          ?.toLowerCase(),
+    );
+  }
+
   PolicyFilter copyWith({
     String? searchRgnSe,
     String? searchPolicyType,
@@ -135,5 +174,45 @@ class PolicyFilter {
   static String? _formatDate(DateTime? date) {
     if (date == null) return null;
     return date.toIso8601String();
+  }
+
+  static String? _normalizeEmpty(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed == '전체') return null;
+    return trimmed;
+  }
+
+  static String? _normalizeRegion(String? value) {
+    final normalized = _normalizeEmpty(value);
+    if (normalized == null) return null;
+
+    const regionMap = {
+      '경북 전체': null,
+      '경북전체': null,
+      '경북': '경상북도',
+      '경상북도': '경상북도',
+      '전체': null,
+    };
+
+    if (regionMap.containsKey(normalized)) {
+      return regionMap[normalized];
+    }
+
+    return normalized;
+  }
+
+  static String? _normalizeCategory(String? value) {
+    final normalized = _normalizeEmpty(value);
+    if (normalized == null) return null;
+    if (normalized.toLowerCase() == 'all') return null;
+    return normalized;
+  }
+
+  static String? _normalizeText(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return trimmed;
   }
 }

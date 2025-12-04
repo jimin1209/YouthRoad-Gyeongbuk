@@ -96,7 +96,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
       pageIndex: 1,
       recordCount: 10,
       pagingYn: 'Y',
-    );
+    ).normalize();
   }
 
   PolicyFilter _buildRecommendationFilter() {
@@ -107,7 +107,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
       pageIndex: 1,
       recordCount: 10,
       pagingYn: 'Y',
-    );
+    ).normalize();
   }
 
   void _applyFilter() {

@@ -62,20 +62,23 @@ class SearchV2Controller extends AutoDisposeNotifier<SearchV2State> {
       pageIndex: 1,
       recordCount: 10,
       pagingYn: 'Y',
-    );
+    ).normalize();
   }
 
   String _buildRequestKey(PolicyFilter filter) {
-    final normalized = filter.copyWith(
-      pageIndex: 1,
-      recordCount: filter.recordCount ?? 10,
-      pagingYn: filter.pagingYn ?? 'Y',
-    );
+    final normalized = filter
+        .copyWith(
+          pageIndex: 1,
+          recordCount: filter.recordCount ?? 10,
+          pagingYn: filter.pagingYn ?? 'Y',
+        )
+        .normalize();
+
     return jsonEncode(normalized.toJson());
   }
 
   Future<void> initialize([PolicyFilter? filter]) async {
-    final targetFilter = filter ?? _defaultFilter();
+    final targetFilter = (filter ?? _defaultFilter()).normalize();
     final nextKey = _buildRequestKey(targetFilter);
     if (state.isInitializing && state.lastRequestKey == nextKey) return;
 

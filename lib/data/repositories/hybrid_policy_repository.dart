@@ -17,22 +17,25 @@ class HybridPolicyRepository implements PolicyRepository {
 
   final PolicyRemoteSource _remoteSource;
   final IsarService _isarService;
+  final Map<String, Future<List<Policy>>> _inflightRefreshes = {};
 
   @override
   Future<PolicyFetchResult> getPolicies({
     PolicyFilter filter = const PolicyFilter(),
     bool forceRefresh = false,
   }) async {
+    final normalized = filter.normalize();
+
     // 1) Always return cached data immediately for instant UI rendering.
-    final cached = await _safeLoadCache(filter);
+    final cached = await _safeLoadCache(normalized);
     debugPrint(
       '[HybridPolicyRepository] cached policies count=${cached.length}',
     );
 
     // 2) Trigger remote refresh in the background without awaiting.
     final remoteFuture = _refreshFromRemote(
-      filter: filter,
-      replaceExisting: forceRefresh || _isDefaultFilter(filter),
+      filter: normalized,
+      replaceExisting: forceRefresh || _isDefaultFilter(normalized),
     );
 
     return PolicyFetchResult(
@@ -45,7 +48,7 @@ class HybridPolicyRepository implements PolicyRepository {
   Future<List<Policy>> loadCachedPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
-    return _safeLoadCache(filter);
+    return _safeLoadCache(filter.normalize());
   }
 
   @override
@@ -54,8 +57,8 @@ class HybridPolicyRepository implements PolicyRepository {
   }) async {
     // Caller explicitly requested a refresh, so return the remote result.
     return _refreshFromRemote(
-      filter: filter,
-      replaceExisting: _isDefaultFilter(filter),
+      filter: filter.normalize(),
+      replaceExisting: _isDefaultFilter(filter.normalize()),
     );
   }
 
@@ -63,7 +66,7 @@ class HybridPolicyRepository implements PolicyRepository {
   Future<List<Policy>> fetchPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
-    return refreshPolicies(filter: filter);
+    return refreshPolicies(filter: filter.normalize());
   }
 
   @override
@@ -157,6 +160,28 @@ class HybridPolicyRepository implements PolicyRepository {
     required PolicyFilter filter,
     bool replaceExisting = false,
   }) async {
+    final cacheKey = _buildCacheKey(filter);
+    final existing = _inflightRefreshes[cacheKey];
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = _performRemoteRefresh(
+      filter: filter,
+      replaceExisting: replaceExisting,
+    );
+
+    _inflightRefreshes[cacheKey] = future;
+
+    return future.whenComplete(() {
+      _inflightRefreshes.remove(cacheKey);
+    });
+  }
+
+  Future<List<Policy>> _performRemoteRefresh({
+    required PolicyFilter filter,
+    required bool replaceExisting,
+  }) async {
     try {
       final remoteModels = await _remoteSource.fetchPolicies(filter: filter);
       await _persistPolicies(remoteModels, replaceExisting: replaceExisting);
@@ -169,6 +194,27 @@ class HybridPolicyRepository implements PolicyRepository {
       debugPrint('[HybridPolicyRepository] remote refresh failed: $e\n$st');
       rethrow;
     }
+  }
+
+  String _buildCacheKey(PolicyFilter filter) {
+    return [
+      filter.searchRgnSe,
+      filter.searchPolicyType,
+      filter.searchPolicyNm,
+      filter.searchText,
+      filter.category,
+      filter.searchYear,
+      filter.instNo,
+      filter.deptNo,
+      filter.startDate?.toIso8601String(),
+      filter.endDate?.toIso8601String(),
+      filter.availableOnly,
+      filter.pageIndex,
+      filter.recordCount,
+      filter.pageSize,
+      filter.pagingYn,
+      filter.searchDsplyYn,
+    ].join('|');
   }
 
   bool _isDefaultFilter(PolicyFilter filter) {

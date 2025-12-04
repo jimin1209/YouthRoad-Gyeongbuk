@@ -435,7 +435,7 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
       pageIndex: 1,
       recordCount: _pageSize,
       pagingYn: 'Y',
-    );
+    ).normalize();
   }
 
   PolicyFilter _recommendationFilter(PolicyFilter base) {
@@ -446,29 +446,35 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
       pageIndex: 1,
       recordCount: _pageSize,
       pagingYn: 'Y',
-    );
+    ).normalize();
   }
 
   PolicyFilter _normalizePrimaryFilter(PolicyFilter filter) {
     final region = filter.searchRgnSe ?? ref.read(regionProvider);
-    return filter.copyWith(
-      searchRgnSe: region,
-      availableOnly: filter.availableOnly ?? true,
-      pageIndex: 1,
-      recordCount: _pageSize,
-      pagingYn: 'Y',
-    );
+    return filter
+        .copyWith(
+          searchRgnSe: region,
+          availableOnly: filter.availableOnly ?? true,
+          pageIndex: 1,
+          recordCount: _pageSize,
+          pagingYn: 'Y',
+        )
+        .normalize();
   }
 
   PolicyFilter _normalizeRecommendedFilter(PolicyFilter filter) {
     final region = filter.searchRgnSe ?? ref.read(regionProvider);
-    return filter.copyWith(
-      searchRgnSe: region,
-      availableOnly: true,
-      pageIndex: 1,
-      recordCount: _pageSize,
-      pagingYn: 'Y',
-    );
+    return filter
+        .copyWith(
+          searchRgnSe: region,
+          availableOnly: true,
+          pageIndex: 1,
+          recordCount: _pageSize,
+          pagingYn: 'Y',
+          searchPolicyNm: null,
+          searchText: null,
+        )
+        .normalize();
   }
 
   String _buildRequestKey(PolicyFilter filter, PolicyFeedType feed) {
@@ -492,7 +498,7 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
       pageSize: filter.pageSize,
       pagingYn: filter.pagingYn ?? 'Y',
       searchDsplyYn: filter.searchDsplyYn ?? 'all',
-    );
+    ).normalize();
 
     return jsonEncode(normalized.toJson());
   }
