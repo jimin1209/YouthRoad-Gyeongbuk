@@ -104,7 +104,7 @@ const PolicyReminderIsarModelSchema = CollectionSchema(
   getId: _policyReminderIsarModelGetId,
   getLinks: _policyReminderIsarModelGetLinks,
   attach: _policyReminderIsarModelAttach,
-  version: '1',
+  version: '3.1.0+1',
 );
 
 int _policyReminderIsarModelEstimateSize(

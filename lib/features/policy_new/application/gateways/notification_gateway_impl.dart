@@ -2,10 +2,13 @@ import 'dart:convert';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/utils/reminder_id_util.dart';
 import '../../domain/utils/reminder_time_util.dart';
+import '../../domain/values/reminder_time_kind.dart';
 import '../../domain/values/schedule_result.dart';
 import 'notification_gateway.dart';
 
@@ -41,6 +44,8 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
   }
 
   Future<void> _initializePlugin() async {
+    _initializeTimeZones();
+
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const darwinSettings = DarwinInitializationSettings();
 
@@ -50,6 +55,16 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         iOS: darwinSettings,
       ),
     );
+  }
+
+  void _initializeTimeZones() {
+    tzdata.initializeTimeZones();
+    try {
+      final timeZoneName = DateTime.now().timeZoneName;
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (_) {
+      tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+    }
   }
 
   Future<bool> _ensurePermissions() async {
@@ -66,7 +81,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
     }
 
     final darwinImpl =
-        _plugin.resolvePlatformSpecificImplementation<DarwinFlutterLocalNotificationsPlugin>();
+        _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
     await darwinImpl?.requestPermissions(
       alert: true,
       badge: true,
@@ -131,11 +146,11 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
       final notificationBody =
           '${reminder.policyTitleSnapshot ?? reminder.policyId} 마감 ${formattedTime} 전에 신청을 완료해 주세요.';
 
-      await _plugin.schedule(
+      await _plugin.zonedSchedule(
         notificationId,
         notificationTitle,
         notificationBody,
-        scheduledLocal,
+        tz.TZDateTime.from(scheduledLocal, tz.local),
         _notificationDetails(),
         payload: _buildPayload(reminder),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
