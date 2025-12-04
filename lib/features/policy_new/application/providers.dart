@@ -254,10 +254,9 @@ final policyReminderSchedulerProvider =
 
 final policyReminderLocalDataSourceProvider =
     Provider<PolicyReminderLocalDataSource>((ref) {
-  final prefs = ref.watch(app_di.sharedPreferencesProvider);
-  final isar = ref.watch(app_di.isarServiceProvider);
-  return IsarPolicyReminderLocalDataSource(isar, prefs);
-});
+    final isar = ref.watch(app_di.isarServiceProvider);
+    return IsarPolicyReminderLocalDataSource(isar);
+  });
 
 final flutterLocalNotificationsPluginProvider =
     Provider<FlutterLocalNotificationsPlugin>((ref) {

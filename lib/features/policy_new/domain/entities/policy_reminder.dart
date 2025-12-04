@@ -10,6 +10,8 @@ class PolicyReminder {
   final DateTime updatedAt;
   final ReminderTimeKind timeKind;
   final PolicyReminderStatus status;
+  final bool isActive;
+  final DateTime? canceledAt;
   final String? policyTitleSnapshot;
 
   const PolicyReminder({
@@ -20,6 +22,8 @@ class PolicyReminder {
     required this.updatedAt,
     required this.timeKind,
     this.status = PolicyReminderStatus.scheduled,
+    this.isActive = true,
+    this.canceledAt,
     this.policyTitleSnapshot,
   });
 
@@ -31,6 +35,8 @@ class PolicyReminder {
     DateTime? updatedAt,
     ReminderTimeKind? timeKind,
     PolicyReminderStatus? status,
+    bool? isActive,
+    DateTime? canceledAt,
     String? policyTitleSnapshot,
   }) {
     return PolicyReminder(
@@ -41,6 +47,8 @@ class PolicyReminder {
       updatedAt: updatedAt ?? this.updatedAt,
       timeKind: timeKind ?? this.timeKind,
       status: status ?? this.status,
+      isActive: isActive ?? this.isActive,
+      canceledAt: canceledAt ?? this.canceledAt,
       policyTitleSnapshot: policyTitleSnapshot ?? this.policyTitleSnapshot,
     );
   }
