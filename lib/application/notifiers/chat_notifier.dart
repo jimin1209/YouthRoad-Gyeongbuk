@@ -22,10 +22,19 @@ class ChatState {
 
 class ChatNotifier extends AutoDisposeNotifier<ChatState> {
   ChatRepository get _repository => ref.read(chatRepositoryProvider);
-  SharedPreferences get _prefs => ref.read(sharedPreferencesProvider);
 
   static const _storageKey = 'chat_history';
   static const _thinkingMessage = '답변을 준비하고 있어요...';
+
+  SharedPreferences? get _maybePrefs {
+    try {
+      return ref.read(sharedPreferencesProvider);
+    } catch (e, st) {
+      debugPrint('SharedPreferences 접근에 실패했습니다: $e');
+      debugPrint('$st');
+      return null;
+    }
+  }
 
   @override
   ChatState build() {
@@ -97,7 +106,10 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
 
   List<ChatMessage> _loadMessages() {
     try {
-      final saved = _prefs.getStringList(_storageKey) ?? [];
+      final prefs = _maybePrefs;
+      if (prefs == null) return [];
+
+      final saved = prefs.getStringList(_storageKey) ?? [];
       return _restoreMessages(saved);
     } catch (e, st) {
       debugPrint('채팅 기록을 불러오지 못했습니다: $e');
@@ -131,11 +143,14 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
 
   void _saveMessages(List<ChatMessage> messages) {
     try {
+      final prefs = _maybePrefs;
+      if (prefs == null) return;
+
       final encoded = messages
           .where((m) => m.text != _thinkingMessage)
           .map((m) => json.encode(m.toJson()))
           .toList();
-      _prefs.setStringList(_storageKey, encoded);
+      prefs.setStringList(_storageKey, encoded);
     } catch (e, st) {
       debugPrint('채팅 기록 저장 실패: $e');
       debugPrint('$st');
@@ -144,7 +159,10 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
 
   void _safeClearStorage() {
     try {
-      _prefs.remove(_storageKey);
+      final prefs = _maybePrefs;
+      if (prefs == null) return;
+
+      prefs.remove(_storageKey);
     } catch (e, st) {
       debugPrint('채팅 기록 초기화 실패: $e');
       debugPrint('$st');
