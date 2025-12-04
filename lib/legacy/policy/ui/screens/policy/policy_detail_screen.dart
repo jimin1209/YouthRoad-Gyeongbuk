@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:youth_road_app/features/policy_new/application/controllers/policy_action_controller.dart';
+import 'package:youth_road_app/features/policy_new/application/controllers/policy_reminder_controller.dart';
+import 'package:youth_road_app/features/policy_new/application/providers.dart';
+import 'package:youth_road_app/features/policy_new/domain/entities/policy.dart';
+import 'package:youth_road_app/features/policy_new/domain/entities/policy_reminder.dart';
+import 'package:youth_road_app/features/policy_new/domain/values/policy_reminder_status.dart';
+import 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart';
 import 'package:youth_road_app/ui/components/policy_cta_button.dart';
 import 'package:youth_road_app/ui/components/policy_info_row.dart';
 import 'package:youth_road_app/ui/components/policy_tag.dart';
@@ -6,82 +15,48 @@ import 'package:youth_road_app/ui/components/section_title.dart';
 
 /// 정책 상세 화면
 ///
-/// - DESIGN:
-///   - 상단: 제목 + 태그 + 즐겨찾기/공유/알림 아이콘
-///   - CTA: "신청 페이지 열기" Primary 버튼
-///   - 알림: 2×2 Grid 버튼
-///   - 섹션: 지원내용 / 접수기간 / 기관·부서·문의처
-///
-/// - NOTE:
-///   여기서는 UI에만 집중하고, 실제 데이터/로직은
-///   상위에서 주입하거나 callback 으로 연결하는 구조로 설계함.
-class PolicyDetailScreen extends StatelessWidget {
-  /// 화면 타이틀 (정책 이름)
-  final String title;
+/// UI 전용으로 설계되어 있으며, 정책 알림(리마인더) 기능을
+/// Riverpod Provider와 직접 연결한다.
+class PolicyDetailScreen extends ConsumerWidget {
+  const PolicyDetailScreen({super.key, required this.policy});
 
-  /// 정책 태그 목록 (예: ["청년", "주거", "경북"])
-  final List<String> tags;
-
-  /// 신청/접수 기간 텍스트
-  final String periodText;
-
-  /// 지원 내용(본문)
-  final String supportContent;
-
-  /// 기관명
-  final String organizationName;
-
-  /// 담당 부서
-  final String departmentName;
-
-  /// 문의처 (전화번호/이메일 등)
-  final String contactInfo;
-
-  /// (선택) 정책 요약 설명
-  final String? summary;
-
-  /// (선택) 신청 페이지 URL 표시용
-  final String? applyUrlForDisplay;
-
-  /// 액션 콜백들
-  final VoidCallback? onTapOpenApplyPage;
-  final VoidCallback? onTapFavorite;
-  final VoidCallback? onTapShare;
-
-  /// 알림 옵션 콜백들
-  final VoidCallback? onTapReminder1DayBefore;
-  final VoidCallback? onTapReminder3DaysBefore;
-  final VoidCallback? onTapReminder7DaysBefore;
-  final VoidCallback? onTapReminderOnDue;
-
-  /// 현재 선택된 알림 옵션 상태 (UI 하이라이트용)
-  final ReminderOption? selectedReminder;
-
-  const PolicyDetailScreen({
-    super.key,
-    required this.title,
-    required this.tags,
-    required this.periodText,
-    required this.supportContent,
-    required this.organizationName,
-    required this.departmentName,
-    required this.contactInfo,
-    this.summary,
-    this.applyUrlForDisplay,
-    this.onTapOpenApplyPage,
-    this.onTapFavorite,
-    this.onTapShare,
-    this.onTapReminder1DayBefore,
-    this.onTapReminder3DaysBefore,
-    this.onTapReminder7DaysBefore,
-    this.onTapReminderOnDue,
-    this.selectedReminder,
-  });
+  final Policy policy;
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reminderProvider = policyReminderControllerProvider(policy.id);
+    final reminderState = ref.watch(reminderProvider);
+    final reminderController = ref.read(reminderProvider.notifier);
+    final actionController =
+        ref.read(policyActionControllerProvider(policy.id).notifier);
+
+    ref.listen<AsyncValue<PolicyReminderViewState>>(reminderProvider,
+        (previous, next) {
+      next.whenOrNull(
+        data: (viewState) {
+          if (viewState.messages.isNotEmpty) {
+            _showSnackBar(
+              context,
+              viewState.messages.join('\n'),
+            );
+            reminderController.clearMessages();
+          }
+        },
+        error: (error, __) {
+          _showSnackBar(
+            context,
+            '알림 상태를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
+          );
+        },
+      );
+    });
+
+    final selectedReminder = _resolveSelectedReminder(reminderState);
+    final isReminderBusy = reminderState.isLoading ||
+        reminderState.maybeWhen(
+          data: (viewState) => viewState.isMutating,
+          orElse: () => false,
+        );
 
     return Scaffold(
       appBar: AppBar(
@@ -89,12 +64,12 @@ class PolicyDetailScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.favorite_border),
-            onPressed: onTapFavorite,
+            onPressed: null,
             tooltip: '관심 정책',
           ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
-            onPressed: onTapShare,
+            onPressed: null,
             tooltip: '공유하기',
           ),
         ],
@@ -112,12 +87,12 @@ class PolicyDetailScreen extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // 요약
-                if (summary != null && summary!.trim().isNotEmpty) ...[
+                if (policy.summary.trim().isNotEmpty) ...[
                   Text(
-                    summary!,
-                    style: textTheme.bodyMedium!.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
+                    policy.summary,
+                    style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -130,18 +105,25 @@ class PolicyDetailScreen extends StatelessWidget {
                 // 신청 페이지 열기 CTA
                 PolicyCtaButton(
                   text: '신청 페이지 열기',
-                  onTap: onTapOpenApplyPage,
+                  onTap: () async {
+                    final opened = await actionController.openPolicyLink(policy);
+                    if (!opened && context.mounted) {
+                      _showSnackBar(
+                        context,
+                        '신청 페이지를 열지 못했습니다.',
+                      );
+                    }
+                  },
                 ),
 
-                if (applyUrlForDisplay != null &&
-                    applyUrlForDisplay!.trim().isNotEmpty) ...[
+                if (policy.applyUrl.trim().isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
-                    applyUrlForDisplay!,
-                    style: textTheme.bodySmall!.copyWith(
-                      color: scheme.primary,
-                      decoration: TextDecoration.underline,
-                    ),
+                    policy.applyUrl,
+                    style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          decoration: TextDecoration.underline,
+                        ),
                   ),
                 ],
 
@@ -152,12 +134,27 @@ class PolicyDetailScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   '마감 전에 알림을 받아보고 싶다면 원하는 시점을 선택하세요.',
-                  style: textTheme.bodySmall!.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                 ),
                 const SizedBox(height: 12),
-                _buildReminderGrid(context),
+                if (reminderState.isLoading)
+                  const LinearProgressIndicator(minHeight: 2),
+                const SizedBox(height: 8),
+                _buildReminderGrid(
+                  context,
+                  selectedReminder: selectedReminder,
+                  isBusy: isReminderBusy,
+                  onTap: (option) async {
+                    await _handleReminderTap(
+                      context,
+                      actionController,
+                      option,
+                      selectedReminder,
+                    );
+                  },
+                ),
 
                 const SizedBox(height: 24),
 
@@ -165,8 +162,8 @@ class PolicyDetailScreen extends StatelessWidget {
                 SectionTitle(title: '지원 내용'),
                 const SizedBox(height: 8),
                 Text(
-                  supportContent,
-                  style: textTheme.bodyMedium,
+                  policy.description,
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
 
                 const SizedBox(height: 24),
@@ -175,10 +172,10 @@ class PolicyDetailScreen extends StatelessWidget {
                 SectionTitle(title: '접수 기간'),
                 const SizedBox(height: 4),
                 Text(
-                  periodText,
-                  style: textTheme.bodyMedium!.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+                  _buildPeriodText(),
+                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                 ),
 
                 const SizedBox(height: 24),
@@ -188,15 +185,15 @@ class PolicyDetailScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 PolicyInfoRow(
                   label: '주관 기관',
-                  value: organizationName,
+                  value: policy.institution,
                 ),
                 PolicyInfoRow(
                   label: '담당 부서',
-                  value: departmentName,
+                  value: policy.department,
                 ),
                 PolicyInfoRow(
                   label: '문의처',
-                  value: contactInfo,
+                  value: policy.contact ?? '정보 없음',
                 ),
 
                 const SizedBox(height: 32),
@@ -208,6 +205,56 @@ class PolicyDetailScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _handleReminderTap(
+    BuildContext context,
+    PolicyActionController controller,
+    ReminderOption option,
+    ReminderOption? selected,
+  ) async {
+    if (selected == option) {
+      await controller.cancelReminder();
+      _showSnackBar(context, '알림이 취소되었습니다.');
+      return;
+    }
+
+    try {
+      await controller.setReminder(policy, option.toKind());
+      _showSnackBar(context, '알림이 예약되었습니다.');
+    } catch (e) {
+      _showSnackBar(
+        context,
+        '알림을 설정하지 못했습니다. 잠시 후 다시 시도해 주세요. ($e)',
+      );
+    }
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  ReminderOption? _resolveSelectedReminder(
+    AsyncValue<PolicyReminderViewState> reminderState,
+  ) {
+    return reminderState.maybeWhen(
+      data: (viewState) {
+        final scheduled = _scheduledReminders(viewState);
+        if (scheduled.isEmpty) return null;
+        return ReminderOptionX.fromTimeKind(scheduled.first.timeKind);
+      },
+      orElse: () => null,
+    );
+  }
+
+  List<PolicyReminder> _scheduledReminders(PolicyReminderViewState state) {
+    final reminders = state.reminders
+        .where((reminder) => reminder.status == PolicyReminderStatus.scheduled)
+        .toList();
+    reminders.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    return reminders;
+  }
+
   /// 상단 헤더 (정책 제목 + 태그)
   Widget _buildHeader(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -217,7 +264,7 @@ class PolicyDetailScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          title,
+          policy.title,
           style: textTheme.titleLarge!.copyWith(
             color: scheme.onSurface,
           ),
@@ -226,7 +273,8 @@ class PolicyDetailScreen extends StatelessWidget {
         Wrap(
           spacing: 8,
           runSpacing: 6,
-          children: tags.map((label) => PolicyTag(label: label)).toList(),
+          children:
+              policy.tags.map((label) => PolicyTag(label: label)).toList(),
         ),
       ],
     );
@@ -254,7 +302,7 @@ class PolicyDetailScreen extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              periodText,
+              _buildPeriodText(),
               style: textTheme.bodyMedium!.copyWith(
                 color: scheme.primary,
                 fontWeight: FontWeight.w600,
@@ -267,31 +315,32 @@ class PolicyDetailScreen extends StatelessWidget {
   }
 
   /// 2×2 알림 옵션 Grid
-  Widget _buildReminderGrid(BuildContext context) {
+  Widget _buildReminderGrid(
+    BuildContext context, {
+    required ReminderOption? selectedReminder,
+    required bool isBusy,
+    required Future<void> Function(ReminderOption option) onTap,
+  }) {
     final options = [
       _ReminderTileConfig(
         label: '마감 하루 전',
         description: 'D-1',
         option: ReminderOption.oneDayBefore,
-        onTap: onTapReminder1DayBefore,
       ),
       _ReminderTileConfig(
         label: '마감 3일 전',
         description: 'D-3',
         option: ReminderOption.threeDaysBefore,
-        onTap: onTapReminder3DaysBefore,
       ),
       _ReminderTileConfig(
         label: '마감 7일 전',
         description: 'D-7',
         option: ReminderOption.sevenDaysBefore,
-        onTap: onTapReminder7DaysBefore,
       ),
       _ReminderTileConfig(
         label: '마감 당일',
         description: '마감날 아침',
         option: ReminderOption.onDueDate,
-        onTap: onTapReminderOnDue,
       ),
     ];
 
@@ -310,13 +359,30 @@ class PolicyDetailScreen extends StatelessWidget {
                 label: cfg.label,
                 description: cfg.description,
                 selected: isSelected,
-                onTap: cfg.onTap,
+                onTap: isBusy ? null : () => onTap(cfg.option),
               ),
             );
           }).toList(),
         );
       },
     );
+  }
+
+  String _buildPeriodText() {
+    final start = policy.applicationStartDate;
+    final end = policy.applicationEndDate;
+    if (start == null && end == null) {
+      return '신청 기간 정보 없음';
+    }
+    if (start != null && end == null) {
+      return '신청 시작일: ${start.toLocal().toString().split(" ").first}';
+    }
+    if (start == null && end != null) {
+      return '신청 마감일: ${end.toLocal().toString().split(" ").first}';
+    }
+    return '신청 기간: '
+        '${start!.toLocal().toString().split(" ").first} ~ '
+        '${end!.toLocal().toString().split(" ").first}';
   }
 }
 
@@ -328,34 +394,60 @@ enum ReminderOption {
   onDueDate,
 }
 
+extension ReminderOptionX on ReminderOption {
+  ReminderTimeKind toKind() {
+    switch (this) {
+      case ReminderOption.oneDayBefore:
+        return ReminderTimeKind.day1;
+      case ReminderOption.threeDaysBefore:
+        return ReminderTimeKind.day3;
+      case ReminderOption.sevenDaysBefore:
+        return ReminderTimeKind.day7;
+      case ReminderOption.onDueDate:
+        return ReminderTimeKind.dayOf;
+    }
+  }
+
+  static ReminderOption fromTimeKind(ReminderTimeKind kind) {
+    switch (kind) {
+      case ReminderTimeKind.day1:
+        return ReminderOption.oneDayBefore;
+      case ReminderTimeKind.day3:
+        return ReminderOption.threeDaysBefore;
+      case ReminderTimeKind.day7:
+        return ReminderOption.sevenDaysBefore;
+      case ReminderTimeKind.dayOf:
+        return ReminderOption.onDueDate;
+    }
+  }
+}
+
 /// 알림 타일 구성 정보
 class _ReminderTileConfig {
   final String label;
   final String description;
   final ReminderOption option;
-  final VoidCallback? onTap;
 
   const _ReminderTileConfig({
     required this.label,
     required this.description,
     required this.option,
-    this.onTap,
   });
 }
 
 /// 알림 옵션 개별 타일 UI
 class _ReminderTile extends StatelessWidget {
-  final String label;
-  final String description;
-  final bool selected;
-  final VoidCallback? onTap;
-
   const _ReminderTile({
     required this.label,
     required this.description,
     required this.selected,
     this.onTap,
   });
+
+  final String label;
+  final String description;
+  final bool selected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
