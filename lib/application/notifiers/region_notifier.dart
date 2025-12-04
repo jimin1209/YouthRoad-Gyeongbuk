@@ -19,14 +19,14 @@ class RegionNotifier extends AutoDisposeNotifier<String?> {
   void select(String region) {
     final prefs = _prefs ?? ref.read(sharedPreferencesProvider);
     _prefs = prefs;
-    prefs.setString(_key, region);
+    prefs!.setString(_key, region);
     state = region;
   }
 
   void clear() {
     final prefs = _prefs ?? ref.read(sharedPreferencesProvider);
     _prefs = prefs;
-    prefs.remove(_key);
+    prefs!.remove(_key);
     state = null;
   }
 }

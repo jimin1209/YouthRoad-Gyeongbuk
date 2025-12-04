@@ -11,6 +11,8 @@ export 'package:youth_road_app/features/policy_new/application/providers.dart'
 export 'di.dart';
 export 'repository_providers.dart';
 export 'notifiers/region_notifier.dart' show regionProvider, RegionNotifier;
+export 'notifiers/policy_list_notifier.dart'
+    show policyListNotifierProvider, PolicyListState, PolicyListNotifier;
 
 final favoritesProvider = NotifierProvider<FavoritesNotifier, Set<String>>(
   FavoritesNotifier.new,

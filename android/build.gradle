@@ -1,98 +1,41 @@
-// 🔵 buildscript 블록 완전 제거 (AGP 8.x 기준)
+// android/build.gradle
 
 allprojects {
     repositories {
         google()
         mavenCentral()
     }
-
-    configurations.all {
-        resolutionStrategy {
-            // annotation 최신 버전 강제
-            force "androidx.annotation:annotation:1.8.0"
-        }
-    }
 }
 
-// 🔵 전체 서브모듈 공통 설정
+/* ──────────────────────────────
+   🔵 APK 강제 복사 패치
+   ────────────────────────────── */
 subprojects { subproject ->
-
-    /* ──────────────────────────────
-       🔵 app 모듈 → Java/Kotlin 1.8
-       ────────────────────────────── */
-    if (subproject.name == "app") {
-        subproject.plugins.withId("com.android.application") {
-
-            def androidExt = subproject.extensions.findByName("android")
-            androidExt.compileOptions {
-                sourceCompatibility JavaVersion.VERSION_1_8
-                targetCompatibility JavaVersion.VERSION_1_8
-            }
-
-            subproject.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { t ->
-                t.kotlinOptions.jvmTarget = "1.8"
-            }
-        }
-    }
-
-    /* ──────────────────────────────
-       🔵 flutter_unity_widget → Kotlin/JVM 1.8 강제
-       ────────────────────────────── */
-    if (subproject.name == "flutter_unity_widget") {
-
-        subproject.plugins.withId("com.android.library") {
-            def androidExt = subproject.extensions.findByName("android")
-
-            if (androidExt?.hasProperty("namespace") && !androidExt.namespace) {
-                androidExt.namespace = "com.xraph.plugin.flutter_unity_widget"
-            }
-
-            androidExt.compileOptions {
-                sourceCompatibility JavaVersion.VERSION_1_8
-                targetCompatibility JavaVersion.VERSION_1_8
-            }
-        }
-
-        subproject.plugins.withId("org.jetbrains.kotlin.android") {
-            subproject.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { t ->
-                t.kotlinOptions.jvmTarget = "1.8"
-            }
-        }
-    }
-
-    /* ──────────────────────────────
-       🔵 APK 강제 복사 패치
-       ────────────────────────────── */
     if (subproject.name == "app") {
         subproject.afterEvaluate {
-            ["Debug", "Release"].each { variant ->
-                subproject.tasks.matching { it.name == "package${variant}" }.configureEach { t ->
-                    t.doLast {
-                        def variantDir = variant.toLowerCase()
-                        def fromApk = subproject.file("${subproject.projectDir}/build/outputs/apk/${variantDir}/app-${variantDir}.apk")
 
-                        def flutterDir = subproject.file("${rootDir}/build/app/outputs/flutter-apk")
-                        def backupDir = subproject.file("${rootDir}/build")
+            subproject.tasks.matching { it.name == "packageDebug" }.configureEach { t ->
+                t.doLast {
+                    def fromApk = subproject.file(
+                        "${subproject.projectDir}/build/outputs/apk/debug/app-debug.apk"
+                    )
 
-                        println("FROM APK (${variant}): ${fromApk}")
-                        println("TO Flutter DIR: ${flutterDir}")
-                        println("TO Backup DIR : ${backupDir}")
+                    // 🔵 핵심: Flutter가 인식하는 위치 (프로젝트 루트/build)
+                    def flutterDir = new File(
+                        rootProject.projectDir,
+                        "build/app/outputs/flutter-apk"
+                    )
 
-                        if (fromApk.exists()) {
-                            flutterDir.mkdirs()
-                            subproject.copy {
-                                from fromApk
-                                into flutterDir
-                            }
-                            backupDir.mkdirs()
-                            subproject.copy {
-                                from fromApk
-                                into backupDir
-                            }
-                            println("✔ APK copied successfully.")
-                        } else {
-                            println("✘ APK NOT FOUND at: ${fromApk}")
+                    flutterDir.mkdirs()
+
+                    if (fromApk.exists()) {
+                        println("✔ Copying APK to Flutter directory: ${flutterDir}")
+                        subproject.copy {
+                            from fromApk
+                            into flutterDir
                         }
+                    } else {
+                        println("✘ APK NOT FOUND at: ${fromApk}")
                     }
                 }
             }

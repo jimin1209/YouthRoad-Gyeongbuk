@@ -144,7 +144,11 @@ class PolicyReminderService {
     }
 
     for (final kind in uniqueKinds) {
-      final schedule = scheduler.buildSchedule(policy, option: kind);
+      final schedule = scheduler.buildSchedule(
+        policy,
+        option: kind,
+        now: _now(),
+      );
       if (schedule == null) {
         final failure = ScheduleFailure(
           type: ScheduleFailureType.invalidDate,
@@ -391,6 +395,7 @@ class PolicyReminderService {
       rescheduledCount++;
       if (wasMissing) {
         restoredMissingReminders++;
+        hasUpdated = true;
       }
 
       if (!reminder.isActive ||

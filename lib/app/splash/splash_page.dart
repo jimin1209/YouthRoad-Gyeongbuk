@@ -14,22 +14,21 @@ class SplashPage extends ConsumerStatefulWidget {
 }
 
 class _SplashPageState extends ConsumerState<SplashPage> {
+  Timer? _redirectTimer;
+
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      if (mounted) {
-        unawaited(_goHome());
-      }
+    _redirectTimer = Timer(const Duration(milliseconds: 150), () {
+      if (!mounted) return;
+      context.go(RoutePaths.home);
     });
   }
 
-  Future<void> _goHome() async {
-    if (!mounted) return;
-    await Future.delayed(const Duration(milliseconds: 150));
-    if (mounted) {
-      context.go(RoutePaths.home);
-    }
+  @override
+  void dispose() {
+    _redirectTimer?.cancel();
+    super.dispose();
   }
 
   @override

@@ -12,6 +12,7 @@ void main() {
         child: App(),
       ),
     );
+    await tester.pump();
 
     expect(find.byType(Directionality), findsWidgets);
   });
@@ -22,6 +23,7 @@ void main() {
         child: App(),
       ),
     );
+    await tester.pump();
 
     final materialAppFinder = find.byType(MaterialApp);
     expect(materialAppFinder, findsOneWidget);
@@ -38,6 +40,7 @@ void main() {
         child: App(),
       ),
     );
+    await tester.pump();
 
     final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
     final router = materialApp.routerConfig as GoRouter;

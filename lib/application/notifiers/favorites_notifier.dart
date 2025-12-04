@@ -50,6 +50,6 @@ class FavoritesNotifier extends Notifier<Set<String>> {
   void _persist(Set<String> ids) {
     final prefs = _prefs ?? ref.read(sharedPreferencesProvider);
     _prefs = prefs;
-    prefs.setStringList(_key, ids.toList());
+    prefs!.setStringList(_key, ids.toList());
   }
 }

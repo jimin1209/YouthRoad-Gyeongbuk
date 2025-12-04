@@ -16,7 +16,7 @@ void main() {
     });
 
     test('builds id for custom time using UTC normalization', () {
-      final customTime = DateTime(2024, 12, 31, 23, 45).toUtc();
+      final customTime = DateTime.utc(2024, 12, 31, 23, 45);
       final id = ReminderIdUtil.buildReminderId(
         'policy-2',
         ReminderTimeKind.dayOf,

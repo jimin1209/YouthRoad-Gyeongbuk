@@ -53,7 +53,6 @@ class RegionSelectScreen extends ConsumerWidget {
             onTap: () {
               ref.read(regionProvider.notifier).select(region);
               ref.invalidate(policyListNotifierProvider);
-              ref.invalidate(policyPagingProvider);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('$region 지역이 저장되었습니다.')),
               );

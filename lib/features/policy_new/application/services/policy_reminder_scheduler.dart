@@ -7,22 +7,25 @@ import '../../domain/utils/reminder_time_util.dart';
 class PolicyReminderScheduler {
   const PolicyReminderScheduler({
     this.config = const PolicyReminderConfig(),
-  });
+    DateTime Function()? now,
+  }) : _nowGetter = now ?? DateTime.now;
 
   final PolicyReminderConfig config;
+  final DateTime Function() _nowGetter;
 
   PolicyReminderScheduleResult? buildSchedule(
     Policy policy, {
     ReminderTimeKind option = ReminderTimeKind.day1,
+    DateTime? now,
   }) {
     final baseDate = policy.applicationEndDate ?? policy.applicationStartDate;
     if (baseDate == null) {
       return null;
     }
 
-    final now = ReminderTimeUtil.toUtc(DateTime.now());
+    final current = ReminderTimeUtil.toUtc(now ?? _nowGetter());
     final scheduledAt = ReminderTimeUtil.toUtc(baseDate).subtract(option.offset);
-    final status = scheduledAt.isBefore(now)
+    final status = scheduledAt.isBefore(current)
         ? PolicyReminderStatus.expired
         : PolicyReminderStatus.scheduled;
 
