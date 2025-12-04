@@ -58,17 +58,17 @@ class NotificationCenterState {
     );
   }
 
-  static NotificationCenterState initial() => const NotificationCenterState(
-        upcoming: [],
-        past: [],
-        status: NotificationCenterStatus.loading,
-      );
+  static const NotificationCenterState initial = NotificationCenterState(
+    upcoming: const [],
+    past: const [],
+    status: NotificationCenterStatus.loading,
+  );
 }
 
 class NotificationCenterController
     extends StateNotifier<AsyncValue<NotificationCenterState>> {
   NotificationCenterController({required this.ref})
-      : super(const AsyncData(NotificationCenterState.initial())) {
+      : super(const AsyncData(NotificationCenterState.initial)) {
     load();
   }
 
@@ -80,7 +80,7 @@ class NotificationCenterController
   PolicyReminderService get _service => ref.read(policyReminderServiceProvider);
 
   Future<void> load() async {
-    final previous = state.value ?? NotificationCenterState.initial();
+    final previous = state.value ?? NotificationCenterState.initial;
     state = AsyncData(
       previous.copyWith(
         status: NotificationCenterStatus.loading,
@@ -134,7 +134,7 @@ class NotificationCenterController
   }
 
   Future<void> cancelReminder(String reminderId) async {
-    final previous = state.value ?? NotificationCenterState.initial();
+    final previous = state.value ?? NotificationCenterState.initial;
     final optimisticState = _removeReminder(previous, reminderId).copyWith(
       status: NotificationCenterStatus.optimisticMutating,
       lastAction: NotificationCenterActionType.cancel,
@@ -172,7 +172,7 @@ class NotificationCenterController
   Future<void> scheduleReminders(
     Future<List<PolicyReminder>> Function() schedule,
   ) async {
-    final previous = state.value ?? NotificationCenterState.initial();
+    final previous = state.value ?? NotificationCenterState.initial;
     state = AsyncData(
       previous.copyWith(
         status: NotificationCenterStatus.optimisticMutating,
@@ -219,7 +219,7 @@ class NotificationCenterController
   }
 
   Future<void> deleteReminder(String reminderId) async {
-    final previous = state.value ?? NotificationCenterState.initial();
+    final previous = state.value ?? NotificationCenterState.initial;
     final optimisticState = _removeReminder(previous, reminderId).copyWith(
       status: NotificationCenterStatus.optimisticMutating,
       lastAction: NotificationCenterActionType.delete,
@@ -296,7 +296,7 @@ class NotificationCenterController
         try {
           await action();
         } catch (e, _) {
-          final current = state.value ?? NotificationCenterState.initial();
+          final current = state.value ?? NotificationCenterState.initial;
           state = AsyncData(
             current.copyWith(
               status: NotificationCenterStatus.failure,
