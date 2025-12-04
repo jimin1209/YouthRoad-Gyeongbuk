@@ -83,6 +83,7 @@ class PolicyReminderService {
         updatedAt: now,
         timeKind: kind,
         status: schedule.status,
+        isActive: schedule.status == PolicyReminderStatus.scheduled,
         policyTitleSnapshot: policy.title,
       );
 
@@ -119,9 +120,19 @@ class PolicyReminderService {
 
   Future<void> cancelReminder(String reminderId) async {
     final reminder = await repository.getReminder(reminderId);
-    if (reminder == null) return;
+    if (reminder == null || reminder.status == PolicyReminderStatus.canceled) {
+      return;
+    }
 
-    await repository.deleteReminderById(reminder.reminderId);
+    final now = DateTime.now().toUtc();
+    final canceledReminder = reminder.copyWith(
+      status: PolicyReminderStatus.canceled,
+      isActive: false,
+      canceledAt: now,
+      updatedAt: now,
+    );
+
+    await repository.upsertReminder(canceledReminder);
     final result = await notificationGateway.cancelReminder(reminder.reminderId);
     if (!result.success) {
       logger.warn(
@@ -142,6 +153,7 @@ class PolicyReminderService {
         'Failed to cancel all reminders for $policyId: ${bulkResult.failure?.message}',
       );
     }
+    final now = DateTime.now().toUtc();
     for (final reminder in reminders) {
       final result = await notificationGateway.cancelReminder(reminder.reminderId);
       if (!result.success) {
@@ -149,8 +161,15 @@ class PolicyReminderService {
           'Failed to cancel reminder ${reminder.reminderId}: ${result.failure?.message}',
         );
       }
+
+      final canceledReminder = reminder.copyWith(
+        status: PolicyReminderStatus.canceled,
+        isActive: false,
+        canceledAt: now,
+        updatedAt: now,
+      );
+      await repository.upsertReminder(canceledReminder);
     }
-    await repository.deleteRemindersByPolicy(policyId);
     if (reminders.isNotEmpty) {
       eventBus.emit(PolicyEvent(
         PolicyEventType.reminderChanged,
@@ -169,6 +188,7 @@ class PolicyReminderService {
           reminder.scheduledAt.isBefore(now)) {
         final expiredReminder = reminder.copyWith(
           status: PolicyReminderStatus.expired,
+          isActive: false,
           updatedAt: now,
         );
         await repository.upsertReminder(expiredReminder);

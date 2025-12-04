@@ -45,14 +45,24 @@ const PolicyReminderIsarModelSchema = CollectionSchema(
       name: r'status',
       type: IsarType.string,
     ),
-    r'timeKind': PropertySchema(
+    r'optionCode': PropertySchema(
       id: 6,
-      name: r'timeKind',
+      name: r'optionCode',
       type: IsarType.string,
     ),
     r'updatedAtUtc': PropertySchema(
       id: 7,
       name: r'updatedAtUtc',
+      type: IsarType.dateTime,
+    ),
+    r'isActive': PropertySchema(
+      id: 8,
+      name: r'isActive',
+      type: IsarType.bool,
+    ),
+    r'canceledAtUtc': PropertySchema(
+      id: 9,
+      name: r'canceledAtUtc',
       type: IsarType.dateTime,
     ),
   },
@@ -106,7 +116,8 @@ int _policyReminderIsarModelEstimateSize(
   bytesCount += 3 + object.policyId.length * 3;
   bytesCount += 3 + object.reminderId.length * 3;
   bytesCount += 3 + object.status.length * 3;
-  bytesCount += 3 + object.timeKind.length * 3;
+  bytesCount += 3 + object.optionCode.length * 3;
+  bytesCount += 1; // isActive
   final title = object.policyTitleSnapshot;
   if (title != null) {
     bytesCount += 3 + title.length * 3;
@@ -126,8 +137,10 @@ void _policyReminderIsarModelSerialize(
   writer.writeString(offsets[3], object.reminderId);
   writer.writeDateTime(offsets[4], object.scheduledAtUtc);
   writer.writeString(offsets[5], object.status);
-  writer.writeString(offsets[6], object.timeKind);
+  writer.writeString(offsets[6], object.optionCode);
   writer.writeDateTime(offsets[7], object.updatedAtUtc);
+  writer.writeBool(offsets[8], object.isActive);
+  writer.writeDateTime(offsets[9], object.canceledAtUtc);
 }
 
 PolicyReminderIsarModel _policyReminderIsarModelDeserialize(
@@ -140,11 +153,13 @@ PolicyReminderIsarModel _policyReminderIsarModelDeserialize(
     isarId: id,
     reminderId: reader.readString(offsets[3]) ?? '',
     policyId: reader.readString(offsets[1]) ?? '',
-    timeKind: reader.readString(offsets[6]) ?? '',
+    optionCode: reader.readString(offsets[6]) ?? '',
     status: reader.readString(offsets[5]) ?? '',
     scheduledAtUtc: reader.readDateTime(offsets[4]),
     createdAtUtc: reader.readDateTime(offsets[0]),
     updatedAtUtc: reader.readDateTime(offsets[7]),
+    isActive: reader.readBoolOrNull(offsets[8]) ?? true,
+    canceledAtUtc: reader.readDateTimeOrNull(offsets[9]),
     policyTitleSnapshot: reader.readStringOrNull(offsets[2]),
   );
   return object;
@@ -173,6 +188,10 @@ P _policyReminderIsarModelDeserializeProp<P>(
       return (reader.readString(offset) ?? '') as P;
     case 7:
       return (reader.readDateTime(offset)) as P;
+    case 8:
+      return (reader.readBoolOrNull(offset) ?? true) as P;
+    case 9:
+      return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }

@@ -63,6 +63,7 @@ class LegacyReminderPrefsAdapter {
       updatedAt: ReminderTimeUtil.toUtc(DateTime.parse(map['updatedAt'] as String)),
       timeKind: timeKind,
       status: status,
+      isActive: status == PolicyReminderStatus.scheduled,
     );
   }
 }
@@ -124,7 +125,10 @@ class IsarPolicyReminderLocalDataSource
   Future<List<PolicyReminder>> getRemindersForPolicy(String policyId) async {
     await _ensureMigrated();
     final models = await _isarService.getRemindersForPolicy(policyId);
-    return models.map(_toDomain).toList()
+    return models
+        .map(_toDomain)
+        .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
+        .toList()
       ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
   }
 
@@ -132,14 +136,17 @@ class IsarPolicyReminderLocalDataSource
   Future<List<PolicyReminder>> getAllReminders() async {
     await _ensureMigrated();
     final models = await _isarService.getAllReminders();
-    final reminders = models.map(_toDomain).toList();
+    final reminders = models
+        .map(_toDomain)
+        .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
+        .toList();
     reminders.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
     return reminders;
   }
 
   PolicyReminder _toDomain(PolicyReminderIsarModel model) {
     final timeKind = ReminderTimeKind.values.firstWhere(
-      (value) => value.name == model.timeKind,
+      (value) => value.name == model.optionCode,
       orElse: () => ReminderTimeKind.day1,
     );
     final status = PolicyReminderStatus.values.firstWhere(
@@ -155,6 +162,10 @@ class IsarPolicyReminderLocalDataSource
       updatedAt: ReminderTimeUtil.toUtc(model.updatedAtUtc),
       timeKind: timeKind,
       status: status,
+      isActive: model.isActive,
+      canceledAt: model.canceledAtUtc != null
+          ? ReminderTimeUtil.toUtc(model.canceledAtUtc!)
+          : null,
       policyTitleSnapshot: model.policyTitleSnapshot,
     );
   }
@@ -163,11 +174,15 @@ class IsarPolicyReminderLocalDataSource
     return PolicyReminderIsarModel(
       reminderId: reminder.reminderId,
       policyId: reminder.policyId,
-      timeKind: reminder.timeKind.name,
+      optionCode: reminder.timeKind.name,
       status: reminder.status.name,
+      isActive: reminder.isActive,
       scheduledAtUtc: ReminderTimeUtil.toUtc(reminder.scheduledAt),
       createdAtUtc: ReminderTimeUtil.toUtc(reminder.createdAt),
       updatedAtUtc: ReminderTimeUtil.toUtc(reminder.updatedAt),
+      canceledAtUtc: reminder.canceledAt == null
+          ? null
+          : ReminderTimeUtil.toUtc(reminder.canceledAt!),
       policyTitleSnapshot: reminder.policyTitleSnapshot,
     );
   }
