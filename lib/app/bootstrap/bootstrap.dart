@@ -30,6 +30,7 @@ Future<void> bootstrap({
     );
   };
   final prefs = await _initSharedPreferences();
+  initializeSharedPreferences(prefs);
 
   final observers = <ProviderObserver>[];
   if (kDebugMode) {
