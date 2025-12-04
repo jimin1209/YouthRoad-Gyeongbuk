@@ -10,10 +10,14 @@ import 'package:youth_road_app/data/models/policy_filter.dart';
 import 'package:youth_road_app/data/sources/local/search_history_source.dart';
 import 'package:youth_road_app/legacy/policy/domain/policy/entities/policy_feed_type.dart';
 import 'package:youth_road_app/navigation/route_paths.dart';
+import 'package:youth_road_app/domain/entities/policy.dart';
+import 'package:youth_road_app/ui/components/policy_card.dart';
+import 'package:youth_road_app/ui/components/policy_empty_state.dart';
+import 'package:youth_road_app/ui/components/policy_skeleton_card.dart';
+import 'package:youth_road_app/ui/components/policy_tag.dart';
 import 'package:youth_road_app/ui/widgets/app_appbar.dart';
 import 'package:youth_road_app/ui/widgets/compare_badge.dart';
 import 'package:youth_road_app/ui/widgets/global_error_view.dart';
-import 'package:youth_road_app/ui/widgets/policy_card_v2.dart';
 
 class PolicyListV2Screen extends ConsumerStatefulWidget {
   const PolicyListV2Screen({super.key});
@@ -99,17 +103,6 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     ).normalize();
   }
 
-  PolicyFilter _buildRecommendationFilter() {
-    final region = ref.read(regionProvider);
-    return PolicyFilter(
-      searchRgnSe: region,
-      availableOnly: true,
-      pageIndex: 1,
-      recordCount: 10,
-      pagingYn: 'Y',
-    ).normalize();
-  }
-
   void _applyFilter() {
     ref.read(searchV2ControllerProvider.notifier).applyFilter(_buildFilter());
   }
@@ -150,10 +143,20 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
           child: ListView(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            children: const [
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 32),
-                child: Center(child: Text('표시할 정책이 없습니다.')),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            children: [
+              PolicyEmptyState(
+                message: '조건에 맞는 정책이 없습니다',
+                buttonText: '조건 초기화하기',
+                onButtonTap: () {
+                  setState(() {
+                    _controller.clear();
+                    _selectedCategory = null;
+                    _selectedYear = null;
+                    _availableOnly = false;
+                  });
+                  _applyFilterDebounced();
+                },
               ),
             ],
           ),
@@ -164,6 +167,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
         onRefresh: () => ref.read(searchV2ControllerProvider.notifier).retry(),
         child: ListView.separated(
           controller: _scrollController,
+          padding: const EdgeInsets.all(16),
           itemBuilder: (_, i) {
             if (i >= pagingState.items.length) {
               if (!pagingState.hasMore) {
@@ -178,12 +182,21 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
               );
             }
             final policy = pagingState.items[i];
-            return PolicyCardV2(
-              policy: policy,
+            return PolicyCard(
+              title: policy.policyNm,
+              summary: _buildSummary(policy),
+              tags: _buildTags(policy),
+              period: _formatPeriod(
+                    policy.policyBgngYmd,
+                    policy.policyEndYmd,
+                    policy.applyStart,
+                    policy.applyEnd,
+                  ) ??
+                  '기간 정보 없음',
               onTap: () => context.push(RoutePaths.policyDetail(policy.id)),
             );
           },
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          separatorBuilder: (_, __) => const SizedBox(height: 16),
           itemCount:
               pagingState.items.length + (pagingState.isLoadingMore || pagingState.hasMore ? 1 : 0),
         ),
@@ -194,27 +207,22 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
       return history.when(
         data: (list) {
           if (list.isEmpty) return const SizedBox.shrink();
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              children: list
-                  .map(
-                    (e) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ActionChip(
-                        label: Text(e.query),
-                        onPressed: () {
-                          _controller.text = e.query;
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            _applyFilterDebounced();
-                          });
-                        },
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: list
+                .map(
+                  (e) => GestureDetector(
+                    onTap: () {
+                      _controller.text = e.query;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _applyFilterDebounced();
+                      });
+                    },
+                    child: PolicyTag(label: e.query),
+                  ),
+                )
+                .toList(),
           );
         },
         loading: () => const SizedBox.shrink(),
@@ -226,27 +234,22 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
       return popularKeywords.when(
         data: (keywords) {
           if (keywords.isEmpty) return const SizedBox.shrink();
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              children: keywords
-                  .map(
-                    (keyword) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ActionChip(
-                        label: Text(keyword),
-                        onPressed: () {
-                          _controller.text = keyword;
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            _applyFilterDebounced();
-                          });
-                        },
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: keywords
+                .map(
+                  (keyword) => GestureDetector(
+                    onTap: () {
+                      _controller.text = keyword;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _applyFilterDebounced();
+                      });
+                    },
+                    child: PolicyTag(label: keyword),
+                  ),
+                )
+                .toList(),
           );
         },
         loading: () => const SizedBox.shrink(),
@@ -285,7 +288,7 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
       }
 
       return SizedBox(
-        height: 240,
+        height: 280,
         child: ListView.separated(
           controller: _recommendedScrollController,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -306,8 +309,17 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
             final policy = recommendedState.items[index];
             return SizedBox(
               width: 320,
-              child: PolicyCardV2(
-                policy: policy,
+              child: PolicyCard(
+                title: policy.policyNm,
+                summary: _buildSummary(policy),
+                tags: _buildTags(policy),
+                period: _formatPeriod(
+                      policy.policyBgngYmd,
+                      policy.policyEndYmd,
+                      policy.applyStart,
+                      policy.applyEnd,
+                    ) ??
+                    '기간 정보 없음',
                 onTap: () => context.push(RoutePaths.policyDetail(policy.id)),
               ),
             );
@@ -498,6 +510,51 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
       ),
     );
   }
+
+  String _buildSummary(Policy policy) {
+    final candidates = [policy.policyScl, policy.policyCn, policy.policyEnq];
+    for (final value in candidates) {
+      if (value == null) continue;
+      final trimmed = value.trim();
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+    return '지원 내용이 제공되지 않았습니다.';
+  }
+
+  List<String> _buildTags(Policy policy) {
+    final tags = <String>[...policy.tags];
+    final type = policy.policyTypeNm?.trim();
+    final region = policy.rgnSeNm?.trim();
+
+    if (type != null && type.isNotEmpty) {
+      tags.add(type);
+    }
+    if (region != null && region.isNotEmpty) {
+      tags.add(region);
+    }
+
+    return tags.where((tag) => tag.trim().isNotEmpty).toSet().toList();
+  }
+
+  String? _formatPeriod(
+    DateTime? start,
+    DateTime? end,
+    DateTime? applyStart,
+    DateTime? applyEnd,
+  ) {
+    final startText = _formatDate(applyStart ?? start);
+    final endText = _formatDate(applyEnd ?? end);
+
+    if (startText == null && endText == null) return null;
+    if (startText != null && endText != null) return '$startText ~ $endText';
+    if (startText != null) return '$startText 시작';
+    return '~ $endText';
+  }
+
+  String? _formatDate(DateTime? date) {
+    if (date == null) return null;
+    return date.toIso8601String().split('T').first;
+  }
 }
 
 class _InitialLoadingList extends StatelessWidget {
@@ -507,46 +564,9 @@ class _InitialLoadingList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemBuilder: (_, __) => const _PolicyPlaceholderCard(),
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, __) => const PolicySkeletonCard(),
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
       itemCount: 6,
-    );
-  }
-}
-
-class _PolicyPlaceholderCard extends StatelessWidget {
-  const _PolicyPlaceholderCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 16,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 12,
-            width: 180,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
