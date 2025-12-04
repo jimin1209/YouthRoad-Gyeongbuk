@@ -11,7 +11,7 @@ const _maxNetworkCount = 200;
 const _maxWebViewCount = 200;
 const Object _sentinel = Object();
 
-enum DevLogSource { app, network, webView }
+enum DevLogSource { app, provider, network, webView }
 
 class DevLogEntry {
   DevLogEntry({
@@ -313,17 +313,6 @@ class DevtoolsNotifier extends StateNotifier<DevtoolsState>
       networkEvents: trimmed,
       selectedNetworkEvent: selectedNetworkEvent,
     );
-
-    addLog(
-      event.isError ? AppLogLevel.error : AppLogLevel.info,
-      '[NETWORK] ${event.method} ${event.path}',
-      source: DevLogSource.network,
-      extra: {
-        'statusCode': event.statusCode,
-        'durationMs': event.duration?.inMilliseconds,
-        if (event.error != null) 'error': event.error.toString(),
-      },
-    );
   }
 
   @override
@@ -337,18 +326,6 @@ class DevtoolsNotifier extends StateNotifier<DevtoolsState>
     state = state.copyWith(
       webViewEvents: trimmed,
       selectedWebViewEvent: selectedWebViewEvent,
-    );
-
-    addLog(
-      entry.level.toLowerCase().contains('error')
-          ? AppLogLevel.error
-          : AppLogLevel.debug,
-      '[WEBVIEW] ${entry.message}',
-      source: DevLogSource.webView,
-      extra: {
-        if (entry.source != null) 'source': entry.source,
-        'level': entry.level,
-      },
     );
   }
 
