@@ -95,8 +95,13 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     if (state.isProcessing) return;
     _setProcessing(true);
     _setError(null);
-    await ref.read(policyFavoriteServiceProvider).toggleFavorite(policy);
-    _setProcessing(false);
+    try {
+      await ref.read(policyFavoriteServiceProvider).toggleFavorite(policy);
+    } catch (e) {
+      _setError('즐겨찾기 처리에 실패했습니다: $e');
+    } finally {
+      _setProcessing(false);
+    }
   }
 
   Future<void> toggleCompare(Policy policy) async {
@@ -112,8 +117,13 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
       return;
     }
 
-    ref.read(compareRepositoryProvider.notifier).toggleCompare(policy);
-    _setProcessing(false);
+    try {
+      ref.read(compareRepositoryProvider.notifier).toggleCompare(policy);
+    } catch (e) {
+      _setError('비교 목록을 갱신하지 못했습니다: $e');
+    } finally {
+      _setProcessing(false);
+    }
   }
 
   Future<void> setReminderOptions(

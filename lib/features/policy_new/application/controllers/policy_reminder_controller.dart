@@ -55,13 +55,26 @@ class PolicyReminderController
   PolicyReminderService get _service => ref.read(policyReminderServiceProvider);
 
   Future<void> initialize() async {
-    final syncReport = await _service.syncScheduledReminders();
-    await load();
-    final syncMessages = _messagesForSyncReport(syncReport);
-    if (syncMessages.isNotEmpty) {
-      state = state.whenData(
-        (viewState) => viewState.copyWith(messages: syncMessages),
+    final previous = state.value ?? PolicyReminderViewState.initial();
+    try {
+      final syncReport = await _service.syncScheduledReminders();
+      await load();
+      final syncMessages = _messagesForSyncReport(syncReport);
+      if (syncMessages.isNotEmpty) {
+        state = state.whenData(
+          (viewState) => viewState.copyWith(messages: syncMessages),
+        );
+      }
+    } catch (e, st) {
+      state = AsyncData(
+        previous.copyWith(
+          isRefreshing: false,
+          isMutating: false,
+          messages: ['알림 정보를 불러오지 못했습니다: $e'],
+        ),
       );
+      // ignore: avoid_print
+      print('PolicyReminderController.initialize failed: $e\n$st');
     }
   }
 
@@ -122,7 +135,16 @@ class PolicyReminderController
       );
       return result;
     } catch (e, st) {
-      state = AsyncError(e, st);
+      await load();
+      final reloaded = state.value ?? previous;
+      state = AsyncData(
+        reloaded.copyWith(
+          isMutating: false,
+          messages: ['알림을 설정하지 못했습니다. 다시 시도해 주세요.'],
+        ),
+      );
+      // ignore: avoid_print
+      print('PolicyReminderController.setReminders failed: $e\n$st');
       rethrow;
     }
   }
@@ -145,7 +167,14 @@ class PolicyReminderController
         ),
       );
     } catch (e, st) {
-      state = AsyncError(e, st);
+      state = AsyncData(
+        previous.copyWith(
+          isMutating: false,
+          messages: ['알림을 취소하지 못했습니다. 다시 시도해 주세요.'],
+        ),
+      );
+      // ignore: avoid_print
+      print('PolicyReminderController.removeReminder failed: $e\n$st');
     }
   }
 
@@ -162,7 +191,14 @@ class PolicyReminderController
         ),
       );
     } catch (e, st) {
-      state = AsyncError(e, st);
+      state = AsyncData(
+        previous.copyWith(
+          isMutating: false,
+          messages: ['모든 알림을 취소하지 못했습니다. 다시 시도해 주세요.'],
+        ),
+      );
+      // ignore: avoid_print
+      print('PolicyReminderController.cancelAll failed: $e\n$st');
     }
   }
 
@@ -176,9 +212,17 @@ class PolicyReminderController
     return state.maybeWhen(
       data: (viewState) {
         if (viewState.reminders.isEmpty) return null;
-        final sorted = [...viewState.reminders]
+        final upcoming = viewState.reminders
+            .where((reminder) => reminder.status == PolicyReminderStatus.scheduled)
+            .toList()
           ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-        return sorted.first.status;
+        if (upcoming.isNotEmpty) {
+          return upcoming.first.status;
+        }
+
+        final sortedByDate = [...viewState.reminders]
+          ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+        return sortedByDate.first.status;
       },
       orElse: () => null,
     );

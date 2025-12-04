@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/controllers/policy_event_bus.dart';
@@ -49,7 +50,26 @@ class CompareFeedController extends StateNotifier<AsyncValue<CompareState>> {
     state = const AsyncValue.loading();
 
     try {
-      final policies = await Future.wait(ids.map(_fetchDetail));
+      final policies = <Policy>[];
+      final failures = <Object>[];
+
+      for (final id in ids) {
+        try {
+          final policy = await _fetchDetail(id);
+          policies.add(policy);
+        } catch (e, st) {
+          failures.add(e);
+          debugPrint('비교 피드 로드 실패 (id: $id): $e\n$st');
+        }
+      }
+
+      if (policies.isEmpty) {
+        final error =
+            failures.isNotEmpty ? failures.first : const UnknownFailure();
+        state = AsyncValue.error(error, StackTrace.current);
+        return;
+      }
+
       final diffs = diffService.calculateDiffs(policies);
       final profile = ref.read(userProfileProvider);
       final insights = diffService.buildInsights(policies, userProfile: profile);

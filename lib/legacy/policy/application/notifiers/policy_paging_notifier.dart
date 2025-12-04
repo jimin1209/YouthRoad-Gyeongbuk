@@ -54,18 +54,26 @@ class PolicyFeedsState {
   const PolicyFeedsState({
     required this.primary,
     required this.recommended,
+    required this.bookmarked,
+    required this.latest,
   });
 
   final PolicyPagingState primary;
   final PolicyPagingState recommended;
+  final PolicyPagingState bookmarked;
+  final PolicyPagingState latest;
 
   PolicyFeedsState copyWith({
     PolicyPagingState? primary,
     PolicyPagingState? recommended,
+    PolicyPagingState? bookmarked,
+    PolicyPagingState? latest,
   }) {
     return PolicyFeedsState(
       primary: primary ?? this.primary,
       recommended: recommended ?? this.recommended,
+      bookmarked: bookmarked ?? this.bookmarked,
+      latest: latest ?? this.latest,
     );
   }
 }
@@ -83,18 +91,22 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
 
   int _primaryRequestId = 0;
   int _recommendedRequestId = 0;
+  int _bookmarkedRequestId = 0;
+  int _latestRequestId = 0;
   String? _primaryInFlightKey;
   String? _recommendedInFlightKey;
+  String? _bookmarkedInFlightKey;
+  String? _latestInFlightKey;
 
   PolicyPagingState get _primary => state.primary;
   PolicyPagingState get _recommended => state.recommended;
+  PolicyPagingState get _bookmarked => state.bookmarked;
+  PolicyPagingState get _latest => state.latest;
 
   PolicyFilter get currentFilter => _primary.filter;
 
   PolicyFeedType _effectiveFeed(PolicyFeedType feed) {
-    return feed == PolicyFeedType.recommended
-        ? PolicyFeedType.recommended
-        : PolicyFeedType.primary;
+    return feed;
   }
 
   @override
@@ -103,6 +115,8 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
       _initialized = true;
       final primaryFilter = _defaultFilter();
       final recommendedFilter = _recommendationFilter(primaryFilter);
+      final bookmarkedFilter = _bookmarkFilter(primaryFilter);
+      final latestFilter = _latestFilter(primaryFilter);
       final initialState = PolicyFeedsState(
         primary: PolicyPagingState(
           items: const [],
@@ -116,6 +130,22 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
           items: const [],
           pageIndex: 1,
           filter: recommendedFilter,
+          isLoading: false,
+          isLoadingMore: false,
+          hasMore: true,
+        ),
+        bookmarked: PolicyPagingState(
+          items: const [],
+          pageIndex: 1,
+          filter: bookmarkedFilter,
+          isLoading: false,
+          isLoadingMore: false,
+          hasMore: true,
+        ),
+        latest: PolicyPagingState(
+          items: const [],
+          pageIndex: 1,
+          filter: latestFilter,
           isLoading: false,
           isLoadingMore: false,
           hasMore: true,
@@ -134,6 +164,8 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
           await Future.wait([
             loadInitial(PolicyFeedType.primary),
             loadInitial(PolicyFeedType.recommended),
+            loadInitial(PolicyFeedType.bookmarked),
+            loadInitial(PolicyFeedType.latest),
           ]);
         });
       }
@@ -146,9 +178,11 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
     final normalizedFeed = _effectiveFeed(feed);
     switch (normalizedFeed) {
       case PolicyFeedType.primary:
-      case PolicyFeedType.bookmarked:
-      case PolicyFeedType.latest:
         return _loadInitialPrimary(filter ?? _defaultFilter());
+      case PolicyFeedType.bookmarked:
+        return _loadInitialBookmarked(filter ?? _bookmarkFilter(_primary.filter));
+      case PolicyFeedType.latest:
+        return _loadInitialLatest(filter ?? _latestFilter(_primary.filter));
       case PolicyFeedType.recommended:
         return _loadInitialRecommended(filter ?? _recommendationFilter(_primary.filter));
     }
@@ -181,6 +215,64 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
       filter: normalized,
     );
     _primaryInFlightKey = null;
+  }
+
+  Future<void> _loadInitialBookmarked(PolicyFilter filter) async {
+    final normalized = _normalizeBookmarkedFilter(filter);
+    final requestKey = _buildRequestKey(normalized, PolicyFeedType.bookmarked);
+    if (_bookmarked.isLoading && requestKey == _bookmarkedInFlightKey) {
+      return;
+    }
+    _bookmarkedInFlightKey = requestKey;
+
+    state = state.copyWith(
+      bookmarked: _bookmarked.copyWith(
+        pageIndex: 1,
+        filter: normalized,
+        isLoading: true,
+        isLoadingMore: false,
+        hasMore: true,
+        error: null,
+      ),
+    );
+
+    await _loadFromCache(normalized, PolicyFeedType.bookmarked);
+    await _fetch(
+      feed: PolicyFeedType.bookmarked,
+      pageIndex: 1,
+      append: false,
+      filter: normalized,
+    );
+    _bookmarkedInFlightKey = null;
+  }
+
+  Future<void> _loadInitialLatest(PolicyFilter filter) async {
+    final normalized = _normalizeLatestFilter(filter);
+    final requestKey = _buildRequestKey(normalized, PolicyFeedType.latest);
+    if (_latest.isLoading && requestKey == _latestInFlightKey) {
+      return;
+    }
+    _latestInFlightKey = requestKey;
+
+    state = state.copyWith(
+      latest: _latest.copyWith(
+        pageIndex: 1,
+        filter: normalized,
+        isLoading: true,
+        isLoadingMore: false,
+        hasMore: true,
+        error: null,
+      ),
+    );
+
+    await _loadFromCache(normalized, PolicyFeedType.latest);
+    await _fetch(
+      feed: PolicyFeedType.latest,
+      pageIndex: 1,
+      append: false,
+      filter: normalized,
+    );
+    _latestInFlightKey = null;
   }
 
   Future<void> _loadInitialRecommended(PolicyFilter filter) async {
@@ -216,8 +308,6 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
     final normalizedFeed = _effectiveFeed(feed);
     switch (normalizedFeed) {
       case PolicyFeedType.primary:
-      case PolicyFeedType.bookmarked:
-      case PolicyFeedType.latest:
         if (_primary.isLoadingMore || _primary.isLoading || !_primary.hasMore) {
           return;
         }
@@ -227,6 +317,32 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
           pageIndex: nextPage,
           append: true,
           filter: _primary.filter,
+        );
+        break;
+      case PolicyFeedType.bookmarked:
+        if (_bookmarked.isLoadingMore ||
+            _bookmarked.isLoading ||
+            !_bookmarked.hasMore) {
+          return;
+        }
+        final nextPage = _bookmarked.pageIndex + 1;
+        await _fetch(
+          feed: PolicyFeedType.bookmarked,
+          pageIndex: nextPage,
+          append: true,
+          filter: _bookmarked.filter,
+        );
+        break;
+      case PolicyFeedType.latest:
+        if (_latest.isLoadingMore || _latest.isLoading || !_latest.hasMore) {
+          return;
+        }
+        final nextPage = _latest.pageIndex + 1;
+        await _fetch(
+          feed: PolicyFeedType.latest,
+          pageIndex: nextPage,
+          append: true,
+          filter: _latest.filter,
         );
         break;
       case PolicyFeedType.recommended:
@@ -304,14 +420,34 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
     final limited = policies.take(_pageSize).toList();
     switch (normalizedFeed) {
       case PolicyFeedType.primary:
-      case PolicyFeedType.bookmarked:
-      case PolicyFeedType.latest:
         state = state.copyWith(
           primary: _primary.copyWith(
             items: limited,
             pageIndex: 1,
             hasMore: policies.length >= _pageSize,
             isLoading: _primary.isLoading,
+            error: null,
+          ),
+        );
+        break;
+      case PolicyFeedType.bookmarked:
+        state = state.copyWith(
+          bookmarked: _bookmarked.copyWith(
+            items: limited,
+            pageIndex: 1,
+            hasMore: policies.length >= _pageSize,
+            isLoading: _bookmarked.isLoading,
+            error: null,
+          ),
+        );
+        break;
+      case PolicyFeedType.latest:
+        state = state.copyWith(
+          latest: _latest.copyWith(
+            items: limited,
+            pageIndex: 1,
+            hasMore: policies.length >= _pageSize,
+            isLoading: _latest.isLoading,
             error: null,
           ),
         );
@@ -337,9 +473,18 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
     required PolicyFilter filter,
   }) async {
     final normalizedFeed = _effectiveFeed(feed);
-    final requestId = normalizedFeed == PolicyFeedType.primary
-        ? ++_primaryRequestId
-        : ++_recommendedRequestId;
+    final requestId = () {
+      switch (normalizedFeed) {
+        case PolicyFeedType.primary:
+          return ++_primaryRequestId;
+        case PolicyFeedType.recommended:
+          return ++_recommendedRequestId;
+        case PolicyFeedType.bookmarked:
+          return ++_bookmarkedRequestId;
+        case PolicyFeedType.latest:
+          return ++_latestRequestId;
+      }
+    }();
 
     state = state.copyWith(
       primary: normalizedFeed == PolicyFeedType.primary
@@ -349,6 +494,20 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
               error: null,
             )
           : _primary,
+      bookmarked: normalizedFeed == PolicyFeedType.bookmarked
+          ? _bookmarked.copyWith(
+              isLoading: !append,
+              isLoadingMore: append,
+              error: null,
+            )
+          : _bookmarked,
+      latest: normalizedFeed == PolicyFeedType.latest
+          ? _latest.copyWith(
+              isLoading: !append,
+              isLoadingMore: append,
+              error: null,
+            )
+          : _latest,
       recommended: normalizedFeed == PolicyFeedType.recommended
           ? _recommended.copyWith(
               isLoading: !append,
@@ -360,69 +519,126 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
 
     try {
       final policies = await _repo.refreshPolicies(
-        filter: filter.copyWith(
-          pageIndex: pageIndex,
-          recordCount: _pageSize,
-          pagingYn: 'Y',
-          availableOnly: normalizedFeed == PolicyFeedType.recommended
-              ? true
-              : filter.availableOnly,
+        filter: _applyFeedToFilter(
+          filter.copyWith(
+            pageIndex: pageIndex,
+            recordCount: _pageSize,
+            pagingYn: 'Y',
+          ),
+          normalizedFeed,
         ),
       );
 
       final mergedItems = append
-          ? [...(normalizedFeed == PolicyFeedType.primary ? _primary.items : _recommended.items), ...policies]
+          ? [
+              ..._itemsForFeed(normalizedFeed),
+              ...policies,
+            ]
           : policies;
       final hasMore = policies.length >= _pageSize;
 
-      if (normalizedFeed == PolicyFeedType.primary) {
-        if (requestId != _primaryRequestId) return;
-        state = state.copyWith(
-          primary: _primary.copyWith(
-            items: mergedItems,
-            pageIndex: pageIndex,
-            filter: filter.copyWith(pageIndex: pageIndex),
-            isLoading: false,
-            isLoadingMore: false,
-            hasMore: hasMore,
-            error: null,
-          ),
-        );
-      } else {
-        if (requestId != _recommendedRequestId) return;
-        state = state.copyWith(
-          recommended: _recommended.copyWith(
-            items: mergedItems,
-            pageIndex: pageIndex,
-            filter: filter.copyWith(pageIndex: pageIndex),
-            isLoading: false,
-            isLoadingMore: false,
-            hasMore: hasMore,
-            error: null,
-          ),
-        );
+      switch (normalizedFeed) {
+        case PolicyFeedType.primary:
+          if (requestId != _primaryRequestId) return;
+          state = state.copyWith(
+            primary: _primary.copyWith(
+              items: mergedItems,
+              pageIndex: pageIndex,
+              filter: filter.copyWith(pageIndex: pageIndex),
+              isLoading: false,
+              isLoadingMore: false,
+              hasMore: hasMore,
+              error: null,
+            ),
+          );
+          break;
+        case PolicyFeedType.bookmarked:
+          if (requestId != _bookmarkedRequestId) return;
+          state = state.copyWith(
+            bookmarked: _bookmarked.copyWith(
+              items: mergedItems,
+              pageIndex: pageIndex,
+              filter: filter.copyWith(pageIndex: pageIndex),
+              isLoading: false,
+              isLoadingMore: false,
+              hasMore: hasMore,
+              error: null,
+            ),
+          );
+          break;
+        case PolicyFeedType.latest:
+          if (requestId != _latestRequestId) return;
+          state = state.copyWith(
+            latest: _latest.copyWith(
+              items: mergedItems,
+              pageIndex: pageIndex,
+              filter: filter.copyWith(pageIndex: pageIndex),
+              isLoading: false,
+              isLoadingMore: false,
+              hasMore: hasMore,
+              error: null,
+            ),
+          );
+          break;
+        case PolicyFeedType.recommended:
+          if (requestId != _recommendedRequestId) return;
+          state = state.copyWith(
+            recommended: _recommended.copyWith(
+              items: mergedItems,
+              pageIndex: pageIndex,
+              filter: filter.copyWith(pageIndex: pageIndex),
+              isLoading: false,
+              isLoadingMore: false,
+              hasMore: hasMore,
+              error: null,
+            ),
+          );
+          break;
       }
     } catch (e, st) {
       debugPrint('Failed to load policies: $e');
       debugPrint('$st');
-      if (normalizedFeed == PolicyFeedType.primary) {
-        if (requestId != _primaryRequestId) return;
-        state = state.copyWith(
-          primary: _primary.copyWith(
-            isLoading: false,
-            isLoadingMore: false,
-            error: errorMessage,
-          ),
-        );
-      } else {
-        if (requestId != _recommendedRequestId) return;
-        state = state.copyWith(
-          recommended: _recommended.copyWith(
-            isLoading: false,
-            isLoadingMore: false,
-            error: recommendedErrorMessage,
-          ),
-        );
+      switch (normalizedFeed) {
+        case PolicyFeedType.primary:
+          if (requestId != _primaryRequestId) return;
+          state = state.copyWith(
+            primary: _primary.copyWith(
+              isLoading: false,
+              isLoadingMore: false,
+              error: errorMessage,
+            ),
+          );
+          break;
+        case PolicyFeedType.bookmarked:
+          if (requestId != _bookmarkedRequestId) return;
+          state = state.copyWith(
+            bookmarked: _bookmarked.copyWith(
+              isLoading: false,
+              isLoadingMore: false,
+              error: errorMessage,
+            ),
+          );
+          break;
+        case PolicyFeedType.latest:
+          if (requestId != _latestRequestId) return;
+          state = state.copyWith(
+            latest: _latest.copyWith(
+              isLoading: false,
+              isLoadingMore: false,
+              error: errorMessage,
+            ),
+          );
+          break;
+        case PolicyFeedType.recommended:
+          if (requestId != _recommendedRequestId) return;
+          state = state.copyWith(
+            recommended: _recommended.copyWith(
+              isLoading: false,
+              isLoadingMore: false,
+              error: recommendedErrorMessage,
+            ),
+          );
+          break;
       }
     }
   }
@@ -446,6 +662,30 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
       pageIndex: 1,
       recordCount: _pageSize,
       pagingYn: 'Y',
+    ).normalize();
+  }
+
+  PolicyFilter _bookmarkFilter(PolicyFilter base) {
+    final region = base.searchRgnSe ?? ref.read(regionProvider);
+    return PolicyFilter(
+      searchRgnSe: region,
+      availableOnly: true,
+      pageIndex: 1,
+      recordCount: _pageSize,
+      pagingYn: 'Y',
+      searchDsplyYn: 'favorite',
+    ).normalize();
+  }
+
+  PolicyFilter _latestFilter(PolicyFilter base) {
+    final region = base.searchRgnSe ?? ref.read(regionProvider);
+    return PolicyFilter(
+      searchRgnSe: region,
+      availableOnly: true,
+      pageIndex: 1,
+      recordCount: _pageSize,
+      pagingYn: 'Y',
+      searchDsplyYn: 'latest',
     ).normalize();
   }
 
@@ -477,6 +717,34 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
         .normalize();
   }
 
+  PolicyFilter _normalizeBookmarkedFilter(PolicyFilter filter) {
+    final region = filter.searchRgnSe ?? ref.read(regionProvider);
+    return filter
+        .copyWith(
+          searchRgnSe: region,
+          availableOnly: true,
+          pageIndex: 1,
+          recordCount: _pageSize,
+          pagingYn: 'Y',
+          searchDsplyYn: filter.searchDsplyYn ?? 'favorite',
+        )
+        .normalize();
+  }
+
+  PolicyFilter _normalizeLatestFilter(PolicyFilter filter) {
+    final region = filter.searchRgnSe ?? ref.read(regionProvider);
+    return filter
+        .copyWith(
+          searchRgnSe: region,
+          availableOnly: true,
+          pageIndex: 1,
+          recordCount: _pageSize,
+          pagingYn: 'Y',
+          searchDsplyYn: filter.searchDsplyYn ?? 'latest',
+        )
+        .normalize();
+  }
+
   String _buildRequestKey(PolicyFilter filter, PolicyFeedType feed) {
     final normalizedFeed = _effectiveFeed(feed);
     final normalized = PolicyFilter(
@@ -491,15 +759,52 @@ class PolicyFeedsNotifier extends AutoDisposeNotifier<PolicyFeedsState> {
       deptNo: filter.deptNo,
       startDate: filter.startDate,
       endDate: filter.endDate,
-      availableOnly:
-          normalizedFeed == PolicyFeedType.recommended ? true : filter.availableOnly,
+      availableOnly: normalizedFeed == PolicyFeedType.recommended
+          ? true
+          : filter.availableOnly,
       pageIndex: filter.pageIndex ?? 1,
       recordCount: filter.recordCount ?? _pageSize,
       pageSize: filter.pageSize,
       pagingYn: filter.pagingYn ?? 'Y',
-      searchDsplyYn: filter.searchDsplyYn ?? 'all',
+      searchDsplyYn: filter.searchDsplyYn ?? _displayFlagForFeed(normalizedFeed),
     ).normalize();
 
     return jsonEncode(normalized.toJson());
+  }
+
+  List<Policy> _itemsForFeed(PolicyFeedType feed) {
+    switch (feed) {
+      case PolicyFeedType.primary:
+        return _primary.items;
+      case PolicyFeedType.bookmarked:
+        return _bookmarked.items;
+      case PolicyFeedType.latest:
+        return _latest.items;
+      case PolicyFeedType.recommended:
+        return _recommended.items;
+    }
+  }
+
+  PolicyFilter _applyFeedToFilter(PolicyFilter filter, PolicyFeedType feed) {
+    final displayYn = filter.searchDsplyYn ?? _displayFlagForFeed(feed);
+    return filter.copyWith(
+      searchDsplyYn: displayYn,
+      availableOnly: feed == PolicyFeedType.recommended
+          ? true
+          : (filter.availableOnly ?? true),
+    );
+  }
+
+  String _displayFlagForFeed(PolicyFeedType feed) {
+    switch (feed) {
+      case PolicyFeedType.primary:
+        return 'all';
+      case PolicyFeedType.recommended:
+        return 'recommend';
+      case PolicyFeedType.bookmarked:
+        return 'favorite';
+      case PolicyFeedType.latest:
+        return 'latest';
+    }
   }
 }
