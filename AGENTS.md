@@ -196,6 +196,114 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+# ERROR 02
+Invalid depfile: /home/ssm-user/YouthRoad-Gyeongbuk/.dart_tool/flutter_build/af4d3775d05b06f22fe8e749c2be2c8f/kernel_snapshot_program.d
+Invalid depfile: /home/ssm-user/YouthRoad-Gyeongbuk/.dart_tool/flutter_build/af4d3775d05b06f22fe8e749c2be2c8f/kernel_snapshot_program.d
+Invalid depfile: /home/ssm-user/YouthRoad-Gyeongbuk/.dart_tool/flutter_build/af4d3775d05b06f22fe8e749c2be2c8f/kernel_snapshot_program.d
+Invalid depfile: /home/ssm-user/YouthRoad-Gyeongbuk/.dart_tool/flutter_build/af4d3775d05b06f22fe8e749c2be2c8f/kernel_snapshot_program.d
+Error: Couldn't resolve the package 'intl' in 'package:intl/intl.dart'.
+lib/features/policy_new/application/providers.dart:65:8: Error: Error when reading 'lib/features/application/di.dart': No such file or directory
+import '../../application/di.dart' as app_di;
+       ^
+lib/features/policy_new/application/gateways/notification_gateway_impl.dart:4:8: Error: Not found: 'package:intl/intl.dart'
+import 'package:intl/intl.dart';
+       ^
+lib/features/policy_new/application/controllers/policy_selection_controller.dart:17:3: Error: Type 'CompareLocalDataSource' not found.
+  CompareLocalDataSource get _localSource =>
+  ^^^^^^^^^^^^^^^^^^^^^^
+lib/features/policy_new/application/controllers/policy_query_orchestrator.dart:18:3: Error: Type 'UserProfile' not found.
+  UserProfile get _profile => ref.read(userProfileProvider);
+  ^^^^^^^^^^^
+lib/features/policy_new/data/local/isar/policy_reminder_isar_model.g.dart:107:12: Error: The argument type 'int' can't be assignedto the parameter type 'String'.
+  version: 1,
+           ^
+lib/features/policy_new/application/providers.dart:100:34: Error: Undefined name 'sharedPreferencesProvider'.
+  final prefs = ref.watch(app_di.sharedPreferencesProvider);
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:120:34: Error: Undefined name 'sharedPreferencesProvider'.
+  final prefs = ref.watch(app_di.sharedPreferencesProvider);
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:131:34: Error: Undefined name 'sharedPreferencesProvider'.
+  final prefs = ref.watch(app_di.sharedPreferencesProvider);
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/policy_new/application/providers.dart:257:35: Error: Undefined name 'isarServiceProvider'.
+    final isar = ref.watch(app_di.isarServiceProvider);
+                                  ^^^^^^^^^^^^^^^^^^^
+lib/features/policy_new/presentation/reminder/widgets/policy_reminder_list_item.dart:32:30: Error: The getter 'label' isn't defined for the class 'ReminderTimeKind'.
+ - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
+        '${reminder.timeKind.label} · 예정 시각: ${reminder.scheduledAt.toLocal()}',
+                             ^^^^^
+lib/features/policy_new/presentation/widgets/policy_list_empty.dart:17:11: Error: Not a constant expression.
+          message,
+          ^^^^^^^
+lib/features/policy_new/application/controllers/policy_action_controller.dart:70:16: Error: 'CompareRepository' isn't a type.
+    ref.listen<CompareRepository>(compareRepositoryProvider, (prev, next) {
+               ^^^^^^^^^^^^^^^^^
+lib/features/policy_new/application/controllers/policy_action_controller.dart:72:26: Error: The getter 'ids' isn't defined for theclass 'Object?'.
+ - 'Object' is from 'dart:core'.
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'ids'.
+        isCompared: next.ids.contains(policyId),
+                         ^^^
+lib/features/policy_new/application/gateways/notification_gateway_impl.dart:69:55: Error: 'DarwinFlutterLocalNotificationsPlugin' isn't a type.
+        _plugin.resolvePlatformSpecificImplementation<DarwinFlutterLocalNotificationsPlugin>();
+                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/policy_new/application/gateways/notification_gateway_impl.dart:129:77: Error: The getter 'label' isn't defined for the class 'ReminderTimeKind'.
+ - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
+          '[${reminder.policyTitleSnapshot ?? '정책 신청'}] ${reminder.timeKind.label}';
+                                                                            ^^^^^
+lib/features/policy_new/application/gateways/notification_gateway_impl.dart:130:29: Error: The method 'DateFormat' isn't defined for the class 'FlutterLocalNotificationGateway'.
+ - 'FlutterLocalNotificationGateway' is from 'package:youth_road_app/features/policy_new/application/gateways/notification_gateway_impl.dart' ('lib/features/policy_new/application/gateways/notification_gateway_impl.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'DateFormat'.
+      final formattedTime = DateFormat('M월 d일 a h:mm', 'ko_KR').format(scheduledLocal);
+                            ^^^^^^^^^^
+lib/features/policy_new/application/gateways/notification_gateway_impl.dart:134:21: Error: The method 'schedule' isn't defined forthe class 'FlutterLocalNotificationsPlugin'.
+ - 'FlutterLocalNotificationsPlugin' is from 'package:flutter_local_notifications/src/flutter_local_notifications_plugin.dart' ('../.pub-cache/hosted/pub.dev/flutter_local_notifications-17.2.4/lib/src/flutter_local_notifications_plugin.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'schedule'.
+      await _plugin.schedule(
+                    ^^^^^^^^
+lib/features/policy_new/presentation/reminder/policy_reminder_badge.dart:20:14: Error: The method 'where' isn't defined for the class 'PolicyReminderViewState'.
+ - 'PolicyReminderViewState' is from 'package:youth_road_app/features/policy_new/application/controllers/policy_reminder_controller.dart' ('lib/features/policy_new/application/controllers/policy_reminder_controller.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'where'.
+            .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
+             ^^^^^
+lib/features/policy_new/presentation/widgets/policy_list_empty.dart:13:18: Error: Constant evaluation error:
+    return const Center(
+                 ^
+lib/features/policy_new/presentation/widgets/policy_list_empty.dart:17:11: Context: Not a constant expression.
+          message,
+          ^
+Unhandled exception:
+FileSystemException(uri=org-dartlang-untranslatable-uri:package%3Aintl%2Fintl.dart; message=StandardFileSystem only supports file:* and data:* URIs)
+#0      StandardFileSystem.entityForUri (package:front_end/src/api_prototype/standard_file_system.dart:35)
+#1      asFileUri (package:vm/kernel_front_end.dart:792)
+#2      writeDepfile (package:vm/kernel_front_end.dart:932)
+<asynchronous suspension>
+#3      FrontendCompiler.compile (package:frontend_server/frontend_server.dart:704)
+<asynchronous suspension>
+#4      starter (package:frontend_server/starter.dart:109)
+<asynchronous suspension>
+#5      main (file:///b/s/w/ir/x/w/sdk/pkg/frontend_server/bin/frontend_server_starter.dart:13)
+<asynchronous suspension>
+
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 12s
+
 # ERROR 01
 Error: Couldn't resolve the package 'intl' in 'package:intl/intl.dart'.
 lib/features/policy_new/application/providers.dart:65:8: Error: Error when reading 'lib/features/application/di.dart': No such file or directory
