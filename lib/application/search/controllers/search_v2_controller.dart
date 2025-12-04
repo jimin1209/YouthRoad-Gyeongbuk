@@ -7,7 +7,6 @@ import '../../../data/models/policy_filter.dart';
 import '../../../data/sources/local/search_history_source.dart';
 import '../../providers.dart';
 import '../providers.dart';
-import 'package:youth_road_app/legacy/policy/application/notifiers/policy_paging_notifier.dart';
 
 class SearchV2State {
   const SearchV2State({
@@ -89,11 +88,8 @@ class SearchV2Controller extends AutoDisposeNotifier<SearchV2State> {
       lastRequestKey: nextKey,
     );
 
-    final feedsNotifier = ref.read(policyPagingProvider.notifier);
-
     final result = await AsyncValue.guard(() async {
       await Future.wait([
-        feedsNotifier.refreshAll(targetFilter),
         ref.refresh(searchHistoryListProvider.future),
         ref.refresh(popularSearchKeywordListProvider.future),
       ]);

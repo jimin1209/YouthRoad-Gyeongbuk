@@ -12,16 +12,14 @@ import '../features/map_v2/kakao_map_screen.dart';
 import '../features/map_v2/kakao_map_test_page.dart';
 import '../features/map_v2/map_with_list_screen.dart';
 import '../ui/screens/compare/compare_screen.dart';
-import '../legacy/policy/ui/screens/policy/policy_compare_screen.dart';
-import '../legacy/policy/ui/screens/policy/policy_detail_v2_screen.dart';
-import '../legacy/policy/ui/screens/policy/policy_list_legacy_screen.dart';
-import '../legacy/policy/ui/screens/policy/policy_webview_page.dart';
 import '../ui/screens/region/region_select_screen.dart';
 import '../ui/screens/setting/setting_screen.dart';
 import '../ui/screens/setting/setting_v2_screen.dart';
 import '../ui/widgets/bottom_nav.dart';
 import '../ui/widgets/global_error_view.dart';
 import '../ui/screens/policy/policy_search_screen.dart';
+import '../features/policy_new/presentation/detail/policy_detail_bottom_sheet.dart';
+import '../features/policy_new/presentation/screens/policy_webview_page.dart';
 import 'route_paths.dart';
 import 'motion_transitions.dart';
 
@@ -119,7 +117,7 @@ class AppRouter {
           path: RoutePaths.policyLegacyList,
           pageBuilder: (context, state) => buildSlideFadePage(
             key: state.pageKey,
-            child: const PolicyListLegacyScreen(),
+            child: const PolicyFeedHomeScreen(),
             reverseDuration: const Duration(milliseconds: 180),
           ),
         ),
@@ -127,7 +125,7 @@ class AppRouter {
           path: RoutePaths.policyCompare,
           pageBuilder: (context, state) => buildSlideFadePage(
             key: state.pageKey,
-            child: const PolicyCompareScreen(),
+            child: const CompareScreen(),
           ),
         ),
         GoRoute(
@@ -189,7 +187,9 @@ class AppRouter {
             final id = state.pathParameters['id'] ?? '';
             return buildSlideFadePage(
               key: state.pageKey,
-              child: PolicyDetailV2Screen(id: id),
+              child: Scaffold(
+                body: PolicyDetailBottomSheet(policyId: id),
+              ),
             );
           },
         ),
