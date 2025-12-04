@@ -196,6 +196,32 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+# ERROR 03
+lib/features/policy_new/application/gateways/notification_gateway_impl.dart:129:22: Error: Not a constant expression.
+        isDuplicate: hadExisting,
+                     ^^^^^^^^^^^
+lib/features/policy_new/application/gateways/notification_gateway_impl.dart:140:22: Error: Not a constant expression.
+        isDuplicate: hadExisting,
+                     ^^^^^^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 10s
+
+
+
 # ERROR 02
 
 lib/features/policy_new/presentation/reminder/policy_reminder_button.dart:337:13: Error: The type 'PolicyReminderStatus' is not exhaustively matched by the switch cases since it doesn't match 'PolicyReminderStatus.fired'.
