@@ -19,10 +19,22 @@ class PolicyReminderListScreen extends ConsumerWidget {
         data: (centerState) {
           final hasData =
               centerState.upcoming.isNotEmpty || centerState.past.isNotEmpty;
+          final showBusy = centerState.isLoading ||
+              centerState.isOptimistic ||
+              centerState.pendingActions > 0;
           return Column(
             children: [
-              if (centerState.isRefreshing)
-                const LinearProgressIndicator(minHeight: 2),
+              if (showBusy) const LinearProgressIndicator(minHeight: 2),
+              if (centerState.isFailure && centerState.errorMessage != null)
+                Container(
+                  width: double.infinity,
+                  color: Colors.red.shade50,
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    centerState.errorMessage!,
+                    style: TextStyle(color: Colors.red.shade700),
+                  ),
+                ),
               Expanded(
                 child: hasData
                     ? RefreshIndicator(
@@ -40,7 +52,7 @@ class PolicyReminderListScreen extends ConsumerWidget {
                               for (final reminder in centerState.upcoming)
                                 PolicyReminderListItem(
                                   reminder: reminder,
-                                  onCancel: centerState.isMutating
+                                  onCancel: showBusy
                                       ? null
                                       : () => controller
                                           .cancelReminder(reminder.reminderId),
@@ -60,7 +72,7 @@ class PolicyReminderListScreen extends ConsumerWidget {
                               for (final reminder in centerState.past)
                                 PolicyReminderListItem(
                                   reminder: reminder,
-                                  onCancel: centerState.isMutating
+                                  onCancel: showBusy
                                       ? null
                                       : () => controller
                                           .cancelReminder(reminder.reminderId),
