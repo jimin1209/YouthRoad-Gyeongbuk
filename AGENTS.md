@@ -196,6 +196,179 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+
+# TASK 700
+# 버그 리포트: PolicyFeedType.bookmarked 미처리로 빌드 실패
+
+## 개요
+빌드 로그에 따르면 `PolicyFeedType.bookmarked`가 스위치 문에서 누락되어 컴파일 오류가 발생합니다. 이로 인해 애플리케이션을 디버그 모드로 빌드할 수 없습니다.
+
+## 재현 절차
+1. Flutter 빌드 또는 테스트를 실행합니다. (예: `flutter test` 혹은 `flutter build apk`)
+2. 컴파일 단계에서 `PolicyFeedType`를 다루는 스위치 문이 `bookmarked` 케이스를 포함하지 않는다는 오류가 발생하며 빌드가 중단됩니다.
+
+## 실제 동작
+- `lib/application/notifiers/policy_paging_notifier.dart`에서 `PolicyFeedType.bookmarked`가 처리되지 않았다는 오류가 3군데에서 발생하며 빌드가 실패합니다.【F:build.log†L1-L31】
+
+## 버그 2: 북마크 피드가 항상 기본 피드 데이터로 로드됨
+
+### 개요
+북마크 피드를 요청해도 내부적으로 기본(primary) 피드로 강제 매핑되어, 실제 북마크 데이터 대신 홈 피드와 동일한 리스트가 표시됩니다.
+
+### 재현 절차
+1. 앱에서 북마크/즐겨찾기 전용 정책 피드를 여는 화면으로 이동합니다.
+2. 피드 로딩이 완료될 때까지 기다립니다.
+
+### 실제 동작
+- 북마크 피드를 선택해도 `_effectiveFeed`가 추천 피드를 제외한 모든 값을 `PolicyFeedType.primary`로 반환하여, 이후 로드 로직이 기본 피드용 필터와 캐시/네트워크 호출을 사용합니다.【F:lib/legacy/policy/application/notifiers/policy_paging_notifier.dart†L94-L154】
+- 그 결과 북마크 리스트가 아닌 기본 홈 피드 정책 목록이 그대로 표시됩니다.
+
+### 기대 동작
+- 북마크 피드를 요청하면 별도의 북마크 전용 필터와 캐시/네트워크 경로를 통해 즐겨찾기한 정책 목록만 로드되어야 합니다.
+
+## 기대 동작
+- `PolicyFeedType`의 모든 변형(특히 `bookmarked`)을 스위치 문에서 처리하거나 기본 분기(default)를 추가해 빌드가 성공해야 합니다.
+
+## 추가 정보
+- 오류는 `PolicyFeedType` 정의에 새 변형이 추가되었지만 관련 스위치 문이 업데이트되지 않았을 때 발생하는 전형적인 증상과 일치합니다. 오류 위치는 빌드 로그에 표시된 파일과 라인(147, 215, 301)입니다.【F:build.log†L1-L23】
+- 로컬 개발 컨테이너에는 Flutter SDK가 설치되어 있지 않아, 실제 빌드 명령(`flutter test`) 실행 시 `command not found`가 발생했습니다. 하지만 기존 `build.log`에서 동일한 오류를 확인할 수 있습니다.【5b6364†L1-L3】
+
+## 버그 3: 최신 피드가 기본(primary) 피드로 동작함
+
+### 개요
+`PolicyFeedType.latest`도 `_effectiveFeed`에서 기본 피드로 강제 매핑되어 “최신” 탭이 실제로는 기본 피드와 동일한 데이터/정렬을 불러옵니다.【F:lib/legacy/policy/application/notifiers/policy_paging_notifier.dart†L89-L99】
+
+### 재현 절차
+1. 최신 정책 전용 탭을 연다.
+2. 기본 탭과 최신 탭을 번갈아 새로고침한다.
+
+### 실제 동작
+- 두 탭이 동일한 `_loadInitialPrimary`·`_loadFromCache` 경로를 공유해 같은 정책 목록이 표시되며, 최신 정렬이 적용되지 않습니다.【F:lib/legacy/policy/application/notifiers/policy_paging_notifier.dart†L100-L176】
+
+### 기대 동작
+- 최신 탭은 최신 정렬/필터를 적용한 별도 페이징 상태를 사용해 최신 정책만 노출해야 합니다.
+
+## 버그 4: 페이징 초기 로드와 다음 페이지 로드가 동시에 실행됨
+
+### 개요
+`PolicyPagingController`의 `loadFirstPage`는 `_isLoading` 플래그를 설정하지 않아, 초기 로드 중에도 `loadNextPage`가 중복 호출될 수 있습니다.【F:lib/features/policy_new/application/controllers/policy_paging_controller.dart†L44-L92】
+
+### 재현 절차
+1. 정책 리스트 화면에서 첫 페이지 로딩이 시작된 직후 빠르게 스크롤해 다음 페이지 로드를 트리거한다.
+
+### 실제 동작
+- `_isLoading`이 `true`로 설정되지 않아 `loadNextPage`가 병렬 호출되며, `_items` 리스트에 중복 데이터가 합쳐지거나 `_page` 인덱스가 꼬일 수 있습니다.【F:lib/features/policy_new/application/controllers/policy_paging_controller.dart†L65-L92】
+
+### 기대 동작
+- 초기 로딩 중에는 추가 로드가 차단되어 한 번에 하나의 페이징 요청만 수행되어야 합니다.
+
+## 버그 5: 즐겨찾기 토글 실패 시 처리 상태가 해제되지 않음
+
+### 개요
+`toggleFavorite`가 예외를 던지면 `_setProcessing(false)`가 실행되지 않아 `isProcessing`이 영구히 `true`로 남습니다.【F:lib/features/policy_new/application/controllers/policy_action_controller.dart†L94-L100】
+
+### 재현 절차
+1. 네트워크 오류 등으로 즐겨찾기 서비스가 실패하도록 만든다.
+2. 즐겨찾기 버튼을 누른다.
+
+### 실제 동작
+- 예외 발생 시 `isProcessing`이 해제되지 않아 버튼이 계속 비활성 상태로 남고, 재시도할 수 없습니다.【F:lib/features/policy_new/application/controllers/policy_action_controller.dart†L94-L100】
+
+### 기대 동작
+- 실패해도 처리 상태가 해제되고 사용자에게 오류 메시지가 표시되어야 합니다.
+
+## 버그 6: 비교 목록 토글 실패 시 처리 상태가 해제되지 않음
+
+### 개요
+`toggleCompare`도 예외를 처리하지 않아 실패 시 `isProcessing` 플래그가 내려가지 않습니다.【F:lib/features/policy_new/application/controllers/policy_action_controller.dart†L102-L117】
+
+### 재현 절차
+1. 비교 목록 저장소가 오류를 던지도록 만든다.
+2. 정책을 비교 목록에 추가/삭제한다.
+
+### 실제 동작
+- 예외 발생 후 처리 플래그가 `true`로 고정되어 비교 버튼이 계속 비활성화됩니다.【F:lib/features/policy_new/application/controllers/policy_action_controller.dart†L102-L117】
+
+### 기대 동작
+- 실패 후에도 상태를 원복하고 오류를 노출하여 사용자가 다시 시도할 수 있어야 합니다.
+
+## 버그 7: 알림 재설정 실패 시 상태가 오류로 고정됨
+
+### 개요
+`setReminders`가 새 알림 생성 전에 기존 예약을 취소한 뒤 예외가 발생하면, 상태가 `AsyncError`로 고정되고 `isMutating`이 `true`인 채로 남습니다.【F:lib/features/policy_new/application/controllers/policy_reminder_controller.dart†L85-L127】
+
+### 재현 절차
+1. 알림 권한 거부 등으로 `createRemindersForPolicy`가 실패하도록 만든다.
+2. 알림 옵션을 변경한다.
+
+### 실제 동작
+- 기존 알림은 취소되지만 새 알림을 추가하지 못하고, 컨트롤러 상태가 오류로 고정되어 이후 시도가 차단됩니다.【F:lib/features/policy_new/application/controllers/policy_reminder_controller.dart†L85-L127】
+
+### 기대 동작
+- 실패 시에도 상태를 정상으로 복구하고, 취소된 알림을 롤백하거나 사용자에게 재시도 안내를 제공해야 합니다.
+
+## 버그 8: 알림 상태 계산 시 과거 알림이 우선되어 표시됨
+
+### 개요
+`currentStatus`는 가장 빠른 일정의 상태를 그대로 반환해, 이미 종료된 알림이 남아 있으면 미래 예약이 있어도 만료 상태로 표시됩니다.【F:lib/features/policy_new/application/controllers/policy_reminder_controller.dart†L175-L182】
+
+### 재현 절차
+1. 과거에 울린 알림과 미래 예약이 함께 존재하도록 설정한다.
+2. 알림 상태 배지를 확인한다.
+
+### 실제 동작
+- 가장 이른 과거 알림의 상태(예: `fired` 또는 `expired`)가 반환되어 실제 활성 알림이 있음에도 만료된 것으로 보입니다.【F:lib/features/policy_new/application/controllers/policy_reminder_controller.dart†L175-L182】
+
+### 기대 동작
+- 미래에 예정된 알림이 있으면 그 상태를 우선 표시하거나, 최소한 과거 알림을 제외한 상태를 계산해야 합니다.
+
+## 버그 9: 알림 취소 시 저장소에서 제거되지 않아 다시 나타남
+
+### 개요
+알림 센터의 `cancelReminder`는 스케줄만 취소하고 로컬 저장소에서는 항목을 삭제하지 않아, 다음 로드 시 동일 알림이 다시 나타납니다.【F:lib/features/policy_new/application/controllers/notification_center_controller.dart†L138-L174】
+
+### 재현 절차
+1. 알림 센터에서 특정 알림을 취소한다.
+2. 화면을 새로고침하거나 앱을 재시작한다.
+
+### 실제 동작
+- 취소했던 알림이 로컬 저장소에 남아 있어 목록에 다시 표시됩니다.【F:lib/features/policy_new/application/controllers/notification_center_controller.dart†L138-L174】
+
+### 기대 동작
+- 취소 시 스케줄 취소와 함께 저장소에서도 항목을 제거해 이후 로딩에서도 사라져야 합니다.
+
+## 버그 10: 알림 동기화 실패 시 컨트롤러 초기화 단계에서 크래시 가능
+
+### 개요
+`PolicyReminderController.initialize`는 예외 처리가 없어 `syncScheduledReminders`나 `load` 실패 시 프로바이더 초기화가 예외로 전파됩니다.【F:lib/features/policy_new/application/controllers/policy_reminder_controller.dart†L55-L66】
+
+### 재현 절차
+1. 알림 저장소나 게이트웨이가 실패하도록 만든다.
+2. 정책 상세 화면에 진입해 알림 컨트롤러를 초기화한다.
+
+### 실제 동작
+- 초기화 중 던져진 예외가 잡히지 않아 위젯 트리에서 프로바이더 생성이 실패하고 화면이 깨질 수 있습니다.【F:lib/features/policy_new/application/controllers/policy_reminder_controller.dart†L55-L66】
+
+### 기대 동작
+- 초기화 단계에서도 예외를 잡아 사용자에게 오류를 노출하고, 최소한 앱이 크래시하지 않도록 보호해야 합니다.
+
+## 버그 11: 비교 탭에서 단일 항목 실패가 전체 로드를 막음
+
+### 개요
+`CompareFeedController`는 `Future.wait`로 모든 정책 상세를 병렬로 가져오는데, 하나라도 실패하면 전체 비교 상태가 오류로 끝나며 나머지 정상 데이터도 표시되지 않습니다.【F:lib/features/policy_new/compare/controllers/compare_feed_controller.dart†L51-L68】
+
+### 재현 절차
+1. 비교 목록에 2개 이상 정책을 담는다.
+2. 그중 하나의 상세 조회만 실패하도록 만든다.
+
+### 실제 동작
+- 하나의 실패로 전체 비교 화면이 에러 상태가 되어 다른 정책 비교 결과도 볼 수 없습니다.【F:lib/features/policy_new/compare/controllers/compare_feed_controller.dart†L51-L68】
+
+### 기대 동작
+- 실패한 항목만 제외하거나 부분 성공을 허용해 나머지 비교 데이터를 계속 보여주어야 합니다.
+# END OF TASK 700
+
+
 # TASK 600
 # Codex Task: In-App DevTools 전체 로그 + WebView 콘솔 통합 관리 기능 구현
 
