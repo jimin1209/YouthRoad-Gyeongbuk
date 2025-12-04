@@ -51,6 +51,14 @@ class PolicyReminderService {
   final PolicyLogger logger;
   final DateTime Function() _now;
 
+  Future<bool> refreshEnvironment() async {
+    final ready = await notificationGateway.refreshEnvironment();
+    if (!ready) {
+      logger.warn('Notification environment not ready (permission or timezone).');
+    }
+    return ready;
+  }
+
   Future<ReminderMutationResult> createRemindersForPolicy(
     Policy policy,
     List<ReminderTimeKind> kinds,
@@ -58,8 +66,37 @@ class PolicyReminderService {
     final now = _now().toUtc();
     final reminders = <PolicyReminder>[];
     final failures = <ReminderMutationFailure>[];
+    final uniqueKinds = kinds.toSet();
 
-    for (final kind in kinds) {
+    final environmentReady = await refreshEnvironment();
+    if (!environmentReady) {
+      for (final kind in uniqueKinds) {
+        failures.add(
+          ReminderMutationFailure(
+            timeKind: kind,
+            failure: const ScheduleFailure(
+              type: ScheduleFailureType.permissionDenied,
+              message: 'Notification environment not ready',
+            ),
+          ),
+        );
+      }
+      return ReminderMutationResult(reminders: reminders, failures: failures);
+    }
+
+    final existing = await repository.getRemindersForPolicy(policy.id);
+    final existingByKind = <ReminderTimeKind, PolicyReminder>{};
+    for (final reminder in existing) {
+      final current = existingByKind[reminder.timeKind];
+      if (current == null || current.updatedAt.isBefore(reminder.updatedAt)) {
+        existingByKind[reminder.timeKind] = reminder;
+      } else {
+        await repository.deleteReminderById(reminder.reminderId);
+        await notificationGateway.cancelReminder(reminder.reminderId);
+      }
+    }
+
+    for (final kind in uniqueKinds) {
       final schedule = scheduler.buildSchedule(policy, option: kind);
       if (schedule == null) {
         final failure = ScheduleFailure(
@@ -90,13 +127,13 @@ class PolicyReminderService {
       }
 
       final reminderId = ReminderIdUtil.buildReminderId(policy.id, kind);
-      final existing = await repository.getReminder(reminderId);
+      final existingReminder = existingByKind[kind];
 
       final reminder = PolicyReminder(
         reminderId: reminderId,
         policyId: policy.id,
         scheduledAt: schedule.scheduledAt,
-        createdAt: existing?.createdAt ?? now,
+        createdAt: existingReminder?.createdAt ?? now,
         updatedAt: now,
         timeKind: kind,
         status: schedule.status,
@@ -118,6 +155,15 @@ class PolicyReminderService {
           ),
         );
         logger.warn('Notification scheduling failed for ${reminder.reminderId}');
+        continue;
+      }
+
+      if (scheduleResult.isDuplicate &&
+          existingReminder != null &&
+          existingReminder.scheduledAt == reminder.scheduledAt) {
+        final refreshedReminder = existingReminder.copyWith(updatedAt: now);
+        await repository.upsertReminder(refreshedReminder);
+        reminders.add(refreshedReminder);
         continue;
       }
 
@@ -224,6 +270,7 @@ class PolicyReminderService {
   }
 
   Future<ReminderSyncReport> syncScheduledReminders() async {
+    await refreshEnvironment();
     final expired = await cleanupExpiredReminders();
     final reminders = await repository.getAllReminders();
     final now = _now().toUtc();
@@ -286,5 +333,31 @@ class PolicyReminderService {
       firedCount: firedCount,
       failures: failures,
     );
+  }
+
+  Future<ReminderMutationResult> reconcileRemindersWithPolicy(
+    Policy policy,
+  ) async {
+    final existing = await repository.getRemindersForPolicy(policy.id);
+    final activeKinds = existing
+        .where((reminder) => reminder.status == PolicyReminderStatus.scheduled)
+        .map((reminder) => reminder.timeKind)
+        .toSet();
+
+    if (activeKinds.isEmpty) {
+      return const ReminderMutationResult(reminders: [], failures: []);
+    }
+
+    final result = await createRemindersForPolicy(policy, activeKinds.toList());
+    final failedKinds = result.failures.map((failure) => failure.timeKind).toSet();
+
+    for (final reminder in existing) {
+      if (failedKinds.contains(reminder.timeKind) &&
+          reminder.status == PolicyReminderStatus.scheduled) {
+        await cancelReminder(reminder.reminderId);
+      }
+    }
+
+    return result;
   }
 }

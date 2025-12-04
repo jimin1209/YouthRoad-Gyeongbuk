@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/policy.dart';
+import '../services/policy_reminder_service.dart';
 import '../providers.dart';
 
 class PolicyDetailController extends StateNotifier<AsyncValue<Policy>> {
@@ -19,12 +20,20 @@ class PolicyDetailController extends StateNotifier<AsyncValue<Policy>> {
     final repo = ref.read(policyRepositoryProvider);
     final result = await repo.fetchPolicyDetail(policyId);
 
-    result.fold(
-      onSuccess: (policy) => state = AsyncValue.data(policy),
-      onFailure: (failure) => state = AsyncValue.error(
-        failure,
-        StackTrace.current,
-      ),
+    if (result.data != null) {
+      final policy = result.data!;
+      state = AsyncValue.data(policy);
+      try {
+        await ref
+            .read(policyReminderServiceProvider)
+            .reconcileRemindersWithPolicy(policy);
+      } catch (_) {}
+      return;
+    }
+
+    state = AsyncValue.error(
+      result.failure ?? Exception('Unknown policy detail failure'),
+      StackTrace.current,
     );
   }
 

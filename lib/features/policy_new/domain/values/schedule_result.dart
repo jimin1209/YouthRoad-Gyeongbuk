@@ -2,11 +2,14 @@ class ScheduleResult {
   const ScheduleResult.success({
     this.localNotificationId,
     this.scheduledAt,
+    this.isDuplicate = false,
   })  : success = true,
         failure = null;
 
-  const ScheduleResult.failure(this.failure)
-      : success = false,
+  const ScheduleResult.failure(
+    this.failure, {
+    this.isDuplicate = false,
+  })  : success = false,
         localNotificationId = null,
         scheduledAt = null;
 
@@ -14,6 +17,7 @@ class ScheduleResult {
   final ScheduleFailure? failure;
   final String? localNotificationId;
   final DateTime? scheduledAt;
+  final bool isDuplicate;
 }
 
 enum ScheduleFailureType {

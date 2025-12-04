@@ -116,6 +116,9 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
   @override
   Future<ScheduleResult> scheduleReminder(PolicyReminder reminder) async {
     await _initialization;
+    final pending = await _plugin.pendingNotificationRequests();
+    final notificationId = _notificationId(reminder.reminderId);
+    final hadExisting = pending.any((request) => request.id == notificationId);
     final hasPermission = await _ensurePermissions();
     if (!hasPermission) {
       return const ScheduleResult.failure(
@@ -123,6 +126,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
           type: ScheduleFailureType.permissionDenied,
           message: 'Notification permission denied',
         ),
+        isDuplicate: hadExisting,
       );
     }
 
@@ -133,10 +137,10 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
           type: ScheduleFailureType.invalidDate,
           message: 'Scheduled time is already in the past',
         ),
+        isDuplicate: hadExisting,
       );
     }
 
-    final notificationId = _notificationId(reminder.reminderId);
     try {
       await _plugin.cancel(notificationId);
 
@@ -169,6 +173,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
     return ScheduleResult.success(
       localNotificationId: notificationId.toString(),
       scheduledAt: reminder.scheduledAt,
+      isDuplicate: hadExisting,
     );
   }
 
@@ -208,5 +213,12 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
       );
     }
     return const ScheduleResult.success();
+  }
+
+  @override
+  Future<bool> refreshEnvironment() async {
+    await _initialization;
+    _initializeTimeZones();
+    return _ensurePermissions();
   }
 }

@@ -88,22 +88,20 @@ class PolicyReminderController
           .toSet();
       final nextKinds = kinds.toSet();
 
-      final toAdd = nextKinds.difference(currentKinds).toList();
       final toRemove = currentKinds.difference(nextKinds);
 
-      final removed = <PolicyReminder>[];
       for (final reminder in previous.reminders) {
         if (toRemove.contains(reminder.timeKind)) {
           await _service.cancelReminder(reminder.reminderId);
-          removed.add(reminder);
         }
       }
 
-      final result = await _service.createRemindersForPolicy(policy, toAdd);
+      final result = await _service.createRemindersForPolicy(
+        policy,
+        nextKinds.toList(),
+      );
 
       final current = [
-        for (final reminder in previous.reminders)
-          if (!removed.contains(reminder)) reminder,
         ...result.reminders,
       ]
         ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
