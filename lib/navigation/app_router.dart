@@ -22,7 +22,7 @@ import '../ui/screens/setting/setting_screen.dart';
 import '../ui/screens/setting/setting_v2_screen.dart';
 import '../ui/widgets/bottom_nav.dart';
 import '../ui/widgets/global_error_view.dart';
-import '../presentation/search/screens/search_screen.dart';
+import '../ui/screens/policy/policy_search_screen.dart';
 import 'route_paths.dart';
 import 'motion_transitions.dart';
 
@@ -171,7 +171,7 @@ class AppRouter {
           path: RoutePaths.search,
           pageBuilder: (context, state) => buildSearchOverlayPage(
             key: state.pageKey,
-            child: const SearchScreen(),
+            child: const PolicySearchScreen(),
           ),
         ),
         GoRoute(
