@@ -29,7 +29,7 @@ Future<void> bootstrap({
       stackTrace: details.stack,
     );
   };
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = await _initSharedPreferences();
 
   final observers = <ProviderObserver>[];
   if (kDebugMode) {
@@ -78,4 +78,16 @@ Future<void> bootstrap({
       },
     ),
   );
+}
+
+Future<SharedPreferences> _initSharedPreferences() async {
+  try {
+    return await SharedPreferences.getInstance();
+  } catch (e, stackTrace) {
+    debugPrint('SharedPreferences 초기화에 실패했습니다: $e');
+    debugPrint('$stackTrace');
+
+    SharedPreferences.setMockInitialValues({});
+    return SharedPreferences.getInstance();
+  }
 }
