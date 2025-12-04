@@ -93,7 +93,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: _buildResultArea(context, searchState),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeOut,
+                  child: _buildResultArea(context, searchState),
+                ),
               ),
             ],
           ),
