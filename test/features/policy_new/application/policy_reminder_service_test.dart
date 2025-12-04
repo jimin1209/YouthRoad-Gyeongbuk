@@ -71,14 +71,14 @@ class FakeNotificationGateway implements NotificationGateway {
 
   @override
   Future<ScheduleResult> cancelAllForPolicy(String policyId) async {
-    return const ScheduleResult.success();
+    return ScheduleResult.success();
   }
 
   @override
   Future<ScheduleResult> cancelReminder(String reminderId) async {
     scheduledIds.remove(reminderId);
     canceledIds.add(reminderId);
-    return const ScheduleResult.success();
+    return ScheduleResult.success();
   }
 
   @override
@@ -87,7 +87,7 @@ class FakeNotificationGateway implements NotificationGateway {
     final failAttempts = failUntilAttempt[reminder.reminderId];
     if (failReminderIds.contains(reminder.reminderId) ||
         (failAttempts != null && (attempts[reminder.reminderId] ?? 0) <= failAttempts)) {
-      return const ScheduleResult.failure(
+      return ScheduleResult.failure(
         ScheduleFailure(
           type: ScheduleFailureType.gatewayError,
           message: 'forced failure',

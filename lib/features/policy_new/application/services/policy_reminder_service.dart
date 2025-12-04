@@ -85,7 +85,7 @@ class PolicyReminderService {
       await refreshEnvironment();
     }
 
-    final fallback = const ScheduleResult.failure(
+    final fallback = ScheduleResult.failure(
       ScheduleFailure(
         type: ScheduleFailureType.unknown,
         message: 'Scheduling failed with no result',

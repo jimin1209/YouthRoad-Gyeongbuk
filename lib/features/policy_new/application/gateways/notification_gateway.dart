@@ -13,13 +13,13 @@ class NoOpNotificationGateway implements NotificationGateway {
   @override
   Future<ScheduleResult> cancelReminder(String reminderId) async {
     // no-op
-    return const ScheduleResult.success();
+    return ScheduleResult.success();
   }
 
   @override
   Future<ScheduleResult> cancelAllForPolicy(String policyId) async {
     // no-op
-    return const ScheduleResult.success();
+    return ScheduleResult.success();
   }
 
   @override
