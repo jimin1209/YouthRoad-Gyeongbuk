@@ -46,16 +46,25 @@ class PolicyRemoteSource {
   }
 
   Future<PolicyModel> fetchPolicyDetail(String id) async {
-    final list = await fetchPoliciesWithParams({
-      'pagingYn': 'N',
-      'recordCount': 2000,
-      'pageIndex': 1,
-    });
+    const pageSize = 100;
+    const maxPages = 50;
 
-    return list.firstWhere(
-      (element) => element.id == id,
-      orElse: () => throw const ServerFailure('정책 상세 정보를 찾을 수 없습니다'),
-    );
+    for (var pageIndex = 1; pageIndex <= maxPages; pageIndex++) {
+      final list = await fetchPoliciesWithParams({
+        'pagingYn': 'Y',
+        'recordCount': pageSize,
+        'pageSize': pageSize,
+        'pageIndex': pageIndex,
+      });
+
+      for (final policy in list) {
+        if (policy.id == id) return policy;
+      }
+
+      if (list.length < pageSize) break;
+    }
+
+    throw const ServerFailure('정책 상세 정보를 찾을 수 없습니다');
   }
 
   Map<String, dynamic> _withDefaults(Map<String, dynamic> params) {
