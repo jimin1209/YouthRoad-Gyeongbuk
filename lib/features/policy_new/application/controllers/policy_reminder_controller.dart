@@ -158,6 +158,12 @@ class PolicyReminderController
     }
   }
 
+  void clearMessages() {
+    state = state.whenData(
+      (viewState) => viewState.copyWith(messages: const []),
+    );
+  }
+
   PolicyReminderStatus? currentStatus() {
     return state.maybeWhen(
       data: (viewState) {

@@ -39,6 +39,7 @@ class PolicyReminderButton extends ConsumerWidget {
               messenger.showSnackBar(
                 SnackBar(content: Text(viewState.messages.first)),
               );
+              controller.clearMessages();
             }
           });
         }
