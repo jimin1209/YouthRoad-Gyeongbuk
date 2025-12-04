@@ -55,8 +55,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
     // Filter → API 파라미터 매핑
     final filter = normalizedFilter;
 
-    if (filter.region != PolicyRegion.all) {
-      params['searchRgnSe'] = _mapRegion(filter.region);
+    final regionValue = _regionParam(filter);
+    if (regionValue != null && regionValue.isNotEmpty) {
+      params['searchRgnSe'] = regionValue;
     }
 
     if (filter.category != null) {
@@ -436,6 +437,14 @@ class PolicyRepositoryImpl implements PolicyRepository {
       case PolicyRegion.all:
         return '전체';
     }
+  }
+
+  String? _regionParam(PolicyFilter filter) {
+    // 우선순위: city만 전달. (도 단위는 기본 전체 의미로 생략)
+    if (filter.city != null && filter.city!.isNotEmpty) {
+      return filter.city;
+    }
+    return null;
   }
 
   String _mapCategory(PolicyCategory category) {

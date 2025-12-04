@@ -8,6 +8,9 @@ import '../../domain/values/policy_sort.dart';
 @immutable
 class PolicyFilterUiState {
   final PolicyRegion region;
+  final String province;
+  final String? city;
+  final String? district;
   final PolicyCategory? category;
   final PolicySortOption sort;
   final String keyword;
@@ -20,7 +23,10 @@ class PolicyFilterUiState {
   final String? departmentName;
 
   const PolicyFilterUiState({
-    this.region = PolicyRegion.all,
+    this.region = PolicyRegion.gyeongbuk,
+    this.province = '경상북도',
+    this.city,
+    this.district,
     this.category,
     this.sort = PolicySortOption.latest,
     this.keyword = '',
@@ -35,6 +41,9 @@ class PolicyFilterUiState {
 
   PolicyFilterUiState copyWith({
     PolicyRegion? region,
+    String? province,
+    String? city,
+    String? district,
     PolicyCategory? category,
     PolicySortOption? sort,
     String? keyword,
@@ -48,6 +57,9 @@ class PolicyFilterUiState {
   }) {
     return PolicyFilterUiState(
       region: region ?? this.region,
+      province: province ?? this.province,
+      city: city ?? this.city,
+      district: district ?? this.district,
       category: category ?? this.category,
       sort: sort ?? this.sort,
       keyword: keyword ?? this.keyword,
@@ -60,6 +72,14 @@ class PolicyFilterUiState {
       departmentName: departmentName ?? this.departmentName,
     );
   }
+
+  String get regionSummary {
+    final cityName = city;
+    final districtName = district;
+    if (cityName == null || cityName.isEmpty) return '경북 전체';
+    if (districtName == null || districtName.isEmpty) return '경북 $cityName';
+    return '경북 $cityName $districtName';
+  }
 }
 
 class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
@@ -67,6 +87,19 @@ class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
 
   void setRegion(PolicyRegion region) =>
       state = state.copyWith(region: region);
+
+  void setRegionStrings({
+    required String province,
+    String? city,
+    String? district,
+  }) {
+    state = state.copyWith(
+      region: PolicyRegion.gyeongbuk,
+      province: province,
+      city: city,
+      district: district,
+    );
+  }
 
   void setCategory(PolicyCategory? category) =>
       state = state.copyWith(category: category);

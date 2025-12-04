@@ -3,6 +3,9 @@ import 'policy_region.dart';
 
 class PolicyFilter {
   final PolicyRegion region;
+  final String province;
+  final String? city;
+  final String? district;
   final PolicyCategory? category;
   final bool? isOnline;
   final bool? isOngoing;
@@ -14,6 +17,9 @@ class PolicyFilter {
 
   const PolicyFilter({
     this.region = PolicyRegion.all,
+    this.province = '경상북도',
+    this.city,
+    this.district,
     this.category,
     this.isOnline,
     this.isOngoing,
@@ -27,6 +33,9 @@ class PolicyFilter {
   PolicyFilter normalize() {
     return PolicyFilter(
       region: region,
+      province: province,
+      city: city,
+      district: district,
       category: category,
       isOnline: isOnline,
       isOngoing: isOngoing,
@@ -38,8 +47,11 @@ class PolicyFilter {
     );
   }
 
-  PolicyFilter copyWith({
+    PolicyFilter copyWith({
     PolicyRegion? region,
+    String? province,
+    String? city,
+    String? district,
     PolicyCategory? category,
     bool? isOnline,
     bool? isOngoing,
@@ -51,6 +63,9 @@ class PolicyFilter {
   }) {
     return PolicyFilter(
       region: region ?? this.region,
+      province: province ?? this.province,
+      city: city ?? this.city,
+      district: district ?? this.district,
       category: category ?? this.category,
       isOnline: isOnline ?? this.isOnline,
       isOngoing: isOngoing ?? this.isOngoing,

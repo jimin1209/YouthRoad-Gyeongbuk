@@ -77,6 +77,9 @@ class PolicyQueryOrchestrator {
   PolicyQuery _buildAllQuery() {
     final filter = PolicyFilter(
       region: _ui.region,
+      province: _ui.province,
+      city: _ui.city,
+      district: _ui.district,
       category: _ui.category,
       isOnline: _ui.showOnlyOnline ? true : null,
       isOngoing: _ui.showOnlyOngoing ? true : null,
@@ -99,6 +102,9 @@ class PolicyQueryOrchestrator {
 
     final filter = PolicyFilter(
       region: region,
+      province: _ui.province,
+      city: _ui.city,
+      district: _ui.district,
       category: _ui.category,
       isOnline: _ui.showOnlyOnline ? true : null,
       isOngoing: _ui.showOnlyOngoing ? true : null,
@@ -116,6 +122,9 @@ class PolicyQueryOrchestrator {
   PolicyQuery _buildSearchQuery() {
     final filter = PolicyFilter(
       region: _ui.region,
+      province: _ui.province,
+      city: _ui.city,
+      district: _ui.district,
       category: _ui.category,
       isOnline: _ui.showOnlyOnline ? true : null,
       isOngoing: _ui.showOnlyOngoing ? true : null,

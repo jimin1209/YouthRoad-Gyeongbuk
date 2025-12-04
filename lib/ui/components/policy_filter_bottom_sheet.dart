@@ -214,130 +214,133 @@ class _PolicyFilterBottomSheetState extends State<PolicyFilterBottomSheet> {
     final textTheme = Theme.of(context).textTheme;
     final policyTheme = Theme.of(context).extension<PolicyTheme>()!;
 
-    return SafeArea(
-      top: false,
-      child: Column(
-        children: [
-          // 헤더
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-            child: Row(
-              children: [
-                Text(
-                  '필터',
-                  style: textTheme.titleMedium,
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-
-          // 본문 스크롤 영역
-          Expanded(
-            child: SingleChildScrollView(
-              controller: widget.scrollController,
+    return SizedBox(
+      width: double.infinity,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            // 헤더
+            Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  // 선택된 필터 요약
-                  _buildSelectedFiltersSummary(context),
-
-                  const SizedBox(height: 16),
-
-                  // 토글 그룹
-                  const SectionTitle(title: '모집 상태'),
-                  const SizedBox(height: 8),
-                  _buildToggleGroup(context),
-
-                  const SizedBox(height: 20),
-
-                  // 지역
-                  const SectionTitle(title: '지역'),
-                  const SizedBox(height: 8),
-                  _buildFilterChipGroup(
-                    values: widget.options.regions,
-                    selected: _state.regions,
-                    onTap: _toggleRegion,
+                  Text(
+                    '필터',
+                    style: textTheme.titleMedium,
                   ),
-
-                  const SizedBox(height: 20),
-
-                  // 카테고리
-                  const SectionTitle(title: '카테고리'),
-                  const SizedBox(height: 8),
-                  _buildFilterChipGroup(
-                    values: widget.options.categories,
-                    selected: _state.categories,
-                    onTap: _toggleCategory,
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
-
-                  const SizedBox(height: 20),
-
-                  // 주관 기관
-                  const SectionTitle(title: '주관 기관'),
-                  const SizedBox(height: 8),
-                  _buildFilterChipGroup(
-                    values: widget.options.organizations,
-                    selected: _state.organizations,
-                    onTap: _toggleOrganization,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 담당 부서
-                  const SectionTitle(title: '담당 부서'),
-                  const SizedBox(height: 8),
-                  _buildFilterChipGroup(
-                    values: widget.options.departments,
-                    selected: _state.departments,
-                    onTap: _toggleDepartment,
-                  ),
-
-                  const SizedBox(height: 24),
-                  SizedBox(height: policyTheme?.policyCardPadding.bottom ?? 0),
                 ],
               ),
             ),
-          ),
+            const Divider(height: 1),
 
-          // 하단 버튼 영역
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: scheme.shadow.withOpacity(0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
+            // 본문 스크롤 영역
+            Expanded(
+              child: SingleChildScrollView(
+                controller: widget.scrollController,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 선택된 필터 요약
+                    _buildSelectedFiltersSummary(context),
+
+                    const SizedBox(height: 16),
+
+                    // 토글 그룹
+                    const SectionTitle(title: '모집 상태'),
+                    const SizedBox(height: 8),
+                    _buildToggleGroup(context),
+
+                    const SizedBox(height: 20),
+
+                    // 지역
+                    const SectionTitle(title: '지역'),
+                    const SizedBox(height: 8),
+                    _buildFilterChipGroup(
+                      values: widget.options.regions,
+                      selected: _state.regions,
+                      onTap: _toggleRegion,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 카테고리
+                    const SectionTitle(title: '카테고리'),
+                    const SizedBox(height: 8),
+                    _buildFilterChipGroup(
+                      values: widget.options.categories,
+                      selected: _state.categories,
+                      onTap: _toggleCategory,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 주관 기관
+                    const SectionTitle(title: '주관 기관'),
+                    const SizedBox(height: 8),
+                    _buildFilterChipGroup(
+                      values: widget.options.organizations,
+                      selected: _state.organizations,
+                      onTap: _toggleOrganization,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 담당 부서
+                    const SectionTitle(title: '담당 부서'),
+                    const SizedBox(height: 8),
+                    _buildFilterChipGroup(
+                      values: widget.options.departments,
+                      selected: _state.departments,
+                      onTap: _toggleDepartment,
+                    ),
+
+                    const SizedBox(height: 24),
+                    SizedBox(height: policyTheme?.policyCardPadding.bottom ?? 0),
+                  ],
                 ),
-              ],
+              ),
             ),
-            child: Row(
-              children: [
-                OutlinedButton(
-                  onPressed: _state.isEmpty ? null : _resetFilters,
-                  child: const Text('초기화'),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _applyFilters,
-                    child: const Text('필터 적용'),
+
+            // 하단 버튼 영역
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: scheme.shadow.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Row(
+                children: [
+                  OutlinedButton(
+                    onPressed: _state.isEmpty ? null : _resetFilters,
+                    child: const Text('초기화'),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _applyFilters,
+                      child: const Text('필터 적용'),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

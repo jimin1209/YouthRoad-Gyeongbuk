@@ -20,11 +20,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final ScrollController _scrollController = ScrollController();
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
@@ -59,6 +54,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
           ),
         ],
       ),
+
+      /// 🔥 핵심 수정 — SizedBox.expand 제거 (문제의 근본 원인)
       body: SafeArea(
         child: Column(
           children: [
@@ -72,7 +69,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             else
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.only(bottom: 12),
@@ -121,7 +119,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2.2),
                           )
                         : FilledButton.icon(
-                            onPressed: () => _send(notifier, chatState.isSending),
+                            onPressed: () =>
+                                _send(notifier, chatState.isSending),
                             icon: const Icon(Icons.send),
                             label: const Text('보내기'),
                           ),
@@ -215,7 +214,8 @@ class _ChatBubble extends StatelessWidget {
         child: Text(
           message.text,
           style: isSystem
-              ? theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)
+              ? theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline)
               : textStyle,
           softWrap: true,
         ),

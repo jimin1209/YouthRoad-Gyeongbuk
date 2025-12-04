@@ -78,66 +78,88 @@ class _PolicySearchScreenState extends ConsumerState<PolicySearchScreen> {
     return Scaffold(
       appBar: const AppAppBar(title: '정책 검색'),
       body: SafeArea(
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth.isFinite
+                ? constraints.maxWidth
+                : MediaQuery.of(context).size.width;
+
+            return GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: 0,
+                  maxWidth: maxWidth,
+                ),
+                child: Column(
                   children: [
-                    Expanded(child: _buildSearchField()),
-                    const SizedBox(width: 8),
-                    _buildFilterButton(context),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: Row(
+                          children: [
+                            Expanded(child: _buildSearchField()),
+                            const SizedBox(width: 8),
+                            _buildFilterButton(context),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: PolicySearchSuggestionPanel(
+                        mode: mode,
+                        highlight: _controller.text,
+                        recentQueries: historyState.items
+                            .map((item) => item.query)
+                            .toList(),
+                        popularKeywords:
+                            popularKeywords.valueOrNull ?? const [],
+                        categoryKeywords: _categoryKeywords,
+                        liveSuggestions:
+                            liveSuggestions.map((e) => e.text).toList(),
+                        isLoadingSuggestions: suggestionState.isLoading,
+                        onSelect: _onSelectSuggestion,
+                        onRemoveRecent: _onRemoveRecent,
+                        onClearRecent: _onClearRecent,
+                        onCategoryTap: _onTapCategory,
+                      ),
+                    ),
+                    if (_filterState.isEmpty)
+                      const SizedBox(height: 4)
+                    else
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: _selectedFilterLabels()
+                                .map((label) => PolicyTag(label: label))
+                                .toList(),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        child: _buildResultArea(context, searchState),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: PolicySearchSuggestionPanel(
-                  mode: mode,
-                  highlight: _controller.text,
-                  recentQueries:
-                      historyState.items.map((item) => item.query).toList(),
-                  popularKeywords: popularKeywords.valueOrNull ?? const [],
-                  categoryKeywords: _categoryKeywords,
-                  liveSuggestions: liveSuggestions.map((e) => e.text).toList(),
-                  isLoadingSuggestions: suggestionState.isLoading,
-                  onSelect: _onSelectSuggestion,
-                  onRemoveRecent: _onRemoveRecent,
-                  onClearRecent: _onClearRecent,
-                  onCategoryTap: _onTapCategory,
-                ),
-              ),
-              if (_filterState.isEmpty)
-                const SizedBox(height: 4)
-              else
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: _selectedFilterLabels()
-                          .map((label) => PolicyTag(label: label))
-                          .toList(),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  switchInCurve: Curves.easeOut,
-                  switchOutCurve: Curves.easeIn,
-                  child: _buildResultArea(context, searchState),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -164,7 +186,9 @@ class _PolicySearchScreenState extends ConsumerState<PolicySearchScreen> {
                 icon: const Icon(Icons.clear),
                 onPressed: _clearQuery,
               ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
       onChanged: _onQueryChanged,
       onSubmitted: (_) => _submit(),
@@ -292,7 +316,9 @@ class _PolicySearchScreenState extends ConsumerState<PolicySearchScreen> {
   void _onTapCategory(String value) {
     _controller.text = value;
     _controller.selection = TextSelection.collapsed(offset: value.length);
-    ref.read(searchControllerProvider.notifier).setCategory(SearchCategory.policy);
+    ref
+        .read(searchControllerProvider.notifier)
+        .setCategory(SearchCategory.policy);
     _submit();
   }
 

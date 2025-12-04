@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -50,7 +51,8 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
       : super(
           PolicyActionState(
             isFavorite: ref.read(favoriteIdsProvider).contains(policyId),
-            isCompared: ref.read(compareRepositoryProvider).ids.contains(policyId),
+            isCompared:
+                ref.read(compareRepositoryProvider).ids.contains(policyId),
             reminderState: ref.read(policyReminderControllerProvider(policyId)),
           ),
         ) {
@@ -75,20 +77,29 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
       );
     });
 
-    ref.listen<AsyncValue<PolicyReminderViewState>> (
+    ref.listen<AsyncValue<PolicyReminderViewState>>(
       policyReminderControllerProvider(policyId),
       (previous, next) {
-        state = state.copyWith(reminderState: next, errorMessage: state.errorMessage);
+        state = state.copyWith(
+          reminderState: next,
+          errorMessage: state.errorMessage,
+        );
       },
     );
   }
 
   void _setProcessing(bool value) {
-    state = state.copyWith(isProcessing: value, errorMessage: state.errorMessage);
+    state = state.copyWith(
+      isProcessing: value,
+      errorMessage: state.errorMessage,
+    );
   }
 
   void _setError(String? message) {
     state = state.copyWith(errorMessage: message);
+    if (kDebugMode && message != null) {
+      debugPrint('[PolicyActionController] Error: $message');
+    }
   }
 
   Future<void> toggleFavorite(Policy policy) async {
@@ -97,7 +108,10 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     _setError(null);
     try {
       await ref.read(policyFavoriteServiceProvider).toggleFavorite(policy);
-    } catch (e) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[PolicyActionController] toggleFavorite error: $e\n$st');
+      }
       _setError('즐겨찾기 처리에 실패했습니다: $e');
     } finally {
       _setProcessing(false);
@@ -119,7 +133,10 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
 
     try {
       ref.read(compareRepositoryProvider.notifier).toggleCompare(policy);
-    } catch (e) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[PolicyActionController] toggleCompare error: $e\n$st');
+      }
       _setError('비교 목록을 갱신하지 못했습니다: $e');
     } finally {
       _setProcessing(false);
@@ -133,10 +150,15 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     if (state.isProcessing) return;
     _setProcessing(true);
     _setError(null);
-    final controller = ref.read(policyReminderControllerProvider(policy.id).notifier);
+    final controller =
+        ref.read(policyReminderControllerProvider(policy.id).notifier);
     try {
       await controller.setReminders(policy, options);
-    } catch (e) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint(
+            '[PolicyActionController] setReminderOptions error: $e\n$st');
+      }
       _setError('알림을 설정하지 못했습니다: $e');
     } finally {
       _setProcessing(false);
@@ -151,22 +173,32 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     if (state.isProcessing) return;
     _setProcessing(true);
     _setError(null);
-    final controller = ref.read(policyReminderControllerProvider(policyId).notifier);
+    final controller =
+        ref.read(policyReminderControllerProvider(policyId).notifier);
     try {
       await controller.cancelAll();
-    } catch (e) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[PolicyActionController] cancelReminder error: $e\n$st');
+      }
       _setError('알림을 취소하지 못했습니다: $e');
     } finally {
       _setProcessing(false);
     }
   }
 
+  /// 정책 상세/신청 링크 열기 (외부 브라우저 → 실패 시 앱 내 WebView fallback)
   Future<bool> openPolicyLink(Policy policy) async {
     if (state.isProcessing) return false;
+
     final url = _resolveUrl(policy);
     if (url == null) {
       _setError('신청 링크가 제공되지 않았습니다.');
       return false;
+    }
+
+    if (kDebugMode) {
+      debugPrint('[PolicyActionController] Trying to open URL: $url');
     }
 
     final uri = Uri.tryParse(url);
@@ -175,17 +207,52 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
       return false;
     }
 
-    if (!await canLaunchUrl(uri)) {
-      _setError('이 링크를 열 수 없습니다.');
-      return false;
-    }
-
     _setProcessing(true);
     _setError(null);
+
     try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return true;
-    } catch (e) {
+      // 1) 외부 브라우저 우선 시도
+      bool ok = false;
+      try {
+        ok = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (kDebugMode) {
+          debugPrint(
+            '[PolicyActionController] externalApplication result: $ok',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint(
+            '[PolicyActionController] externalApplication error: $e\n$st',
+          );
+        }
+      }
+
+      // 2) 실패하면 앱 내 WebView로 fallback
+      if (!ok) {
+        if (kDebugMode) {
+          debugPrint(
+            '[PolicyActionController] Falling back to inAppWebView for $uri',
+          );
+        }
+        ok = await launchUrl(
+          uri,
+          mode: LaunchMode.inAppWebView,
+        );
+      }
+
+      if (!ok) {
+        _setError('링크를 여는 데 실패했습니다.');
+      }
+
+      return ok;
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[PolicyActionController] launchUrl final error: $e\n$st');
+      }
       _setError('링크를 여는 중 오류가 발생했습니다: $e');
       return false;
     } finally {
@@ -193,9 +260,31 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     }
   }
 
+  /// 정책에서 사용할 최종 URL 결정 + 스킴 보정
   String? _resolveUrl(Policy policy) {
-    if (policy.applyUrl.isNotEmpty) return policy.applyUrl;
-    if (policy.detailUrl != null && policy.detailUrl!.isNotEmpty) return policy.detailUrl;
-    return null;
+    String? raw;
+
+    if (policy.applyUrl.isNotEmpty) {
+      raw = policy.applyUrl;
+    } else if (policy.detailUrl != null && policy.detailUrl!.isNotEmpty) {
+      raw = policy.detailUrl;
+    }
+
+    if (raw == null) return null;
+
+    raw = raw.trim();
+    if (raw.isEmpty) return null;
+
+    // 이미 http/https 스킴이 있으면 그대로 사용
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return raw;
+    }
+
+    // 스킴 없이 온 경우 방어적으로 https를 붙여줌
+    if (raw.startsWith('//')) {
+      return 'https:$raw';
+    }
+
+    return 'https://$raw';
   }
 }

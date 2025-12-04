@@ -1,4 +1,8 @@
+// lib/data/local/isar/isar_service.dart
+
+import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -7,133 +11,119 @@ import '../../models/policy_filter.dart';
 import 'policy_isar_model.dart';
 import '../../../features/policy_new/data/local/isar/policy_reminder_isar_model.dart';
 
-class IsarService {
-  Isar? _isar;
-  bool _opening = false;
+/// 전역(singleton) Isar 인스턴스 관리
+Isar? _globalIsar;
+Completer<Isar>? _globalOpenCompleter;
 
-  /// Lazy singleton instance
+const _isarDbName = 'default';
+const _isarSchemas = <CollectionSchema>[
+  PolicyIsarModelSchema,
+  PolicyReminderIsarModelSchema,
+];
+
+class IsarService {
+  const IsarService();
+
   Future<Isar> get instance async {
-    if (_isar != null) return _isar!;
-    if (_opening) {
-      await Future.delayed(const Duration(milliseconds: 50));
-      return instance;
+    if (_globalIsar != null) {
+      return _globalIsar!;
     }
-    _isar = await _openIsar();
-    return _isar!;
+    if (_globalOpenCompleter != null) {
+      return _globalOpenCompleter!.future;
+    }
+
+    final completer = Completer<Isar>();
+    _globalOpenCompleter = completer;
+
+    try {
+      final isar = await _openIsarInternal();
+      _globalIsar = isar;
+      completer.complete(isar);
+      return isar;
+    } catch (e, st) {
+      if (!completer.isCompleted) {
+        completer.completeError(e, st);
+      }
+      rethrow;
+    } finally {
+      _globalOpenCompleter = null;
+    }
   }
 
-  /// Isar DB 오픈 (스키마 mismatch 자동 복구 포함)
-  Future<Isar> _openIsar() async {
-    if (Isar.instanceNames.isNotEmpty) {
-      return Isar.getInstance()!;
-    }
-
-    _opening = true;
-
+  Future<Isar> _openIsarInternal() async {
     final dir = await getApplicationSupportDirectory();
     final path = dir.path;
 
-    if (kDebugMode) {
-      debugPrint('[IsarService] Open DB at $path');
+    debugPrint('[IsarService] Opening DB at $path');
+
+    if (Isar.instanceNames.contains(_isarDbName)) {
+      final existing = Isar.getInstance(_isarDbName);
+      if (existing != null) return existing;
     }
 
     try {
-      // === 첫 번째 시도 ===
       return await Isar.open(
-        [
-          PolicyIsarModelSchema,
-          PolicyReminderIsarModelSchema,
-        ],
+        _isarSchemas,
         directory: path,
+        name: _isarDbName,
         inspector: kDebugMode,
       );
-    } catch (e) {
-      final msg = e.toString();
-      debugPrint("[IsarService] First open failed: $msg");
-
-      final isSchemaMismatch = msg.contains("Collection id is invalid") ||
-          msg.contains("IllegalArg") ||
-          msg.contains("LateInitializationError");
-
-      if (isSchemaMismatch) {
-        debugPrint(
-            "[IsarService] Detected schema mismatch → Resetting Isar DB...");
-
-        // 기존 .isar 파일 삭제
-        final dirObj = Directory(path);
-        if (await dirObj.exists()) {
-          await for (final f in dirObj.list()) {
-            if (f.path.contains(".isar")) {
-              debugPrint("[IsarService] Deleting ${f.path}");
-              await f.delete();
-            }
-          }
-        }
-
-        // === 재시도 ===
-        final reopened = await Isar.open(
-          [
-            PolicyIsarModelSchema,
-            PolicyReminderIsarModelSchema,
-          ],
-          directory: path,
-          inspector: kDebugMode,
-        );
-
-        _opening = false;
-        return reopened;
+    } on IsarError catch (e) {
+      final message = e.message ?? e.toString();
+      if (message.contains('Instance has already been opened')) {
+        final existing = Isar.getInstance(_isarDbName);
+        if (existing != null) return existing;
       }
 
-      _opening = false;
+      if (message.contains('Collection id is invalid')) {
+        // 스키마 mismatch → DB 리셋 후 재시도
+        final dbFile = File('$path/$_isarDbName.isar');
+        final lockFile = File('$path/$_isarDbName.isar.lock');
+        if (await lockFile.exists()) await lockFile.delete();
+        if (await dbFile.exists()) await dbFile.delete();
+
+        return await Isar.open(
+          _isarSchemas,
+          directory: path,
+          name: _isarDbName,
+          inspector: kDebugMode,
+        );
+      }
+
       rethrow;
     }
   }
 
-  Future<void> close() async {
-    if (_isar != null && _isar!.isOpen) {
-      await _isar!.close();
-      _isar = null;
-    }
-  }
+  // ---------------------------------------------------------------------------
+  // 정책 캐시
+  // ---------------------------------------------------------------------------
 
-  // ==============================
-  // 전체 정책 조회
-  // ==============================
-  Future<List<PolicyIsarModel>> getAllPolicies() async {
-    final isar = await instance;
-    return await isar.policyIsarModels.where().findAll();
-  }
-
-  // ==============================
-  // 필터 기반 조회
-  // ==============================
   Future<List<PolicyIsarModel>> getPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
     final isar = await instance;
-
     final all = await isar.policyIsarModels.where().findAll();
 
-    var andList = all.where((p) {
+    return all.where((p) {
       bool ok = true;
 
-      if (filter.searchPolicyNm != null && filter.searchPolicyNm!.isNotEmpty) {
+      if (filter.searchPolicyNm?.isNotEmpty == true) {
         final q = filter.searchPolicyNm!.toLowerCase();
         ok = ok && p.policyNm.toLowerCase().contains(q);
       }
 
-      if (filter.searchRgnSe != null && filter.searchRgnSe!.isNotEmpty) {
+      if (filter.searchRgnSe?.isNotEmpty == true) {
         final region = filter.searchRgnSe!.toLowerCase();
         ok = ok && (p.rgnSeNm != null && p.rgnSeNm!.toLowerCase() == region);
       }
 
-      if (filter.category != null && filter.category!.isNotEmpty) {
+      if (filter.category?.isNotEmpty == true) {
         final cat = filter.category!.toLowerCase();
         ok = ok &&
             (p.policyTypeNm != null && p.policyTypeNm!.toLowerCase() == cat);
       }
 
-      if (filter.searchYear != null && filter.searchYear!.isNotEmpty) {
+      if (filter.searchYear?.isNotEmpty == true) {
         ok = ok && p.policyYr == filter.searchYear;
       }
 
@@ -149,65 +139,32 @@ class IsarService {
                 !p.policyEndYmd!.isAfter(filter.endDate!));
       }
 
+      if (filter.availableOnly == true) {
+        ok = ok && (p.isApplyNow == true || p.isOngoing == true);
+      }
+
       return ok;
     }).toList();
-
-    if ((filter.searchText != null && filter.searchText!.isNotEmpty) ||
-        filter.availableOnly == true) {
-      final t = filter.searchText?.toLowerCase();
-      andList = andList.where((p) {
-        bool orOk = false;
-
-        if (t != null && t.isNotEmpty) {
-          final title = p.policyNm.toLowerCase();
-          final content = (p.policyCn ?? '').toLowerCase();
-          if (title.contains(t) || content.contains(t)) {
-            orOk = true;
-          }
-        }
-
-        if (filter.availableOnly == true) {
-          if (p.isApplyNow == true || p.isOngoing == true) {
-            orOk = true;
-          }
-        }
-
-        return orOk;
-      }).toList();
-    }
-
-    final pageIndex = (filter.pageIndex ?? 1).clamp(1, 9999);
-    final pageSize = filter.recordCount ?? 50;
-    final offset = (pageIndex - 1) * pageSize;
-
-    if (offset >= andList.length) {
-      return [];
-    }
-
-    return andList.skip(offset).take(pageSize).toList();
   }
 
-  // ==============================
-  // 단일 조회
-  // ==============================
+  Future<List<PolicyIsarModel>> getAllPolicies() async {
+    final isar = await instance;
+    return isar.policyIsarModels.where().findAll();
+  }
+
   Future<PolicyIsarModel?> getPolicyById(String id) async {
     final isar = await instance;
-    return await isar.policyIsarModels.filter().policyIdEqualTo(id).findFirst();
+    return isar.policyIsarModels.filter().policyIdEqualTo(id).findFirst();
   }
 
-  // ==============================
-  // 전체 넣기
-  // ==============================
-  Future<void> putAllPolicies(List<PolicyIsarModel> list) async {
+  Future<void> putAllPolicies(List<PolicyIsarModel> policies) async {
     final isar = await instance;
     await isar.writeTxn(() async {
-      await isar.policyIsarModels.putAll(list);
+      await isar.policyIsarModels.clear();
+      await isar.policyIsarModels.putAll(policies);
     });
   }
 
-  // ==============================
-  // 전체 삭제
-  // ==============================
   Future<void> clearPolicies() async {
     final isar = await instance;
     await isar.writeTxn(() async {
@@ -215,20 +172,26 @@ class IsarService {
     });
   }
 
-  // ==============================
-  // 리마인더 CRUD
-  // ==============================
-  Future<void> putReminder(PolicyReminderIsarModel reminder) async {
+  // ---------------------------------------------------------------------------
+  // 리마인더 캐시
+  // ---------------------------------------------------------------------------
+
+  Future<List<PolicyReminderIsarModel>> getAllReminders() async {
     final isar = await instance;
-    await isar.writeTxn(() async {
-      await isar.policyReminderIsarModels.put(reminder);
-    });
+    return isar.policyReminderIsarModels.where().findAll();
   }
 
   Future<void> putAllReminders(List<PolicyReminderIsarModel> reminders) async {
     final isar = await instance;
     await isar.writeTxn(() async {
       await isar.policyReminderIsarModels.putAll(reminders);
+    });
+  }
+
+  Future<void> putReminder(PolicyReminderIsarModel reminder) async {
+    final isar = await instance;
+    await isar.writeTxn(() async {
+      await isar.policyReminderIsarModels.put(reminder);
     });
   }
 
@@ -275,8 +238,20 @@ class IsarService {
         .findAll();
   }
 
-  Future<List<PolicyReminderIsarModel>> getAllReminders() async {
+  /// 모든 데이터 삭제 (정책 + 리마인더)
+  Future<void> clearAll() async {
     final isar = await instance;
-    return isar.policyReminderIsarModels.where().findAll();
+    await isar.writeTxn(() async {
+      await isar.policyIsarModels.clear();
+      await isar.policyReminderIsarModels.clear();
+    });
+  }
+
+  Future<void> close() async {
+    final existing = _globalIsar;
+    if (existing != null && existing.isOpen) {
+      await existing.close();
+    }
+    _globalIsar = null;
   }
 }

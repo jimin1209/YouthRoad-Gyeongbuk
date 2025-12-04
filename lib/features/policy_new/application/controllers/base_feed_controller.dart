@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../filters/policy_filter_ui_state.dart';
+import '../../../../application/notifiers/region_notifier.dart';
 import 'policy_event_bus.dart';
 import 'policy_paging_state.dart';
 import 'policy_query_engine.dart';
@@ -20,6 +21,15 @@ abstract class BasePolicyFeedController
       (previous, next) {
         if (_shouldRefreshForFilterChange(previous, next)) {
           refresh();
+        }
+      },
+    );
+
+    ref.listen<String?>(
+      regionProvider,
+      (previous, next) {
+        if (previous != next) {
+          onRegionChanged();
         }
       },
     );
@@ -192,6 +202,12 @@ abstract class BasePolicyFeedController
   }
 
   Future<void> refresh() async {
+    await loadFirstPage();
+  }
+
+  /// 지역 등 주요 조건 변경 시 사용: 페이징 초기화 후 첫 페이지 재로딩
+  Future<void> onRegionChanged() async {
+    _resetPaging();
     await loadFirstPage();
   }
 

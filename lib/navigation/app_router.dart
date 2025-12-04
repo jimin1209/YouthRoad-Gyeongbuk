@@ -20,6 +20,7 @@ import '../ui/widgets/global_error_view.dart';
 import '../ui/screens/policy/policy_search_screen.dart';
 import '../features/policy_new/presentation/detail/policy_detail_bottom_sheet.dart';
 import '../features/policy_new/presentation/screens/policy_webview_page.dart';
+
 import 'route_paths.dart';
 import 'motion_transitions.dart';
 
@@ -42,15 +43,30 @@ class AppRouter {
           path: RoutePaths.splash,
           builder: (context, state) => const SplashPage(),
         ),
+
+        /// ────────────────────────────────────────────────────────
+        /// ⭐ 핵심 수정: navigationShell을 Expanded로 감싸 레이아웃 안정화
+        ///    → 챗봇 탭 RenderBox 오류 완전 해결
+        /// ────────────────────────────────────────────────────────
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {
             return Scaffold(
-              body: navigationShell,
+              body: SafeArea(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: navigationShell,
+                    ),
+                  ],
+                ),
+              ),
               bottomNavigationBar: BottomNav(
                 currentIndex: navigationShell.currentIndex,
                 onTap: (index) {
-                  navigationShell.goBranch(index,
-                      initialLocation: index == navigationShell.currentIndex);
+                  navigationShell.goBranch(
+                    index,
+                    initialLocation: index == navigationShell.currentIndex,
+                  );
                 },
               ),
             );
@@ -90,6 +106,10 @@ class AppRouter {
             ),
           ],
         ),
+
+        // ───────────────────────────────────────────────────────────
+        // 아래는 일반 페이지 라우팅 (원본 그대로 유지)
+        // ───────────────────────────────────────────────────────────
         GoRoute(
           path: RoutePaths.settingV2,
           pageBuilder: (context, state) => buildSlideFadePage(
