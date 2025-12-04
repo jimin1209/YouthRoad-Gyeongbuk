@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../devtools_provider.dart';
+import '../widgets/devtools_split_pane.dart';
 
 class NetworkInspectorPanel extends ConsumerWidget {
   const NetworkInspectorPanel({super.key});
@@ -19,76 +20,65 @@ class NetworkInspectorPanel extends ConsumerWidget {
     }
 
     final reversed = entries.reversed.toList();
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: ListView.separated(
-            itemCount: reversed.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
-            itemBuilder: (context, index) {
-              final event = reversed[index];
-              final status = event.statusCode?.toString() ?? '--';
-              final statusColor = event.isError
-                  ? const Color(0xFFDC2626)
-                  : const Color(0xFF16A34A);
-              final duration = event.duration != null
-                  ? '${event.duration!.inMilliseconds} ms'
-                  : '---';
-              final error = event.error?.message ?? '';
-              return ListTile(
-                dense: true,
-                selected: selected == event,
-                selectedTileColor: const Color(0xFFE2E8F0),
-                title: Text(
-                  '${event.method} ${event.path}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+    return DevtoolsSplitPane(
+      list: ListView.separated(
+        itemCount: reversed.length,
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        itemBuilder: (context, index) {
+          final event = reversed[index];
+          final status = event.statusCode?.toString() ?? '--';
+          final statusColor = event.isError
+              ? const Color(0xFFDC2626)
+              : const Color(0xFF16A34A);
+          final duration =
+              event.duration != null ? '${event.duration!.inMilliseconds} ms' : '---';
+          final error = event.error?.message ?? '';
+          return ListTile(
+            dense: true,
+            selected: selected == event,
+            selectedTileColor: const Color(0xFFE2E8F0),
+            title: Text(
+              '${event.method} ${event.path}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Duration: $duration'),
+                if (error.isNotEmpty)
+                  Text(
+                    error,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Color(0xFFDC2626)),
+                  ),
+              ],
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  status,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                  ),
                 ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Duration: $duration'),
-                    if (error.isNotEmpty)
-                      Text(
-                        error,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Color(0xFFDC2626)),
-                      ),
-                  ],
+                const SizedBox(height: 4),
+                Text(
+                  _formatTimestamp(event.timestamp),
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
                 ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      status,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: statusColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _formatTimestamp(event.timestamp),
-                      style:
-                          const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                    ),
-                  ],
-                ),
-                onTap: () => notifier.selectNetworkEvent(event),
-              );
-            },
-          ),
-        ),
-        const VerticalDivider(width: 1, color: Color(0xFFE2E8F0)),
-        Expanded(
-          flex: 2,
-          child: _NetworkDetailView(entry: selected),
-        ),
-      ],
+              ],
+            ),
+            onTap: () => notifier.selectNetworkEvent(event),
+          );
+        },
+      ),
+      detail: _NetworkDetailView(entry: selected),
     );
   }
 

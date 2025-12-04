@@ -4,13 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../di.dart';
 
 class FavoritesNotifier extends Notifier<Set<String>> {
-  late final SharedPreferences _prefs;
+  SharedPreferences? _prefs;
   static const _key = 'favorites';
 
   @override
   Set<String> build() {
-    _prefs = ref.read(sharedPreferencesProvider);
-    final stored = _prefs.getStringList(_key) ?? [];
+    _prefs ??= ref.read(sharedPreferencesProvider);
+    final stored = _prefs?.getStringList(_key) ?? [];
     return stored.toSet();
   }
 
@@ -48,6 +48,8 @@ class FavoritesNotifier extends Notifier<Set<String>> {
   }
 
   void _persist(Set<String> ids) {
-    _prefs.setStringList(_key, ids.toList());
+    final prefs = _prefs ?? ref.read(sharedPreferencesProvider);
+    _prefs = prefs;
+    prefs.setStringList(_key, ids.toList());
   }
 }

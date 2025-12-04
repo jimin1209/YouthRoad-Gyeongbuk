@@ -13,47 +13,60 @@ class DevtoolsContainer extends StatelessWidget {
         color: const Color(0x9914181F),
         child: SafeArea(
           child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Material(
-                  elevation: 8,
-                  borderRadius: BorderRadius.circular(16),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        color: const Color(0xFF0F172A),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.construction, color: Colors.white),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'In-App DevTools',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
+            child: FractionallySizedBox(
+              widthFactor: 0.96,
+              heightFactor: 0.96,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 960,
+                  maxHeight: 720,
+                  minWidth: 360,
+                  minHeight: 320,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Material(
+                    elevation: 8,
+                    borderRadius: BorderRadius.circular(16),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.max,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          color: const Color(0xFF0F172A),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.construction, color: Colors.white),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'In-App DevTools',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
                               ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              onPressed: onClose,
-                              icon: const Icon(Icons.close, color: Colors.white),
-                            ),
-                          ],
+                              const Spacer(),
+                              IconButton(
+                                onPressed: onClose,
+                                icon: const Icon(Icons.close, color: Colors.white),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          color: Colors.white,
-                          child: builder(context),
+                        Expanded(
+                          child: Container(
+                            color: Colors.white,
+                            child: builder(context),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

@@ -12,7 +12,7 @@ final departmentNotifierProvider = AutoDisposeAsyncNotifierProviderFamily<
 
 class DepartmentNotifier
     extends AutoDisposeFamilyAsyncNotifier<List<DepartmentModel>, String> {
-  late String _instId;
+  String _instId = '';
   String _keyword = '';
 
   @override
@@ -33,6 +33,9 @@ class DepartmentNotifier
   }
 
   Future<List<DepartmentModel>> _fetch() async {
+    if (_instId.isEmpty) {
+      return const [];
+    }
     final repository = ref.read(deptRepositoryProvider);
     final items = await repository.getDepartments(
       instId: _instId,
