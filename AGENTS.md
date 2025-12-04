@@ -431,6 +431,326 @@ class PolicyCompareModel {
 
 ---
 
+# 🚀 **TASK 305 — 정책 상세 화면 리마인더(알림) 상태머신 + UI/Provider 완전 통합 (ULTRA MAX BUILD)**
+
+### *YouthRoad Notification Layer 완전형 설계 문서*
+
+````md
+# TASK 305  
+## 정책 상세 화면 리마인더(알림) 상태머신 + UI/Provider 완전 통합  
+### Version: ULTRA MAX BUILD  
+### Owner: Application Layer + UI Layer  
+### Goal: Zero-Error, Zero-Desync, Zero-Duplicate Reminder UX
+
+---
+
+# 1. 설계 목표 (Design Objectives)
+
+본 TASK 305의 목표는 아래 요소들을 모두 충족하는 **완전한 알림 시스템**을 구축하는 것:
+
+### 🎯 1) UI(TASK 304) ↔ Provider ↔ Repository ↔ Local Notification  
+**전 계층 구조를 변경 없이 그대로 유지하면서 연결**
+
+### 🎯 2) 상태 충돌(중복 예약/중복 취소/지연 반영) ZERO  
+**동일 옵션 재클릭 → 취소**  
+**다른 옵션 클릭 → 변경**  
+**UI 상태는 Provider 상태에 100% 종속**  
+
+### 🎯 3) “선택 → 로딩 → 성공/실패” 단계 명확화  
+UI에서 즉시 Optimistic UI 사용 (단, Provider와 차이 발생 시 UI 자동 보정)
+
+### 🎯 4) 실제 사용자 UX 기준으로 직관적인 흐름  
+- 4개 옵션 중 딱 하나만 선택 가능  
+- 선택 상태는 “현재 예약된 알림”만 반영  
+- 예약/취소 후에는 스낵바로 피드백 출력
+
+---
+
+# 2. 기존 시스템 구조 (변경 금지)
+
+```txt
+PolicyDetailScreen (UI)
+  ↓
+policyReminderNotifierProvider(policyId)  (StateNotifier)
+  ↓
+PolicyReminderService
+  ↓
+PolicyReminderRepository
+  ↓
+Local Notification Scheduler
+````
+
+❗ **절대 변경 금지:**
+
+* Repository 구현
+* Service 구현
+* Domain 모델
+* StateNotifier 로직 구조
+* Policy 엔티티
+* 로딩/에러/데이터 AsyncValue 패턴
+
+---
+
+# 3. 리마인더 상태머신 (최종 확정 버전)
+
+## 🔵 STATE A — NoReminder
+
+```
+selectedReminder = null
+UI = 모든 Grid 옵션 unselected
+```
+
+## 🟢 STATE B — ReminderSet(X)
+
+```
+selectedReminder = X
+UI = X 옵션 only selected
+```
+
+## 🟡 STATE C — Transition(changing)
+
+```
+변경 처리 중
+UI = Optimistic 적용 → 눌린 옵션을 우선 selected로 보여줌
+Provider 실제 결과와 다르면 UI는 즉시 Provider 값으로 auto-correct
+```
+
+## 🔴 STATE D — Cancelled
+
+```
+selectedReminder = null
+UI = 모두 unselected
+```
+
+---
+
+# 4. UI ↔ Provider 통합 규칙 (절대 변경 금지 패턴)
+
+UI는 아래 **두 개의 액션만 호출**해야 한다:
+
+```dart
+await notifier.setReminder(policy, option);
+await notifier.cancelReminder(policyId);
+```
+
+즉, UI는 절대:
+
+❌ Service를 직접 호출하지 않음
+❌ Repository 직접 접근 없음
+❌ Notification 스케줄러 직접 접근 없음
+
+🚀 **UI는 오직 "Notifier"와만 통신**한다.
+
+---
+
+# 5. “선택 / 취소 / 변경” 액션 규칙 (Human-centric UX 기준)
+
+### ✔ 5-1) 동일 옵션 재클릭 → 취소
+
+```dart
+if (selectedReminder == option) {
+  notifier.cancelReminder(policyId);
+}
+```
+
+### ✔ 5-2) 다른 옵션 클릭 → 변경
+
+```dart
+else {
+  notifier.setReminder(policy, option);
+}
+```
+
+### ✔ 5-3) 빠른 연타 방지 (Double Tap Protection)
+
+Codex 규칙에 포함:
+
+* 한 옵션 클릭 후 500ms 이내에는 중복 실행 불가
+* provider state가 “AsyncLoading()”이면 버튼 비활성화
+
+---
+
+# 6. selectedReminder 동기화 규약 (UI → Provider → UI)
+
+기존 Notifier는 load() 후 아래 구조로 값을 제공한다:
+
+```dart
+AsyncValue<PolicyReminder?>
+```
+
+UI는 이 값을 다음과 같이 해석해야 한다:
+
+```dart
+final reminderState = ref.watch(policyReminderNotifierProvider(policyId));
+final selectedReminder = reminderState.value?.option.toEnum();
+```
+
+### ⚠ toEnum() 매핑 규칙 (필수)
+
+policy-reminder-option 문자열 → UI enum
+
+```
+"1"   → ReminderOption.oneDayBefore
+"3"   → ReminderOption.threeDaysBefore
+"7"   → ReminderOption.sevenDaysBefore
+"0"   → ReminderOption.onDueDate
+null → null
+```
+
+❗ Codex가 이 규약대로 매핑하도록 명령어에 포함됨.
+
+---
+
+# 7. UI 레벨 Feedback & Optimistic UI 규칙
+
+### ✔ 선택/취소 직후 UI는 “Optimistic 업데이트” 수행
+
+→ 즉시 반응 + 200ms 내 Provider 반영 검사
+→ Provider 결과와 다르면 자동 보정 (self-healing)
+
+### ✔ 알림 저장 성공 → 스낵바
+
+```
+"알림이 예약되었습니다"
+```
+
+### ✔ 취소 성공 → 스낵바
+
+```
+"알림이 취소되었습니다"
+```
+
+### ✔ 오류 발생 → 스낵바
+
+```
+"알림 설정 중 오류가 발생했습니다"
+```
+
+### ✔ 알림 옵션 Grid는 다음과 같은 disabled 조건:
+
+* reminderState is AsyncLoading
+* setReminder/cancelReminder 실행 중
+
+---
+
+# 8. 최종 연결 코드 패턴 (UI 상단 선언)
+
+```dart
+final notifier = ref.watch(
+  policyReminderNotifierProvider(policyId).notifier,
+);
+
+final reminderState = ref.watch(
+  policyReminderNotifierProvider(policyId),
+);
+
+final selectedReminder =
+    reminderState.value?.option.toEnum();
+```
+
+UI Action 바인딩:
+
+```dart
+onTapReminder3DaysBefore: () async {
+  if (selectedReminder == ReminderOption.threeDaysBefore) {
+    await notifier.cancelReminder(policyId);
+  } else {
+    await notifier.setReminder(policy, ReminderOption.threeDaysBefore);
+  }
+}
+```
+
+---
+
+# 9. Codex 실행용 “알림 시스템 자동 연결 SUPER COMMAND (Ultra Safe)”
+
+```md
+@codex-super-command
+name: "Connect PolicyDetail Reminder System (Ultra Safe)"
+version: "v3-ultra-max"
+description: |
+  TASK 304(UI) ↔ PolicyReminderNotifier 간 알림 시스템을 완전 통합한다.
+  UI만 수정하며 Provider/Service/Repository는 절대 변경하지 않는다.
+  selectedReminder 상태와 UI 하이라이트를 정확하게 동기화한다.
+  동일 옵션 클릭 → 취소 / 다른 옵션 클릭 → 변경 규칙을 따른다.
+
+no_modify:
+  - "lib/application/**"
+  - "lib/data/**"
+  - "lib/domain/**"
+  - "**/*.freezed.dart"
+  - "**/*.g.dart"
+
+modify_targets:
+  - "lib/ui/screens/policy/policy_detail_screen.dart"
+
+steps:
+  - "1) UI 상단에 notifier/reminderState/selectedReminder 선언 추가"
+  - "2) 4개의 알림 옵션 onTap → setReminder/cancelReminder 규약으로 교체"
+  - "3) selectedReminder == option → selected UI 표시"
+  - "4) AsyncLoading 상태면 버튼 disabled 적용"
+  - "5) toEnum() 매핑 함수 자동 생성"
+  - "6) Snackbar 피드백 추가"
+  - "7) UI 전체 Dart format 적용"
+  - "8) no_modify 영역 침범 여부 검사"
+
+output:
+  type: "patch"
+  format: "unified_diff"
+```
+
+---
+
+# 10. 테스트 시나리오 (필수)
+
+### ✓ TC01 — 처음 진입
+
+```
+reminder 없음 → 모든 옵션 unselected
+```
+
+### ✓ TC02 — 3일 전 선택
+
+```
+→ selectedReminder = threeDaysBefore
+→ Grid 하이라이트
+→ Snackbar: 알림이 예약되었습니다
+```
+
+### ✓ TC03 — 동일 옵션 재클릭
+
+```
+→ 알림 취소
+→ selectedReminder = null
+→ Snackbar: 알림이 취소되었습니다
+```
+
+### ✓ TC04 — 다른 옵션 변경
+
+```
+3일전 → 1일전 변경
+→ 기존 알림 delete
+→ 새 알림 upsert
+→ UI 자동 업데이트
+```
+
+### ✓ TC05 — 빠른 연타
+
+```
+AsyncLoading 방지 → 중복 실행 안 됨
+```
+
+---
+
+# END OF TASK 305 (ULTRA MAX BUILD)
+
+```
+
+---
+
+
+```
+
 ---
 
 # 📌 TASK 304 — 정책 상세 화면 전체 파일 리팩토링 (디자인 완성도 MAX)
