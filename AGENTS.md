@@ -430,6 +430,531 @@ class PolicyCompareModel {
 
 ---
 
+# TASK 301
+
+---
+
+# 📌 TASK 301 — YouthRoad 글로벌 테마 정의 (Flutter ThemeData / ColorScheme 고퀄 버전)
+
+````md
+# TASK 301  
+## YouthRoad 글로벌 테마 정의 (Flutter ThemeData / ColorScheme + ThemeExtension)  
+### Status: OPEN  
+### Owner: UI/UX Layer
+
+---
+
+## 1. 목적
+
+- TASK 300에서 정의한 **디자인 시스템(색상, 타이포, 컴포넌트 규칙)**을
+  Flutter `ThemeData`/`ColorScheme`/`ThemeExtension`으로 **일관되게 구현**한다.
+- 추후 확장(다크 모드, 이벤트 색 추가 등)이 쉽도록 **레이어를 나눈 구조**로 설계한다.
+  - Design Tokens (`AppColors`, `AppTextStyles`)
+  - Material ColorScheme (`lightColorScheme`)
+  - 컴포넌트 테마 (Card, Button, Chip, AppBar, BottomNav, Input 등)
+  - 도메인 전용 ThemeExtension (`PolicyTheme`) — 정책 카드/태그/EmptyState에 특화
+
+---
+
+## 2. 적용 범위
+
+- 앱 전역(특히 정책탐색 전 화면)
+- 공통 UI 컴포넌트:
+  - 카드, 버튼, 태그(Chip), BottomSheet, AppBar, BottomNavigationBar, Input
+- 도메인 특화:
+  - 정책 카드 영역 배경, EmptyState 색, 정책 태그 색 등
+
+---
+
+## 3. 전체 코드 (lib/theme/app_theme.dart)
+
+```dart
+// lib/theme/app_theme.dart
+//
+// YouthRoad App 글로벌 테마 정의
+// - Design Tokens (색상/타이포)
+// - Material ColorScheme
+// - 컴포넌트 ThemeData
+// - 도메인 전용 ThemeExtension (PolicyTheme)
+//
+// 기준 문서: TASK 300 – 디자인 시스템 정의
+
+import 'package:flutter/material.dart';
+
+/// ---------------------------------------------------------------------------
+/// 1. Design Tokens (색상 / 타이포)
+/// ---------------------------------------------------------------------------
+
+/// 공통 컬러 정의 (TASK 300 기반)
+class AppColors {
+  const AppColors._();
+
+  // Primary
+  static const primary500 = Color(0xFF4A8BFF);
+  static const primary600 = Color(0xFF3574E5);
+  static const primaryLight = Color(0xFFEDF5FF);
+
+  // Secondary
+  static const secondary500 = Color(0xFF6C6CE5);
+
+  // Neutral
+  static const gray900 = Color(0xFF1A1A1A);
+  static const gray700 = Color(0xFF333333);
+  static const gray500 = Color(0xFF6B6B6B);
+  static const gray300 = Color(0xFFD9D9D9);
+  static const gray100 = Color(0xFFF3F3F3);
+  static const gray50 = Color(0xFFFAFAFA);
+
+  // Feedback
+  static const success = Color(0xFF4CAF50);
+  static const warning = Color(0xFFFFB300);
+  static const error = Color(0xFFFF5252);
+}
+
+/// 텍스트 스타일 세트 (TASK 300 타이포 스펙)
+class AppTextStyles {
+  const AppTextStyles._();
+
+  /// Title1: 20 / Bold / lh 1.3
+  static const title1 = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+    height: 1.3,
+  );
+
+  /// Title2: 18 / SemiBold / lh 1.3
+  static const title2 = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    height: 1.3,
+  );
+
+  /// Body1: 16 / Regular / lh 1.4
+  static const body1 = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    height: 1.4,
+  );
+
+  /// Body2: 14 / Regular / lh 1.4
+  static const body2 = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    height: 1.4,
+  );
+
+  /// Caption: 12 / Regular / lh 1.3
+  static const caption = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    height: 1.3,
+  );
+}
+
+/// ---------------------------------------------------------------------------
+/// 2. ColorScheme & TextTheme
+/// ---------------------------------------------------------------------------
+
+/// Light 모드 ColorScheme (Material 3 기준)
+final ColorScheme lightColorScheme = ColorScheme(
+  brightness: Brightness.light,
+  primary: AppColors.primary500,
+  onPrimary: Colors.white,
+  primaryContainer: AppColors.primaryLight,
+  onPrimaryContainer: AppColors.primary600,
+  secondary: AppColors.secondary500,
+  onSecondary: Colors.white,
+  secondaryContainer: AppColors.primaryLight,
+  onSecondaryContainer: AppColors.secondary500,
+  error: AppColors.error,
+  onError: Colors.white,
+  errorContainer: AppColors.error.withOpacity(0.08),
+  onErrorContainer: AppColors.error,
+  background: AppColors.gray50,
+  onBackground: AppColors.gray900,
+  surface: Colors.white,
+  onSurface: AppColors.gray900,
+  surfaceVariant: AppColors.gray100,
+  onSurfaceVariant: AppColors.gray700,
+  outline: AppColors.gray300,
+  outlineVariant: AppColors.gray100,
+  shadow: Colors.black.withOpacity(0.12),
+  scrim: Colors.black.withOpacity(0.32),
+  inverseSurface: AppColors.gray900,
+  onInverseSurface: AppColors.gray50,
+  inversePrimary: AppColors.primary600,
+);
+
+/// 공통 TextTheme
+final TextTheme appTextTheme = TextTheme(
+  titleLarge: AppTextStyles.title1,
+  titleMedium: AppTextStyles.title2,
+  bodyLarge: AppTextStyles.body1,
+  bodyMedium: AppTextStyles.body2,
+  bodySmall: AppTextStyles.caption,
+  labelLarge: AppTextStyles.body2.copyWith(fontWeight: FontWeight.w600),
+  labelMedium: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w500),
+);
+
+/// ---------------------------------------------------------------------------
+/// 3. 도메인 전용 ThemeExtension (정책탐색 특화 토큰)
+/// ---------------------------------------------------------------------------
+
+/// 정책탐색 / 정책카드 / EmptyState 등에 사용하는 도메인 전용 토큰
+@immutable
+class PolicyTheme extends ThemeExtension<PolicyTheme> {
+  const PolicyTheme({
+    required this.policyCardRadius,
+    required this.policyCardPadding,
+    required this.policyTagRadius,
+    required this.emptyStateIconColor,
+    required this.emptyStateTextColor,
+    required this.emptyStateBackgroundColor,
+  });
+
+  /// 정책 카드 모서리 둥글기
+  final double policyCardRadius;
+
+  /// 정책 카드 내부 padding
+  final EdgeInsets policyCardPadding;
+
+  /// 태그(Pill) 모서리 둥글기
+  final double policyTagRadius;
+
+  /// EmptyState 아이콘 색상
+  final Color emptyStateIconColor;
+
+  /// EmptyState 텍스트 색상
+  final Color emptyStateTextColor;
+
+  /// EmptyState 배경 색상
+  final Color emptyStateBackgroundColor;
+
+  @override
+  PolicyTheme copyWith({
+    double? policyCardRadius,
+    EdgeInsets? policyCardPadding,
+    double? policyTagRadius,
+    Color? emptyStateIconColor,
+    Color? emptyStateTextColor,
+    Color? emptyStateBackgroundColor,
+  }) {
+    return PolicyTheme(
+      policyCardRadius: policyCardRadius ?? this.policyCardRadius,
+      policyCardPadding: policyCardPadding ?? this.policyCardPadding,
+      policyTagRadius: policyTagRadius ?? this.policyTagRadius,
+      emptyStateIconColor: emptyStateIconColor ?? this.emptyStateIconColor,
+      emptyStateTextColor: emptyStateTextColor ?? this.emptyStateTextColor,
+      emptyStateBackgroundColor:
+          emptyStateBackgroundColor ?? this.emptyStateBackgroundColor,
+    );
+  }
+
+  @override
+  PolicyTheme lerp(ThemeExtension<PolicyTheme>? other, double t) {
+    if (other is! PolicyTheme) return this;
+
+    return PolicyTheme(
+      policyCardRadius:
+          lerpDouble(policyCardRadius, other.policyCardRadius, t),
+      policyCardPadding:
+          EdgeInsets.lerp(policyCardPadding, other.policyCardPadding, t) ??
+              policyCardPadding,
+      policyTagRadius: lerpDouble(policyTagRadius, other.policyTagRadius, t),
+      emptyStateIconColor:
+          Color.lerp(emptyStateIconColor, other.emptyStateIconColor, t) ??
+              emptyStateIconColor,
+      emptyStateTextColor:
+          Color.lerp(emptyStateTextColor, other.emptyStateTextColor, t) ??
+              emptyStateTextColor,
+      emptyStateBackgroundColor: Color.lerp(
+            emptyStateBackgroundColor,
+            other.emptyStateBackgroundColor,
+            t,
+          ) ??
+          emptyStateBackgroundColor,
+    );
+  }
+
+  /// Light 모드 기본값
+  static PolicyTheme light(ColorScheme scheme) => PolicyTheme(
+        policyCardRadius: 16.0,
+        policyCardPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        policyTagRadius: 14.0,
+        emptyStateIconColor: scheme.primary,
+        emptyStateTextColor: AppColors.gray500,
+        emptyStateBackgroundColor: AppColors.gray50,
+      );
+}
+
+double lerpDouble(double a, double b, double t) {
+  return a + (b - a) * t;
+}
+
+/// ---------------------------------------------------------------------------
+/// 4. 컴포넌트별 Theme 빌더들
+/// ---------------------------------------------------------------------------
+
+CardTheme buildCardTheme(ColorScheme colorScheme, PolicyTheme policyTheme) {
+  return CardTheme(
+    color: colorScheme.surface,
+    elevation: 2,
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(policyTheme.policyCardRadius),
+    ),
+    shadowColor: colorScheme.shadow,
+  );
+}
+
+ElevatedButtonThemeData buildElevatedButtonTheme(ColorScheme colorScheme) {
+  return ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: colorScheme.primary,
+      foregroundColor: colorScheme.onPrimary,
+      minimumSize: const Size.fromHeight(48),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      textStyle: AppTextStyles.body1.copyWith(
+        fontWeight: FontWeight.w600,
+      ),
+      elevation: 1,
+    ),
+  );
+}
+
+OutlinedButtonThemeData buildOutlinedButtonTheme(ColorScheme colorScheme) {
+  return OutlinedButtonThemeData(
+    style: OutlinedButton.styleFrom(
+      minimumSize: const Size.fromHeight(44),
+      side: BorderSide(color: colorScheme.outline),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      textStyle: AppTextStyles.body2.copyWith(
+        fontWeight: FontWeight.w500,
+      ),
+      foregroundColor: colorScheme.onSurface,
+    ),
+  );
+}
+
+FilledButtonThemeData buildFilledButtonTheme(ColorScheme colorScheme) {
+  return FilledButtonThemeData(
+    style: FilledButton.styleFrom(
+      minimumSize: const Size.fromHeight(44),
+      backgroundColor: colorScheme.primaryContainer,
+      foregroundColor: colorScheme.primary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      textStyle: AppTextStyles.body2.copyWith(
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
+}
+
+IconButtonThemeData buildIconButtonTheme(ColorScheme colorScheme) {
+  return IconButtonThemeData(
+    style: IconButton.styleFrom(
+      padding: const EdgeInsets.all(8),
+      minimumSize: const Size(40, 40),
+      shape: const CircleBorder(),
+      foregroundColor: colorScheme.onSurfaceVariant,
+    ),
+  );
+}
+
+ChipThemeData buildChipTheme(ColorScheme colorScheme, PolicyTheme policyTheme) {
+  return ChipThemeData(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    labelStyle: AppTextStyles.body2.copyWith(
+      color: colorScheme.onSurfaceVariant,
+    ),
+    secondaryLabelStyle: AppTextStyles.body2.copyWith(
+      color: colorScheme.primary,
+    ),
+    backgroundColor: AppColors.gray100,
+    disabledColor: AppColors.gray100,
+    selectedColor: colorScheme.primaryContainer,
+    secondarySelectedColor: colorScheme.primaryContainer,
+    checkmarkColor: colorScheme.primary,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(policyTheme.policyTagRadius),
+      side: const BorderSide(color: AppColors.gray100),
+    ),
+    side: const BorderSide(color: AppColors.gray100),
+    labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+  );
+}
+
+AppBarTheme buildAppBarTheme(ColorScheme colorScheme) {
+  return AppBarTheme(
+    backgroundColor: colorScheme.surface,
+    foregroundColor: colorScheme.onSurface,
+    elevation: 0,
+    centerTitle: true,
+    titleTextStyle: AppTextStyles.title2.copyWith(
+      color: colorScheme.onSurface,
+    ),
+    scrolledUnderElevation: 0,
+  );
+}
+
+BottomNavigationBarThemeData buildBottomNavigationBarTheme(
+  ColorScheme colorScheme,
+) {
+  return BottomNavigationBarThemeData(
+    backgroundColor: colorScheme.surface,
+    selectedItemColor: colorScheme.primary,
+    unselectedItemColor: AppColors.gray500,
+    selectedLabelStyle: AppTextStyles.caption.copyWith(
+      fontWeight: FontWeight.w600,
+    ),
+    unselectedLabelStyle: AppTextStyles.caption,
+    type: BottomNavigationBarType.fixed,
+    showUnselectedLabels: true,
+    elevation: 8,
+  );
+}
+
+InputDecorationTheme buildInputDecorationTheme(ColorScheme colorScheme) {
+  return InputDecorationTheme(
+    filled: true,
+    fillColor: colorScheme.surfaceVariant,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.gray100),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: colorScheme.primary, width: 1.4),
+    ),
+    hintStyle: AppTextStyles.body2.copyWith(
+      color: AppColors.gray500,
+    ),
+  );
+}
+
+/// ---------------------------------------------------------------------------
+/// 5. 최종 ThemeData (AppTheme.light)
+/// ---------------------------------------------------------------------------
+
+class AppTheme {
+  const AppTheme._();
+
+  /// YouthRoad Light Theme
+  static ThemeData light() {
+    final colorScheme = lightColorScheme;
+    final policyTheme = PolicyTheme.light(colorScheme);
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: colorScheme.background,
+      textTheme: appTextTheme.apply(
+        bodyColor: colorScheme.onBackground,
+        displayColor: colorScheme.onBackground,
+      ),
+      appBarTheme: buildAppBarTheme(colorScheme),
+      cardTheme: buildCardTheme(colorScheme, policyTheme),
+      elevatedButtonTheme: buildElevatedButtonTheme(colorScheme),
+      filledButtonTheme: buildFilledButtonTheme(colorScheme),
+      outlinedButtonTheme: buildOutlinedButtonTheme(colorScheme),
+      iconButtonTheme: buildIconButtonTheme(colorScheme),
+      chipTheme: buildChipTheme(colorScheme, policyTheme),
+      bottomNavigationBarTheme: buildBottomNavigationBarTheme(colorScheme),
+      inputDecorationTheme: buildInputDecorationTheme(colorScheme),
+      dialogTheme: DialogTheme(
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        titleTextStyle: AppTextStyles.title2.copyWith(
+          color: colorScheme.onSurface,
+        ),
+        contentTextStyle: AppTextStyles.body2.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: colorScheme.inverseSurface,
+        contentTextStyle: AppTextStyles.body2.copyWith(
+          color: colorScheme.onInverseSurface,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      dividerColor: AppColors.gray100,
+      splashFactory: InkRipple.splashFactory,
+
+      /// 도메인 전용 ThemeExtension 등록
+      extensions: <ThemeExtension<dynamic>>[
+        policyTheme,
+      ],
+    );
+  }
+}
+````
+
+---
+
+## 4. 간단 사용 예시 (메모)
+
+```dart
+// 예: 정책 카드에서 PolicyTheme 활용
+Widget build(BuildContext context) {
+  final policyTheme = Theme.of(context).extension<PolicyTheme>()!;
+  final scheme = Theme.of(context).colorScheme;
+
+  return Card(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(policyTheme.policyCardRadius),
+    ),
+    child: Padding(
+      padding: policyTheme.policyCardPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('정책 제목', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text('요약 설명...', style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              Chip(
+                label: const Text('청년'),
+                backgroundColor: scheme.primaryContainer,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+```
+
+---
+
+# END OF TASK 301
+
+```
+
+---
 
 
 
