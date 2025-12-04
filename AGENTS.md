@@ -429,6 +429,293 @@ class PolicyCompareModel {
 ```
 ---
 
+
+---
+
+# 🚀 **TASK 306 — 정책탐색 네비게이션 & Motion System 전체 업그레이드 (ULTRA PRO MAX)**
+
+```md
+# TASK 306  
+## YouthRoad Navigation / Motion System 완전 리빌드  
+### Version: ULTRA PRO MAX  
+### Owner: UI/UX Layer  
+### 목적: UX 체감 품질을 서비스급으로 끌어올리는 통합 Motion Architecture 구축
+
+---
+
+# 1) Motion System 철학 (Motion Philosophy)
+
+YouthRoad Motion System은 아래 3가지 철학을 따른다.
+
+### 1. Continuity (연속성)
+화면이 “끊기지 않고 이어진다”는 느낌을 줘야 한다.  
+→ 이전 화면의 구조적 맥락이 다음 화면까지 연장되도록 설계.
+
+### 2. Spatial Awareness (공간감)
+사용자가 지금 “어디서 어디로 이동했는지” 공간 감각을 잃지 않도록 한다.  
+→ 좌/우 이동 = 계층 이동  
+→ 하단 → 상단 이동 = 오버레이  
+→ Fade = 내용 변경
+
+### 3. Temporal Coherence (시간적 일관성)
+비슷한 상황에서는 **항상 비슷한 시간/커브**로 움직여야 한다.  
+→ 앱 전체 움직임이 하나의 브랜드 같게 느껴지게 함.
+
+---
+
+# 2) YouthRoad Motion Architecture (전체 구조)
+
+전체 Motion System은 아래 4개 Layer로 구성된다.
+
+```
+
+[Layer 0: Global Navigation Layer]
+
+* 빅 전환 (정책 리스트 → 상세)
+* 검색 화면 오버레이
+* 전체 탭 이동
+
+[Layer 1: Local Page Motion Layer]
+
+* Section fade
+* Skeleton ↔ Content 전환
+* 박스 강조 모션
+
+[Layer 2: Element-level Micro Motion]
+
+* 버튼 hover/press
+* 태그 선택 강조
+* 아이콘 애니메이션
+
+[Layer 3: BottomSheet Motion Layer]
+
+* Spring animation
+* Dim fade in/out
+
+````
+
+UX 품질을 올리기 위해서는  
+**4개 Layer가 모두 통일된 규칙을 가져야 한다.**
+
+---
+
+# 3) YouthRoad 전역 Motion Timing / Curve 규격
+
+| 모션 종류 | Duration | Curve | 목적 |
+|----------|----------|-------|-------|
+| Page Slide In | 260ms | easeOutCubic | 리스트 → 상세 |
+| Page Slide Out | 200ms | easeIn | 상세 → 뒤로 |
+| Search Overlay | 300ms | easeOutQuart | 검색 열기 |
+| BottomSheet | Dynamic | spring(0.75) | 옵션 필터 |
+| Skeleton Fade | 180ms | easeOut | 데이터 로딩 |
+
+규칙 1:  
+**전역 transition duration은 180–300ms 외 벗어나지 않는다.**  
+규칙 2:  
+**하단→상단은 꼭 spring 사용.**  
+규칙 3:  
+**좌→우 전환은 항상 cubic-out.**
+
+---
+
+# 4) Navigation Transition Graph (정책탐색 전체 전환 흐름)
+
+```txt
+[PolicyList]
+   │ (tap)
+   ▼  Slide + Fade
+[PolicyDetail]
+   │ (back)
+   ▼  SlideBack + FadeOut
+[PolicyList]
+
+[PolicyList]
+   │ (search)
+   ▼  SearchOverlay (Fold-in)
+[SearchScreen]
+   │ (close)
+   ▼  Fold-back
+[PolicyList]
+
+[PolicyList] ←→ [RegionTab]
+  PageView + Swipe + Snap
+````
+
+이 Graph는 Motion의 일관성을 유지하는 기준이 됨.
+
+---
+
+# 5) Flutter 적용 규약(이벤트/전환/UX 규칙 포함)
+
+## 5-1) 리스트 → 상세 (Slide + Fade) 규약
+
+```dart
+CustomTransitionPage(
+  transitionsBuilder: (context, animation, _, child) {
+    final slide = Tween(
+      begin: const Offset(1.0, 0.0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+    );
+
+    final fade = CurvedAnimation(
+      parent: animation,
+      curve: const Interval(0.0, 1.0, curve: Curves.easeOut),
+    );
+
+    return FadeTransition(
+      opacity: fade,
+      child: SlideTransition(position: slide, child: child),
+    );
+  },
+);
+```
+
+규칙:
+
+* **슬라이드는 X축, Fade는 0~1 구간 전체**
+* Animation Overlap 비율이 1:1이어야 함
+* secondaryAnimation 사용 금지 (불필요한 반전 Motion 방지)
+
+---
+
+## 5-2) 검색 화면 (Bottom-to-Top Fold-In)
+
+```dart
+CustomTransitionPage(
+  transitionsBuilder: (context, animation, _, child) {
+    final slide = Tween(
+      begin: const Offset(0.0, 0.15),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutQuart,
+    ));
+
+    final fade = Tween(begin: 0.0, end: 1.0).animate(animation);
+
+    return FadeTransition(
+      opacity: fade,
+      child: SlideTransition(position: slide, child: child),
+    );
+  },
+);
+```
+
+규칙:
+
+* 검색 화면은 “새 화면”이 아니라 “Overlay”처럼 느껴져야 함
+* vertical offset은 0.15 이하로 제한
+* fade 비율은 100%
+
+---
+
+## 5-3) Skeleton → Content 자동 FadeSwitch
+
+```dart
+AnimatedSwitcher(
+  duration: const Duration(milliseconds: 180),
+  switchInCurve: Curves.easeOut,
+  switchOutCurve: Curves.easeOut,
+  child: isLoading
+    ? const PolicySkeletonCard()
+    : PolicyCard(...),
+);
+```
+
+규칙:
+
+* skeleton height는 최종 컨텐츠 높이와 거의 같게 유지해야 튐이 없음.
+
+---
+
+## 5-4) BottomSheet Spring 규약
+
+```dart
+showModalBottomSheet(
+  context: context,
+  useSafeArea: true,
+  isScrollControlled: true,
+  transitionAnimationController: AnimationController(
+    duration: const Duration(milliseconds: 350),
+    vsync: this,
+  ),
+);
+```
+
+Spring Spec:
+
+```
+mass: 0.75  
+stiffness: 250  
+damping: 18
+```
+
+---
+
+# 6) Codex 실행용 “Motion System Rebuild SUPER COMMAND (Pro-Safe)”
+
+```md
+@codex-super-command
+name: "Apply YouthRoad Motion System (Ultra Pro Max)"
+version: "v3-pro-max"
+description: |
+  YouthRoad 전역 Motion Architecture(TASK 306 PRO MAX)를 모든 정책탐색 UI/네비게이션에 적용한다.
+  기존 Provider/Repository/StateNotifier는 절대 건드리지 않으며,
+  Routing과 UI Layer에만 Motion 로직을 주입한다.
+
+no_modify:
+  - "lib/domain/**"
+  - "lib/data/**"
+  - "lib/application/**"
+  - "**/*.freezed.dart"
+  - "**/*.g.dart"
+
+modify_targets:
+  - "lib/routing/**"
+  - "lib/ui/screens/policy/**"
+  - "lib/ui/components/**"
+
+rules:
+  - "1) 리스트→상세: slide(1→0) + fade transition 적용"
+  - "2) 상세→뒤로: slideBack + fadeOut 적용"
+  - "3) 검색 화면: Bottom→Top fold-in transition 적용"
+  - "4) Skeleton → Content: AnimatedSwitcher fade 적용"
+  - "5) BottomSheet: Spring Motion 적용"
+  - "6) PageView 탭 이동: easeOutCubic 230ms 적용"
+  - "7) 모든 TransitionPage는 CustomTransitionPage로 교체"
+
+output:
+  type: "patch"
+  format: "unified_diff"
+```
+
+---
+
+# 7) 기대 효과 (UX 체감 변화)
+
+| Before              | After                                |
+| ------------------- | ------------------------------------ |
+| 화면 전환이 어색하고 딱딱함     | **네이버·토스급 부드러운 전환**                  |
+| 검색 화면 팝업 느낌         | **서비스스러운 오버레이 “폼”**                  |
+| 리스트 → 상세에 논리적 연결 부족 | **흐름이 살아있는 UI**                      |
+| 스켈레톤 튐              | **Fade-in 정확**                       |
+| BottomSheet가 싸구려 느낌 | **iOS-style High-end Spring Motion** |
+
+YouthRoad 앱의 UI/UX 완성도가
+**한 순간에 “고급 앱 서비스” 레벨로 상승합니다.**
+
+---
+
+# END OF TASK 306 (ULTRA PRO MAX)
+
+```
+
+---
+
+
+
 ---
 
 # 🚀 **TASK 305 — 정책 상세 화면 리마인더(알림) 상태머신 + UI/Provider 완전 통합 (ULTRA MAX BUILD)**
