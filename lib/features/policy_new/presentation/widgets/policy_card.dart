@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import '../reminder/policy_reminder_badge.dart';
 
-class PolicyCard extends ConsumerWidget {
+class PolicyCard extends StatelessWidget {
   const PolicyCard({
     super.key,
     required this.policy,
@@ -15,15 +16,7 @@ class PolicyCard extends ConsumerWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef _ref) {
-    final favoriteIds = _ref.watch(favoriteIdsProvider);
-    final compareState = _ref.watch(compareRepositoryProvider);
-    final favoriteService = _ref.read(policyFavoriteServiceProvider);
-    final compareController = _ref.read(compareRepositoryProvider.notifier);
-
-    final isFavorite = favoriteIds.contains(policy.id);
-    final isCompared = compareState.ids.contains(policy.id);
-
+  Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -46,22 +39,8 @@ class PolicyCard extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   PolicyReminderBadge(policyId: policy.id),
-                  IconButton(
-                    icon: Icon(
-                      isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: isFavorite ? Colors.redAccent : Colors.grey,
-                    ),
-                    onPressed: () => favoriteService.toggleFavorite(policy),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      isCompared
-                          ? Icons.compare_arrows
-                          : Icons.compare_arrows_outlined,
-                      color: isCompared ? Colors.blueAccent : Colors.grey,
-                    ),
-                    onPressed: () => compareController.toggleCompare(policy),
-                  ),
+                  _FavoriteButton(policy: policy),
+                  _CompareButton(policy: policy),
                 ],
               ),
               const SizedBox(height: 6),
@@ -124,5 +103,53 @@ class PolicyCard extends ConsumerWidget {
     return '신청 기간: '
         '${start!.toLocal().toString().split(" ").first} ~ '
         '${end!.toLocal().toString().split(" ").first}';
+  }
+}
+
+class _FavoriteButton extends ConsumerWidget {
+  const _FavoriteButton({required this.policy});
+
+  final Policy policy;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final favoriteIds = ref.watch(favoriteIdsProvider);
+    final favoriteService = ref.read(policyFavoriteServiceProvider);
+    final isFavorite = favoriteIds.contains(policy.id);
+
+    return RepaintBoundary(
+      child: IconButton(
+        icon: Icon(
+          isFavorite ? Icons.favorite : Icons.favorite_border,
+          color: isFavorite ? Colors.redAccent : Colors.grey,
+        ),
+        onPressed: () => favoriteService.toggleFavorite(policy),
+      ),
+    );
+  }
+}
+
+class _CompareButton extends ConsumerWidget {
+  const _CompareButton({required this.policy});
+
+  final Policy policy;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final compareState = ref.watch(compareRepositoryProvider);
+    final compareController = ref.read(compareRepositoryProvider.notifier);
+    final isCompared = compareState.ids.contains(policy.id);
+
+    return RepaintBoundary(
+      child: IconButton(
+        icon: Icon(
+          isCompared
+              ? Icons.compare_arrows
+              : Icons.compare_arrows_outlined,
+          color: isCompared ? Colors.blueAccent : Colors.grey,
+        ),
+        onPressed: () => compareController.toggleCompare(policy),
+      ),
+    );
   }
 }
