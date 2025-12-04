@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:youth_road_app/app/splash/splash_page.dart';
 
-import '../ui/screens/category/category_screen.dart';
 import '../ui/screens/chatbot/chatbot_screen.dart';
 import '../features/policy_new/presentation/screens/policy_feed_home_screen.dart';
 import '../ui/screens/favorites/favorites_screen.dart';
@@ -70,8 +69,8 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: RoutePaths.category,
-                  builder: (context, state) => const CategoryScreen(),
+                  path: RoutePaths.googleMap,
+                  builder: (context, state) => const KakaoMapScreen(),
                 ),
               ],
             ),
@@ -136,13 +135,6 @@ class AppRouter {
           pageBuilder: (context, state) => buildSlideFadePage(
             key: state.pageKey,
             child: const CompareScreen(),
-          ),
-        ),
-        GoRoute(
-          path: RoutePaths.googleMap,
-          pageBuilder: (context, state) => buildSlideFadePage(
-            key: state.pageKey,
-            child: const KakaoMapScreen(),
           ),
         ),
         GoRoute(

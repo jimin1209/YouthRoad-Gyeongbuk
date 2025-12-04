@@ -1,7 +1,6 @@
 class RoutePaths {
   static const splash = '/splash';
   static const home = '/';
-  static const category = '/category';
   static const chatbot = '/ai_chat';
   static const setting = '/setting';
   static const settingV2 = '/settings/v2';
