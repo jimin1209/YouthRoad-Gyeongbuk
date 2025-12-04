@@ -1,1 +1,6 @@
-enum AppLogLevel { info, warning, error }
+enum AppLogLevel {
+  debug,
+  info,
+  warning,
+  error,
+}

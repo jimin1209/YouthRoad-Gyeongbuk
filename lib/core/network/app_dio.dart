@@ -72,6 +72,9 @@ class AppDio {
         _retryPolicy = retryPolicy ?? const RetryPolicy(),
         _errorReporter = errorReporter ?? ErrorReporter.instance {
     DebugNetworkLogger.instance.attachTo(dio);
+    if (!kReleaseMode) {
+      dio.interceptors.add(_DevtoolsNetworkInterceptor());
+    }
   }
 
   final Dio dio;
