@@ -429,6 +429,272 @@ class PolicyCompareModel {
 ```
 ---
 
+
+---
+
+# 🚀 **TASK 307 — 정책 리스트 스크롤 성능 최적화 (ULTRA PERFORMANCE EDITION)**
+
+```md
+# TASK 307  
+## 정책 리스트 스크롤 성능 최적화 (ULTRA PERFORMANCE EDITION)
+### Owner: Application Layer + UI Layer
+### 목적: 스크롤 프레임 드랍 제거 & 느린 로딩 구간 체감 성능 대폭 상승
+
+---
+
+# 1. 문제 정의
+
+YouthRoad 정책 리스트 화면은 다음 문제들로 인해 스크롤 성능이 저하되는 사례가 발생함:
+
+1) **리스트 아이템이 너무 복잡함**
+   - 아이콘 · 배지 · 좋아요 버튼 · 정책명 · 지원대상 · 기간 등 UI 요소 많음  
+   - 매 스크롤마다 리빌드 발생
+
+2) **페이징 로직이 UI 빌드와 섞여 있음**
+   - 스크롤 이벤트 → API 호출 → setState/Notifier 갱신  
+   - 빌드 트리 중복 반응
+
+3) **ListView가 무한 렌더링 영역을 계속 계산**
+   - RepaintBoundary 미적용  
+   - CacheExtent 과다
+
+4) **Skeleton → Content 전환 튐**
+   - AnimatedSwitcher 최적화 미적용  
+   - 이미지 로딩 지연 → jank 발생
+
+---
+
+# 2. 목표 성능
+
+### 🎯 스크롤 60fps 유지  
+(Android 기준 중저가 폰 포함)
+
+### 🎯 정책 100개 리스트에서도 부드러운 스크롤 유지
+
+### 🎯 정책 상세 전환 직전/후 프레임 드랍 ZERO
+
+---
+
+# 3. YouthRoad 리스트 최적화 아키텍처
+
+## (1) RepaintBoundary 적용
+
+카드 하나당 재빌드 비용이 높기 때문에  
+각 PolicyCard를 RepaintBoundary로 감싼다.
+
+```
+
+ListView
+└─ RepaintBoundary
+└─ PolicyCard
+
+```
+
+단일 카드가 리빌드되어도 형제 카드들에 영향 없음.
+
+---
+
+## (2) ListView.builder 필수 옵션
+
+```
+
+ListView.builder(
+itemCount: items.length,
+itemBuilder: ...,
+cacheExtent: 600,     // 6~8개 아이템 선렌더링
+addAutomaticKeepAlives: false,
+addRepaintBoundaries: false, // 우리가 직접 감쌈
+addSemanticIndexes: false,
+)
+
+```
+
+규칙  
+- addRepaintBoundaries는 false로 두고 **직접 RepaintBoundary 적용**  
+- cacheExtent는 너무 크게 하지 말 것(메모리 spikes 방지)
+
+---
+
+## (3) 좋아요 버튼(찜하기) 분리
+
+PolicyCard 내부에서 좋아요 버튼 누르는 순간  
+카드 전체가 rebuild되지 않도록 **독립 Provider** 또는 **ValueNotifier**로 분리.
+
+```
+
+PolicyCard
+├─ Static UI (변하지 않음)
+└─ FavoriteButton (독립 상태)
+
+````
+
+UI는 고정시키고 하트만 업데이트.
+
+---
+
+## (4) 날짜/기간 계산 로직 비동기/메모라이즈 처리
+
+지원기간 남은 일수 등 계산을 빌드 메서드에서 하지 않도록 개선.
+
+---
+
+## (5) Skeleton → Content Fade 최적화
+
+1) AnimatedSwitcher  
+2) LayoutBuilder로 높이 고정  
+3) 이미지 placeholder 고정화
+
+→ 스크롤 중 이미지 로딩 때문에 튀는 현상 제거
+
+---
+
+## (6) 페이징 로직 분리 (중요)
+
+UI 스크롤 → 페이징 불림 기준
+
+- `position.pixels >= position.maxScrollExtent * 0.8`  
+- 상태머신: Idle / Loading / Error / NoMoreData  
+- 중복 호출 금지(loading 중 재호출 방지)
+
+---
+
+## (7) 로딩 푸터 최소화
+
+푸터 영역은 항상 1개  
+그리고 Shimmer 대신 단순 ProgressIndicator + Fade 사용  
+→ GPU Overload 방지
+
+---
+
+# 4. 실제 적용 코드 (전체)
+
+아래는 **성능 최적화 버전 PolicyListView 전체 파일**입니다.
+
+📁 **lib/ui/screens/policy/widgets/policy_list_view_v2.dart**
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:youth_road_app/ui/components/policy_card.dart';
+
+class PolicyListViewV2 extends StatelessWidget {
+  final ScrollController controller;
+  final List<PolicyModel> items;
+  final bool isLoadingMore;
+  final VoidCallback onLoadMore;
+
+  const PolicyListViewV2({
+    super.key,
+    required this.controller,
+    required this.items,
+    required this.isLoadingMore,
+    required this.onLoadMore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (!isLoadingMore &&
+            n.metrics.pixels >= n.metrics.maxScrollExtent * 0.8) {
+          onLoadMore();
+        }
+        return false;
+      },
+      child: ListView.builder(
+        controller: controller,
+        itemCount: items.length + 1,
+        cacheExtent: 600,
+        addAutomaticKeepAlives: false,
+        addSemanticIndexes: false,
+        addRepaintBoundaries: false,
+        itemBuilder: (context, index) {
+          if (index == items.length) {
+            return _buildFooter(context);
+          }
+
+          final item = items[index];
+          return RepaintBoundary(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
+              child: PolicyCard(
+                policy: item,
+                enableFavoriteIndependentUpdate: true,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFooter(BuildContext context) {
+    if (!isLoadingMore) return const SizedBox.shrink();
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 32),
+      child: Center(
+        child: CircularProgressIndicator(strokeWidth: 3),
+      ),
+    );
+  }
+}
+````
+
+---
+
+# 5. Codex 적용용 SUPER COMMAND
+
+```md
+@codex-super-command
+name: "Optimize Policy List Performance (TASK 307)"
+version: "v1-ultra-perf"
+description: |
+  정책 리스트 화면(policy_list_v2_screen)의 스크롤 성능을 최적화한다.
+  RepaintBoundary, ListView.builder 설정, 좋아요 버튼 독립화,
+  페이징 상태머신 등 TASK 307 ULTRA PERFORMANCE 규약을 적용한다.
+
+no_modify:
+  - "lib/application/**"
+  - "lib/data/**"
+  - "lib/domain/**"
+  - "**/*.g.dart"
+  - "**/*.freezed.dart"
+
+modify_targets:
+  - "lib/ui/screens/policy/**"
+  - "lib/ui/components/**"
+
+steps:
+  - "1) 기존 리스트 위젯을 PolicyListViewV2로 교체"
+  - "2) 리스트 아이템을 RepaintBoundary로 감싸도록 수정"
+  - "3) 좋아요 버튼 상태를 PolicyCard 내부에서 독립 Provider로 분리"
+  - "4) 페이징 상태머신 Idle/Loading/Error/Done 적용"
+  - "5) AnimatedSwitcher 기반 Skeleton→Content Fade 적용"
+  - "6) 전체 Dart format 적용"
+
+output:
+  type: "patch"
+  format: "unified_diff"
+```
+
+---
+
+# 6. 기대 체감 효과
+
+| Before               | After             |
+| -------------------- | ----------------- |
+| 스크롤 시 40~50fps       | **60fps 고정**      |
+| 리스트 튐                | **부드러움**          |
+| Skeleton 높이 불일치로 깜빡임 | **Fade-in으로 안정화** |
+| 좋아요 버튼 누르면 전체 카드 리빌드 | **독립 업데이트로 부드럽게** |
+| API 페이징 중복 요청        | **상태머신으로 완전 차단**  |
+
+이 정도 수준이면 **토스/당근마켓급 리스팅 스크롤 안정성**입니다.
+
+---
+
 ---
 
 # 📌 TASK 309 — 정책 필터 BottomSheet 리디자인 + 선택 UX 강화
