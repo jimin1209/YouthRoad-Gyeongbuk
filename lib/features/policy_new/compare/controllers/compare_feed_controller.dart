@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -41,8 +43,9 @@ class CompareFeedController extends StateNotifier<AsyncValue<CompareState>> {
 
   Future<void> load() async {
     final ids = ref.read(compareRepositoryProvider).ids;
+    final uniqueIds = LinkedHashSet<String>.from(ids).toList();
 
-    if (ids.isEmpty) {
+    if (uniqueIds.isEmpty) {
       state = const AsyncValue.data(CompareState.empty());
       return;
     }
@@ -53,15 +56,23 @@ class CompareFeedController extends StateNotifier<AsyncValue<CompareState>> {
       final policies = <Policy>[];
       final failures = <Object>[];
 
-      for (final id in ids) {
-        try {
-          final policy = await _fetchDetail(id);
-          policies.add(policy);
-        } catch (e, st) {
-          failures.add(e);
-          debugPrint('비교 피드 로드 실패 (id: $id): $e\n$st');
-        }
-      }
+      final results = await Future.wait(
+        uniqueIds.map(
+          (id) async {
+            try {
+              return await _fetchDetail(id);
+            } catch (e, st) {
+              failures.add(e);
+              debugPrint('비교 피드 로드 실패 (id: $id): $e\n$st');
+              return null;
+            }
+          },
+        ),
+      );
+
+      policies.addAll(
+        results.whereType<Policy>(),
+      );
 
       if (policies.isEmpty) {
         final error =
