@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -28,11 +29,7 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
 
   @override
   ChatState build() {
-    final saved = _prefs.getStringList(_storageKey) ?? [];
-    final restored = saved
-        .map((jsonStr) => ChatMessage.fromJson(
-            json.decode(jsonStr) as Map<String, dynamic>))
-        .toList();
+    final restored = _loadMessages();
     return ChatState(messages: restored.isEmpty ? _seedMessages() : restored);
   }
 
@@ -95,7 +92,32 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
   void clearHistory() {
     final seed = _seedMessages();
     state = ChatState(messages: seed);
-    _prefs.remove(_storageKey);
+    _safeClearStorage();
+  }
+
+  List<ChatMessage> _loadMessages() {
+    try {
+      final saved = _prefs.getStringList(_storageKey) ?? [];
+      return _restoreMessages(saved);
+    } catch (e, st) {
+      debugPrint('채팅 기록을 불러오지 못했습니다: $e');
+      debugPrint('$st');
+      return [];
+    }
+  }
+
+  List<ChatMessage> _restoreMessages(List<String> saved) {
+    try {
+      return saved
+          .map((jsonStr) => ChatMessage.fromJson(
+              json.decode(jsonStr) as Map<String, dynamic>))
+          .toList();
+    } catch (e, st) {
+      debugPrint('채팅 기록 복원에 실패했습니다: $e');
+      debugPrint('$st');
+      _safeClearStorage();
+      return [];
+    }
   }
 
   void _updateState(
@@ -108,10 +130,24 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
   }
 
   void _saveMessages(List<ChatMessage> messages) {
-    final encoded = messages
-        .where((m) => m.text != _thinkingMessage)
-        .map((m) => json.encode(m.toJson()))
-        .toList();
-    _prefs.setStringList(_storageKey, encoded);
+    try {
+      final encoded = messages
+          .where((m) => m.text != _thinkingMessage)
+          .map((m) => json.encode(m.toJson()))
+          .toList();
+      _prefs.setStringList(_storageKey, encoded);
+    } catch (e, st) {
+      debugPrint('채팅 기록 저장 실패: $e');
+      debugPrint('$st');
+    }
+  }
+
+  void _safeClearStorage() {
+    try {
+      _prefs.remove(_storageKey);
+    } catch (e, st) {
+      debugPrint('채팅 기록 초기화 실패: $e');
+      debugPrint('$st');
+    }
   }
 }
