@@ -159,6 +159,9 @@ class NotificationCenterController
     await _enqueue(() async {
       try {
         await _service.cancelReminder(reminderId);
+        await ref
+            .read(policyReminderRepositoryProvider)
+            .deleteReminderById(reminderId);
         _removeOptimisticAction(actionId);
         final current = _applyOptimisticReducers(
           state.value ?? optimisticState.copyWith(pendingActions: 0),

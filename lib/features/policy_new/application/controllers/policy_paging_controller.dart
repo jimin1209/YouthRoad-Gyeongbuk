@@ -47,18 +47,23 @@ class PolicyPagingController extends StateNotifier<AsyncValue<List<Policy>>> {
     _items.clear();
 
     logger.info('PolicyPagingController.loadFirstPage()');
+    _isLoading = true;
     state = const AsyncValue.loading();
 
-    final PolicyResult<List<Policy>> result = await repository.fetchPolicies(
-      page: _page,
-      pageSize: settings.pageSize,
-    );
+    try {
+      final PolicyResult<List<Policy>> result = await repository.fetchPolicies(
+        page: _page,
+        pageSize: settings.pageSize,
+      );
 
-    if (result.isSuccess) {
-      _items.addAll(result.data!);
-      state = AsyncValue.data(List.from(_items));
-    } else {
-      state = AsyncValue.error(result.failure!, StackTrace.current);
+      if (result.isSuccess) {
+        _items.addAll(result.data!);
+        state = AsyncValue.data(List.from(_items));
+      } else {
+        state = AsyncValue.error(result.failure!, StackTrace.current);
+      }
+    } finally {
+      _isLoading = false;
     }
   }
 
