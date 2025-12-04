@@ -75,7 +75,7 @@ class SearchController extends AutoDisposeNotifier<SearchState> {
   }
 
   void updateQuery(String query) {
-    final newQuery = state.query.copyWith(text: query, page: 1);
+    final newQuery = _normalizeQuery(state.query.copyWith(text: query, page: 1));
     state = state.copyWith(
       query: newQuery,
       status: SearchStatus.idle,
@@ -87,7 +87,9 @@ class SearchController extends AutoDisposeNotifier<SearchState> {
   }
 
   void setCategory(SearchCategory category) {
-    final newQuery = state.query.copyWith(category: category, page: 1);
+    final newQuery = _normalizeQuery(
+      state.query.copyWith(category: category, page: 1),
+    );
     state = state.copyWith(
       query: newQuery,
       status: SearchStatus.idle,
@@ -119,7 +121,7 @@ class SearchController extends AutoDisposeNotifier<SearchState> {
     bool append = false,
     bool allowEmpty = false,
   }) async {
-    final targetQuery = state.query.copyWith(page: page);
+    final targetQuery = _normalizeQuery(state.query.copyWith(page: page));
     if (targetQuery.isEmpty && !allowEmpty) {
       state = state.copyWith(
         status: SearchStatus.idle,
@@ -171,5 +173,15 @@ class SearchController extends AutoDisposeNotifier<SearchState> {
         errorMessage: e.toString(),
       );
     }
+  }
+
+  SearchQuery _normalizeQuery(SearchQuery query) {
+    final trimmed = query.text.trim();
+    final normalizedPage = query.page < 1 ? 1 : query.page;
+
+    return query.copyWith(
+      text: trimmed,
+      page: normalizedPage,
+    );
   }
 }

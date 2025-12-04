@@ -71,7 +71,7 @@ class PolicyQueryOrchestrator {
       ),
       tags: combinedTags,
       sort: PolicySortOption.recommendation,
-    );
+    ).normalize();
   }
 
   PolicyQuery _buildAllQuery() {
@@ -90,7 +90,7 @@ class PolicyQueryOrchestrator {
       keyword: _ui.keyword.isEmpty ? null : _ui.keyword,
       filter: filter,
       sort: _ui.sort,
-    );
+    ).normalize();
   }
 
   PolicyQuery _buildRegionQuery() {
@@ -110,7 +110,7 @@ class PolicyQueryOrchestrator {
       feedType: PolicyFeedType.region,
       filter: filter,
       sort: _ui.sort,
-    );
+    ).normalize();
   }
 
   PolicyQuery _buildSearchQuery() {
@@ -129,7 +129,7 @@ class PolicyQueryOrchestrator {
       filter: filter,
       tags: _ui.tags,
       sort: _ui.sort,
-    );
+    ).normalize();
   }
 
   PolicyQuery _buildFavoriteQuery() {
@@ -138,7 +138,7 @@ class PolicyQueryOrchestrator {
       filter: const PolicyFilter(),
       tags: _favoriteIds,
       sort: _ui.sort,
-    );
+    ).normalize(clearRecommendKeyword: false);
   }
 
   PolicyQuery _buildCompareQuery() {
@@ -147,6 +147,6 @@ class PolicyQueryOrchestrator {
       filter: const PolicyFilter(),
       tags: _compareIds,
       sort: _ui.sort,
-    );
+    ).normalize(clearRecommendKeyword: false);
   }
 }

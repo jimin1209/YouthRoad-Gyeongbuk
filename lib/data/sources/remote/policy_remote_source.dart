@@ -37,7 +37,8 @@ class PolicyRemoteSource {
   Future<List<PolicyModel>> fetchPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
-    final query = _buildQuery(filter);
+    final normalizedFilter = filter.normalize();
+    final query = _buildQuery(normalizedFilter);
 
     if (kDebugMode) {
       debugPrint(
@@ -94,11 +95,18 @@ class PolicyRemoteSource {
 
   /// 쿼리 파라미터 생성
   Map<String, dynamic> _buildQuery(PolicyFilter filter) {
+    final region = _mapRegion(filter.searchRgnSe);
+
+    final isPagingEnabled = (filter.pagingYn ?? 'N').toUpperCase() == 'Y';
+    final pageSize = filter.pageSize ??
+        (isPagingEnabled ? filter.recordCount ?? 20 : 2000);
+    final recordCount = filter.recordCount ?? pageSize;
+
     final query = <String, dynamic>{
       'pageIndex': filter.pageIndex ?? 1,
-      'recordCount': filter.recordCount ?? 2000,
-      'pageSize': filter.pageSize,
-      'pagingYn': filter.pagingYn ?? 'N',
+      'recordCount': recordCount,
+      'pageSize': pageSize,
+      'pagingYn': isPagingEnabled ? 'Y' : 'N',
       'searchDsplyYn': filter.searchDsplyYn ?? 'all',
     };
 
@@ -114,18 +122,15 @@ class PolicyRemoteSource {
 
     put('searchYear', filter.searchYear);
 
-    if (filter.searchRgnSe != null &&
-        filter.searchRgnSe!.isNotEmpty &&
-        filter.searchRgnSe != '전체' &&
-        filter.searchRgnSe != '경북 전체') {
-      put('searchRgnSe', filter.searchRgnSe);
+    if (region != null && region.isNotEmpty) {
+      put('searchRgnSe', region);
     }
 
     if (filter.availableOnly == true) {
       put('aplyPsbltyYn', 'Y');
     }
 
-    if (filter.category != null && filter.category != '전체') {
+    if (filter.category != null) {
       put('searchPolicyType', filter.category);
     }
 
@@ -147,6 +152,26 @@ class PolicyRemoteSource {
     return '${date.year.toString().padLeft(4, '0')}'
         '${date.month.toString().padLeft(2, '0')}'
         '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String? _mapRegion(String? region) {
+    if (region == null) return null;
+    final trimmed = region.trim();
+    if (trimmed.isEmpty) return null;
+
+    const regionMap = {
+      '경북 전체': null,
+      '경북전체': null,
+      '경북': '경상북도',
+      '전체': null,
+      '경상북도': '경상북도',
+    };
+
+    if (regionMap.containsKey(trimmed)) {
+      return regionMap[trimmed];
+    }
+
+    return trimmed;
   }
 
   static String _normalizeBaseUrl(String value) {

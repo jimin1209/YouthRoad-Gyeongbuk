@@ -103,6 +103,17 @@ String? _asNullableString(dynamic value) {
   return value.toString();
 }
 
+String? _normalizeUrl(String? value) {
+  if (value == null) return null;
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return null;
+
+  final hasScheme = trimmed.startsWith('http://') || trimmed.startsWith('https://');
+  if (hasScheme) return trimmed;
+
+  return 'https://$trimmed';
+}
+
 class PolicyModel {
   final String id;
   final String name;
@@ -181,7 +192,7 @@ class PolicyModel {
       applyStart: _parseDate(json['aplyBgngDt']),
       applyEnd: _parseDate(json['aplyEndDt']),
       applyPossible: _asBoolFromYn(json['aplyPsbltyYn']),
-      detailUrl: _asNullableString(json['dtlLinkUrl']),
+      detailUrl: _normalizeUrl(_asNullableString(json['dtlLinkUrl'])),
       displayYn: _asNullableString(json['dsplyYn']),
       createdAt: _parseDate(json['crtDt']),
       updatedAt: _parseDate(json['updtDt']),

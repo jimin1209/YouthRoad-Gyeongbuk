@@ -83,7 +83,7 @@ class PolicyModel {
       applyStartDate: applyStart,
       applyEndDate: applyEnd,
       isApplyPossible: _asBoolFromYn(json['aplyPsbltyYn']),
-      detailUrl: _asNullableString(json['dtlLinkUrl']),
+      detailUrl: _normalizeUrl(_asNullableString(json['dtlLinkUrl'])),
       dsplyYn: _asNullableString(json['dsplyYn']),
       createdAt: _parseDateTime(json['crtDt']),
       updatedAt: _parseDateTime(json['updtDt']),
@@ -231,5 +231,16 @@ class PolicyModel {
     if (start != null && start.isAfter(now)) return false;
     if (start != null || end != null) return true;
     return null;
+  }
+
+  static String? _normalizeUrl(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+
+    final hasScheme = trimmed.startsWith('http://') || trimmed.startsWith('https://');
+    if (hasScheme) return trimmed;
+
+    return 'https://$trimmed';
   }
 }
