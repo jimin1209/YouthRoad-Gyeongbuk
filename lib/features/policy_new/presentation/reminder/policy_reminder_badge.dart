@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/providers.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/values/policy_reminder_status.dart';
+import '../../domain/values/reminder_time_kind.dart';
 
 class PolicyReminderBadge extends ConsumerWidget {
   const PolicyReminderBadge({super.key, required this.policyId});
@@ -15,8 +16,8 @@ class PolicyReminderBadge extends ConsumerWidget {
     final reminderState = ref.watch(policyReminderControllerProvider(policyId));
 
     return reminderState.when(
-      data: (reminders) {
-        final activeReminders = reminders
+      data: (state) {
+        final activeReminders = state.reminders
             .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
             .toList();
         if (activeReminders.isEmpty) return const SizedBox.shrink();
