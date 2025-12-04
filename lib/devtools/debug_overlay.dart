@@ -140,12 +140,17 @@ class _DevtoolsTabView extends StatefulWidget {
 class _DevtoolsTabViewState extends State<_DevtoolsTabView>
     with SingleTickerProviderStateMixin {
   late TabController _controller;
+  late int _lastReportedIndex;
 
   @override
   void initState() {
     super.initState();
-    _controller = TabController(length: 4, vsync: this);
-    _controller.index = widget.initialIndex.clamp(0, 3);
+    _controller = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: widget.initialIndex.clamp(0, 3),
+    );
+    _lastReportedIndex = _controller.index;
     _controller.addListener(_onTabChanged);
   }
 
@@ -155,6 +160,7 @@ class _DevtoolsTabViewState extends State<_DevtoolsTabView>
     if (widget.initialIndex != oldWidget.initialIndex &&
         widget.initialIndex != _controller.index) {
       _controller.index = widget.initialIndex.clamp(0, 3);
+      _lastReportedIndex = _controller.index;
     }
   }
 
@@ -166,7 +172,8 @@ class _DevtoolsTabViewState extends State<_DevtoolsTabView>
   }
 
   void _onTabChanged() {
-    if (_controller.indexIsChanging) return;
+    if (_controller.index == _lastReportedIndex) return;
+    _lastReportedIndex = _controller.index;
     widget.onTabChanged(_controller.index);
   }
 
