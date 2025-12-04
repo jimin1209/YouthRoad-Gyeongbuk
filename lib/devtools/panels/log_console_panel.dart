@@ -77,6 +77,10 @@ class _LogConsolePanelState extends ConsumerState<LogConsolePanel> {
                             child: Text('App'),
                           ),
                           DropdownMenuItem(
+                            value: DevLogSource.provider,
+                            child: Text('Provider'),
+                          ),
+                          DropdownMenuItem(
                             value: DevLogSource.network,
                             child: Text('Network'),
                           ),
@@ -216,6 +220,7 @@ class _LogConsolePanelState extends ConsumerState<LogConsolePanel> {
   String _sourceLabel(DevLogSource source) {
     return switch (source) {
       DevLogSource.app => 'APP',
+      DevLogSource.provider => 'PROVIDER',
       DevLogSource.network => 'NETWORK',
       DevLogSource.webView => 'WEBVIEW',
     };
