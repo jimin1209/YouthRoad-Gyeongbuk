@@ -429,6 +429,240 @@ class PolicyCompareModel {
 ```
 ---
 
+---
+
+---
+
+# 🚀 **TASK 303 — 정책탐색 UI 전체 리디자인 적용 Codex 슈퍼명령어 (ULTRA PREMIUM Edition)**
+
+### **YouthRoad Project 전용 · 안전장치 3중 적용 · UI Layer 100% 리빌드**
+
+```md
+@codex-super-command
+name: "YouthRoad PolicyExplore UI Full-Rebuild (TASK 300·301·302 Integration)"
+version: "v3-ultra-premium"
+description: |
+  YouthRoad 정책탐색 전체 화면(UI Layer)을 TASK 300(Design System),
+  TASK 301(Global Theme), TASK 302(Policy UI Components) 기반으로
+  완전한 품질로 리디자인한다.
+  
+  ⚠ 절대 수정 금지: Domain / Repository / Provider / Routing / API 레이어
+  ⚠ 오직 UI 위젯 Layer만 교체
+  ⚠ 기존 기능/로직은 100% 유지 (검색/필터/페이징/알림/상세 이동)
+
+  목표:
+    - 정책 리스트 · 검색 · 지역 · 상세 페이지의 UI를
+      완전히 새로운 통일 디자인 규격으로 재구성.
+    - 정책 카드/태그/CTA/EmptyState/Skeleton 등 모든 컴포넌트 일관화.
+    - 기존 혼잡한 레이아웃 → 디자인 시스템 기반 구조로 리빌드.
+
+# =====================================================================================
+# 1) 작업 브랜치 전략 (안전)
+# =====================================================================================
+branches:
+  create: "feature/ui-policy-explore-rebuild"
+  base: "main"
+
+protect_branches:
+  - "main"
+  - "feature/no-unity-build"
+  - "feature/core-stability"
+  - "feature/architecture-upgrade"
+
+# =====================================================================================
+# 2) 절대 변경 금지 구역 (강력 보호)
+# =====================================================================================
+no_modify:
+  - "lib/application/**"
+  - "lib/domain/**"
+  - "lib/data/**"
+  - "lib/core/**"
+  - "lib/routing/**"
+  - "lib/environment/**"
+  - "lib/main.dart"
+  - "pubspec.yaml"
+  - "**/*.g.dart"
+  - "**/*.freezed.dart"
+
+soft_no_modify:
+  - "lib/ui/screens/**/**_controller.dart"
+  - "lib/ui/screens/**/**_provider.dart"
+
+explanation: |
+  위 파일들은 로직/데이터 계층이므로 절대 건드리면 안 됨.
+  UI 화면 파일만 리빌드한다.
+
+# =====================================================================================
+# 3) 신규 컴포넌트(TASK 302) 강제 매핑
+# =====================================================================================
+component_mapping:
+  card:       "PolicyCard"
+  tag:        "PolicyTag"
+  empty:      "PolicyEmptyState"
+  skeleton:   "PolicySkeletonCard"
+  section:    "SectionTitle"
+  infoRow:    "PolicyInfoRow"
+  cta:        "PolicyCtaButton"
+
+force_import_components: true
+
+# =====================================================================================
+# 4) 재구성 대상 파일 목록 (UI Layer Only)
+# =====================================================================================
+modify_targets:
+  - "lib/ui/screens/policy/policy_list_v2_screen.dart"
+  - "lib/ui/screens/policy/policy_search_screen.dart"
+  - "lib/ui/screens/policy/policy_region_screen.dart"
+  - "lib/ui/screens/policy/policy_detail_screen.dart"
+  - "lib/ui/screens/policy/components/**"
+
+# =====================================================================================
+# 5) 화면별 리빌드 규칙 (고퀄리티 UX 기준)
+# =====================================================================================
+rules:
+
+  # -------------------------------------------------------------
+  # A. 정책 리스트 (전체/추천/필터 적용 시)
+  # -------------------------------------------------------------
+  - file: "policy_list_v2_screen.dart"
+    enforce:
+      - ListView.builder → PolicyCard
+      - 로딩 중: PolicySkeletonCard × 6
+      - 빈 목록: PolicyEmptyState(
+            message: "조건에 맞는 정책이 없습니다",
+            buttonText: "조건 초기화하기"
+        )
+      - 데이터 매핑: 
+            title = policy.name
+            summary = policy.descriptionShort
+            tags = policy.tags
+            period = policy.periodText
+      - ScrollController / Pagination 로직 → 절대 수정 X
+      - 상단 카테고리/정렬/필터 UI는 유지하되 스타일만 향상
+
+  # -------------------------------------------------------------
+  # B. 검색 화면
+  # -------------------------------------------------------------
+  - file: "policy_search_screen.dart"
+    enforce:
+      - 검색 전:
+          최근 검색어 → List of TextButton
+          추천 검색어 → PolicyTag 리스트
+      - 검색 중:
+          SkeletonCard 리스트
+      - 검색 후:
+          PolicyCard 리스트
+      - 결과 없음:
+          PolicyEmptyState("검색 결과가 없습니다", buttonText: "추천 정책 보기")
+
+  # -------------------------------------------------------------
+  # C. 지역 화면
+  # -------------------------------------------------------------
+  - file: "policy_region_screen.dart"
+    enforce:
+      - 상단 지역 Tab → 기존 로직 유지, UI만 디자인 시스템 적용
+      - 리스트: PolicyCard
+      - EmptyState 적용
+      - Pagination/Provider 절대 수정 금지
+
+  # -------------------------------------------------------------
+  # D. 상세 화면
+  # -------------------------------------------------------------
+  - file: "policy_detail_screen.dart"
+    enforce:
+      - 상단:
+          제목 (Title2)
+          태그: PolicyTag 리스트
+          즐겨찾기/공유/알림 아이콘은 기존 로직 유지
+      - CTA:
+          맨 위: PolicyCtaButton("신청 페이지 열기")
+      - 알림 옵션:
+          2×2 Grid (FilledButton + OutlinedButton 조합)
+      - 내용 섹션:
+          SectionTitle("지원내용")
+          본문 텍스트
+      - 날짜/기관/문의처:
+          PolicyInfoRow(label, value)로 통일
+      - 스크롤/Provider/알림 로직 절대 변경 금지
+
+# =====================================================================================
+# 6) 스타일 강제 적용 규칙 (TASK 300/301 필수 준수)
+# =====================================================================================
+style_enforce:
+  typography:
+    header: "Theme.of(context).textTheme.titleLarge"
+    title: "Theme.of(context).textTheme.titleMedium"
+    body: "Theme.of(context).textTheme.bodyMedium"
+    caption: "Theme.of(context).textTheme.bodySmall"
+  spacing:
+    between_cards: 16
+    section_gap: 20
+    tag_spacing: 8
+  colors:
+    use_color_scheme: true
+    use_policy_theme: true
+  shape:
+    card_radius: 16
+    tag_radius: 14
+    button_radius: 12
+
+# =====================================================================================
+# 7) Codex 작업 순서 (강제)
+# =====================================================================================
+steps:
+  - "Step 1: 모든 대상 파일 import 정리"
+  - "Step 2: 기존 UI widgets 제거하되 로직/Provider 유지"
+  - "Step 3: 새 컴포넌트(PolicyCard 등)로 위젯 구조 재작성"
+  - "Step 4: Skeleton/EmptyState 추가 배치"
+  - "Step 5: Theme 기반 padding/margin/color 통일"
+  - "Step 6: 빌드 검사 + 타입 오류 자동 수정"
+  - "Step 7: no_modify 규칙 위반 여부 자동 검사"
+  - "Step 8: Final Diff 생성"
+
+# =====================================================================================
+# 8) 작업 결과 출력 규칙
+# =====================================================================================
+output:
+  type: "patch"
+  format: "unified_diff"
+  require_build_success: true
+  note: |
+    - UI 변경 사항만 포함할 것
+    - 동작/기능/데이터는 동일해야 함
+    - 모든 파일은 Dart format 규칙을 준수
+
+# =====================================================================================
+# END OF SUPER COMMAND
+# =====================================================================================
+```
+
+---
+
+# 🩵 **이 버전에서 업그레이드된 점**
+
+### 💎 1) Codex 오동작 방지력 ‘최대치’
+
+* **no_modify** + **soft_no_modify** + **screen별 rule**
+* 구조/비즈니스 로직을 절대 손대지 않도록 3중 잠금
+
+### 💎 2) UI Layer 완전 치환
+
+* PolicyCard/Tag/Empty/Skeleton/InfoRow/CTA
+* 상세/검색/지역/리스트 전부 일관화
+
+### 💎 3) Theme 강제 적용
+
+* TASK 301 Theme을 **강제적으로** 사용
+* margin/padding/typography/color 자동 통제
+
+### 💎 4) 실제 기업형 디자인 시스템 적용 방식
+
+라인업·블록·섹션·패턴 기반 구조 → 유지보수 용이
+
+---
+
+---
+
 # 📌 TASK 302 — 정책탐색 UI 전용 공통 컴포넌트 리빌드
 
 ### Flutter 전체 파일 제공 (완전 복붙 가능)
