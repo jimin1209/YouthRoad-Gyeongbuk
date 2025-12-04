@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/behavior/policy_behavior_tracker.dart';
@@ -70,17 +71,6 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
       _isLoadingMore = false;
     }
 
-    if (state.failure != null) {
-      return PolicyListError(
-        message: state.failure!.message,
-        onRetry: notifier.loadFirstPage,
-      );
-    }
-
-    if (state.isLoading && state.items.isEmpty) {
-      return const PolicyListLoading();
-    }
-
     final keyword = ui.keyword.trim();
     final hasKeyword = keyword.isNotEmpty;
     final isKeywordTooShort = hasKeyword && keyword.length < 2;
@@ -93,45 +83,67 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
             !hasTags &&
             (!hasKeyword || isKeywordTooShort);
 
-    if (shouldShowSearchGuide) {
-      return PolicySearchEmptyView(isKeywordTooShort: isKeywordTooShort);
-    }
+    Widget content;
 
-    if (!state.isLoading && state.items.isEmpty) {
+    if (state.failure != null) {
+      content = PolicyListError(
+        key: const ValueKey('policy-list-error'),
+        message: state.failure!.message,
+        onRetry: notifier.loadFirstPage,
+      );
+    } else if (state.isLoading && state.items.isEmpty) {
+      content = const PolicyListLoading(key: ValueKey('policy-list-loading'));
+    } else if (shouldShowSearchGuide) {
+      content = PolicySearchEmptyView(
+        key: const ValueKey('policy-search-guide'),
+        isKeywordTooShort: isKeywordTooShort,
+      );
+    } else if (!state.isLoading && state.items.isEmpty) {
       final emptyMessage = widget.feedType == PolicyFeedType.favorite
           ? '즐겨찾기한 정책이 없습니다.\n마음에 드는 정책의 하트 버튼을 눌러 저장해보세요.'
           : '표시할 정책이 없습니다.\n필터나 검색 조건을 바꿔보세요.';
 
-      return PolicyListEmpty(message: emptyMessage);
+      content = PolicyListEmpty(
+        key: const ValueKey('policy-list-empty'),
+        message: emptyMessage,
+      );
+    } else {
+      content = RefreshIndicator(
+        key: const ValueKey('policy-list-content'),
+        onRefresh: notifier.refresh,
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount:
+              state.items.length + (_shouldShowFooterLoader(state) ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index < state.items.length) {
+              final policy = state.items[index];
+              return PolicyCard(
+                policy: policy,
+                onTap: () {
+                  ref
+                      .read(policyBehaviorTrackerProvider.notifier)
+                      .recordDetailView(policy);
+                  _openDetail(context, policy.id);
+                },
+              );
+            }
+
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: PolicyListLoading(),
+            );
+          },
+        ),
+      );
     }
 
-    return RefreshIndicator(
-      onRefresh: notifier.refresh,
-      child: ListView.builder(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount:
-            state.items.length + (_shouldShowFooterLoader(state) ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index < state.items.length) {
-            final policy = state.items[index];
-            return PolicyCard(
-              policy: policy,
-              onTap: () {
-                ref
-                    .read(policyBehaviorTrackerProvider.notifier)
-                    .recordDetailView(policy);
-                _openDetail(context, policy.id);
-              },
-            );
-          }
-
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: PolicyListLoading(),
-          );
-        },
-      ),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeOut,
+      child: content,
     );
   }
 
@@ -241,10 +253,41 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
   bool get wantKeepAlive => true;
 
   void _openDetail(BuildContext context, String policyId) {
+    final navigator = Navigator.of(context);
+    final overlay = navigator.overlay;
+    final springController =
+        overlay != null ? BottomSheet.createAnimationController(overlay) : null;
+
+    springController?.duration = const Duration(milliseconds: 350);
+    springController?.reverseDuration = const Duration(milliseconds: 300);
+    springController?.drive(
+      CurveTween(curve: const _BottomSheetSpringCurve()),
+    );
+
     showModalBottomSheet(
       context: context,
+      useSafeArea: true,
       isScrollControlled: true,
+      transitionAnimationController: springController,
       builder: (_) => PolicyDetailBottomSheet(policyId: policyId),
     );
+  }
+}
+
+class _BottomSheetSpringCurve extends Curve {
+  const _BottomSheetSpringCurve();
+
+  @override
+  double transform(double t) {
+    const spring = SpringDescription(
+      mass: 0.75,
+      stiffness: 250,
+      damping: 18,
+    );
+
+    final simulation = SpringSimulation(spring, 0, 1, 0);
+    final value = simulation.x(t.clamp(0, 1));
+
+    return value.clamp(0.0, 1.0);
   }
 }

@@ -33,7 +33,11 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      animationDuration: const Duration(milliseconds: 230),
+    );
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {
@@ -70,6 +74,14 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          onTap: (index) {
+            if (index != _currentIndex) {
+              _tabController.animateTo(
+                index,
+                curve: Curves.easeOutCubic,
+              );
+            }
+          },
           tabs: _tabs.map((e) => Tab(text: e.label)).toList(),
         ),
       ),

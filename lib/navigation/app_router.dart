@@ -24,6 +24,7 @@ import '../ui/widgets/bottom_nav.dart';
 import '../ui/widgets/global_error_view.dart';
 import '../presentation/search/screens/search_screen.dart';
 import 'route_paths.dart';
+import 'motion_transitions.dart';
 
 class AppRouter {
   const AppRouter();
@@ -94,70 +95,115 @@ class AppRouter {
         ),
         GoRoute(
           path: RoutePaths.settingV2,
-          builder: (context, state) => const SettingV2Screen(),
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const SettingV2Screen(),
+            transitionDuration: const Duration(milliseconds: 230),
+            reverseDuration: const Duration(milliseconds: 180),
+          ),
         ),
         GoRoute(
           path: RoutePaths.regionSelect,
-          builder: (context, state) => const RegionSelectScreen(),
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const RegionSelectScreen(),
+          ),
         ),
         GoRoute(
           path: RoutePaths.policyListV2,
-          builder: (context, state) => const PolicyFeedHomeScreen(),
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const PolicyFeedHomeScreen(),
+          ),
         ),
         GoRoute(
           path: RoutePaths.policyLegacyList,
-          builder: (context, state) => const PolicyListLegacyScreen(),
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const PolicyListLegacyScreen(),
+            reverseDuration: const Duration(milliseconds: 180),
+          ),
         ),
         GoRoute(
           path: RoutePaths.policyCompare,
-          builder: (context, state) => const PolicyCompareScreen(),
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const PolicyCompareScreen(),
+          ),
         ),
         GoRoute(
           path: RoutePaths.compare,
-          builder: (context, state) => const CompareScreen(),
-        ),       
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const CompareScreen(),
+          ),
+        ),
         GoRoute(
           path: RoutePaths.googleMap,
-          builder: (context, state) => const KakaoMapScreen(),
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const KakaoMapScreen(),
+          ),
         ),
         GoRoute(
           path: RoutePaths.mapWithList,
-          builder: (context, state) => const MapWithListScreen(),
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const MapWithListScreen(),
+          ),
         ),
         GoRoute(
           path: RoutePaths.mapTest,
-          builder: (context, state) => const KakaoMapTestPage(),
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const KakaoMapTestPage(),
+          ),
         ),
         GoRoute(
           path: RoutePaths.favorites,
           name: 'FavoritesScreen',
-          builder: (context, state) => const FavoritesScreen(),
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const FavoritesScreen(),
+          ),
         ),
         GoRoute(
           path: RoutePaths.search,
-          builder: (context, state) => const SearchScreen(),
+          pageBuilder: (context, state) => buildSearchOverlayPage(
+            key: state.pageKey,
+            child: const SearchScreen(),
+          ),
         ),
         GoRoute(
           path: RoutePaths.instList,
-          builder: (context, state) => const InstitutionListScreen(),
+          pageBuilder: (context, state) => buildSlideFadePage(
+            key: state.pageKey,
+            child: const InstitutionListScreen(),
+          ),
         ),
         GoRoute(
           path: '/inst/:instNo/dept/list',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final instNo = state.pathParameters['instNo'] ?? '';
-            return DepartmentListScreen(instNo: instNo);
+            return buildSlideFadePage(
+              key: state.pageKey,
+              child: DepartmentListScreen(instNo: instNo),
+            );
           },
         ),
         GoRoute(
           path: '/policy/:id',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final id = state.pathParameters['id'] ?? '';
-            return PolicyDetailV2Screen(id: id);
+            return buildSlideFadePage(
+              key: state.pageKey,
+              child: PolicyDetailV2Screen(id: id),
+            );
           },
         ),
         GoRoute(
           path: RoutePaths.policyWebview,
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             String title = '정책 상세';
             String url = '';
 
@@ -170,7 +216,12 @@ class AppRouter {
             url =
                 url.isNotEmpty ? url : (state.uri.queryParameters['url'] ?? '');
 
-            return PolicyWebviewPage(title: title, url: url);
+            return buildSlideFadePage(
+              key: state.pageKey,
+              child: PolicyWebviewPage(title: title, url: url),
+              transitionDuration: const Duration(milliseconds: 230),
+              reverseDuration: const Duration(milliseconds: 180),
+            );
           },
         ),
       ],
