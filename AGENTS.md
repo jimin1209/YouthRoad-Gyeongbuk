@@ -196,308 +196,35 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
-# ERROR 05
-
-lib/features/policy_new/application/controllers/notification_center_controller.dart:71:55: Error: Method invocation is not a constant expression.
-      : super(const AsyncData(NotificationCenterState.initial())) {
-                                                      ^^^^^^^
-Target kernel_snapshot_program failed: Exception
 
 
-FAILURE: Build failed with an exception.
-
-* What went wrong:
-Execution failed for task ':app:compileFlutterBuildDebug'.
-> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-BUILD FAILED in 11s
-
-# ERROR 04
-
-FAILURE: Build failed with an exception.
-
-* What went wrong:
-Execution failed for task ':app:checkDebugAarMetadata'.
-> A failure occurred while executing com.android.build.gradle.internal.tasks.CheckAarMetadataWorkAction
-   > An issue was found when checking AAR metadata:
-
-       1.  Dependency ':flutter_local_notifications' requires core library desugaring to be enabled
-           for :app.
-
-           See https://developer.android.com/studio/write/java8-support.html for more
-           details.
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-BUILD FAILED in 15s
-
-# ERROR 03
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:69:55: Error: 'DarwinFlutterLocalNotificationsPlugin' isn't a type.
-        _plugin.resolvePlatformSpecificImplementation<DarwinFlutterLocalNotificationsPlugin>();
-                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:129:77: Error: The getter 'label' isn't defined for the class 'ReminderTimeKind'.
- - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
-          '[${reminder.policyTitleSnapshot ?? '정책 신청'}] ${reminder.timeKind.label}';
-                                                                            ^^^^^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:134:21: Error: The method 'schedule' isn't defined forthe class 'FlutterLocalNotificationsPlugin'.
- - 'FlutterLocalNotificationsPlugin' is from 'package:flutter_local_notifications/src/flutter_local_notifications_plugin.dart' ('../.pub-cache/hosted/pub.dev/flutter_local_notifications-17.2.4/lib/src/flutter_local_notifications_plugin.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'schedule'.
-      await _plugin.schedule(
-                    ^^^^^^^^
-lib/features/policy_new/presentation/reminder/policy_reminder_badge.dart:20:14: Error: The method 'where' isn't defined for the class 'PolicyReminderViewState'.
- - 'PolicyReminderViewState' is from 'package:youth_road_app/features/policy_new/application/controllers/policy_reminder_controller.dart' ('lib/features/policy_new/application/controllers/policy_reminder_controller.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'where'.
-            .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
-             ^^^^^
-lib/features/policy_new/data/local/isar/policy_reminder_isar_model.g.dart:14:39: Error: Constant evaluation error:
-const PolicyReminderIsarModelSchema = CollectionSchema(
-                                      ^
-../.pub-cache/hosted/pub.dev/isar-3.1.0+1/lib/src/schema/collection_schema.dart:24:24: Context: This assertion failed with message: Outdated generated code. Please re-run code generation using the latest generator.
-          Isar.version == version,
-                       ^
-lib/features/policy_new/data/local/isar/policy_reminder_isar_model.g.dart:14:7: Context: While analyzing:
-const PolicyReminderIsarModelSchema = CollectionSchema(
-      ^
-Target kernel_snapshot_program failed: Exception
+# TASK 100
 
 
-FAILURE: Build failed with an exception.
+## 미비점 및 개선 제안
+1. **신청 기간 누락 시 즉시 예외 발생**: 스케줄러가 신청 시작/마감일이 비어 있으면 예외를 던져 호출 스택까지 전파되므로 UI에서 복구 불가능한 에러로 끝난다. 사용자 안내용 오류 메시지로 변환하거나, 알림 설정 버튼을 비활성화해 빈 일정 정책을 사전에 거르는 처리가 필요하다. 더 나아가 정책 상세/목록 단에서 신청 기간이 누락된 정책을 시각적으로 표시해, 사용자와 QA 모두가 데이터 품질 문제를 즉시 감지하도록 한다.
+2. **취소 알림이 목록에서 완전히 사라짐**: 로컬 데이터 소스가 취소 상태를 모두 필터링해 버려 알림 센터에서 “취소됨” 상태를 확인하거나 복원할 수 없다. 취소 항목을 조회에 포함하고, 뷰에서 상태별 필터링·표시를 분리하는 편이 히스토리 보존과 UX에 유리하다. 기존 저장 데이터가 모두 필터링되어 왔다는 점을 감안해, 취소 상태를 남기는 스키마 전환 시 마이그레이션·정리 스크립트도 함께 제공하는 것이 안전하다.
+3. **스케줄 실패 원인에 대한 UI 피드백 단절 가능성**: 알림 생성 중 게이트웨이 실패가 발생해도 `ReminderMutationResult.failures`가 비어 있으면 컨트롤러는 별도 메시지 없이 조용히 끝난다. 실패 목록이 없더라도 생성 요청이 하나도 성공하지 못한 경우 “예약되지 않음”과 같은 사용자 안내 메시지를 추가하는 것이 좋다. 또한 스케줄 실패의 상세 사유(권한 거부, 과거 시각, 플러그인 오류 등)를 텍스트로 변환해 토스트/다이얼로그로 노출하면 재시도 동선을 안내하기 용이하다.
 
-* What went wrong:
-Execution failed for task ':app:compileFlutterBuildDebug'.
-> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-BUILD FAILED in 12s
+# END OF TASK 100
 
 
-# ERROR 02
-Invalid depfile: /home/ssm-user/YouthRoad-Gyeongbuk/.dart_tool/flutter_build/af4d3775d05b06f22fe8e749c2be2c8f/kernel_snapshot_program.d
-Invalid depfile: /home/ssm-user/YouthRoad-Gyeongbuk/.dart_tool/flutter_build/af4d3775d05b06f22fe8e749c2be2c8f/kernel_snapshot_program.d
-Invalid depfile: /home/ssm-user/YouthRoad-Gyeongbuk/.dart_tool/flutter_build/af4d3775d05b06f22fe8e749c2be2c8f/kernel_snapshot_program.d
-Invalid depfile: /home/ssm-user/YouthRoad-Gyeongbuk/.dart_tool/flutter_build/af4d3775d05b06f22fe8e749c2be2c8f/kernel_snapshot_program.d
-Error: Couldn't resolve the package 'intl' in 'package:intl/intl.dart'.
-lib/features/policy_new/application/providers.dart:65:8: Error: Error when reading 'lib/features/application/di.dart': No such file or directory
-import '../../application/di.dart' as app_di;
-       ^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:4:8: Error: Not found: 'package:intl/intl.dart'
-import 'package:intl/intl.dart';
-       ^
-lib/features/policy_new/application/controllers/policy_selection_controller.dart:17:3: Error: Type 'CompareLocalDataSource' not found.
-  CompareLocalDataSource get _localSource =>
-  ^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/controllers/policy_query_orchestrator.dart:18:3: Error: Type 'UserProfile' not found.
-  UserProfile get _profile => ref.read(userProfileProvider);
-  ^^^^^^^^^^^
-lib/features/policy_new/data/local/isar/policy_reminder_isar_model.g.dart:107:12: Error: The argument type 'int' can't be assignedto the parameter type 'String'.
-  version: 1,
-           ^
-lib/features/policy_new/application/providers.dart:100:34: Error: Undefined name 'sharedPreferencesProvider'.
-  final prefs = ref.watch(app_di.sharedPreferencesProvider);
-                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/providers.dart:120:34: Error: Undefined name 'sharedPreferencesProvider'.
-  final prefs = ref.watch(app_di.sharedPreferencesProvider);
-                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/providers.dart:131:34: Error: Undefined name 'sharedPreferencesProvider'.
-  final prefs = ref.watch(app_di.sharedPreferencesProvider);
-                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/providers.dart:257:35: Error: Undefined name 'isarServiceProvider'.
-    final isar = ref.watch(app_di.isarServiceProvider);
-                                  ^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/presentation/reminder/widgets/policy_reminder_list_item.dart:32:30: Error: The getter 'label' isn't defined for the class 'ReminderTimeKind'.
- - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
-        '${reminder.timeKind.label} · 예정 시각: ${reminder.scheduledAt.toLocal()}',
-                             ^^^^^
-lib/features/policy_new/presentation/widgets/policy_list_empty.dart:17:11: Error: Not a constant expression.
-          message,
-          ^^^^^^^
-lib/features/policy_new/application/controllers/policy_action_controller.dart:70:16: Error: 'CompareRepository' isn't a type.
-    ref.listen<CompareRepository>(compareRepositoryProvider, (prev, next) {
-               ^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/controllers/policy_action_controller.dart:72:26: Error: The getter 'ids' isn't defined for theclass 'Object?'.
- - 'Object' is from 'dart:core'.
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'ids'.
-        isCompared: next.ids.contains(policyId),
-                         ^^^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:69:55: Error: 'DarwinFlutterLocalNotificationsPlugin' isn't a type.
-        _plugin.resolvePlatformSpecificImplementation<DarwinFlutterLocalNotificationsPlugin>();
-                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:129:77: Error: The getter 'label' isn't defined for the class 'ReminderTimeKind'.
- - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
-          '[${reminder.policyTitleSnapshot ?? '정책 신청'}] ${reminder.timeKind.label}';
-                                                                            ^^^^^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:130:29: Error: The method 'DateFormat' isn't defined for the class 'FlutterLocalNotificationGateway'.
- - 'FlutterLocalNotificationGateway' is from 'package:youth_road_app/features/policy_new/application/gateways/notification_gateway_impl.dart' ('lib/features/policy_new/application/gateways/notification_gateway_impl.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'DateFormat'.
-      final formattedTime = DateFormat('M월 d일 a h:mm', 'ko_KR').format(scheduledLocal);
-                            ^^^^^^^^^^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:134:21: Error: The method 'schedule' isn't defined forthe class 'FlutterLocalNotificationsPlugin'.
- - 'FlutterLocalNotificationsPlugin' is from 'package:flutter_local_notifications/src/flutter_local_notifications_plugin.dart' ('../.pub-cache/hosted/pub.dev/flutter_local_notifications-17.2.4/lib/src/flutter_local_notifications_plugin.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'schedule'.
-      await _plugin.schedule(
-                    ^^^^^^^^
-lib/features/policy_new/presentation/reminder/policy_reminder_badge.dart:20:14: Error: The method 'where' isn't defined for the class 'PolicyReminderViewState'.
- - 'PolicyReminderViewState' is from 'package:youth_road_app/features/policy_new/application/controllers/policy_reminder_controller.dart' ('lib/features/policy_new/application/controllers/policy_reminder_controller.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'where'.
-            .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
-             ^^^^^
-lib/features/policy_new/presentation/widgets/policy_list_empty.dart:13:18: Error: Constant evaluation error:
-    return const Center(
-                 ^
-lib/features/policy_new/presentation/widgets/policy_list_empty.dart:17:11: Context: Not a constant expression.
-          message,
-          ^
-Unhandled exception:
-FileSystemException(uri=org-dartlang-untranslatable-uri:package%3Aintl%2Fintl.dart; message=StandardFileSystem only supports file:* and data:* URIs)
-#0      StandardFileSystem.entityForUri (package:front_end/src/api_prototype/standard_file_system.dart:35)
-#1      asFileUri (package:vm/kernel_front_end.dart:792)
-#2      writeDepfile (package:vm/kernel_front_end.dart:932)
-<asynchronous suspension>
-#3      FrontendCompiler.compile (package:frontend_server/frontend_server.dart:704)
-<asynchronous suspension>
-#4      starter (package:frontend_server/starter.dart:109)
-<asynchronous suspension>
-#5      main (file:///b/s/w/ir/x/w/sdk/pkg/frontend_server/bin/frontend_server_starter.dart:13)
-<asynchronous suspension>
+# TASK 101
+4. **알림 센터 낙관적 업데이트의 롤백 부재**: `NotificationCenterController`는 취소/삭제 작업을 낙관적으로 반영한 뒤 실패 시 이전 상태를 복원하지 않아 목록이 실제 저장소와 어긋날 수 있다. 실패 시 직전 스냅샷을 복원하거나 강제 재로딩하는 방어 로직이 필요하다. 취소/삭제 동작의 동시 실행이 중첩될 때도 큐 스냅샷이 꼬이지 않도록, 작업 ID 기반으로 결과를 매칭해 롤백 대상을 정확히 식별하는 절차를 추가하면 안정성이 높아진다.
+5. **기기 권한/시간대 변화 대응 부족**: 알림 권한이 추후 철회되거나 기기 시간대가 변경될 때 재초기화 로직이 호출되지 않으면 예약이 실제와 어긋날 수 있다. 앱 포그라운드 진입 및 설정 변경 이벤트에서 알림 권한 재확인 → 실패 시 사용자 안내 → 필요하면 기존 예약을 재계산/재스케줄하는 흐름을 추가하는 것이 좋다.
+6. **정책 스펙 변경 시 알림 갱신 미비**: 정책 데이터가 서버 동기화나 관리 도구 수정으로 시작/마감일이 바뀌어도 기존 예약이 그대로 남아 잘못된 시각에 울릴 수 있다. 정책 상세에서 새 데이터를 로드했을 때 기존 리마인더의 기준 일자를 비교해 자동 재계산/갱신하거나, 사용자에게 “일정이 바뀌었습니다. 알림을 재설정할까요?” 같은 확인 흐름을 제공하자.
+7. **중복 알림 및 정합성 검증 부족**: 동일 정책·동일 시간 종류(`ReminderTimeKind`) 조합으로 중복 저장/예약이 발생하면 사용자에게 다중 알림이 울릴 수 있다. 저장 전에 정책 ID + 시간 종류를 유니크 키로 검증하고, 스케줄러가 반환하는 `ScheduleResult`에 중복 여부를 명시해 컨트롤러가 즉시 정리하도록 한다.
 
-Target kernel_snapshot_program failed: Exception
+# END OF TASK 101
 
 
-FAILURE: Build failed with an exception.
-
-* What went wrong:
-Execution failed for task ':app:compileFlutterBuildDebug'.
-> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-BUILD FAILED in 12s
-
-# ERROR 01
-Error: Couldn't resolve the package 'intl' in 'package:intl/intl.dart'.
-lib/features/policy_new/application/providers.dart:65:8: Error: Error when reading 'lib/features/application/di.dart': No such file or directory
-import '../../application/di.dart' as app_di;
-       ^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:4:8: Error: Not found: 'package:intl/intl.dart'
-import 'package:intl/intl.dart';
-       ^
-lib/features/policy_new/application/controllers/policy_selection_controller.dart:17:3: Error: Type 'CompareLocalDataSource' not found.
-  CompareLocalDataSource get _localSource =>
-  ^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/controllers/policy_query_orchestrator.dart:18:3: Error: Type 'UserProfile' not found.
-  UserProfile get _profile => ref.read(userProfileProvider);
-  ^^^^^^^^^^^
-lib/features/policy_new/data/local/isar/policy_reminder_isar_model.g.dart:107:12: Error: The argument type 'int' can't be assignedto the parameter type 'String'.
-  version: 1,
-           ^
-lib/features/policy_new/application/providers.dart:100:34: Error: Undefined name 'sharedPreferencesProvider'.
-  final prefs = ref.watch(app_di.sharedPreferencesProvider);
-                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/providers.dart:120:34: Error: Undefined name 'sharedPreferencesProvider'.
-  final prefs = ref.watch(app_di.sharedPreferencesProvider);
-                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/providers.dart:131:34: Error: Undefined name 'sharedPreferencesProvider'.
-  final prefs = ref.watch(app_di.sharedPreferencesProvider);
-                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/providers.dart:257:35: Error: Undefined name 'isarServiceProvider'.
-    final isar = ref.watch(app_di.isarServiceProvider);
-                                  ^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/presentation/reminder/widgets/policy_reminder_list_item.dart:32:30: Error: The getter 'label' isn't defined for the class 'ReminderTimeKind'.
- - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
-        '${reminder.timeKind.label} · 예정 시각: ${reminder.scheduledAt.toLocal()}',
-                             ^^^^^
-lib/features/policy_new/presentation/widgets/policy_list_empty.dart:17:11: Error: Not a constant expression.
-          message,
-          ^^^^^^^
-lib/features/policy_new/application/controllers/policy_action_controller.dart:70:16: Error: 'CompareRepository' isn't a type.
-    ref.listen<CompareRepository>(compareRepositoryProvider, (prev, next) {
-               ^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/controllers/policy_action_controller.dart:72:26: Error: The getter 'ids' isn't defined for theclass 'Object?'.
- - 'Object' is from 'dart:core'.
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'ids'.
-        isCompared: next.ids.contains(policyId),
-                         ^^^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:69:55: Error: 'DarwinFlutterLocalNotificationsPlugin' isn't a type.
-        _plugin.resolvePlatformSpecificImplementation<DarwinFlutterLocalNotificationsPlugin>();
-                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:129:77: Error: The getter 'label' isn't defined for the class 'ReminderTimeKind'.
- - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
-          '[${reminder.policyTitleSnapshot ?? '정책 신청'}] ${reminder.timeKind.label}';
-                                                                            ^^^^^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:130:29: Error: The method 'DateFormat' isn't defined for the class 'FlutterLocalNotificationGateway'.
- - 'FlutterLocalNotificationGateway' is from 'package:youth_road_app/features/policy_new/application/gateways/notification_gateway_impl.dart' ('lib/features/policy_new/application/gateways/notification_gateway_impl.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'DateFormat'.
-      final formattedTime = DateFormat('M월 d일 a h:mm', 'ko_KR').format(scheduledLocal);
-                            ^^^^^^^^^^
-lib/features/policy_new/application/gateways/notification_gateway_impl.dart:134:21: Error: The method 'schedule' isn't defined forthe class 'FlutterLocalNotificationsPlugin'.
- - 'FlutterLocalNotificationsPlugin' is from 'package:flutter_local_notifications/src/flutter_local_notifications_plugin.dart' ('../.pub-cache/hosted/pub.dev/flutter_local_notifications-17.2.4/lib/src/flutter_local_notifications_plugin.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'schedule'.
-      await _plugin.schedule(
-                    ^^^^^^^^
-lib/features/policy_new/presentation/reminder/policy_reminder_badge.dart:20:14: Error: The method 'where' isn't defined for the class 'PolicyReminderViewState'.
- - 'PolicyReminderViewState' is from 'package:youth_road_app/features/policy_new/application/controllers/policy_reminder_controller.dart' ('lib/features/policy_new/application/controllers/policy_reminder_controller.dart').
-Try correcting the name to the name of an existing method, or defining a method named 'where'.
-            .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
-             ^^^^^
-lib/features/policy_new/presentation/widgets/policy_list_empty.dart:13:18: Error: Constant evaluation error:
-    return const Center(
-                 ^
-lib/features/policy_new/presentation/widgets/policy_list_empty.dart:17:11: Context: Not a constant expression.
-          message,
-          ^
-Unhandled exception:
-FileSystemException(uri=org-dartlang-untranslatable-uri:package%3Aintl%2Fintl.dart; message=StandardFileSystem only supports file:* and data:* URIs)
-#0      StandardFileSystem.entityForUri (package:front_end/src/api_prototype/standard_file_system.dart:35)
-#1      asFileUri (package:vm/kernel_front_end.dart:792)
-#2      writeDepfile (package:vm/kernel_front_end.dart:932)
-<asynchronous suspension>
-#3      FrontendCompiler.compile (package:frontend_server/frontend_server.dart:704)
-<asynchronous suspension>
-#4      starter (package:frontend_server/starter.dart:109)
-<asynchronous suspension>
-#5      main (file:///b/s/w/ir/x/w/sdk/pkg/frontend_server/bin/frontend_server_starter.dart:13)
-<asynchronous suspension>
-
-Target kernel_snapshot_program failed: Exception
+# TASK 102
+8. **플랫폼 오류 대비 부족**: 현 구현은 플러그인 초기화 및 권한 요청 실패를 `ScheduleResult`로만 반환하며 재시도 정책이나 백오프 전략이 없다. 초기화 실패 시 일정 시간 후 재시도하거나, 네트워크·권한 상태가 회복될 때까지 예약을 지연하는 큐를 두면 안정성이 올라간다. 또한 알림 실패 로그를 수집·분석하는 경로(예: Crashlytics 커스텀 로깅, 내부 통계 수집)를 마련해 운영 중 문제를 빠르게 감지하도록 한다.
+9. **테스트 커버리지 공백**: 스케줄러, 서비스, 컨트롤러가 시간대·권한·스케줄 실패 등 다양한 분기와 실패 경로를 포함하는데 단위/통합 테스트가 확인되지 않는다. 신청 기간 누락, 과거 시각, 권한 거부, 중복 요청, 알림 재계산, 낙관적 업데이트 롤백 등 핵심 시나리오를 테스트로 고정해 회귀를 방지하고, 알림 스케줄 계산에 타임존 변환을 강제하는 테스트 데이터를 포함하자.
+10. **데이터 정합성 및 클린업 시나리오 미흡**: 앱 삭제/재설치, 로컬 DB 정리, 혹은 플랫폼별 알림 스케줄 데이터가 독립적으로 제거되는 경우(설정 초기화 등) 저장소와 실제 스케줄 상태가 불일치할 수 있다. 앱 시작 시 DB와 플랫폼 스케줄 목록을 비교·조정하는 헬스체크 절차(없는 스케줄은 복구하거나, 고아 레코드는 정리)를 넣고, 장시간 미사용 계정의 오래된 알림을 주기적으로 정리하는 백그라운드 작업도 고려하자.
+# END OF TASK 102
 
 
-FAILURE: Build failed with an exception.
-
-* What went wrong:
-Execution failed for task ':app:compileFlutterBuildDebug'.
-> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-BUILD FAILED in 31s
 ⸻
 
 💠 TASK 30~33 (업데이트된 번호) — FULL SPEC / job01급 최상위 퀄리티
