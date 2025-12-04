@@ -7,9 +7,13 @@ import 'package:youth_road_app/application/providers.dart';
 import 'package:youth_road_app/domain/entities/policy.dart';
 import 'package:youth_road_app/legacy/policy/application/notifiers/policy_detail_notifier.dart';
 import 'package:youth_road_app/navigation/route_paths.dart';
+import 'package:youth_road_app/ui/components/policy_card.dart';
+import 'package:youth_road_app/ui/components/policy_cta_button.dart';
+import 'package:youth_road_app/ui/components/policy_info_row.dart';
+import 'package:youth_road_app/ui/components/policy_tag.dart';
+import 'package:youth_road_app/ui/components/section_title.dart';
 import 'package:youth_road_app/ui/widgets/app_appbar.dart';
 import 'package:youth_road_app/ui/widgets/global_error_view.dart';
-import 'package:youth_road_app/ui/widgets/policy_card_v2.dart';
 
 class PolicyDetailV2Screen extends ConsumerStatefulWidget {
   const PolicyDetailV2Screen({super.key, required this.id});
@@ -63,74 +67,121 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
 
   Widget _buildDetail(BuildContext context, Policy policy, List<Policy> similar) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final region = (policy.rgnSeNm ?? '').trim().isEmpty ? '지역 전체' : policy.rgnSeNm!.trim();
     final ddayText = _formatDday(policy.dday);
-    final periodText = _formatPeriod(policy.policyBgngYmd, policy.policyEndYmd,
-        policy.applyStart, policy.applyEnd);
+    final periodText =
+        _formatPeriod(policy.policyBgngYmd, policy.policyEndYmd, policy.applyStart, policy.applyEnd);
+    final tags = _buildTags(policy, region, ddayText);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            policy.policyNm,
-            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (policy.policyTypeNm != null)
-                Chip(label: Text(policy.policyTypeNm!)),
-              Chip(label: Text(region)),
-              if (ddayText != null)
-                Chip(
-                  backgroundColor: colorScheme.primaryContainer,
-                  label: Text(ddayText),
+              Expanded(
+                child: Text(
+                  policy.policyNm,
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.share_outlined),
+                onPressed: (policy.dtlLinkUrl ?? '').isEmpty
+                    ? null
+                    : () => _openLink(context, policy.dtlLinkUrl!),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          _Section(
-            title: '요약',
-            child: Text(_cleanText(policy.policyScl) ?? '정보 없음'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: tags.map((e) => PolicyTag(label: e)).toList(),
+          ),
+          const SizedBox(height: 20),
+          PolicyCtaButton(
+            text: '신청 페이지 열기',
+            onTap: (policy.dtlLinkUrl ?? '').isEmpty
+                ? null
+                : () => _openLink(context, policy.dtlLinkUrl!),
           ),
           const SizedBox(height: 16),
-          _Section(
-            title: '지원 내용',
-            child: Text(_cleanText(policy.policyCn) ?? '지원 내용이 제공되지 않았습니다.'),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 3.2,
+            children: [
+              FilledButton.icon(
+                onPressed: () => _showInfo(context, '마감 알림 기능은 추후 제공 예정입니다.'),
+                icon: const Icon(Icons.alarm_add_outlined),
+                label: const Text('마감 알림'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _showInfo(context, '즐겨찾기 기능은 별도 화면에서 제공됩니다.'),
+                icon: const Icon(Icons.bookmark_border),
+                label: const Text('즐겨찾기'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: () => _showInfo(context, '공유 기능은 링크 열기로 대체됩니다.'),
+                icon: const Icon(Icons.share_rounded),
+                label: const Text('공유하기'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _showInfo(context, '비교함은 정책 목록 화면에서 사용할 수 있습니다.'),
+                icon: const Icon(Icons.balance_outlined),
+                label: const Text('비교함 이동'),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          _Section(
-            title: '문의',
-            child: Text(_cleanText(policy.policyEnq) ?? '문의처 정보가 없습니다.'),
+          const SizedBox(height: 12),
+          const SectionTitle(title: '지원 내용'),
+          Text(
+            _cleanText(policy.policyCn) ?? '지원 내용이 제공되지 않았습니다.',
+            style: theme.textTheme.bodyMedium,
           ),
-          const SizedBox(height: 16),
-          _Section(
-            title: '신청 기간',
-            child: Text(periodText ?? '기간 정보 없음'),
+          const SectionTitle(title: '문의처'),
+          Text(
+            _cleanText(policy.policyEnq) ?? '문의처 정보가 없습니다.',
+            style: theme.textTheme.bodyMedium,
           ),
-          const SizedBox(height: 16),
-          if ((policy.dtlLinkUrl ?? '').isNotEmpty)
-            FilledButton.icon(
-              onPressed: () => _openLink(context, policy.dtlLinkUrl!),
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('홈페이지에서 자세히 보기'),
+          const SectionTitle(title: '신청 정보'),
+          PolicyInfoRow(label: '신청 기간', value: periodText ?? '기간 정보 없음'),
+          PolicyInfoRow(label: '주관 기관', value: policy.sprvsnInstNm ?? '주관 기관 정보 없음'),
+          PolicyInfoRow(label: '운영 기관', value: policy.operInstNm ?? '운영 기관 정보 없음'),
+          PolicyInfoRow(label: '지역', value: region),
+          if (ddayText != null) PolicyInfoRow(label: '진행 상태', value: ddayText),
+          if ((policy.dtlLinkUrl ?? '').isNotEmpty) ...[
+            const SizedBox(height: 12),
+            PolicyCtaButton(
+              text: '홈페이지에서 자세히 보기',
+              onTap: () => _openLink(context, policy.dtlLinkUrl!),
             ),
+          ],
           if (similar.isNotEmpty) ...[
             const SizedBox(height: 24),
-            Text('유사 정책', style: theme.textTheme.titleMedium),
+            const SectionTitle(title: '유사 정책'),
             const SizedBox(height: 8),
             ...similar.take(3).map(
               (p) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
-                child: PolicyCardV2(
-                  policy: p,
-                  onTap: () =>
-                      context.pushReplacement(RoutePaths.policyDetail(p.id)),
+                child: PolicyCard(
+                  title: p.policyNm,
+                  summary: _buildSummary(p),
+                  tags: _buildTags(p, p.rgnSeNm ?? '지역 전체', _formatDday(p.dday)),
+                  period: _formatPeriod(
+                        p.policyBgngYmd,
+                        p.policyEndYmd,
+                        p.applyStart,
+                        p.applyEnd,
+                      ) ??
+                      '기간 정보 없음',
+                  onTap: () => context.pushReplacement(RoutePaths.policyDetail(p.id)),
                 ),
               ),
             ),
@@ -149,6 +200,37 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
         const SnackBar(content: Text('링크를 열 수 없습니다.')),
       );
     }
+  }
+
+  void _showInfo(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  List<String> _buildTags(Policy policy, String region, String? ddayText) {
+    final tags = <String>[];
+    if (policy.policyTypeNm != null && policy.policyTypeNm!.trim().isNotEmpty) {
+      tags.add(policy.policyTypeNm!.trim());
+    }
+    if (region.trim().isNotEmpty) {
+      tags.add(region.trim());
+    }
+    tags.addAll(policy.tags.where((tag) => tag.trim().isNotEmpty));
+    if (ddayText != null) {
+      tags.add(ddayText);
+    }
+    return tags.toSet().toList();
+  }
+
+  String _buildSummary(Policy policy) {
+    final candidates = [policy.policyScl, policy.policyCn, policy.policyEnq];
+    for (final value in candidates) {
+      if (value == null) continue;
+      final trimmed = value.trim();
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+    return '지원 내용이 제공되지 않았습니다.';
   }
 
   String? _cleanText(String? value) {
@@ -182,24 +264,5 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
     if (dday == 0) return 'D-Day';
     if (dday > 0) return 'D-$dday';
     return 'D+${dday.abs()}';
-  }
-}
-
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        child,
-      ],
-    );
   }
 }
