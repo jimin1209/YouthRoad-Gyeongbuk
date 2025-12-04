@@ -14,7 +14,18 @@ class LogConsolePanel extends ConsumerStatefulWidget {
 }
 
 class _LogConsolePanelState extends ConsumerState<LogConsolePanel> {
-  AppLogLevel? _filter;
+  AppLogLevel? _levelFilter;
+  DevLogSource? _sourceFilter;
+  bool _autoScroll = true;
+  int _lastCount = 0;
+  String _query = '';
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,40 +33,117 @@ class _LogConsolePanelState extends ConsumerState<LogConsolePanel> {
     final notifier = ref.read(devtoolsProvider.notifier);
     final entries = state.logs;
     final selected = state.selectedLog;
-    final filtered = _filter == null
-        ? entries
-        : entries.where((e) => e.level == _filter).toList();
+
+    final filtered = entries.where((e) {
+      if (_levelFilter != null && e.level != _levelFilter) return false;
+      if (_sourceFilter != null && e.source != _sourceFilter) return false;
+      if (_query.isNotEmpty &&
+          !e.message.toLowerCase().contains(_query.toLowerCase())) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    _maybeAutoScroll(filtered.length);
 
     if (filtered.isEmpty) {
       return const _EmptyView(message: 'No logs collected yet.');
     }
 
-    final reversed = filtered.reversed.toList();
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Filter:',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 8),
-              DropdownButton<AppLogLevel?>(
-                value: _filter,
-                items: const [
-                  DropdownMenuItem(value: null, child: Text('All')),
-                  DropdownMenuItem(value: AppLogLevel.info, child: Text('Info')),
-                  DropdownMenuItem(value: AppLogLevel.warning, child: Text('Warn')),
-                  DropdownMenuItem(value: AppLogLevel.error, child: Text('Error')),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Source:', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 8),
+                      DropdownButton<DevLogSource?>(
+                        value: _sourceFilter,
+                        items: const [
+                          DropdownMenuItem(value: null, child: Text('All')),
+                          DropdownMenuItem(
+                            value: DevLogSource.app,
+                            child: Text('App'),
+                          ),
+                          DropdownMenuItem(
+                            value: DevLogSource.network,
+                            child: Text('Network'),
+                          ),
+                          DropdownMenuItem(
+                            value: DevLogSource.webView,
+                            child: Text('WebView'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _sourceFilter = value);
+                        },
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Level:', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 8),
+                      DropdownButton<AppLogLevel?>(
+                        value: _levelFilter,
+                        items: const [
+                          DropdownMenuItem(value: null, child: Text('All')),
+                          DropdownMenuItem(value: AppLogLevel.debug, child: Text('Debug')),
+                          DropdownMenuItem(value: AppLogLevel.info, child: Text('Info')),
+                          DropdownMenuItem(value: AppLogLevel.warning, child: Text('Warn')),
+                          DropdownMenuItem(value: AppLogLevel.error, child: Text('Error')),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _levelFilter = value);
+                          if (value != null && selected != null && selected.level != value) {
+                            notifier.selectLog(null);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Auto-scroll'),
+                      Switch(
+                        value: _autoScroll,
+                        onChanged: (value) => setState(() => _autoScroll = value),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Collect logs'),
+                      Switch(
+                        value: state.isCollectionEnabled,
+                        onChanged: (_) => notifier.toggleLogCollection(),
+                      ),
+                    ],
+                  ),
                 ],
-                onChanged: (value) {
-                  setState(() => _filter = value);
-                  if (value != null && selected != null && selected.level != value) {
-                    notifier.selectLog(null);
-                  }
-                },
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Search message',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                onChanged: (value) => setState(() => _query = value),
               ),
             ],
           ),
@@ -67,15 +155,12 @@ class _LogConsolePanelState extends ConsumerState<LogConsolePanel> {
               Expanded(
                 flex: 2,
                 child: ListView.separated(
-                  itemCount: reversed.length,
+                  controller: _scrollController,
+                  itemCount: filtered.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, index) {
-                    final log = reversed[index];
-                    final color = switch (log.level) {
-                      AppLogLevel.info => const Color(0xFF0F172A),
-                      AppLogLevel.warning => const Color(0xFFF59E0B),
-                      AppLogLevel.error => const Color(0xFFDC2626),
-                    };
+                    final log = filtered[index];
+                    final color = _colorForLevel(log.level);
                     return ListTile(
                       dense: true,
                       selected: selected == log,
@@ -85,6 +170,10 @@ class _LogConsolePanelState extends ConsumerState<LogConsolePanel> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: color),
+                      ),
+                      subtitle: Text(
+                        '${_sourceLabel(log.source)} • ${log.level.name.toUpperCase()}',
+                        style: const TextStyle(color: Color(0xFF475569)),
                       ),
                       trailing: Text(
                         _formatTimestamp(log.timestamp),
@@ -109,11 +198,43 @@ class _LogConsolePanelState extends ConsumerState<LogConsolePanel> {
     );
   }
 
+  Color _colorForLevel(AppLogLevel level) {
+    return switch (level) {
+      AppLogLevel.debug => const Color(0xFF0EA5E9),
+      AppLogLevel.info => const Color(0xFF0F172A),
+      AppLogLevel.warning => const Color(0xFFF59E0B),
+      AppLogLevel.error => const Color(0xFFDC2626),
+    };
+  }
+
+  String _sourceLabel(DevLogSource source) {
+    return switch (source) {
+      DevLogSource.app => 'APP',
+      DevLogSource.network => 'NETWORK',
+      DevLogSource.webView => 'WEBVIEW',
+    };
+  }
+
+  void _maybeAutoScroll(int itemCount) {
+    if (!_autoScroll || !_scrollController.hasClients) return;
+    if (itemCount == _lastCount) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    });
+    _lastCount = itemCount;
+  }
+
   String _formatTimestamp(DateTime time) {
     final h = time.hour.toString().padLeft(2, '0');
     final m = time.minute.toString().padLeft(2, '0');
     final s = time.second.toString().padLeft(2, '0');
-    return '$h:$m:$s';
+    final ms = time.millisecond.toString().padLeft(3, '0');
+    return '$h:$m:$s.$ms';
   }
 }
 
@@ -129,9 +250,13 @@ class _LogDetailView extends StatelessWidget {
     }
 
     final payload = {
+      'source': entry!.source.name,
       'level': entry!.level.name,
       'message': entry!.message,
       'timestamp': entry!.timestamp.toIso8601String(),
+      if (entry!.extra != null) 'extra': entry!.extra,
+      if (entry!.error != null) 'error': entry!.error.toString(),
+      if (entry!.stackTrace != null) 'stackTrace': entry!.stackTrace.toString(),
     };
 
     return _DetailContainer(
@@ -139,7 +264,7 @@ class _LogDetailView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Level: ${entry!.level.name.toUpperCase()}',
+            '[${entry!.source.name.toUpperCase()}] ${entry!.level.name.toUpperCase()}',
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
           ),
           const SizedBox(height: 8),
@@ -163,7 +288,8 @@ class _LogDetailView extends StatelessWidget {
     final h = time.hour.toString().padLeft(2, '0');
     final m = time.minute.toString().padLeft(2, '0');
     final s = time.second.toString().padLeft(2, '0');
-    return '$h:$m:$s';
+    final ms = time.millisecond.toString().padLeft(3, '0');
+    return '$h:$m:$s.$ms';
   }
 }
 

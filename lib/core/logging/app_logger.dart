@@ -16,6 +16,10 @@ class AppLogger {
     _log(message, AppLogLevel.warning, tag: tag);
   }
 
+  static void debug(String message, {String tag = 'App'}) {
+    _log(message, AppLogLevel.debug, tag: tag);
+  }
+
   static void error(
     String message, {
     String tag = 'App',
@@ -33,6 +37,7 @@ class AppLogger {
     StackTrace? stackTrace,
   }) {
     final label = switch (level) {
+      AppLogLevel.debug => 'DEBUG',
       AppLogLevel.info => 'INFO',
       AppLogLevel.warning => 'WARN',
       AppLogLevel.error => 'ERROR',
@@ -40,14 +45,20 @@ class AppLogger {
     final formatted = '[$tag][$label] $message';
 
     if (!kReleaseMode) {
-      debugPrint(formatted);
+      debugPrintSynchronously(formatted);
       if (error != null) {
-        debugPrint('[$tag][$label][error] $error');
+        debugPrintSynchronously('[$tag][$label][error] $error');
       }
       if (stackTrace != null) {
-        debugPrint(stackTrace.toString());
+        debugPrintSynchronously(stackTrace.toString());
       }
-      DevtoolsBinding.instance.addLog(level, formatted);
+      DevtoolsBinding.instance.addLog(
+        level,
+        formatted,
+        error: error,
+        stackTrace: stackTrace,
+        extra: {'tag': tag},
+      );
     } else {
       developer.log(
         formatted,
