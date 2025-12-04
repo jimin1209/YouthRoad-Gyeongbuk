@@ -196,6 +196,29 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+# ERROR 04
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:checkDebugAarMetadata'.
+> A failure occurred while executing com.android.build.gradle.internal.tasks.CheckAarMetadataWorkAction
+   > An issue was found when checking AAR metadata:
+
+       1.  Dependency ':flutter_local_notifications' requires core library desugaring to be enabled
+           for :app.
+
+           See https://developer.android.com/studio/write/java8-support.html for more
+           details.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 15s
+
 # ERROR 03
 lib/features/policy_new/application/gateways/notification_gateway_impl.dart:69:55: Error: 'DarwinFlutterLocalNotificationsPlugin' isn't a type.
         _plugin.resolvePlatformSpecificImplementation<DarwinFlutterLocalNotificationsPlugin>();
