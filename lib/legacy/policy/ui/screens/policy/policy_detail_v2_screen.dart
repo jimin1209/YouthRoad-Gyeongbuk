@@ -72,6 +72,8 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
     final periodText =
         _formatPeriod(policy.policyBgngYmd, policy.policyEndYmd, policy.applyStart, policy.applyEnd);
     final tags = _buildTags(policy, region, ddayText);
+    final hasLink = (policy.dtlLinkUrl ?? '').trim().isNotEmpty;
+    final normalizedLink = (policy.dtlLinkUrl ?? '').trim();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
@@ -89,9 +91,8 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
               ),
               IconButton(
                 icon: const Icon(Icons.share_outlined),
-                onPressed: (policy.dtlLinkUrl ?? '').isEmpty
-                    ? null
-                    : () => _openLink(context, policy.dtlLinkUrl!),
+                tooltip: hasLink ? '신청 링크 열기' : '신청 링크 없음',
+                onPressed: hasLink ? () => _openLink(context, normalizedLink) : null,
               ),
             ],
           ),
@@ -103,10 +104,8 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
           ),
           const SizedBox(height: 20),
           PolicyCtaButton(
-            text: '신청 페이지 열기',
-            onTap: (policy.dtlLinkUrl ?? '').isEmpty
-                ? null
-                : () => _openLink(context, policy.dtlLinkUrl!),
+            text: hasLink ? '신청 페이지 열기' : '신청 링크 없음',
+            onTap: hasLink ? () => _openLink(context, normalizedLink) : null,
           ),
           const SizedBox(height: 16),
           GridView.count(
@@ -156,12 +155,15 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
           PolicyInfoRow(label: '운영 기관', value: policy.operInstNm ?? '운영 기관 정보 없음'),
           PolicyInfoRow(label: '지역', value: region),
           if (ddayText != null) PolicyInfoRow(label: '진행 상태', value: ddayText),
-          if ((policy.dtlLinkUrl ?? '').isNotEmpty) ...[
+          if (hasLink) ...[
             const SizedBox(height: 12),
             PolicyCtaButton(
               text: '홈페이지에서 자세히 보기',
-              onTap: () => _openLink(context, policy.dtlLinkUrl!),
+              onTap: () => _openLink(context, normalizedLink),
             ),
+          ] else ...[
+            const SizedBox(height: 12),
+            PolicyInfoRow(label: '신청 링크', value: '제공된 링크 없음'),
           ],
           if (similar.isNotEmpty) ...[
             const SizedBox(height: 24),
@@ -194,11 +196,19 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
   Future<void> _openLink(BuildContext context, String url) async {
     final normalized = url.trim();
     if (normalized.isEmpty) return;
-    final launched = await launchUrlString(normalized);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('링크를 열 수 없습니다.')),
-      );
+    try {
+      final launched = await launchUrlString(normalized);
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('링크를 열 수 없습니다.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('잘못된 링크입니다.')),
+        );
+      }
     }
   }
 

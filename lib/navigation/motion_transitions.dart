@@ -1,13 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-CustomTransitionPage<T> buildSlideFadePage<T>({
+class _TransitionPage<T> extends Page<T> {
+  const _TransitionPage({
+    required LocalKey key,
+    required this.child,
+    required this.transitionsBuilder,
+    required this.transitionDuration,
+    required this.reverseTransitionDuration,
+  }) : super(key: key);
+
+  final Widget child;
+  final RouteTransitionsBuilder transitionsBuilder;
+  final Duration transitionDuration;
+  final Duration reverseTransitionDuration;
+
+  @override
+  Route<T> createRoute(BuildContext context) {
+    return PageRouteBuilder<T>(
+      settings: this,
+      pageBuilder: (context, animation, secondaryAnimation) => child,
+      transitionsBuilder: transitionsBuilder,
+      transitionDuration: transitionDuration,
+      reverseTransitionDuration: reverseTransitionDuration,
+    );
+  }
+}
+
+Page<T> buildSlideFadePage<T>({
   required LocalKey key,
   required Widget child,
   Duration transitionDuration = const Duration(milliseconds: 260),
   Duration reverseDuration = const Duration(milliseconds: 200),
 }) {
-  return CustomTransitionPage<T>(
+  return _TransitionPage<T>(
     key: key,
     child: child,
     transitionDuration: transitionDuration,
@@ -37,11 +62,11 @@ CustomTransitionPage<T> buildSlideFadePage<T>({
   );
 }
 
-CustomTransitionPage<T> buildSearchOverlayPage<T>({
+Page<T> buildSearchOverlayPage<T>({
   required LocalKey key,
   required Widget child,
 }) {
-  return CustomTransitionPage<T>(
+  return _TransitionPage<T>(
     key: key,
     child: child,
     transitionDuration: const Duration(milliseconds: 300),

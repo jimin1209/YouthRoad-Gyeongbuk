@@ -7,7 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:youth_road_app/application/providers.dart';
 import 'package:youth_road_app/application/search/providers.dart';
 import 'package:youth_road_app/data/models/policy_filter.dart';
-import 'package:youth_road_app/data/sources/local/search_history_source.dart';
+import 'package:youth_road_app/data/sources/local/search_history_source.dart'
+    as search_history_source;
 import 'package:youth_road_app/legacy/policy/domain/policy/entities/policy_feed_type.dart';
 import 'package:youth_road_app/navigation/route_paths.dart';
 import 'package:youth_road_app/domain/entities/policy.dart';
@@ -122,8 +123,9 @@ class _PolicyListV2ScreenState extends ConsumerState<PolicyListV2Screen> {
     final pagingState = feedsState.primary;
     final searchState = ref.watch(searchV2ControllerProvider);
     final recommendedState = feedsState.recommended;
-    final history = ref.watch(searchHistoryListProvider);
-    final popularKeywords = ref.watch(popularSearchKeywordListProvider);
+    final history = ref.watch(search_history_source.searchHistoryListProvider);
+    final popularKeywords =
+        ref.watch(search_history_source.popularSearchKeywordListProvider);
     final compareCount = ref.watch(
       compareProvider.select((value) => value.valueOrNull?.length ?? 0),
     );

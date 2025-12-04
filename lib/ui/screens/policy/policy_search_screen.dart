@@ -7,7 +7,8 @@ import '../../../application/search/controllers/search_controller.dart';
 import '../../../application/search/controllers/search_history_controller.dart';
 import '../../../application/search/controllers/search_suggestion_controller.dart';
 import '../../../application/search/providers.dart';
-import '../../../data/sources/local/search_history_source.dart';
+import '../../../data/sources/local/search_history_source.dart'
+    as search_history_source;
 import '../../../domain/search/entities/search_category.dart';
 import '../../../domain/search/entities/search_result_item.dart';
 import '../../components/policy_filter_bottom_sheet.dart';
@@ -68,7 +69,8 @@ class _PolicySearchScreenState extends ConsumerState<PolicySearchScreen> {
     final searchState = ref.watch(searchControllerProvider);
     final suggestionState = ref.watch(searchSuggestionControllerProvider);
     final historyState = ref.watch(searchHistoryControllerProvider);
-    final popularKeywords = ref.watch(popularSearchKeywordListProvider);
+    final popularKeywords =
+        ref.watch(search_history_source.popularSearchKeywordListProvider);
 
     final mode = _resolveMode();
     final liveSuggestions = suggestionState.valueOrNull ?? const [];
