@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants/app_strings.dart';
-import '../devtools/debug_overlay.dart';
-import '../debug/debug_wrapper.dart';
 import '../theme/app_theme.dart';
 import 'providers/app_providers.dart';
 
@@ -20,9 +18,11 @@ class YouthRoadApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
       routerConfig: router,
-      builder: (context, child) => DevtoolsOverlay(
-        child: child ?? const SizedBox.shrink(),
-      ),
+
+      // 🔥 핵심 수정: DevtoolsOverlay 제거
+      builder: (context, child) {
+        return child ?? const SizedBox.shrink();
+      },
     );
   }
 }

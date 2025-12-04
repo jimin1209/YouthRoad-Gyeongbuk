@@ -54,8 +54,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
           ),
         ],
       ),
-
-      /// 🔥 핵심 수정 — SizedBox.expand 제거 (문제의 근본 원인)
       body: SafeArea(
         child: Column(
           children: [
@@ -111,14 +109,29 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  SizedBox(
-                    height: 48,
+
+                  /// 🛠 수정된 버튼 (폭 안전)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      maxWidth: 120, // 버튼이 절대 무한 폭으로 커지지 않도록
+                      minHeight: 48,
+                      maxHeight: 48,
+                    ),
                     child: chatState.isSending
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: CircularProgressIndicator(strokeWidth: 2.2),
+                        ? const Center(
+                            child: SizedBox(
+                              height: 24,
+                              width: 24,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2.2),
+                            ),
                           )
                         : FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                            ),
                             onPressed: () =>
                                 _send(notifier, chatState.isSending),
                             icon: const Icon(Icons.send),
@@ -186,16 +199,19 @@ class _ChatBubble extends StatelessWidget {
     final theme = Theme.of(context);
     final isUser = message.sender == '나';
     final isSystem = message.sender == '시스템';
+
     final alignment = isSystem
         ? Alignment.center
         : isUser
             ? Alignment.centerRight
             : Alignment.centerLeft;
+
     final background = isSystem
         ? theme.colorScheme.surfaceVariant
         : isUser
             ? theme.colorScheme.primary
             : theme.colorScheme.surfaceContainerHighest;
+
     final textStyle = isUser
         ? theme.textTheme.bodyMedium?.copyWith(color: Colors.white)
         : theme.textTheme.bodyMedium;

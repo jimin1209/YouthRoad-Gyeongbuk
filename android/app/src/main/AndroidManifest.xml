@@ -32,6 +32,11 @@
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
 
+        <!-- ⭐⭐⭐ Kakao Map Android Native AppKey 등록 (필수) ⭐⭐⭐ -->
+        <meta-data
+            android:name="com.kakao.sdk.AppKey"
+            android:value="@string/kakao_native_app_key" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -56,6 +61,7 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
     </application>
 
 </manifest>

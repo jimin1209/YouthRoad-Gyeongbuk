@@ -46,64 +46,65 @@ class PolicyActionBar extends ConsumerWidget {
                         ?.copyWith(color: Theme.of(context).colorScheme.error),
                   ),
                 ),
-              SizedBox(
-                width: double.infinity,
-                child: Row(
-                  children: [
-                    _IconActionButton(
-                      icon: state.isFavorite
-                          ? Icons.favorite
-                          : Icons.favorite_border,
-                      active: state.isFavorite,
-                      label: '좋아요',
-                      onTap: state.isProcessing
+
+              // 🔥 문제였던 부분 해결: width: double.infinity 제거
+              Row(
+                children: [
+                  _IconActionButton(
+                    icon: state.isFavorite
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    active: state.isFavorite,
+                    label: '좋아요',
+                    onTap: state.isProcessing
+                        ? null
+                        : () async => controller.toggleFavorite(policy),
+                  ),
+                  const SizedBox(width: 8),
+                  _IconActionButton(
+                    icon: state.isCompared
+                        ? Icons.compare_arrows
+                        : Icons.compare_arrows_outlined,
+                    active: state.isCompared,
+                    label: '비교함',
+                    onTap: state.isProcessing
+                        ? null
+                        : () async => controller.toggleCompare(policy),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // 🔥 Expanded로 폭 충돌 해결
+                  Expanded(
+                    child: _ReminderButton(
+                      policy: policy,
+                      controller: controller,
+                      reminderState: state.reminderState,
+                      isProcessing: state.isProcessing,
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: state.isProcessing
                           ? null
-                          : () async => controller.toggleFavorite(policy),
+                          : () async {
+                              final opened =
+                                  await controller.openPolicyLink(policy);
+                              if (!opened && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('신청 페이지를 열지 못했습니다.'),
+                                  ),
+                                );
+                              }
+                            },
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('신청 페이지 열기'),
                     ),
-                    const SizedBox(width: 8),
-                    _IconActionButton(
-                      icon: state.isCompared
-                          ? Icons.compare_arrows
-                          : Icons.compare_arrows_outlined,
-                      active: state.isCompared,
-                      label: '비교함',
-                      onTap: state.isProcessing
-                          ? null
-                          : () async => controller.toggleCompare(policy),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      flex: 1,
-                      child: _ReminderButton(
-                        policy: policy,
-                        controller: controller,
-                        reminderState: state.reminderState,
-                        isProcessing: state.isProcessing,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      flex: 1,
-                      child: ElevatedButton.icon(
-                        onPressed: state.isProcessing
-                            ? null
-                            : () async {
-                                final opened =
-                                    await controller.openPolicyLink(policy);
-                                if (!opened && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('신청 페이지를 열지 못했습니다.'),
-                                    ),
-                                  );
-                                }
-                              },
-                        icon: const Icon(Icons.open_in_new),
-                        label: const Text('신청 페이지 열기'),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -159,9 +160,11 @@ class _ReminderButton extends StatelessWidget {
                 (reminder) => reminder.status != PolicyReminderStatus.canceled)
             .toList()
           ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+
         final label = _label(activeReminders);
         final activeOptions =
             activeReminders.map((reminder) => reminder.timeKind).toSet();
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -270,49 +273,46 @@ class _ReminderButton extends StatelessWidget {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: SingleChildScrollView(
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final option in ReminderTimeKind.values)
-                          CheckboxListTile(
-                            value: selected.contains(option),
-                            onChanged: (value) {
-                              setState(() {
-                                if (value ?? false) {
-                                  selected.add(option);
-                                } else {
-                                  selected.remove(option);
-                                }
-                              });
-                            },
-                            title: Text(option.label),
-                            subtitle: const Text('신청 마감 기준으로 알림을 설정합니다'),
-                          ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: const Text('취소'),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () =>
-                                      Navigator.of(context).pop(selected),
-                                  child: const Text('저장'),
-                                ),
-                              ),
-                            ],
-                          ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final option in ReminderTimeKind.values)
+                        CheckboxListTile(
+                          value: selected.contains(option),
+                          onChanged: (value) {
+                            setState(() {
+                              if (value ?? false) {
+                                selected.add(option);
+                              } else {
+                                selected.remove(option);
+                              }
+                            });
+                          },
+                          title: Text(option.label),
+                          subtitle: const Text('신청 마감 기준으로 알림을 설정합니다'),
                         ),
-                      ],
-                    ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('취소'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(selected),
+                                child: const Text('저장'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
