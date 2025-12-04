@@ -196,6 +196,227 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+# TASK 501 — 정책 데이터 파이프라인 전면 재구축 (Full Pipeline Rebuild)
+
+목표:
+정책탐색 시스템(추천/전체/지역/검색/즐겨찾기/비교/상세/알림/필터)이 안정적·빠르게 동작하도록
+데이터 파이프라인 전체(모델 → RemoteSource → Repository → UseCase → Provider → UI)를 완전히 재설계하고
+전체 파일 단위로 코드 재생성.
+
+주요 증상:
+- 정책 추천/전체/검색/카테고리/지역이 전부 로딩 실패
+- LateInitializationError 발생 (_collections 초기화 실패)
+- 정책 모델 구조 변경 후 캐시 파싱 오류 발생
+- 상세페이지 링크 열기 실패
+- 태그/카테고리 영어 RAW key 노출
+- 즐겨찾기/비교 데이터 null
+- 상세 페이지 하단 정보 누락
+- 정책 알림(신청마감 알림) 불능
+- RemoteSource/Repository 간 스키마 불일치로 인해 전체 null 반환
+
+지시사항:
+
+----------------------------------------------------------------------
+1) 모델(Model) 계층 재정의
+----------------------------------------------------------------------
+모든 정책 관련 모델을 최신 스키마 기준으로 “하나의 소스에서 생성되는 형태”로 완전 통일.
+
+필수 모델:
+- PolicyModel
+- PolicyDetailModel
+- PolicyFilterModel
+- PolicyAgency
+- PolicyDateRange (startDate, endDate)
+- PolicyTag / CategoryTag Enum
+- SearchTag
+- PolicyFetchResult (list + pagination + meta)
+
+규칙:
+- 모든 필드는 null-safe(string nullable 금지 → 빈 문자열 허용 X)
+- date 필드는 DateTime? 로 통일
+- URL은 절대 빈 문자열("") 허용 금지 → null 또는 valid URL
+- region, category, tags는 enum 기반으로 변환
+- fromJson/toJson 정확히 통일 (서버 응답 필드와 1:1 매핑)
+- 모델 간 중복 필드 제거
+
+----------------------------------------------------------------------
+2) RemoteSource 재구축
+----------------------------------------------------------------------
+파일 위치: lib/data/sources/remote/policy_remote_source.dart
+
+요구:
+- Dio 기반 API 호출 전체 재생성
+- 모든 endpoint(목록/상세/필터/태그/추천/검색/지역/카테고리) 함수 별도 구성
+- 네트워크 예외 완전 처리 (try/catch + typed error)
+- API 응답 파싱 실패 시 null 또는 empty 리스트 반환 금지 → 반드시 타입 보존
+
+필수 기능:
+- fetchPolicies(filter)
+- fetchRecommended()
+- fetchSearch(keyword)
+- fetchDetail(id)
+- fetchTags()
+- fetchCategories()
+
+🤍 중요:
+- baseUrl/env key/appKey 자동 구성 로직 새로 정의
+- fromJson 실패 시 앱이 죽지 않도록 guard layer 적용
+
+----------------------------------------------------------------------
+3) Repository 계층 완전 재작성
+----------------------------------------------------------------------
+파일 위치: lib/data/repositories/hybrid_policy_repository.dart
+
+목표:
+RemoteSource + Local(Isar) + 메모리 캐시를 하나로 통합하는 “안정적인” Hybrid 구조 재정의
+
+해야 할 작업:
+- 정책 목록/상세/검색/필터 결과를 각각 캐시하여 중복 호출 방지
+- 캐시 버전키 도입(스키마 변경 시 자동 무효화)
+- Local DB(Isar) 스키마 자동 생성 + import/export 구조 생성
+- RemoteSource → Repository → Provider로 전달되는 타입 100% 일치
+
+함수 구조 예시:
+- getRecommended()
+- getPolicies(filter)
+- getPolicyDetail(id)
+- search(keyword)
+- getCategories()
+- getTags()
+
+캐시 규칙:
+- API 응답 성공 시 캐시 즉시 갱신
+- API 실패 시 캐시 fallback
+- 캐시 TTL 적용 (12시간)
+
+----------------------------------------------------------------------
+4) UseCase 계층 재정의
+----------------------------------------------------------------------
+위치: lib/domain/usecases
+
+UseCase 목적:
+- Provider가 Repository에 직접 접근하지 않도록 중간 계층 제공
+- UI의 가독성/안정성 확보
+- 필터 계산/조건 매핑/정책 추천 로직 정리
+
+필요 UseCase:
+- GetRecommendedPoliciesUseCase
+- GetPolicyListUseCase
+- GetPolicyDetailUseCase
+- SearchPolicyUseCase
+- GetPolicyFiltersUseCase
+- GetCategoriesUseCase
+
+모든 UseCase는 "call()" 함수 사용.
+
+----------------------------------------------------------------------
+5) Provider 계층 전면 재작성 (Riverpod 2.x)
+----------------------------------------------------------------------
+위치: lib/application/providers/
+
+필수 Provider:
+- recommendedPoliciesProvider
+- policyListProvider (페이징 포함)
+- searchProvider
+- categoryProvider
+- regionProvider
+- filterProvider
+- policyDetailProvider
+- policyBookmarkProvider
+- compareProvider
+
+규칙:
+- late 필드 절대 금지
+- AsyncValue 사용 시 반드시 AsyncLoading/AsyncData/AsyncError 3단계 분리
+- null-safe한 기본값 제공
+- load() 실행 시 await 없이 초기 렌더링 금지
+
+중요 복구 포인트:
+- ‘_collections’ LateInitializationError 절대 재발하지 않도록
+- provider 내부 모든 필드 즉시 초기화
+- load()는 항상 비동기 → state = AsyncLoading(); 이후 fetch
+
+----------------------------------------------------------------------
+6) UI 단 완전 복구
+----------------------------------------------------------------------
+필요 작업:
+
+(1) 정책탐색 5개 탭 복구
+- 추천
+- 전체
+- 지역
+- 검색
+- 즐겨찾기
+
+(2) 상세페이지
+- 접수기간, 문의처, 기관, 태그, 지원내용 정확히 매핑
+- URL 링크 열기 기능 재작성 (url_launcher)
+- URL null일 때 fallback UI
+
+(3) 필터 BottomSheet 전면 정리
+- UI 글자 깨짐/영어 표기 문제 해결
+- 필터 선택 → Provider 상태 갱신 → 자동 fetch
+
+(4) 검색 탭 UI
+- 추천 태그/핫키워드 반드시 표시
+- 검색어 입력 시 debounce + fetch
+
+(5) 즐겨찾기/비교
+- 로컬 저장 구조 리빌드
+- 정책 상세와 데이터 동기화
+
+----------------------------------------------------------------------
+7) 알림(Notification) 시스템 정비
+----------------------------------------------------------------------
+- 정책 신청일/마감일이 null일 경우 알림 기능 숨김
+- dateRange 파싱 정확히 수행
+- 알림 등록 시 정책명/정책ID 필수 전달
+- cancelReminder/insertReminder 예외 처리
+
+----------------------------------------------------------------------
+8) 전체 파일 출력 요구
+----------------------------------------------------------------------
+Codex는 아래 파일을 "전체 파일 형태"로 모두 출력:
+
+- 모든 Model 파일
+- RemoteSource 전체 파일
+- Repository 전체 파일
+- UseCase 전체 파일
+- Provider 전체 파일
+- UI Widget 전체 파일
+- 정책 상세화면 파일
+- 검색 화면 파일
+- 추천 화면 파일
+- 지역 화면 파일
+- 즐겨찾기 파일
+- 비교 파일
+- 필터 BottomSheet
+- Notification 관련 파일
+- Isar schema 전체 파일
+
+----------------------------------------------------------------------
+9) 최종 검증 항목
+----------------------------------------------------------------------
+아래 테스트를 통과하는지 확인:
+
+[1] 앱 실행 즉시 추천 정책 6개 이상 노출  
+[2] 전체 탭에서 정책 목록 스크롤 시 무한 페이징  
+[3] 지역 탭 정상 동작  
+[4] 검색 탭에서 검색 가능 + 추천 태그 보임  
+[5] 상세 페이지 링크 정상 열림  
+[6] 즐겨찾기/비교 기능 정상  
+[7] LateInitializationError 0개  
+[8] 태그/카테고리 전부 한글  
+[9] 정책 알림 설정 정상 동작  
+[10] 앱 전반 속도 개선
+
+----------------------------------------------------------------------
+출력 형식:
+- 파일별 Full Code
+- 누락 없는 전체 출력
+- 수정 요약 포함
+
+
 # ERROR 203
 lib/ui/components/policy_filter_bottom_sheet.dart:214:53: Error: 'PolicyTagTheme' isn't a type.
     final policyTheme = Theme.of(context).extension<PolicyTagTheme>();
