@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+/// ---------------------------------------------------------------------------
+/// 1. Design Tokens (색상 / 타이포)
+/// ---------------------------------------------------------------------------
+
 class AppColors {
   const AppColors._();
 
@@ -73,6 +77,10 @@ final TextTheme appTextTheme = TextTheme(
   labelLarge: AppTextStyles.body2.copyWith(fontWeight: FontWeight.w600),
   labelMedium: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w500),
 );
+
+/// ---------------------------------------------------------------------------
+/// 2. 도메인 전용 ThemeExtension
+/// ---------------------------------------------------------------------------
 
 @immutable
 class PolicyTheme extends ThemeExtension<PolicyTheme> {
@@ -165,6 +173,10 @@ class PolicyTheme extends ThemeExtension<PolicyTheme> {
 double _lerpDouble(double a, double b, double t) {
   return a + (b - a) * t;
 }
+
+/// ---------------------------------------------------------------------------
+/// 3. 컴포넌트별 Theme 빌더
+/// ---------------------------------------------------------------------------
 
 CardTheme buildCardTheme(ColorScheme colorScheme, PolicyTheme policyTheme) {
   return CardTheme(
@@ -314,6 +326,10 @@ InputDecorationTheme buildInputDecorationTheme(ColorScheme colorScheme) {
   );
 }
 
+/// ---------------------------------------------------------------------------
+/// 4. ColorScheme 정의
+/// ---------------------------------------------------------------------------
+
 class AppTheme {
   const AppTheme._();
 
@@ -393,6 +409,10 @@ class AppTheme {
     inversePrimary: AppColors.primary500,
   );
 
+  /// -------------------------------------------------------------------------
+  /// 5. 최종 ThemeData (AppTheme.light / AppTheme.dark)
+  /// -------------------------------------------------------------------------
+
   static ThemeData get lightTheme => _buildTheme(
         colorScheme: lightColorScheme,
         policyTheme: PolicyTheme.light(lightColorScheme),
@@ -411,10 +431,10 @@ class AppTheme {
       useMaterial3: true,
       brightness: colorScheme.brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.surface,
+      scaffoldBackgroundColor: colorScheme.background,
       textTheme: appTextTheme.apply(
-        bodyColor: colorScheme.onSurface,
-        displayColor: colorScheme.onSurface,
+        bodyColor: colorScheme.onBackground,
+        displayColor: colorScheme.onBackground,
       ),
       appBarTheme: buildAppBarTheme(colorScheme),
       cardTheme: buildCardTheme(colorScheme, policyTheme),
