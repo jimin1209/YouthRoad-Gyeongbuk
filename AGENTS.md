@@ -196,6 +196,52 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+# ERROR 03
+lib/features/policy_new/application/gateways/notification_gateway_impl.dart:69:55: Error: 'DarwinFlutterLocalNotificationsPlugin' isn't a type.
+        _plugin.resolvePlatformSpecificImplementation<DarwinFlutterLocalNotificationsPlugin>();
+                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/features/policy_new/application/gateways/notification_gateway_impl.dart:129:77: Error: The getter 'label' isn't defined for the class 'ReminderTimeKind'.
+ - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
+          '[${reminder.policyTitleSnapshot ?? '정책 신청'}] ${reminder.timeKind.label}';
+                                                                            ^^^^^
+lib/features/policy_new/application/gateways/notification_gateway_impl.dart:134:21: Error: The method 'schedule' isn't defined forthe class 'FlutterLocalNotificationsPlugin'.
+ - 'FlutterLocalNotificationsPlugin' is from 'package:flutter_local_notifications/src/flutter_local_notifications_plugin.dart' ('../.pub-cache/hosted/pub.dev/flutter_local_notifications-17.2.4/lib/src/flutter_local_notifications_plugin.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'schedule'.
+      await _plugin.schedule(
+                    ^^^^^^^^
+lib/features/policy_new/presentation/reminder/policy_reminder_badge.dart:20:14: Error: The method 'where' isn't defined for the class 'PolicyReminderViewState'.
+ - 'PolicyReminderViewState' is from 'package:youth_road_app/features/policy_new/application/controllers/policy_reminder_controller.dart' ('lib/features/policy_new/application/controllers/policy_reminder_controller.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'where'.
+            .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
+             ^^^^^
+lib/features/policy_new/data/local/isar/policy_reminder_isar_model.g.dart:14:39: Error: Constant evaluation error:
+const PolicyReminderIsarModelSchema = CollectionSchema(
+                                      ^
+../.pub-cache/hosted/pub.dev/isar-3.1.0+1/lib/src/schema/collection_schema.dart:24:24: Context: This assertion failed with message: Outdated generated code. Please re-run code generation using the latest generator.
+          Isar.version == version,
+                       ^
+lib/features/policy_new/data/local/isar/policy_reminder_isar_model.g.dart:14:7: Context: While analyzing:
+const PolicyReminderIsarModelSchema = CollectionSchema(
+      ^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 12s
+
+
 # ERROR 02
 Invalid depfile: /home/ssm-user/YouthRoad-Gyeongbuk/.dart_tool/flutter_build/af4d3775d05b06f22fe8e749c2be2c8f/kernel_snapshot_program.d
 Invalid depfile: /home/ssm-user/YouthRoad-Gyeongbuk/.dart_tool/flutter_build/af4d3775d05b06f22fe8e749c2be2c8f/kernel_snapshot_program.d
