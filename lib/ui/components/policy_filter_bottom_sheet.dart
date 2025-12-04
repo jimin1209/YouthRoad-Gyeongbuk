@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:youth_road_app/theme/app_theme.dart';
 
 import 'policy_tag.dart';
 import 'section_title.dart';
@@ -211,7 +212,7 @@ class _PolicyFilterBottomSheetState extends State<PolicyFilterBottomSheet> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final policyTheme = Theme.of(context).extension<PolicyTagTheme>();
+    final policyTheme = Theme.of(context).extension<PolicyTheme>()!;
 
     return SafeArea(
       top: false,
