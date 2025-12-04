@@ -82,7 +82,10 @@ class PolicyReminderController
     final previous = state.value ?? PolicyReminderViewState.initial();
     state = AsyncData(previous.copyWith(isMutating: true, messages: const []));
     try {
-      final currentKinds = previous.reminders.map((reminder) => reminder.timeKind).toSet();
+      final currentKinds = previous.reminders
+          .where((reminder) => reminder.status == PolicyReminderStatus.scheduled)
+          .map((reminder) => reminder.timeKind)
+          .toSet();
       final nextKinds = kinds.toSet();
 
       final toAdd = nextKinds.difference(currentKinds).toList();
@@ -109,7 +112,7 @@ class PolicyReminderController
         previous.copyWith(
           reminders: current,
           isMutating: false,
-          messages: _messagesForFailures(result.failures),
+          messages: _messagesForResult(result),
         ),
       );
       return result;
@@ -182,6 +185,9 @@ class PolicyReminderController
         case ScheduleFailureType.permissionDenied:
           return '알림 권한이 꺼져 있어 예약에 실패했어요. 설정에서 권한을 허용해 주세요.';
         case ScheduleFailureType.invalidDate:
+          if (failure.failure.message.isNotEmpty) {
+            return failure.failure.message;
+          }
           return '이미 지난 시각에는 알림을 설정할 수 없습니다.';
         case ScheduleFailureType.gatewayError:
         case ScheduleFailureType.idCollision:
@@ -192,5 +198,16 @@ class PolicyReminderController
           return '알 수 없는 이유로 알림을 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.';
       }
     }).toList();
+  }
+
+  List<String> _messagesForResult(ReminderMutationResult result) {
+    final failureMessages = _messagesForFailures(result.failures);
+    if (failureMessages.isNotEmpty) return failureMessages;
+
+    if (result.reminders.isEmpty) {
+      return const ['알림을 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.'];
+    }
+
+    return const [];
   }
 }

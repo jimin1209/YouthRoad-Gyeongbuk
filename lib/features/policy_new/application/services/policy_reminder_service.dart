@@ -61,6 +61,20 @@ class PolicyReminderService {
 
     for (final kind in kinds) {
       final schedule = scheduler.buildSchedule(policy, option: kind);
+      if (schedule == null) {
+        final failure = ScheduleFailure(
+          type: ScheduleFailureType.invalidDate,
+          message: '신청 기간 정보가 없어 알림을 설정할 수 없습니다.',
+        );
+        failures.add(
+          ReminderMutationFailure(
+            timeKind: kind,
+            failure: failure,
+          ),
+        );
+        logger.warn('Reminder for ${policy.id} skipped: ${failure.message}');
+        continue;
+      }
       if (schedule.status == PolicyReminderStatus.expired) {
         failures.add(
           ReminderMutationFailure(

@@ -4,16 +4,6 @@ import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
 import '../../domain/utils/reminder_time_util.dart';
 
-class PolicyReminderScheduleResult {
-  const PolicyReminderScheduleResult({
-    required this.scheduledAt,
-    required this.status,
-  });
-
-  final DateTime scheduledAt;
-  final PolicyReminderStatus status;
-}
-
 class PolicyReminderScheduler {
   const PolicyReminderScheduler({
     this.config = const PolicyReminderConfig(),
@@ -21,13 +11,13 @@ class PolicyReminderScheduler {
 
   final PolicyReminderConfig config;
 
-  PolicyReminderScheduleResult buildSchedule(
+  PolicyReminderScheduleResult? buildSchedule(
     Policy policy, {
     ReminderTimeKind option = ReminderTimeKind.day1,
   }) {
     final baseDate = policy.applicationEndDate ?? policy.applicationStartDate;
     if (baseDate == null) {
-      throw ArgumentError('신청 기간 정보가 없는 정책입니다.');
+      return null;
     }
 
     final now = ReminderTimeUtil.toUtc(DateTime.now());
@@ -41,4 +31,14 @@ class PolicyReminderScheduler {
       status: status,
     );
   }
+}
+
+class PolicyReminderScheduleResult {
+  const PolicyReminderScheduleResult({
+    required this.scheduledAt,
+    required this.status,
+  });
+
+  final DateTime scheduledAt;
+  final PolicyReminderStatus status;
 }

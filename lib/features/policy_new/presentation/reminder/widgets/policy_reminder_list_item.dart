@@ -18,12 +18,16 @@ class PolicyReminderListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconData = reminder.status == PolicyReminderStatus.expired
-        ? Icons.notifications_off
-        : Icons.notifications_active;
-    final iconColor = reminder.status == PolicyReminderStatus.expired
-        ? Colors.grey
-        : Colors.orange;
+    final iconData = switch (reminder.status) {
+      PolicyReminderStatus.expired => Icons.notifications_off,
+      PolicyReminderStatus.canceled => Icons.notifications_off_outlined,
+      _ => Icons.notifications_active,
+    };
+    final iconColor = switch (reminder.status) {
+      PolicyReminderStatus.expired => Colors.grey,
+      PolicyReminderStatus.canceled => Colors.grey,
+      _ => Colors.orange,
+    };
 
     final title = reminder.policyTitleSnapshot ?? reminder.policyId;
     return ListTile(
@@ -39,7 +43,9 @@ class PolicyReminderListItem extends StatelessWidget {
           Text(reminder.status.label),
           const SizedBox(height: 4),
           TextButton(
-            onPressed: onCancel,
+            onPressed: reminder.status == PolicyReminderStatus.canceled
+                ? null
+                : onCancel,
             child: const Text('해제'),
           ),
         ],

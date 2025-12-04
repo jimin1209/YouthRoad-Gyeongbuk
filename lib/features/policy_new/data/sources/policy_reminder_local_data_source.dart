@@ -46,20 +46,14 @@ class IsarPolicyReminderLocalDataSource
   @override
   Future<List<PolicyReminder>> getRemindersForPolicy(String policyId) async {
     final models = await _isarService.getRemindersForPolicy(policyId);
-    return models
-        .map(_toDomain)
-        .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
-        .toList()
+    return models.map(_toDomain).toList()
       ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
   }
 
   @override
   Future<List<PolicyReminder>> getAllReminders() async {
     final models = await _isarService.getAllReminders();
-    final reminders = models
-        .map(_toDomain)
-        .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
-        .toList();
+    final reminders = models.map(_toDomain).toList();
     reminders.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
     return reminders;
   }
