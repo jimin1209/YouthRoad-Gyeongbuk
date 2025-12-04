@@ -114,19 +114,26 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
         child: ListView.builder(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
+          cacheExtent: 600,
+          addAutomaticKeepAlives: false,
+          addSemanticIndexes: false,
+          addRepaintBoundaries: false,
           itemCount:
               state.items.length + (_shouldShowFooterLoader(state) ? 1 : 0),
           itemBuilder: (context, index) {
             if (index < state.items.length) {
               final policy = state.items[index];
-              return PolicyCard(
-                policy: policy,
-                onTap: () {
-                  ref
-                      .read(policyBehaviorTrackerProvider.notifier)
-                      .recordDetailView(policy);
-                  _openDetail(context, policy.id);
-                },
+              return RepaintBoundary(
+                child: PolicyCard(
+                  key: ValueKey('policy-${policy.id}'),
+                  policy: policy,
+                  onTap: () {
+                    ref
+                        .read(policyBehaviorTrackerProvider.notifier)
+                        .recordDetailView(policy);
+                    _openDetail(context, policy.id);
+                  },
+                ),
               );
             }
 
