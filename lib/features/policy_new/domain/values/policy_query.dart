@@ -33,35 +33,74 @@ class PolicyQuery {
     );
   }
 
+  PolicyQuery normalize({bool clearRecommendKeyword = true}) {
+    final normalizedKeyword = _normalizeKeyword(keyword);
+    final normalizedTags = _normalizeTags(tags);
+    final normalizedFilter = filter.normalize();
+
+    final shouldClearKeyword =
+        clearRecommendKeyword && feedType == PolicyFeedType.recommend;
+
+    return PolicyQuery(
+      keyword: shouldClearKeyword ? null : normalizedKeyword,
+      tags: normalizedTags,
+      filter: normalizedFilter,
+      sort: sort,
+      feedType: feedType,
+    );
+  }
+
   /// Repository에서 캐시 scope 구분용으로 사용될 키
   String get cacheScopeKey {
+    final normalized = normalize();
+    final normalizedFilter = normalized.filter;
+
     final buffer = StringBuffer()
-      ..write(feedType.name)
+      ..write(normalized.feedType.name)
       ..write('|')
-      ..write(filter.region.name)
+      ..write(normalizedFilter.region.name)
       ..write('|')
-      ..write(filter.category?.name ?? 'all')
+      ..write(normalizedFilter.category?.name ?? 'all')
       ..write('|')
-      ..write(filter.age?.toString() ?? 'any')
+      ..write(normalizedFilter.age?.toString() ?? 'any')
       ..write('|')
-      ..write(filter.isOnline?.toString() ?? 'any')
+      ..write(normalizedFilter.isOnline?.toString() ?? 'any')
       ..write('|')
-      ..write(filter.isOffline?.toString() ?? 'any')
+      ..write(normalizedFilter.isOffline?.toString() ?? 'any')
       ..write('|')
-      ..write(filter.isOngoing?.toString() ?? 'any')
+      ..write(normalizedFilter.isOngoing?.toString() ?? 'any')
       ..write('|')
-      ..write(sort.name)
+      ..write(normalized.sort.name)
       ..write('|')
-      ..write(keyword ?? '')
+      ..write(normalized.keyword ?? '')
       ..write('|')
-      ..write(tags.join(','))
+      ..write(normalized.tags.join(','))
       ..write('|')
-      ..write(filter.institutionId ?? 'any')
+      ..write(normalizedFilter.institutionId ?? 'any')
       ..write('|')
-      ..write(filter.departmentId ?? 'any')
+      ..write(normalizedFilter.departmentId ?? 'any')
       ..write('|')
-      ..write(filter.tags.join(','));
+      ..write(normalizedFilter.tags.join(','));
 
     return buffer.toString();
+  }
+
+  static String? _normalizeKeyword(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return trimmed;
+  }
+
+  static List<String> _normalizeTags(List<String> values) {
+    final normalized = <String>[];
+    for (final raw in values) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) continue;
+      if (!normalized.contains(trimmed)) {
+        normalized.add(trimmed);
+      }
+    }
+    return normalized;
   }
 }

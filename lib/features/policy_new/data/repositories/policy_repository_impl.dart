@@ -33,22 +33,27 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int page,
     required int pageSize,
   }) {
+    final normalizedQuery = query.normalize();
+    final normalizedFilter = normalizedQuery.filter;
+    final normalizedPage = page < 1 ? 1 : page;
+    final normalizedSize = pageSize <= 0 ? settings.pageSize : pageSize;
+
     final params = <String, dynamic>{
-      'pageIndex': page,
-      'pageSize': pageSize,
-      'recordCount': pageSize,
+      'pageIndex': normalizedPage,
+      'pageSize': normalizedSize,
+      'recordCount': normalizedSize,
       'pagingYn': 'Y',
       'searchDsplyYn': 'all',
-      'feed_type': query.feedType.name,
-      'sort': query.sort.name,
+      'feed_type': normalizedQuery.feedType.name,
+      'sort': normalizedQuery.sort.name,
     };
 
-    if (query.keyword != null && query.keyword!.isNotEmpty) {
-      params['searchPolicyNm'] = query.keyword;
+    if (normalizedQuery.keyword != null && normalizedQuery.keyword!.isNotEmpty) {
+      params['searchPolicyNm'] = normalizedQuery.keyword;
     }
 
     // Filter → API 파라미터 매핑
-    final filter = query.filter;
+    final filter = normalizedFilter;
 
     if (filter.region != PolicyRegion.all) {
       params['searchRgnSe'] = _mapRegion(filter.region);
@@ -74,8 +79,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['deptNo'] = filter.departmentId;
     }
 
-    if (query.tags.isNotEmpty) {
-      params['tags'] = query.tags.join(',');
+    if (normalizedQuery.tags.isNotEmpty) {
+      params['tags'] = normalizedQuery.tags.join(',');
     }
 
     if (filter.tags.isNotEmpty) {
@@ -109,12 +114,13 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int page,
     required int pageSize,
   }) async {
+    final normalizedQuery = query.normalize();
     final effectivePageSize = pageSize == 0 ? settings.pageSize : pageSize;
-    final scopeKey = query.cacheScopeKey;
+    final scopeKey = normalizedQuery.cacheScopeKey;
 
-    if (_isIdBasedQuery(query)) {
+    if (_isIdBasedQuery(normalizedQuery)) {
       return _fetchAndCacheByIds(
-        query: query,
+        query: normalizedQuery,
         page: page,
         pageSize: effectivePageSize,
         scopeKey: scopeKey,
@@ -125,13 +131,13 @@ class PolicyRepositoryImpl implements PolicyRepository {
       final cached = cache.getPageForScope(scopeKey, page);
       if (cached != null && cached.isNotEmpty) {
         logger.info('캐시 히트 (scope: $scopeKey, page: $page)');
-        _revalidateQuery(query, page, effectivePageSize);
+        _revalidateQuery(normalizedQuery, page, effectivePageSize);
         return PolicyResult.success(cached);
       }
     }
 
     return _fetchAndCacheQuery(
-      query: query,
+      query: normalizedQuery,
       page: page,
       pageSize: effectivePageSize,
       scopeKey: scopeKey,
