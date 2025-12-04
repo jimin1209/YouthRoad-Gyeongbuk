@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/services.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,6 +87,11 @@ class _LogConsolePanelState extends ConsumerState<LogConsolePanel> {
                         ],
                         onChanged: (value) {
                           setState(() => _sourceFilter = value);
+                          if (value != null &&
+                              selected != null &&
+                              selected.source != value) {
+                            notifier.selectLog(null);
+                          }
                         },
                       ),
                     ],
@@ -258,6 +264,7 @@ class _LogDetailView extends StatelessWidget {
       if (entry!.error != null) 'error': entry!.error.toString(),
       if (entry!.stackTrace != null) 'stackTrace': entry!.stackTrace.toString(),
     };
+    final formattedPayload = _prettyPrint(payload);
 
     return _DetailContainer(
       child: Column(
@@ -267,10 +274,24 @@ class _LogDetailView extends StatelessWidget {
             '[${entry!.source.name.toUpperCase()}] ${entry!.level.name.toUpperCase()}',
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
           ),
-          const SizedBox(height: 8),
-          Text(_formatTimestamp(entry!.timestamp)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(_formatTimestamp(entry!.timestamp)),
+              IconButton(
+                tooltip: '복사하기',
+                icon: const Icon(Icons.copy, size: 20),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: formattedPayload));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('로그 상세가 복사되었습니다.')),
+                  );
+                },
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
-          SelectableText(_prettyPrint(payload)),
+          SelectableText(formattedPayload),
         ],
       ),
     );
