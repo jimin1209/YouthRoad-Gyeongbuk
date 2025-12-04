@@ -196,6 +196,44 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+# TASK 500 — 정책탐색 전체 기능 붕괴 복구
+
+지시사항:
+
+1) 전체 정책 데이터 파이프라인 점검
+- PolicyModel, PolicyFilter, PolicyFetchResult 포함 모든 정책 관련 모델 구조를 최신 버전으로 통일
+- RemoteSource → Repository → UseCase → Provider 흐름에서 null-safe 처리 강화
+- 모든 late 필드 제거 또는 기본값 제공
+
+2) RemoteSource / Repository 복구
+- API 응답을 100% 정상 파싱하도록 fromJson 전체 검증
+- applyUrl, detailUrl, agencyName 등 필드가 null일 경우 빈 문자열이 아닌 null-safe wrapper로 처리
+- 정책 목록 캐싱 시 오래된 캐시가 파싱 오류를 유발하지 않도록 버전키 적용
+
+3) UI 오류 복구
+- 정책 상세 링크가 null 또는 잘못된 URL이면 "연결 불가"가 아닌 "링크 없음"으로 graceful fallback
+- 태그 / 카테고리 명이 영어로 출력되는 문제 해결: Localization 또는 Domain→UI 매핑 복구
+- 검색 탭 초기 로딩 시 recommendedKeywords / hotTags 반환하도록 Provider 수정
+
+4) 추천 / 카테고리 / 검색 전면 복구
+- recommended policies provider가 null 반환하는 문제 해결
+- category provider에서 LateInitializationError 방지
+- 검색 Provider에서 검색어 입력 시 debounce + fetch 정상화
+
+5) 비교 / 즐겨찾기 점검
+- favorite / compare 리스트가 null이 아님을 보장하도록 로컬 저장소 구조 점검
+- 상세 페이지 링크를 열 때 openLink() 함수에서 예외 catch 추가
+
+6) 전체 테스트
+- “추천/전체/지역/검색/즐겨찾기/비교/상세/필터/알림등록” 10개 탭에서 정상 동작 확인
+- 각 화면에서 정책 3개 이상 정상 로딩되는지 점검
+
+출력:
+- 모든 수정된 파일 전체 코드(full file replace)
+- 변경된 아키텍처 문서 정리
+
+
+
 # ERROR 201
 lib/ui/screens/policy/policy_search_screen.dart:60:39: Error: The getter 'popularSearchKeywordListProvider' isn't defined for the class '_PolicySearchScreenState'.
  - '_PolicySearchScreenState' is from 'package:youth_road_app/ui/screens/policy/policy_search_screen.dart' ('lib/ui/screens/policy/policy_search_screen.dart').
