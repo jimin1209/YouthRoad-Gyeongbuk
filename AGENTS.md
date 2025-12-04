@@ -429,6 +429,747 @@ class PolicyCompareModel {
 ```
 ---
 
+---
+
+# 📌 TASK 309 — 정책 필터 BottomSheet 리디자인 + 선택 UX 강화
+
+````md
+# TASK 309
+## 정책 필터 BottomSheet 리디자인 + 선택 UX 강화
+### Status: OPEN
+### Owner: UI/UX Layer
+
+---
+
+## 1. 목적
+
+- 기존 정책 필터 BottomSheet UI를
+  - **보기 편하고**
+  - **선택 상태가 한눈에 보이고**
+  - **실수 없이 초기화/적용할 수 있는 구조**로 리디자인한다.
+- TASK 300(디자인 시스템) / TASK 301(Theme) / TASK 302(컴포넌트) / TASK 306(Motion)과
+  **완전히 일관된 스타일**을 유지한다.
+
+---
+
+## 2. UX 핵심 컨셉
+
+1. **상단 “선택된 필터 요약(Pill)” 영역**  
+   - 지금 어떤 필터가 적용 중인지 한 줄로 요약  
+   - 각 Pill은 개별 삭제 가능 (X 버튼)
+
+2. **그룹 단위 필터 구조 정리**
+   1) 모집 상태(모집 중 / 온라인 가능 등 토글)  
+   2) 지역  
+   3) 카테고리  
+   4) 주관 기관  
+   5) 담당 부서  
+
+3. **멀티 선택 + 즉시 시각 피드백**
+   - Chip(Pill) 기반 멀티 선택  
+   - 선택/비선택 상태가 색/보더로 즉시 구분
+
+4. **“초기화 / 적용” 버튼 고정**
+   - 하단에 항상 보이는 `초기화` / `필터 적용` 버튼  
+   - 적용 클릭 시만 검색/목록 리로드
+
+5. **Motion / Interaction**
+   - BottomSheet 열릴 때 Spring motion (TASK 306 규격)  
+   - 선택/해제는 즉시 반응, 리스트는 “적용” 시에만 변경
+
+---
+
+## 3. 정보 구조 / 와이어프레임
+
+```text
+┌─────────────────────────────────────────────
+│  ⬛⬛⬛ 필터                         [X 닫기]
+├─────────────────────────────────────────────
+│  [📌 선택된 필터]  ← 선택된 항목 요약
+│   · 모집중
+│   · 온라인
+│   · 경북
+│   · 주거
+│
+│  [토글 그룹]
+│   ▢ 모집 중인 정책만
+│   ▢ 온라인 신청 가능
+│
+│  [지역]
+│   (전체) (경북) (서울) (부산) ...
+│
+│  [카테고리]
+│   (주거) (취업) (창업) (교육) ...
+│
+│  [주관 기관]
+│   (경상북도) (○○시) (○○청년센터) ...
+│
+│  [담당 부서]
+│   (청년정책과) (일자리정책과) ...
+│
+├─────────────────────────────────────────────
+│  [초기화]                      [필터 적용]
+└─────────────────────────────────────────────
+````
+
+---
+
+## 4. 상호작용 규칙
+
+* Chip(태그) 선택:
+
+  * 누르면 `선택 → PrimaryContainer 배경 + Primary 글자색 + 테두리`
+  * 다시 누르면 선택 해제
+
+* 상단 “선택된 필터 요약” Pill:
+
+  * 각 Pill 오른쪽 X 아이콘으로 개별 해제
+  * “전체 초기화”는 하단 `초기화` 버튼으로 처리
+
+* `초기화` 버튼:
+
+  * 모든 필터 상태 초기화
+  * “필터가 초기화되었습니다” 스낵바 (선택 사항)
+
+* `필터 적용` 버튼:
+
+  * 현재 선택 상태를 Filter 모델로 전달
+  * BottomSheet 닫기 + 리스트/검색 재호출
+
+---
+
+## 5. 실제 구현 파일 (전체)
+
+### 📁 lib/ui/components/policy_filter_bottom_sheet.dart
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:youth_road_app/theme/app_theme.dart';
+import 'package:youth_road_app/ui/components/policy_tag.dart';
+import 'package:youth_road_app/ui/components/section_title.dart';
+
+/// 필터 상태 모델 (UI 전용 DTO)
+class PolicyFilterUiState {
+  final bool onlyRecruiting;
+  final bool onlyOnline;
+  final Set<String> regions;
+  final Set<String> categories;
+  final Set<String> organizations;
+  final Set<String> departments;
+
+  const PolicyFilterUiState({
+    this.onlyRecruiting = false,
+    this.onlyOnline = false,
+    this.regions = const {},
+    this.categories = const {},
+    this.organizations = const {},
+    this.departments = const {},
+  });
+
+  PolicyFilterUiState copyWith({
+    bool? onlyRecruiting,
+    bool? onlyOnline,
+    Set<String>? regions,
+    Set<String>? categories,
+    Set<String>? organizations,
+    Set<String>? departments,
+  }) {
+    return PolicyFilterUiState(
+      onlyRecruiting: onlyRecruiting ?? this.onlyRecruiting,
+      onlyOnline: onlyOnline ?? this.onlyOnline,
+      regions: regions ?? this.regions,
+      categories: categories ?? this.categories,
+      organizations: organizations ?? this.organizations,
+      departments: departments ?? this.departments,
+    );
+  }
+
+  bool get isEmpty =>
+      !onlyRecruiting &&
+      !onlyOnline &&
+      regions.isEmpty &&
+      categories.isEmpty &&
+      organizations.isEmpty &&
+      departments.isEmpty;
+}
+
+/// 필터 옵션 집합 (실제 데이터는 상위에서 주입)
+class PolicyFilterOptions {
+  final List<String> regions;
+  final List<String> categories;
+  final List<String> organizations;
+  final List<String> departments;
+
+  const PolicyFilterOptions({
+    required this.regions,
+    required this.categories,
+    required this.organizations,
+    required this.departments,
+  });
+}
+
+/// 필터 BottomSheet 공용 엔트리 함수
+Future<PolicyFilterUiState?> showPolicyFilterBottomSheet({
+  required BuildContext context,
+  required PolicyFilterUiState initialState,
+  required PolicyFilterOptions options,
+}) async {
+  final result = await showModalBottomSheet<PolicyFilterUiState>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) {
+      return DraggableScrollableSheet(
+        expand: false,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        initialChildSize: 0.8,
+        builder: (context, scrollController) {
+          return PolicyFilterBottomSheet(
+            initialState: initialState,
+            options: options,
+            scrollController: scrollController,
+          );
+        },
+      );
+    },
+  );
+
+  return result;
+}
+
+/// 정책 필터 BottomSheet 본문
+class PolicyFilterBottomSheet extends StatefulWidget {
+  final PolicyFilterUiState initialState;
+  final PolicyFilterOptions options;
+  final ScrollController? scrollController;
+
+  const PolicyFilterBottomSheet({
+    super.key,
+    required this.initialState,
+    required this.options,
+    this.scrollController,
+  });
+
+  @override
+  State<PolicyFilterBottomSheet> createState() =>
+      _PolicyFilterBottomSheetState();
+}
+
+class _PolicyFilterBottomSheetState extends State<PolicyFilterBottomSheet> {
+  late PolicyFilterUiState _state;
+
+  @override
+  void initState() {
+    super.initState();
+    _state = widget.initialState;
+  }
+
+  void _toggleRegion(String value) {
+    setState(() {
+      final next = Set<String>.from(_state.regions);
+      if (next.contains(value)) {
+        next.remove(value);
+      } else {
+        next.add(value);
+      }
+      _state = _state.copyWith(regions: next);
+    });
+  }
+
+  void _toggleCategory(String value) {
+    setState(() {
+      final next = Set<String>.from(_state.categories);
+      if (next.contains(value)) {
+        next.remove(value);
+      } else {
+        next.add(value);
+      }
+      _state = _state.copyWith(categories: next);
+    });
+  }
+
+  void _toggleOrganization(String value) {
+    setState(() {
+      final next = Set<String>.from(_state.organizations);
+      if (next.contains(value)) {
+        next.remove(value);
+      } else {
+        next.add(value);
+      }
+      _state = _state.copyWith(organizations: next);
+    });
+  }
+
+  void _toggleDepartment(String value) {
+    setState(() {
+      final next = Set<String>.from(_state.departments);
+      if (next.contains(value)) {
+        next.remove(value);
+      } else {
+        next.add(value);
+      }
+      _state = _state.copyWith(departments: next);
+    });
+  }
+
+  void _removeSelectedFilter(String label) {
+    // 단순 텍스트 기준으로 모든 그룹에서 제거 시도
+    setState(() {
+      final r = Set<String>.from(_state.regions)..remove(label);
+      final c = Set<String>.from(_state.categories)..remove(label);
+      final o = Set<String>.from(_state.organizations)..remove(label);
+      final d = Set<String>.from(_state.departments)..remove(label);
+      bool onlyRecruiting = _state.onlyRecruiting;
+      bool onlyOnline = _state.onlyOnline;
+
+      if (label == '모집 중') {
+        onlyRecruiting = false;
+      }
+      if (label == '온라인 신청') {
+        onlyOnline = false;
+      }
+
+      _state = _state.copyWith(
+        regions: r,
+        categories: c,
+        organizations: o,
+        departments: d,
+        onlyRecruiting: onlyRecruiting,
+        onlyOnline: onlyOnline,
+      );
+    });
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _state = const PolicyFilterUiState();
+    });
+  }
+
+  void _applyFilters() {
+    Navigator.of(context).pop(_state);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final policyTheme = Theme.of(context).extension<PolicyTheme>();
+
+    return SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 헤더
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            child: Row(
+              children: [
+                Text(
+                  '필터',
+                  style: textTheme.titleMedium,
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+
+          // 본문 스크롤 영역
+          Expanded(
+            child: SingleChildScrollView(
+              controller: widget.scrollController,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 선택된 필터 요약
+                  _buildSelectedFiltersSummary(context),
+
+                  const SizedBox(height: 16),
+
+                  // 토글 그룹
+                  SectionTitle(title: '모집 상태'),
+                  const SizedBox(height: 8),
+                  _buildToggleGroup(context),
+
+                  const SizedBox(height: 20),
+
+                  // 지역
+                  SectionTitle(title: '지역'),
+                  const SizedBox(height: 8),
+                  _buildFilterChipGroup(
+                    values: widget.options.regions,
+                    selected: _state.regions,
+                    onTap: _toggleRegion,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 카테고리
+                  SectionTitle(title: '카테고리'),
+                  const SizedBox(height: 8),
+                  _buildFilterChipGroup(
+                    values: widget.options.categories,
+                    selected: _state.categories,
+                    onTap: _toggleCategory,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 주관 기관
+                  SectionTitle(title: '주관 기관'),
+                  const SizedBox(height: 8),
+                  _buildFilterChipGroup(
+                    values: widget.options.organizations,
+                    selected: _state.organizations,
+                    onTap: _toggleOrganization,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 담당 부서
+                  SectionTitle(title: '담당 부서'),
+                  const SizedBox(height: 8),
+                  _buildFilterChipGroup(
+                    values: widget.options.departments,
+                    selected: _state.departments,
+                    onTap: _toggleDepartment,
+                  ),
+
+                  const SizedBox(height: 24),
+                  SizedBox(height: policyTheme?.policyCardPadding.bottom ?? 0),
+                ],
+              ),
+            ),
+          ),
+
+          // 하단 버튼 영역
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: scheme.shadow.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                OutlinedButton(
+                  onPressed: _state.isEmpty ? null : _resetFilters,
+                  child: const Text('초기화'),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _applyFilters,
+                    child: const Text('필터 적용'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectedFiltersSummary(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    final items = <String>[];
+
+    if (_state.onlyRecruiting) items.add('모집 중');
+    if (_state.onlyOnline) items.add('온라인 신청');
+    items.addAll(_state.regions);
+    items.addAll(_state.categories);
+    items.addAll(_state.organizations);
+    items.addAll(_state.departments);
+
+    if (items.isEmpty) {
+      return Text(
+        '선택된 필터가 없습니다. 조건을 선택해보세요.',
+        style: textTheme.bodySmall,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '선택된 필터',
+          style: textTheme.bodySmall!
+              .copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: items
+              .map(
+                (label) => _SelectedFilterPill(
+                  label: label,
+                  onRemove: () => _removeSelectedFilter(label),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildToggleGroup(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    Widget buildToggle({
+      required String label,
+      required bool value,
+      required ValueChanged<bool> onChanged,
+    }) {
+      return InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => onChanged(!value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: value ? scheme.primary : scheme.outlineVariant,
+            ),
+            color: value
+                ? scheme.primaryContainer
+                : scheme.surfaceVariant,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Checkbox(
+                value: value,
+                onChanged: (v) => onChanged(v ?? false),
+                materialTapTargetSize:
+                    MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: textTheme.bodyMedium!.copyWith(
+                  color: value
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      children: [
+        buildToggle(
+          label: '모집 중인 정책만',
+          value: _state.onlyRecruiting,
+          onChanged: (v) {
+            setState(() {
+              _state = _state.copyWith(onlyRecruiting: v);
+            });
+          },
+        ),
+        buildToggle(
+          label: '온라인 신청 가능',
+          value: _state.onlyOnline,
+          onChanged: (v) {
+            setState(() {
+              _state = _state.copyWith(onlyOnline: v);
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChipGroup({
+    required List<String> values,
+    required Set<String> selected,
+    required ValueChanged<String> onTap,
+  }) {
+    if (values.isEmpty) {
+      return const Text(
+        '선택 가능한 항목이 없습니다.',
+        style: TextStyle(fontSize: 12),
+      );
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: values.map((value) {
+        final isSelected = selected.contains(value);
+        return _FilterChip(
+          label: value,
+          selected: isSelected,
+          onTap: () => onTap(value),
+        );
+      }).toList(),
+    );
+  }
+}
+
+/// 상단 “선택된 필터” Pill
+class _SelectedFilterPill extends StatelessWidget {
+  final String label;
+  final VoidCallback onRemove;
+
+  const _SelectedFilterPill({
+    required this.label,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: textTheme.bodySmall!.copyWith(
+              color: scheme.primary,
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(
+              Icons.close,
+              size: 14,
+              color: scheme.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 필터 선택용 Chip
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final bgColor =
+        selected ? scheme.primaryContainer : scheme.surfaceVariant;
+    final borderColor =
+        selected ? scheme.primary : scheme.outlineVariant;
+    final textColor =
+        selected ? scheme.primary : scheme.onSurfaceVariant;
+
+    return Material(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor),
+          ),
+          child: Text(
+            label,
+            style: textTheme.bodySmall!.copyWith(color: textColor),
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+---
+
+## 6. Codex용 슈퍼명령어 (필터 BottomSheet 교체 전용)
+
+```md
+@codex-super-command
+name: "Redesign Policy Filter BottomSheet (TASK 309)"
+version: "v1"
+description: |
+  기존 정책 필터 BottomSheet UI를 TASK 309에서 정의한 새 디자인으로 교체한다.
+  Application/Repository/Domain 레이어는 절대 수정하지 않고,
+  UI 레이어에서만 PolicyFilterBottomSheet를 사용하도록 변경한다.
+
+no_modify:
+  - "lib/application/**"
+  - "lib/data/**"
+  - "lib/domain/**"
+  - "**/*.g.dart"
+  - "**/*.freezed.dart"
+
+modify_targets:
+  - "lib/ui/screens/policy/**"
+  - "lib/ui/components/**"
+
+steps:
+  - "1) lib/ui/components/policy_filter_bottom_sheet.dart 파일 생성 또는 교체"
+  - "2) 기존 필터 BottomSheet 호출부를 showPolicyFilterBottomSheet(...)로 교체"
+  - "3) 기존 Filter 모델을 PolicyFilterUiState <-> 도메인 필터로 매핑"
+  - "4) 초기 상태는 현재 적용된 필터에서 가져와 PolicyFilterUiState로 변환"
+  - "5) 필터 적용 시 기존 검색/리스트 리로드 로직 그대로 호출"
+  - "6) 전체 코드 Dart format 적용"
+
+output:
+  type: "patch"
+  format: "unified_diff"
+```
+
+---
+
+
+
 
 ---
 
