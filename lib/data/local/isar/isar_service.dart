@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -8,30 +9,84 @@ import '../../../features/policy_new/data/local/isar/policy_reminder_isar_model.
 
 class IsarService {
   Isar? _isar;
+  bool _opening = false;
 
   /// Lazy singleton instance
-  Future<Isar> get instance async => _isar ??= await _openIsar();
+  Future<Isar> get instance async {
+    if (_isar != null) return _isar!;
+    if (_opening) {
+      await Future.delayed(const Duration(milliseconds: 50));
+      return instance;
+    }
+    _isar = await _openIsar();
+    return _isar!;
+  }
 
-  /// Isar DB 오픈
+  /// Isar DB 오픈 (스키마 mismatch 자동 복구 포함)
   Future<Isar> _openIsar() async {
     if (Isar.instanceNames.isNotEmpty) {
       return Isar.getInstance()!;
     }
 
+    _opening = true;
+
     final dir = await getApplicationSupportDirectory();
+    final path = dir.path;
 
     if (kDebugMode) {
-      debugPrint('[IsarService] Open DB at ${dir.path}');
+      debugPrint('[IsarService] Open DB at $path');
     }
 
-    return await Isar.open(
-      [
-        PolicyIsarModelSchema,
-        PolicyReminderIsarModelSchema,
-      ],
-      directory: dir.path,
-      inspector: kDebugMode,
-    );
+    try {
+      // === 첫 번째 시도 ===
+      return await Isar.open(
+        [
+          PolicyIsarModelSchema,
+          PolicyReminderIsarModelSchema,
+        ],
+        directory: path,
+        inspector: kDebugMode,
+      );
+    } catch (e) {
+      final msg = e.toString();
+      debugPrint("[IsarService] First open failed: $msg");
+
+      final isSchemaMismatch = msg.contains("Collection id is invalid") ||
+          msg.contains("IllegalArg") ||
+          msg.contains("LateInitializationError");
+
+      if (isSchemaMismatch) {
+        debugPrint(
+            "[IsarService] Detected schema mismatch → Resetting Isar DB...");
+
+        // 기존 .isar 파일 삭제
+        final dirObj = Directory(path);
+        if (await dirObj.exists()) {
+          await for (final f in dirObj.list()) {
+            if (f.path.contains(".isar")) {
+              debugPrint("[IsarService] Deleting ${f.path}");
+              await f.delete();
+            }
+          }
+        }
+
+        // === 재시도 ===
+        final reopened = await Isar.open(
+          [
+            PolicyIsarModelSchema,
+            PolicyReminderIsarModelSchema,
+          ],
+          directory: path,
+          inspector: kDebugMode,
+        );
+
+        _opening = false;
+        return reopened;
+      }
+
+      _opening = false;
+      rethrow;
+    }
   }
 
   Future<void> close() async {
@@ -46,77 +101,63 @@ class IsarService {
   // ==============================
   Future<List<PolicyIsarModel>> getAllPolicies() async {
     final isar = await instance;
-    // 이 라인은 기존에도 잘 돌아가던 패턴이라 그대로 둠
     return await isar.policyIsarModels.where().findAll();
   }
 
   // ==============================
-  // 필터 기반 조회 (in-memory 필터링)
+  // 필터 기반 조회
   // ==============================
   Future<List<PolicyIsarModel>> getPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {
     final isar = await instance;
 
-    // 1) 먼저 전체 로드 (Isar 쿼리는 여기서 한 번만 사용)
     final all = await isar.policyIsarModels.where().findAll();
 
-    // 2) AND 조건 필터링 (Dart 리스트에서 필터)
     var andList = all.where((p) {
       bool ok = true;
 
-      // 제목 검색 (searchPolicyNm)
       if (filter.searchPolicyNm != null && filter.searchPolicyNm!.isNotEmpty) {
         final q = filter.searchPolicyNm!.toLowerCase();
         ok = ok && p.policyNm.toLowerCase().contains(q);
       }
 
-      // 지역 (searchRgnSe)
       if (filter.searchRgnSe != null && filter.searchRgnSe!.isNotEmpty) {
         final region = filter.searchRgnSe!.toLowerCase();
         ok = ok && (p.rgnSeNm != null && p.rgnSeNm!.toLowerCase() == region);
       }
 
-      // 카테고리 (category)
       if (filter.category != null && filter.category!.isNotEmpty) {
         final cat = filter.category!.toLowerCase();
         ok = ok &&
             (p.policyTypeNm != null && p.policyTypeNm!.toLowerCase() == cat);
       }
 
-      // 연도 (searchYear)
       if (filter.searchYear != null && filter.searchYear!.isNotEmpty) {
         ok = ok && p.policyYr == filter.searchYear;
       }
 
-      // 시작일 (policyBgngYmd >= startDate)
       if (filter.startDate != null) {
-        final start = filter.startDate!;
         ok = ok &&
             (p.policyBgngYmd != null &&
-                !p.policyBgngYmd!.isBefore(start)); // >=
+                !p.policyBgngYmd!.isBefore(filter.startDate!));
       }
 
-      // 종료일 (policyEndYmd <= endDate)
       if (filter.endDate != null) {
-        final end = filter.endDate!;
         ok = ok &&
-            (p.policyEndYmd != null && !p.policyEndYmd!.isAfter(end)); // <=
+            (p.policyEndYmd != null &&
+                !p.policyEndYmd!.isAfter(filter.endDate!));
       }
 
       return ok;
     }).toList();
 
-    // 3) OR 조건 (searchText, availableOnly)
-    //    - 원래 로직: AND 결과(andResult) ∩ OR 결과(orSet)
-    //    - 여기서는 andList에 대해 OR 조건을 적용
     if ((filter.searchText != null && filter.searchText!.isNotEmpty) ||
         filter.availableOnly == true) {
       final t = filter.searchText?.toLowerCase();
       andList = andList.where((p) {
         bool orOk = false;
 
-        // 검색어: 제목 + 내용
         if (t != null && t.isNotEmpty) {
           final title = p.policyNm.toLowerCase();
           final content = (p.policyCn ?? '').toLowerCase();
@@ -125,7 +166,6 @@ class IsarService {
           }
         }
 
-        // 신청 가능 (isApplyNow || isOngoing)
         if (filter.availableOnly == true) {
           if (p.isApplyNow == true || p.isOngoing == true) {
             orOk = true;
@@ -136,7 +176,6 @@ class IsarService {
       }).toList();
     }
 
-    // 4) 페이지네이션
     final pageIndex = (filter.pageIndex ?? 1).clamp(1, 9999);
     final pageSize = filter.recordCount ?? 50;
     final offset = (pageIndex - 1) * pageSize;
@@ -149,7 +188,7 @@ class IsarService {
   }
 
   // ==============================
-  // 단일 정책 조회
+  // 단일 조회
   // ==============================
   Future<PolicyIsarModel?> getPolicyById(String id) async {
     final isar = await instance;
@@ -179,7 +218,6 @@ class IsarService {
   // ==============================
   // 리마인더 CRUD
   // ==============================
-
   Future<void> putReminder(PolicyReminderIsarModel reminder) async {
     final isar = await instance;
     await isar.writeTxn(() async {
