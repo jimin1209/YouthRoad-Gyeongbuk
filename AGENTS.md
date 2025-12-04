@@ -196,6 +196,16 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+
+# TASK 103
+실제 알림 스케줄러 부재: NoOpNotificationGateway만 존재해 OS 알림 예약/취소가 수행되지 않습니다. 플랫폼별 로컬 알림 플러그인 연동 구현체를 추가해 실제 스케줄링·권한 확인을 수행하도록 보완해야 합니다.
+
+빌드 오류: BasePolicyFeedController에서 policyEventBusProvider가 정의되지 않아 Flutter 빌드가 실패하는 문제가 보고되었습니다. 해당 프로바이더 정의 또는 참조를 수정해 빌드 에러를 해소해야 합니다.
+
+알림 환경 피드백 강화 필요: 서비스는 권한/환경 점검 후 실패 시 로그만 남기므로, UI에 권한 안내나 재시도 액션을 명시적으로 전달하는 처리(예: ReminderMutationResult 메시지 활용 확대)가 필요합니다.
+
+만료/동기화 후 UI 연계: 만료 정리(cleanupExpiredReminders)와 동기화 결과를 화면에 표시하거나 토스트로 알리는 UX가 아직 정의되지 않았습니다. 이벤트 버스 발행 이후 UI 레벨에서 사용자 피드백을 추가하는 개선이 필요합니다.
+
 # ERROR 03
 lib/features/policy_new/application/gateways/notification_gateway_impl.dart:129:22: Error: Not a constant expression.
         isDuplicate: hadExisting,
