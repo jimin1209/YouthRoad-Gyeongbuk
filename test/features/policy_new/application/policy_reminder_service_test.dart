@@ -55,8 +55,19 @@ class FakeNotificationGateway implements NotificationGateway {
   final List<String> scheduledIds = [];
   final List<String> canceledIds = [];
   final Set<String> failReminderIds;
+  final Map<String, int> failUntilAttempt;
+  final Map<String, int> attempts = {};
+  bool environmentReady;
+  int refreshCalls = 0;
 
-  FakeNotificationGateway({this.failReminderIds = const {}});
+  FakeNotificationGateway({
+    this.failReminderIds = const {},
+    this.failUntilAttempt = const {},
+    Set<String> initiallyScheduled = const {},
+    this.environmentReady = true,
+  }) {
+    scheduledIds.addAll(initiallyScheduled);
+  }
 
   @override
   Future<ScheduleResult> cancelAllForPolicy(String policyId) async {
@@ -65,13 +76,17 @@ class FakeNotificationGateway implements NotificationGateway {
 
   @override
   Future<ScheduleResult> cancelReminder(String reminderId) async {
+    scheduledIds.remove(reminderId);
     canceledIds.add(reminderId);
     return const ScheduleResult.success();
   }
 
   @override
   Future<ScheduleResult> scheduleReminder(PolicyReminder reminder) async {
-    if (failReminderIds.contains(reminder.reminderId)) {
+    attempts.update(reminder.reminderId, (value) => value + 1, ifAbsent: () => 1);
+    final failAttempts = failUntilAttempt[reminder.reminderId];
+    if (failReminderIds.contains(reminder.reminderId) ||
+        (failAttempts != null && (attempts[reminder.reminderId] ?? 0) <= failAttempts)) {
       return const ScheduleResult.failure(
         ScheduleFailure(
           type: ScheduleFailureType.gatewayError,
@@ -81,6 +96,17 @@ class FakeNotificationGateway implements NotificationGateway {
     }
     scheduledIds.add(reminder.reminderId);
     return ScheduleResult.success(scheduledAt: reminder.scheduledAt);
+  }
+
+  @override
+  Future<Set<String>> listScheduledReminderIds() async {
+    return scheduledIds.toSet();
+  }
+
+  @override
+  Future<bool> refreshEnvironment() async {
+    refreshCalls++;
+    return environmentReady;
   }
 }
 
@@ -209,6 +235,8 @@ void main() {
     expect(report.firedCount, 1);
     expect(report.rescheduledCount, 1);
     expect(report.expiredCount, 0);
+    expect(report.orphanedPlatformReminders, 0);
+    expect(report.restoredMissingReminders, 1);
   });
 
   test('createRemindersForPolicy rolls back when scheduling fails', () async {
@@ -264,5 +292,120 @@ void main() {
     expect(updated?.isActive, isFalse);
     expect(gateway.canceledIds, contains(reminderId));
     expect(bus.events.where((e) => e.policyId == 'policy-1'), isNotEmpty);
+  });
+
+  test('createRemindersForPolicy retries transient scheduling errors', () async {
+    final now = DateTime.utc(2024, 1, 4, 10, 0, 0);
+    final repository = InMemoryPolicyReminderRepository();
+    final reminderId =
+        ReminderIdUtil.buildReminderId('policy-1', ReminderTimeKind.day1);
+    final gateway = FakeNotificationGateway(failUntilAttempt: {reminderId: 1});
+    final bus = RecordingPolicyEventBus();
+    final service = PolicyReminderService(
+      repository: repository,
+      notificationGateway: gateway,
+      eventBus: bus,
+      scheduler: scheduler,
+      logger: logger,
+      now: () => now,
+      wait: (_) async {},
+    );
+
+    final policy = buildPolicy(now.add(const Duration(days: 2)));
+    final result =
+        await service.createRemindersForPolicy(policy, [ReminderTimeKind.day1]);
+
+    expect(result.reminders, hasLength(1));
+    expect(result.failures, isEmpty);
+    expect(gateway.attempts[reminderId], 2);
+  });
+
+  test('syncScheduledReminders cancels platform orphans and restores missing',
+      () async {
+    final now = DateTime.utc(2024, 1, 5, 9, 0, 0);
+    final repository = InMemoryPolicyReminderRepository();
+    final reminderId =
+        ReminderIdUtil.buildReminderId('policy-1', ReminderTimeKind.day1);
+    final gateway =
+        FakeNotificationGateway(initiallyScheduled: {'orphan-1'}, failUntilAttempt: {});
+    final bus = RecordingPolicyEventBus();
+    final service = PolicyReminderService(
+      repository: repository,
+      notificationGateway: gateway,
+      eventBus: bus,
+      scheduler: scheduler,
+      logger: logger,
+      now: () => now,
+      wait: (_) async {},
+    );
+
+    await repository.upsertReminder(
+      buildReminder(
+        reminderId: reminderId,
+        scheduledAt: now.add(const Duration(hours: 2)),
+        now: now,
+      ),
+    );
+
+    final report = await service.syncScheduledReminders();
+
+    expect(gateway.canceledIds, contains('orphan-1'));
+    expect(gateway.scheduledIds, contains(reminderId));
+    expect(report.orphanedPlatformReminders, 1);
+    expect(report.restoredMissingReminders, 1);
+    expect(report.rescheduledCount, 1);
+    expect(bus.events.where((e) => e.type == PolicyEventType.reminderBulkUpdated),
+        isNotEmpty);
+  });
+
+  test('createRemindersForPolicy returns failures when environment not ready',
+      () async {
+    final now = DateTime.utc(2024, 1, 6, 9, 0, 0);
+    final repository = InMemoryPolicyReminderRepository();
+    final gateway = FakeNotificationGateway(environmentReady: false);
+    final bus = RecordingPolicyEventBus();
+    final service = PolicyReminderService(
+      repository: repository,
+      notificationGateway: gateway,
+      eventBus: bus,
+      scheduler: scheduler,
+      logger: logger,
+      now: () => now,
+    );
+
+    final policy = buildPolicy(now.add(const Duration(days: 3)));
+    final result =
+        await service.createRemindersForPolicy(policy, [ReminderTimeKind.day1]);
+
+    expect(result.reminders, isEmpty);
+    expect(result.failures, hasLength(1));
+    expect(result.failures.first.failure.type,
+        ScheduleFailureType.permissionDenied);
+    expect(gateway.refreshCalls, 1);
+    expect(bus.events, isEmpty);
+  });
+
+  test('syncScheduledReminders surfaces environment readiness failures', () async {
+    final now = DateTime.utc(2024, 1, 7, 8, 0, 0);
+    final repository = InMemoryPolicyReminderRepository();
+    final gateway = FakeNotificationGateway(environmentReady: false);
+    final bus = RecordingPolicyEventBus();
+    final service = PolicyReminderService(
+      repository: repository,
+      notificationGateway: gateway,
+      eventBus: bus,
+      scheduler: scheduler,
+      logger: logger,
+      now: () => now,
+    );
+
+    final report = await service.syncScheduledReminders();
+
+    expect(report.hasFailure, isTrue);
+    expect(report.failures.first.type, ScheduleFailureType.permissionDenied);
+    expect(report.rescheduledCount, 0);
+    expect(report.expiredCount, 0);
+    expect(report.firedCount, 0);
+    expect(bus.events, isEmpty);
   });
 }

@@ -5,6 +5,7 @@ abstract class NotificationGateway {
   Future<ScheduleResult> scheduleReminder(PolicyReminder reminder);
   Future<ScheduleResult> cancelReminder(String reminderId);
   Future<ScheduleResult> cancelAllForPolicy(String policyId);
+  Future<Set<String>> listScheduledReminderIds();
   Future<bool> refreshEnvironment();
 }
 
@@ -25,6 +26,11 @@ class NoOpNotificationGateway implements NotificationGateway {
   Future<ScheduleResult> scheduleReminder(PolicyReminder reminder) async {
     // no-op
     return ScheduleResult.success(scheduledAt: reminder.scheduledAt);
+  }
+
+  @override
+  Future<Set<String>> listScheduledReminderIds() async {
+    return {};
   }
 
   @override

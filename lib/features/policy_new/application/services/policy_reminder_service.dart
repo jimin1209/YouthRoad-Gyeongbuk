@@ -42,7 +42,13 @@ class PolicyReminderService {
     required this.scheduler,
     required this.logger,
     DateTime Function()? now,
-  }) : _now = now ?? DateTime.now;
+    this.retryDelays = const [
+      Duration(milliseconds: 200),
+      Duration(milliseconds: 600),
+    ],
+    Future<void> Function(Duration)? wait,
+  })  : _now = now ?? DateTime.now,
+        _wait = wait ?? Future.delayed;
 
   final PolicyReminderRepository repository;
   final NotificationGateway notificationGateway;
@@ -50,6 +56,47 @@ class PolicyReminderService {
   final PolicyReminderScheduler scheduler;
   final PolicyLogger logger;
   final DateTime Function() _now;
+  final List<Duration> retryDelays;
+  final Future<void> Function(Duration duration) _wait;
+
+  bool _shouldRetry(ScheduleFailure? failure) {
+    if (failure == null) return true;
+    return failure.type == ScheduleFailureType.gatewayError ||
+        failure.type == ScheduleFailureType.unknown;
+  }
+
+  Future<ScheduleResult> _scheduleWithRetry(PolicyReminder reminder) async {
+    ScheduleResult? result;
+    for (var attempt = 0; attempt <= retryDelays.length; attempt++) {
+      result = await notificationGateway.scheduleReminder(reminder);
+      if (result.success || !_shouldRetry(result.failure)) {
+        return result;
+      }
+
+      if (attempt == retryDelays.length) {
+        break;
+      }
+
+      final delay = retryDelays[attempt];
+      logger.warn(
+        'Schedule attempt ${attempt + 1} for ${reminder.reminderId} failed: ${result.failure?.message}. Retrying in ${delay.inMilliseconds}ms',
+      );
+      await _wait(delay);
+      await refreshEnvironment();
+    }
+
+    final fallback = const ScheduleResult.failure(
+      ScheduleFailure(
+        type: ScheduleFailureType.unknown,
+        message: 'Scheduling failed with no result',
+      ),
+    );
+    final failure = result ?? fallback;
+    logger.warn(
+      'Scheduling permanently failed for ${reminder.reminderId}: ${failure.failure?.message}',
+    );
+    return failure;
+  }
 
   Future<bool> refreshEnvironment() async {
     final ready = await notificationGateway.refreshEnvironment();
@@ -141,7 +188,7 @@ class PolicyReminderService {
         policyTitleSnapshot: policy.title,
       );
 
-      final scheduleResult = await notificationGateway.scheduleReminder(reminder);
+      final scheduleResult = await _scheduleWithRetry(reminder);
       if (!scheduleResult.success) {
         final failure = scheduleResult.failure ??
             const ScheduleFailure(
@@ -270,16 +317,49 @@ class PolicyReminderService {
   }
 
   Future<ReminderSyncReport> syncScheduledReminders() async {
-    await refreshEnvironment();
+    final environmentReady = await refreshEnvironment();
+    if (!environmentReady) {
+      return ReminderSyncReport(
+        rescheduledCount: 0,
+        expiredCount: 0,
+        firedCount: 0,
+        failures: const [
+          ScheduleFailure(
+            type: ScheduleFailureType.permissionDenied,
+            message: 'Notification environment not ready',
+          ),
+        ],
+      );
+    }
     final expired = await cleanupExpiredReminders();
     final reminders = await repository.getAllReminders();
+    final scheduledIds = await notificationGateway.listScheduledReminderIds();
     final now = _now().toUtc();
     var rescheduledCount = 0;
     var hasUpdated = expired.isNotEmpty;
     var firedCount = expired
         .where((reminder) => reminder.status == PolicyReminderStatus.fired)
         .length;
+    var orphanedPlatformReminders = 0;
+    var restoredMissingReminders = 0;
     final failures = <ScheduleFailure>[];
+
+    final reminderById = {for (final reminder in reminders) reminder.reminderId: reminder};
+    final orphanedIds = scheduledIds.where((id) => !reminderById.containsKey(id));
+    for (final orphanId in orphanedIds) {
+      final result = await notificationGateway.cancelReminder(orphanId);
+      if (!result.success) {
+        failures.add(
+          result.failure ??
+              const ScheduleFailure(
+                type: ScheduleFailureType.unknown,
+                message: 'Unknown cancellation failure during sync',
+              ),
+        );
+      } else {
+        orphanedPlatformReminders++;
+      }
+    }
 
     for (final reminder in reminders) {
       if (reminder.status == PolicyReminderStatus.canceled) {
@@ -292,7 +372,8 @@ class PolicyReminderService {
         continue;
       }
 
-      final scheduleResult = await notificationGateway.scheduleReminder(reminder);
+      final wasMissing = !scheduledIds.contains(reminder.reminderId);
+      final scheduleResult = await _scheduleWithRetry(reminder);
       if (!scheduleResult.success) {
         failures.add(
           scheduleResult.failure ??
@@ -308,6 +389,9 @@ class PolicyReminderService {
       }
 
       rescheduledCount++;
+      if (wasMissing) {
+        restoredMissingReminders++;
+      }
 
       if (!reminder.isActive ||
           reminder.status != PolicyReminderStatus.scheduled) {
@@ -331,6 +415,8 @@ class PolicyReminderService {
           .where((reminder) => reminder.status == PolicyReminderStatus.expired)
           .length,
       firedCount: firedCount,
+      orphanedPlatformReminders: orphanedPlatformReminders,
+      restoredMissingReminders: restoredMissingReminders,
       failures: failures,
     );
   }
