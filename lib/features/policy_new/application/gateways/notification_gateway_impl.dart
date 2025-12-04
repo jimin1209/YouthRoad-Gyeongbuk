@@ -121,8 +121,8 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
     final hadExisting = pending.any((request) => request.id == notificationId);
     final hasPermission = await _ensurePermissions();
     if (!hasPermission) {
-      return const ScheduleResult.failure(
-        ScheduleFailure(
+      return ScheduleResult.failure(
+        const ScheduleFailure(
           type: ScheduleFailureType.permissionDenied,
           message: 'Notification permission denied',
         ),
@@ -132,8 +132,8 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
 
     final scheduledLocal = ReminderTimeUtil.toUtc(reminder.scheduledAt).toLocal();
     if (scheduledLocal.isBefore(DateTime.now())) {
-      return const ScheduleResult.failure(
-        ScheduleFailure(
+      return ScheduleResult.failure(
+        const ScheduleFailure(
           type: ScheduleFailureType.invalidDate,
           message: 'Scheduled time is already in the past',
         ),
