@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../application/controllers/policy_detail_controller.dart';
 import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
@@ -8,7 +9,7 @@ import '../widgets/policy_list_loading.dart';
 import '../reminder/policy_reminder_button.dart';
 import 'widgets/policy_action_bar.dart';
 
-class PolicyDetailBottomSheet extends ConsumerWidget {
+class PolicyDetailBottomSheet extends ConsumerStatefulWidget {
   const PolicyDetailBottomSheet({
     super.key,
     required this.policyId,
@@ -17,9 +18,27 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
   final String policyId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncPolicy = ref.watch(policyDetailProvider(policyId));
-    final detailController = ref.read(policyDetailProvider(policyId).notifier);
+  ConsumerState<PolicyDetailBottomSheet> createState() =>
+      _PolicyDetailBottomSheetState();
+}
+
+class _PolicyDetailBottomSheetState
+    extends ConsumerState<PolicyDetailBottomSheet> {
+  @override
+  void initState() {
+    super.initState();
+
+    // 🔵 여기서 PolicyReminderController를 한 번만 초기화!
+    ref
+        .read(policyReminderControllerProvider(widget.policyId).notifier)
+        .onInit();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final asyncPolicy = ref.watch(policyDetailProvider(widget.policyId));
+    final detailController =
+        ref.read(policyDetailProvider(widget.policyId).notifier);
 
     return DraggableScrollableSheet(
       expand: false,
@@ -180,6 +199,7 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
 
   String _buildTargetText(Policy policy) {
     final targets = <String>[];
+
     if (policy.minAge != null || policy.maxAge != null) {
       final min = policy.minAge != null ? '${policy.minAge}세' : '';
       final max = policy.maxAge != null ? '${policy.maxAge}세' : '';
@@ -196,24 +216,20 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
       targets.add('취업 상태: ${policy.employmentCondition}');
     }
 
-    if (targets.isEmpty) {
-      return '대상 정보 없음';
-    }
+    if (targets.isEmpty) return '대상 정보 없음';
     return targets.join('\n');
   }
 
   String _buildPeriodText(Policy policy) {
     final start = policy.applicationStartDate;
     final end = policy.applicationEndDate;
-    if (start == null && end == null) {
-      return '신청 기간 정보 없음';
-    }
-    if (start != null && end == null) {
+
+    if (start == null && end == null) return '신청 기간 정보 없음';
+    if (start != null && end == null)
       return '신청 시작일: ${start.toLocal().toString().split(" ").first}';
-    }
-    if (start == null && end != null) {
+    if (start == null && end != null)
       return '신청 마감일: ${end.toLocal().toString().split(" ").first}';
-    }
+
     return '신청 기간: '
         '${start!.toLocal().toString().split(" ").first} ~ '
         '${end!.toLocal().toString().split(" ").first}';
