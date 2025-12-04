@@ -76,6 +76,8 @@ class NotificationCenterController
 
   final Queue<Future<void> Function()> _actionQueue = Queue();
   bool _isProcessing = false;
+  final List<_OptimisticAction> _optimisticActions = [];
+  int _actionCounter = 0;
 
   PolicyReminderService get _service => ref.read(policyReminderServiceProvider);
 
@@ -135,19 +137,32 @@ class NotificationCenterController
 
   Future<void> cancelReminder(String reminderId) async {
     final previous = state.value ?? NotificationCenterState.initial;
-    final optimisticState = _removeReminder(previous, reminderId).copyWith(
-      status: NotificationCenterStatus.optimisticMutating,
-      lastAction: NotificationCenterActionType.cancel,
-      clearError: true,
-      pendingActions: _actionQueue.length + 1,
+    final actionId = ++_actionCounter;
+    final optimisticState = _removeReminder(previous, reminderId);
+    _optimisticActions.add(
+      _OptimisticAction(
+        id: actionId,
+        rollbackState: previous,
+        reducer: (state) => _removeReminder(state, reminderId),
+      ),
     );
 
-    state = AsyncData(optimisticState);
+    state = AsyncData(
+      optimisticState.copyWith(
+        status: NotificationCenterStatus.optimisticMutating,
+        lastAction: NotificationCenterActionType.cancel,
+        clearError: true,
+        pendingActions: _actionQueue.length + 1,
+      ),
+    );
 
     await _enqueue(() async {
       try {
         await _service.cancelReminder(reminderId);
-        final current = state.value ?? optimisticState;
+        _removeOptimisticAction(actionId);
+        final current = _applyOptimisticReducers(
+          state.value ?? optimisticState.copyWith(pendingActions: 0),
+        );
         state = AsyncData(
           current.copyWith(
             status: NotificationCenterStatus.success,
@@ -157,13 +172,10 @@ class NotificationCenterController
           ),
         );
       } catch (e, _) {
-        state = AsyncData(
-          previous.copyWith(
-            status: NotificationCenterStatus.failure,
-            lastAction: NotificationCenterActionType.cancel,
-            errorMessage: e.toString(),
-            pendingActions: _actionQueue.length,
-          ),
+        _handleOptimisticFailure(
+          actionId,
+          NotificationCenterActionType.cancel,
+          e,
         );
       }
     });
@@ -220,14 +232,24 @@ class NotificationCenterController
 
   Future<void> deleteReminder(String reminderId) async {
     final previous = state.value ?? NotificationCenterState.initial;
-    final optimisticState = _removeReminder(previous, reminderId).copyWith(
-      status: NotificationCenterStatus.optimisticMutating,
-      lastAction: NotificationCenterActionType.delete,
-      clearError: true,
-      pendingActions: _actionQueue.length + 1,
+    final actionId = ++_actionCounter;
+    final optimisticState = _removeReminder(previous, reminderId);
+    _optimisticActions.add(
+      _OptimisticAction(
+        id: actionId,
+        rollbackState: previous,
+        reducer: (state) => _removeReminder(state, reminderId),
+      ),
     );
 
-    state = AsyncData(optimisticState);
+    state = AsyncData(
+      optimisticState.copyWith(
+        status: NotificationCenterStatus.optimisticMutating,
+        lastAction: NotificationCenterActionType.delete,
+        clearError: true,
+        pendingActions: _actionQueue.length + 1,
+      ),
+    );
 
     await _enqueue(() async {
       try {
@@ -235,7 +257,10 @@ class NotificationCenterController
         await ref
             .read(policyReminderRepositoryProvider)
             .deleteReminderById(reminderId);
-        final current = state.value ?? optimisticState;
+        _removeOptimisticAction(actionId);
+        final current = _applyOptimisticReducers(
+          state.value ?? optimisticState.copyWith(pendingActions: 0),
+        );
         state = AsyncData(
           current.copyWith(
             status: NotificationCenterStatus.success,
@@ -245,13 +270,10 @@ class NotificationCenterController
           ),
         );
       } catch (e, _) {
-        state = AsyncData(
-          previous.copyWith(
-            status: NotificationCenterStatus.failure,
-            lastAction: NotificationCenterActionType.delete,
-            errorMessage: e.toString(),
-            pendingActions: _actionQueue.length,
-          ),
+        _handleOptimisticFailure(
+          actionId,
+          NotificationCenterActionType.delete,
+          e,
         );
       }
     });
@@ -356,4 +378,55 @@ class NotificationCenterController
 
     return state.copyWith(upcoming: upcoming, past: past);
   }
+
+  void _removeOptimisticAction(int id) {
+    _optimisticActions.removeWhere((action) => action.id == id);
+  }
+
+  void _handleOptimisticFailure(
+    int actionId,
+    NotificationCenterActionType actionType,
+    Object error,
+  ) {
+    final targetIndex =
+        _optimisticActions.indexWhere((action) => action.id == actionId);
+    final targetAction = targetIndex == -1
+        ? _OptimisticAction(
+            id: actionId,
+            rollbackState: state.value ?? NotificationCenterState.initial,
+            reducer: (s) => s,
+          )
+        : _optimisticActions.removeAt(targetIndex);
+    final baseState = targetAction.rollbackState.copyWith(
+      status: NotificationCenterStatus.failure,
+      lastAction: actionType,
+      errorMessage: error.toString(),
+      pendingActions: _actionQueue.length,
+    );
+
+    final rebuilt = _applyOptimisticReducers(baseState);
+    state = AsyncData(rebuilt);
+  }
+
+  NotificationCenterState _applyOptimisticReducers(
+    NotificationCenterState state,
+  ) {
+    var current = state;
+    for (final action in _optimisticActions) {
+      current = action.reducer(current);
+    }
+    return current;
+  }
+}
+
+class _OptimisticAction {
+  _OptimisticAction({
+    required this.id,
+    required this.rollbackState,
+    required this.reducer,
+  });
+
+  final int id;
+  final NotificationCenterState rollbackState;
+  final NotificationCenterState Function(NotificationCenterState) reducer;
 }
