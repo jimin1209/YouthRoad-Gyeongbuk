@@ -1,69 +1,22 @@
-import 'dart:async';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:youth_road_app/features/policy_new/application/controllers/policy_feed_controllers.dart';
 
-import 'package:youth_road_app/application/di.dart';
-import 'package:youth_road_app/domain/repositories/policy_repository.dart';
-import 'package:youth_road_app/legacy/policy/application/notifiers/policy_paging_notifier.dart';
-import 'package:youth_road_app/legacy/policy/features/policy/providers/policy_list_provider.dart';
-
-import 'policy_paging_provider.dart';
-
-final policyPrefetchProvider =
-    AsyncNotifierProvider<PolicyPrefetchNotifier, void>(
-  PolicyPrefetchNotifier.new,
-);
-
-class PolicyPrefetchNotifier extends AsyncNotifier<void> {
-  PolicyRepository get _repository => ref.read(policyRepositoryInterfaceProvider);
-
-  PolicyFeedsNotifier get _pagingNotifier =>
-      ref.read(policyPagingProvider.notifier);
-
-  PolicyListNotifier get _listNotifier => ref.read(policyListProvider.notifier);
-
+class PolicyPrefetchNotifier extends AutoDisposeNotifier<void> {
   @override
-  FutureOr<void> build() {
-    // 초기 로직이 필요 없으면 비워둔다
-  }
+  void build() {}
 
   Future<void> prefetchPolicies() async {
-    // 이미 prefetch 중이면 중복 실행 방지
-    if (state.isLoading) return;
-
-    state = const AsyncValue.loading();
-    _listNotifier.setLoading();
-
-    // 1) 캐시 우선 로드
-    try {
-      final cached = await _repository.loadCachedPolicies(
-        filter: _pagingNotifier.currentFilter,
-      );
-
-      if (cached.isNotEmpty) {
-        _pagingNotifier.seedFromCache(cached);
-        _listNotifier.setPolicies(cached);
-      } else {
-        _listNotifier.clear();
-      }
-    } catch (e, st) {
-      debugPrint('[PolicyPrefetchNotifier] cache preload failed: $e\n$st');
-      _listNotifier.setError(e, st);
-    }
-
-    // 2) 원격 최신 데이터로 갱신
-    try {
-      final remote = await _repository.refreshPolicies(
-        filter: _pagingNotifier.currentFilter,
-      );
-      _pagingNotifier.replaceWithFresh(remote);
-      _listNotifier.setPolicies(remote);
-      state = const AsyncValue.data(null);
-    } catch (e, st) {
-      debugPrint('[PolicyPrefetchNotifier] remote prefetch failed: $e\n$st');
-      _listNotifier.setError(e, st);
-      state = AsyncValue.error(e, st);
-    }
+    await Future.wait([
+      ref.read(recommendFeedControllerProvider.notifier).ensureInitialized(),
+      ref.read(allFeedControllerProvider.notifier).ensureInitialized(),
+      ref.read(regionFeedControllerProvider.notifier).ensureInitialized(),
+      ref.read(searchFeedControllerProvider.notifier).ensureInitialized(),
+      ref.read(favoriteFeedControllerProvider.notifier).ensureInitialized(),
+    ]);
   }
 }
+
+final policyPrefetchProvider =
+    AutoDisposeNotifierProvider<PolicyPrefetchNotifier, void>(
+  PolicyPrefetchNotifier.new,
+);
