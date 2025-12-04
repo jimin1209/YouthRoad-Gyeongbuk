@@ -196,6 +196,240 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+# TASK 200
+
+---
+
+# 🟦 **TASK 200 — 정책탐색 기능 오류 전면 개선 (최상위 품질 한글 사양서)**
+
+정책탐색 기능의 **검색·필터·지역·페이지네이션·상세 정보·URL 실행** 등 모든 핵심 기능이
+현재 정상적으로 동작하지 않는 문제를 구조적으로 진단하고,
+재발 가능성을 최소화하는 수준으로 전면 재정비하기 위한 기술 Task 문서입니다.
+
+UX·UI 및 성능 최적화는 별도 Task로 분리하며,
+TASK 200은 **오로지 기능 오류(fault) 제거**에 집중합니다.
+
+---
+
+```md
+# TASK 200 — 정책탐색 기능 오류 전면 개선
+
+정책탐색 화면 전반에서 발생하는 기능 오류(필터, 검색, 지역, 페이지네이션, 상세 정보 누락, 신청 페이지 링크 실패)를  
+시스템 전체 흐름 단위에서 구조적으로 재정비하고,  
+기능적 일관성을 보장하는 형태로 복원한다.  
+
+본 문서의 모든 문구는 전부 한글로 표현하며,  
+기능 오류 해결에 필요한 파일 경로, 처리 기준, 검증 기준을 모두 포함한다.
+
+---
+
+## 1. 문제 개요(Overview)
+
+현재 정책탐색 기능에는 다음과 같은 기능적 장애들이 동시에 발생하고 있으며,  
+이들 문제는 서로 다른 레이어(State · Repository · API · Model · UI)를 관통한다.
+
+- 검색·필터 조합 시 정책 리스트가 항상 0개로 표시됨
+- 지역 탭에서 결과가 존재하더라도 “0개”로 표시됨
+- 페이지네이션이 작동하지 않거나 중복 호출됨
+- 상세 화면의 “신청 페이지 열기” 기능이 전면 실패
+- 일부 정책의 상세 필드가 UI에 표시되지 않음
+
+이는 단일 버그가 아니라 **데이터 흐름 전체의 오류**로 판단되므로,  
+전면적 재정비가 필요하다.
+
+---
+
+## 2. 작업 목표(Goals)
+
+TASK 200 수행 완료 후 시스템이 만족해야 할 기준은 다음과 같다:
+
+1) 검색·전체·지역·즐겨찾기 모든 탭에서 정책이 정상적으로 매칭된다  
+2) 필터 조합(카테고리/태그/조건)이 정상적으로 작동해 올바른 결과가 출력된다  
+3) 지역 선택 시 API·캐시·UI 모두에서 정상적으로 해당 지역의 정책이 표시된다  
+4) 페이지네이션이 한 번의 스크롤 동작당 정확히 한 번만 실행된다  
+5) 상세 화면의 “신청 페이지 열기” 버튼이 모든 정책에서 정상적으로 작동한다  
+6) Domain Model 필드 누락 없이 상세 정보가 정확히 표시된다  
+
+상기 6개 항목을 **모두 충족해야 TASK 200은 완료로 인정된다.**
+
+---
+
+## 3. 세부 기능 오류 분석(Functional Issue Breakdown)
+
+### 3-1. 검색/필터 조합 시 결과가 표시되지 않는 문제
+#### 현상
+- 특정 필터를 선택하면 항상 “표시할 정책이 없습니다”로 표시됨  
+- 실제 데이터에는 존재하는 정책임
+
+#### 가능한 원인
+- FilterState 초기값이 서버 요구 형식과 불일치  
+- `null`·빈 문자열 파라미터가 API 요청을 무효화  
+- 클라이언트 필터와 서버 필터가 충돌  
+- Isar 캐시 필터 조건이 완전하지 않음  
+- 필터 초기화 로직이 state를 완전히 reset하지 않음
+
+#### 개선 방향
+- 필터 모델에 **정상화(normalize)** 기능 추가  
+- FilterStateProvider 초기 상태 체계 재정비  
+- API 요청 파라미터 생성기를 별도 유틸로 분리하여 검증  
+- 필터 변경 시 Repository의 페이지·리스트 초기화 수행
+
+---
+
+### 3-2. 지역(region) 탭 결과가 항상 0개로 표시되는 문제
+#### 현상
+- ‘경북’ 등 어떤 지역을 선택해도 결과가 0개
+
+#### 가능한 원인
+- UI에서 전달하는 지역 문자열이 API의 region 코드와 불일치  
+- 서버 명세 region 값과 매핑되지 않는 내부 enum  
+- 지역 정책이 복수 조건으로 구성될 가능성 미고려
+
+#### 개선 방향
+- 지역 코드 전용 enum + 매핑 테이블 생성  
+- 서버 region 규칙을 1:1로 반영  
+- Isar 캐싱 조건과 region 코드를 정확히 일치시킴
+
+---
+
+### 3-3. 페이지네이션(Paging) 동작 불가·중복 호출 문제
+#### 현상
+- 스크롤해도 추가 페이지가 로드되지 않음  
+- 반대로 두 번씩 호출되는 경우 존재
+
+#### 가능한 원인
+- scroll threshold guard 중복  
+- pageIndex 관리가 UI·Repository 모두에서 중복 처리  
+- HybridPolicyRepository가 매 요청마다 재생성되는 구조  
+- isLoadingNextPage의 race condition
+
+#### 개선 방향
+- 페이지 상태(pageIndex, hasNextPage)를 **Repository 단일 책임 구조**로 통합  
+- UI에서는 상태 구독만 수행하도록 구조 단순화  
+- 스크롤 guard 기준을 명확한 숫자로 고정(예: maxScrollExtent - 200)  
+- 중복 호출 방지 로직 추가
+
+---
+
+### 3-4. 상세 화면의 “신청 페이지 열기” 기능 실패
+#### 현상
+- 항상 “링크를 열 수 없습니다” 오류 발생  
+- SnackBar도 동일 메시지 반복
+
+#### 가능한 원인
+- applyUrl 값이 `null`, 빈 문자열 또는 비정상 URL  
+- http → https 미전환  
+- url_launcher 오류 처리 부재
+
+#### 개선 방향
+- URL 유효성 검사기(validator) 추가  
+- https 강제 변환  
+- 외부 브라우저 실패 시 webview fallback 마련  
+- null URL에 대한 별도 사용자 안내 출력
+
+---
+
+### 3-5. 정책 상세 정보 누락 문제
+#### 현상
+- 기관명은 보이나 ‘대상’, ‘지원내용’, ‘기간’ 등이 일부 정책에서 표시되지 않음  
+- API에는 존재하는 값
+
+#### 가능한 원인
+- Domain Model 필드 누락  
+- fromJson-toDomain 매핑 중 key mismatch  
+- UI 조건문이 null 값을 skip
+
+#### 개선 방향
+- 정책 상세 API 전체 스키마 재검증  
+- Domain Model 필드 1:1 매핑  
+- UI에서 null-safe 텍스트 출력 규칙 통일 (“정보 없음”)
+
+---
+
+## 4. 파일 단위 수정 지침(Required Changes by File)
+
+### `lib/data/policy/policy_remote_source.dart`
+- 필터 파라미터 빌드 로직 전면 재작성  
+- 지역 코드 변환기(region mapper) 추가  
+- applyUrl 문자열 정규화 수행
+
+### `lib/data/repositories/hybrid_policy_repository.dart`
+- 페이지 상태 관리(pageIndex, hasNextPage, isLoading) 단일화  
+- 필터 변경 시 내부 데이터 초기화 로직 적용
+
+### `lib/application/search/controllers/search_controller.dart`
+- FilterState → APIRequest 변환 로직 분리 및 재정비  
+- 필터 초기값 체계 정상화
+
+### `lib/domain/policy/entities/policy.dart`
+- 모든 API 필드 스키마를 재검증하고 누락 필드 추가  
+- null-safe getter 적용
+
+### `lib/ui/screens/policy/policy_list_v2_screen.dart`
+- 스크롤 guard 로직 재작성  
+- Repository 기반 pagination 흐름과 UI rebuild 흐름 정리
+
+---
+
+## 5. 작업 완료 판정 기준(Acceptance Criteria)
+
+다음 항목들이 **모두 충족**되어야 TASK 200이 완료된 것이다.
+
+- [ ] 검색 탭의 모든 태그 조합에서 정책이 올바르게 출력된다  
+- [ ] 지역 탭에서 정책이 실제 존재하는 데이터와 일치해 출력된다  
+- [ ] 페이지네이션이 중복 호출 없이 한 번씩만 실행된다  
+- [ ] “신청 페이지 열기” 버튼이 정상 작동하여 외부 브라우저 또는 fallback이 열린다  
+- [ ] 상세 정보의 모든 필드가 누락 없이 표시된다  
+- [ ] 필터 초기화 시 전체 정책 목록이 정상적으로 재출력된다  
+- [ ] 내부 로그에서 null 파라미터 오류가 발생하지 않는다  
+
+---
+
+## 6. 세부 작업(Subtasks)
+
+- [ ] 필터 모델 정상화 함수 구현  
+- [ ] 지역 코드 매핑 테이블 생성  
+- [ ] API 요청 파라미터 빌더 작성  
+- [ ] 페이지네이션 상태 단일 구조 구현  
+- [ ] applyUrl Validator 및 fallback 로직 작성  
+- [ ] Domain Model 필드 전체 보정  
+- [ ] 상세 화면 null-safe 처리 룰 적용  
+- [ ] 전체 회귀 테스트(검색·지역·상세·페이징 포함)
+
+---
+
+## 7. Codex 실행용 한글 슈퍼 명령 템플릿
+
+```
+
+@chatgpt-codex
+작업 목적: 정책탐색 기능 오류 전체 해결 (TASK 200)
+수행 항목:
+
+1. 필터 → API 파라미터 변환 로직 재작성
+2. 지역 코드 매핑 테이블 생성 후 전체 적용
+3. 페이지네이션 상태 관리 구조를 Repository 단일 구조로 통합
+4. applyUrl 유효성 검사 + fallback 처리
+5. 정책 Domain Model 필드 전체 스키마 재검증 및 누락 필드 추가
+6. 상세 정보 null-safe 처리
+   수정 대상 파일:
+
+* lib/data/policy/policy_remote_source.dart
+* lib/data/repositories/hybrid_policy_repository.dart
+* lib/application/search/controllers/search_controller.dart
+* lib/domain/policy/entities/policy.dart
+* lib/ui/screens/policy/policy_list_v2_screen.dart
+  완료 기준:
+* 검색·필터·지역·페이징·상세 정보·URL 기능 모두 정상 동작
+
+```
+```
+
+# TASK 200 END
+
+
+
+
 
 # TASK 103
 실제 알림 스케줄러 부재: NoOpNotificationGateway만 존재해 OS 알림 예약/취소가 수행되지 않습니다. 플랫폼별 로컬 알림 플러그인 연동 구현체를 추가해 실제 스케줄링·권한 확인을 수행하도록 보완해야 합니다.
