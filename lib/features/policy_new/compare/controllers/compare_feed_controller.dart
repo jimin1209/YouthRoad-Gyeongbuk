@@ -51,8 +51,10 @@ class CompareFeedController extends StateNotifier<AsyncValue<CompareState>> {
     try {
       final policies = await Future.wait(ids.map(_fetchDetail));
       final diffs = diffService.calculateDiffs(policies);
+      final profile = ref.read(userProfileProvider);
+      final insights = diffService.buildInsights(policies, userProfile: profile);
       state = AsyncValue.data(
-        CompareState(policies: policies, diffs: diffs),
+        CompareState(policies: policies, diffs: diffs, insights: insights),
       );
     } catch (e, st) {
       state = AsyncValue.error(e, st);
