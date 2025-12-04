@@ -72,8 +72,8 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
     final periodText =
         _formatPeriod(policy.policyBgngYmd, policy.policyEndYmd, policy.applyStart, policy.applyEnd);
     final tags = _buildTags(policy, region, ddayText);
-    final hasLink = (policy.dtlLinkUrl ?? '').trim().isNotEmpty;
-    final normalizedLink = (policy.dtlLinkUrl ?? '').trim();
+    final normalizedLink = _normalizeUrl(policy.dtlLinkUrl);
+    final hasLink = normalizedLink != null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
@@ -92,7 +92,7 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
               IconButton(
                 icon: const Icon(Icons.share_outlined),
                 tooltip: hasLink ? '신청 링크 열기' : '신청 링크 없음',
-                onPressed: hasLink ? () => _openLink(context, normalizedLink) : null,
+                onPressed: hasLink ? () => _openLink(context, normalizedLink!) : null,
               ),
             ],
           ),
@@ -105,7 +105,7 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
           const SizedBox(height: 20),
           PolicyCtaButton(
             text: hasLink ? '신청 페이지 열기' : '신청 링크 없음',
-            onTap: hasLink ? () => _openLink(context, normalizedLink) : null,
+            onTap: hasLink ? () => _openLink(context, normalizedLink!) : null,
           ),
           const SizedBox(height: 16),
           GridView.count(
@@ -159,7 +159,7 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
             const SizedBox(height: 12),
             PolicyCtaButton(
               text: '홈페이지에서 자세히 보기',
-              onTap: () => _openLink(context, normalizedLink),
+              onTap: () => _openLink(context, normalizedLink!),
             ),
           ] else ...[
             const SizedBox(height: 12),
@@ -194,8 +194,8 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
   }
 
   Future<void> _openLink(BuildContext context, String url) async {
-    final normalized = url.trim();
-    if (normalized.isEmpty) return;
+    final normalized = _normalizeUrl(url);
+    if (normalized == null) return;
     try {
       final launched = await launchUrlString(normalized);
       if (!launched && mounted) {
@@ -210,6 +210,15 @@ class _PolicyDetailV2ScreenState extends ConsumerState<PolicyDetailV2Screen> {
         );
       }
     }
+  }
+
+  String? _normalizeUrl(String? url) {
+    if (url == null) return null;
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return null;
+
+    final hasScheme = trimmed.startsWith('http://') || trimmed.startsWith('https://');
+    return hasScheme ? trimmed : 'https://$trimmed';
   }
 
   void _showInfo(BuildContext context, String message) {
