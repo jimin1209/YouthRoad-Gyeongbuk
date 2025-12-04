@@ -196,6 +196,37 @@ Codex는 내부적으로 필요한 구현 범위와 체크리스트를 생성한
 💙💙💙💙💙💙💙💙💙💙💙💙💙
 💙💙💙❤️❤️❤️💙💙💙💙💙💙🩵
 
+# ERROR 200
+
+lib/navigation/motion_transitions.dart:3:1: Error: Type 'CustomTransitionPage' not found.
+CustomTransitionPage<T> buildSlideFadePage<T>({
+^^^^^^^^^^^^^^^^^^^^
+lib/navigation/motion_transitions.dart:39:1: Error: Type 'CustomTransitionPage' not found.
+CustomTransitionPage<T> buildSearchOverlayPage<T>({
+^^^^^^^^^^^^^^^^^^^^
+lib/navigation/motion_transitions.dart:9:10: Error: Method not found: 'CustomTransitionPage'.
+  return CustomTransitionPage<T>(
+         ^^^^^^^^^^^^^^^^^^^^
+lib/navigation/motion_transitions.dart:43:10: Error: Method not found: 'CustomTransitionPage'.
+  return CustomTransitionPage<T>(
+         ^^^^^^^^^^^^^^^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 11s
+
 # TASK 400
 
 ---
