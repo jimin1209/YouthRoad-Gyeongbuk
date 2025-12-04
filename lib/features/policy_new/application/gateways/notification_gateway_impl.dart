@@ -200,7 +200,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         ),
       );
     }
-    return const ScheduleResult.success();
+    return ScheduleResult.success();
   }
 
   @override
@@ -222,7 +222,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         ),
       );
     }
-    return const ScheduleResult.success();
+    return ScheduleResult.success();
   }
 
   @override

@@ -1,12 +1,12 @@
 class ScheduleResult {
-  const ScheduleResult.success({
+  ScheduleResult.success({
     this.localNotificationId,
     this.scheduledAt,
     this.isDuplicate = false,
   })  : success = true,
         failure = null;
 
-  const ScheduleResult.failure(
+  ScheduleResult.failure(
     this.failure, {
     this.isDuplicate = false,
   })  : success = false,
