@@ -1,0 +1,307 @@
+
+---
+
+```md
+# TASK05 — Local 정책 안정화(데이터 수명주기 · 페이징 · 취소처리 확정)
+
+본 문서는 YouthRoad 프로젝트에서 기존 Local(경북 정책) 기반 데이터를
+안정적으로 공급하기 위해 수행해야 할 정규화 작업을 명확하게 정의한다.
+
+이 안정화 작업은 이후 National 정책, 콘텐츠 기능, 센터 기능과 결합되는
+도메인 기반의 Root Layer가 되므로, 반드시 아래 상태가 먼저 확립되어야 한다.
+
+---
+
+---
+
+# 📌 TASK05 목표
+
+Local 정책 데이터가 아래 조건을 만족해야 한다:
+
+1) DB 인스턴스 오픈은 단 한 번 이루어져야 한다  
+2) stale 캐시는 즉시 반환하되 async refresh가 보장되어야 한다  
+3) dispose 이벤트 발생 시 네트워크 요청이 실제 cancel되어야 한다  
+4) 마지막 페이지 도달 시 NO-OP로 처리되어야 한다  
+5) 위 상태가 UI 반응과 충돌하면 안된다
+
+**이 상태를 `안정화 완료 상태`로 정의한다.**
+
+---
+
+---
+
+# 🔥 안정화 범위
+
+본 작업은 아래 네 영역에 적용한다:
+
+```
+
+1. Isar DB lifecycle 안정화
+2. TTL 기반 캐싱 정상화
+3. autoDispose 시점의 cancel 확정
+4. Paging 마지막 페이지 처리
+
+```
+
+이 네 영역 외의 개선은 현재 Task05 범위에서 수행하지 않는다.
+
+---
+
+---
+
+# 1. Isar DB Open Lifecycle 안정화
+
+### 대상 파일
+```
+
+lib/data/local/isar/isar_service.dart
+
+````
+
+---
+
+### WHY 안정화가 필요한가?
+
+현재 Likely Issue:
+- 앱 내 여러 Provider init에서 동시 open 시도 가능성 존재
+- "Instance has already been opened" crash 가능
+- 비동기 체인이 연결되면 race 발생 가능
+
+---
+
+### 정해진 상태(완료 기준)
+
+#### 전역 상태는 반드시 다음 형태로 존재해야 한다:
+
+```dart
+Isar? _globalIsar;
+Completer<Isar>? _openCompleter;
+````
+
+---
+
+#### instance getter는 다음 조건을 충족해야 한다:
+
+1. 기존 인스턴스 존재 시 즉시 반환
+2. open 중이면 기존 Future에 await
+3. open이 최초 실행 시 completer 생성 후 완료 처리
+
+---
+
+### 올바른 동작 예시 로그
+
+```
+[ISAR] OPENING FIRST INSTANCE
+[ISAR] EXISTING INSTANCE REUSED
+[ISAR] EXISTING INSTANCE REUSED
+```
+
+이 출력 형태가 반복되면 안정화 성공.
+
+---
+
+---
+
+# 2. TTL 기반 캐싱 정규화
+
+### 대상 Repository (예시 경로)
+
+```
+lib/features/policy_new/data/repositories/policy_repository.dart
+```
+
+---
+
+### 요구되는 상태
+
+| 상황            | 반환값        | 후속 처리                 |
+| ------------- | ---------- | --------------------- |
+| 캐시 존재 + 유효    | cachedData | return 즉시 종료          |
+| 캐시 존재 + stale | staleData  | 즉시 반환 후 async refresh |
+| 캐시 없음         | remoteData | 저장 후 반환               |
+
+---
+
+### Required Log Format
+
+```
+[CACHE:HIT]
+[CACHE:STALE]
+[CACHE:MISS]
+```
+
+그리고 stale 반환 후 반드시 아래 형태의 로그가 뒤이어 발생해야 한다:
+
+```
+[ASYNC-REFRESH:STARTED]
+[ASYNC-REFRESH:COMPLETED]
+```
+
+---
+
+---
+
+# 3. Provider dispose → Cancel 시점 정교화
+
+### WHY 이 단계가 필요한가?
+
+현 Provider는 autoDispose 기반이므로:
+
+* 탭 이동
+* 화면 이동
+* 뒤로가기
+* rebuild
+  이 시점들에서 dispose가 발생한다.
+
+만약 cancel 처리가 되지 않으면
+
+* response가 늦게 도착하여 상태 덮어쓰기 발생 가능
+  → UI inconsistency 발생
+
+---
+
+### 작업 조건
+
+dispose 시 아래 규칙을 적용:
+
+```
+1) 실행 중인 fetch request cancel()
+2) cancellation log 출력
+3) 결과 반영 중단
+```
+
+---
+
+### Required Log Format
+
+```
+[PROVIDER-DISPOSE:CANCELLED]
+```
+
+또는
+
+```
+[PROVIDER-DISPOSE:CANCELLED:<requestId>]
+```
+
+(둘 중 하나 필수)
+
+---
+
+---
+
+# 4. Paging 안정화
+
+목표:
+
+페이지의 마지막 도달 상태는
+**UI 이벤트 없이 종료**되어야 한다.
+
+---
+
+### 처리 조건
+
+```
+if (isLastPage)
+    return NO-OP;
+```
+
+---
+
+### Required Log Format
+
+```
+[PAGING-LAST-PAGE:NO-OP]
+```
+
+---
+
+### UI 영향 조건
+
+NO-OP 시 반드시:
+
+❌ 로딩 indicator 표시 금지
+❌ 상태 변경 금지
+❌ 리스트 리셋 금지
+
+---
+
+---
+
+# 🔗 작업 완료 후 검증 플로우
+
+TASK05 안정화 검증은 아래 시나리오로 수행한다.
+
+---
+
+### 시나리오 1 — 최초 화면 3회 진입 반복
+
+예상 로그:
+
+```
+[ISAR] OPENING FIRST INSTANCE
+[CACHE:MISS]
+[ASYNC-REFRESH:STARTED]
+[ASYNC-REFRESH:COMPLETED]
+
+[ISAR] EXISTING INSTANCE REUSED]
+[CACHE:HIT]
+
+[ISAR] EXISTING INSTANCE REUSED]
+[CACHE:HIT]
+```
+
+---
+
+### 시나리오 2 — 화면 이동 후 dispose 반복
+
+예상 로그:
+
+```
+[PROVIDER-DISPOSE:CANCELLED]
+[CACHE:HIT]
+```
+
+---
+
+### 시나리오 3 — Paging 끝까지 스크롤
+
+예상 로그:
+
+```
+[PAGING-LAST-PAGE:NO-OP]
+```
+
+이 세 조건을 만족하면
+**TASK05 안정화 완료로 선언한다.**
+
+---
+
+---
+
+# 🎯 Marking: 안정화 완료 선언
+
+Codex는 작업 후 아래 문자열을 반드시 출력해야 한다:
+
+```
+TASK05 Stabilization Completed. Verified and Fully Applied.
+```
+
+실패 조건 발생 시:
+
+```
+TASK05 FAILED — Required stabilization conditions not met.
+```
+
+---
+
+본 문서는 이후 TASK06~TASK09의 Root 기준 상태이며
+이 안정화 완료 상태는 “절대 수정되지 않고 유지되는 기준”이다.
+
+```
+
+---
+
+---
+
+```
