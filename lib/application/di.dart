@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Isar Local DB
-import 'package:youth_road_app/data/local/isar/isar_service.dart';
+import 'package:youth_road_app/data/local/isar/isar_service_stub.dart'
+    if (dart.library.io) 'package:youth_road_app/data/local/isar/isar_service.dart';
 
 // Core & Sources
 import '../core/constants/env.dart';

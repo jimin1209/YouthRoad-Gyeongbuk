@@ -1,9 +1,11 @@
-import '../../../../data/local/isar/isar_service.dart';
+import '../../../../data/local/isar/isar_service_stub.dart'
+    if (dart.library.io) '../../../../data/local/isar/isar_service.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/utils/reminder_time_util.dart';
 import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
-import '../local/isar/policy_reminder_isar_model.dart';
+import '../local/isar/policy_reminder_isar_model_stub.dart'
+    if (dart.library.io) '../local/isar/policy_reminder_isar_model.dart';
 
 abstract class PolicyReminderLocalDataSource {
   Future<void> upsertReminder(PolicyReminder reminder);

@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../domain/entities/policy.dart';
-import '../../local/isar/isar_service.dart';
-import '../../local/isar/policy_isar_model.dart';
+import '../../local/isar/isar_service_stub.dart'
+    if (dart.library.io) '../../local/isar/isar_service.dart';
+import '../../local/isar/policy_isar_model_stub.dart'
+    if (dart.library.io) '../../local/isar/policy_isar_model.dart';
 import '../../models/policy_filter.dart';
 
 class PolicyCacheSource {
