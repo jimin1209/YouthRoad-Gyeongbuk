@@ -3,7 +3,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/env.dart';
-import '../../data/local/isar/isar_service.dart';
+import 'package:youth_road_app/data/local/isar/isar_service_stub.dart'
+    if (dart.library.io) 'package:youth_road_app/data/local/isar/isar_service.dart';
 import '../../data/search/repositories/search_history_repository_impl.dart';
 import '../../data/search/repositories/search_repository_impl.dart';
 import '../../data/search/repositories/search_suggestion_repository_impl.dart';

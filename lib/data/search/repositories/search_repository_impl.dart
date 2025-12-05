@@ -2,8 +2,8 @@
 
 import 'package:flutter/foundation.dart';
 
-import '../../local/isar/isar_service_stub.dart'
-    if (dart.library.io) '../../local/isar/isar_service.dart';
+import 'package:youth_road_app/data/local/isar/isar_service_stub.dart'
+    if (dart.library.io) 'package:youth_road_app/data/local/isar/isar_service.dart';
 import '../../models/policy_filter.dart';
 import '../models/search_result_item_model.dart';
 import '../sources/remote/search_remote_source.dart';
