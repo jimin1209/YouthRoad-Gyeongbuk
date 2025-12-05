@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2025-01-14T14:41:10Z",
+  "policies": [
+    {
+      "id": "yc-112",
+      "title": "청년 창업 지원",
+      "region": "gyeongbuk",
+      "ageRange": { "min": 19, "max": 34 },
+      "category": "startup",
+      "applicationEndDate": "2025-02-15T14:00:00Z",
+      "cachedAt": "2025-01-14T14:32:12Z",
+      "ttlExpiresAt": "2025-01-14T14:40:12Z",
+      "lastRefreshStatus": "fresh",
+      "paging": { "page": 6, "pageSize": 20, "totalCount": 120 },
+      "reminder": {
+        "enabled": true,
+        "scheduledAt": "2025-02-14T14:00:00Z",
+        "timeKind": "D-1"
+      }
+    },
+    {
+      "id": "yc-207",
+      "title": "경북 청년 주거 안정 바우처",
+      "region": "gyeongbuk",
+      "ageRange": { "min": 19, "max": 39 },
+      "category": "housing",
+      "applicationEndDate": "2025-03-01T15:00:00Z",
+      "cachedAt": "2025-01-14T14:35:44Z",
+      "ttlExpiresAt": "2025-01-14T14:45:44Z",
+      "lastRefreshStatus": "stale",
+      "paging": { "page": 2, "pageSize": 20, "totalCount": 45 },
+      "reminder": {
+        "enabled": false,
+        "scheduledAt": "2025-02-28T15:00:00Z",
+        "timeKind": "D-1"
+      }
+    }
+  ],
+  "provider": {
+    "activeRequests": 0,
+    "lastCancellation": "req-998",
+    "cancellationReason": "dispose"
+  }
+}
