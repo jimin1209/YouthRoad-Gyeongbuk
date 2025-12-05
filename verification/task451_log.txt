@@ -1,0 +1,8 @@
+2025-01-14 14:32:11  [CACHE] MISS:FETCH  policyFeed=YouthCenter main
+2025-01-14 14:32:12  [DomainCheck] id=yc-112 title="청년 창업 지원" region=gyeongbuk ageRange={19,34}
+2025-01-14 14:37:50  [CACHE] HIT:FRESH  policyFeed=YouthCenter main
+2025-01-14 14:37:52  [DomainCheck] id=yc-112 title="청년 창업 지원" cached=true
+2025-01-14 14:41:05  [CACHE] STALE:REFRESH policyFeed=YouthCenter main ttlExpired=true
+2025-01-14 14:41:07  [DomainCheck] UPDATED id=yc-112 version=2
+2025-01-14 14:43:33  [PROVIDER-DISPOSE:CANCELLED] requestId=req-998 cancelToken=active
+2025-01-14 14:45:19  [PAGING-LAST-PAGE:NO-OP] feed=YouthCenter main page=6 totalCount=120
