@@ -78,7 +78,19 @@ final contentFeedProvider =
     FutureProvider.autoDispose<(List<YouthContentEntity>, PagingEntity?)>((ref) async {
   final repository = ref.watch(youthContentRepositoryProvider);
   final page = ref.watch(_contentPageProvider);
-  return repository.getContents(page);
+  final cancelToken = CancelToken();
+
+  ref.onDispose(() {
+    if (!cancelToken.isCancelled) {
+      cancelToken.cancel('disposed');
+      debugPrint('[PROVIDER-DISPOSE:CANCELLED] pending requests for youth contents');
+    }
+  });
+
+  return repository.getContents(
+    page,
+    cancelToken: cancelToken,
+  );
 });
 
 final _contentPageProvider = StateProvider<int>((ref) => 1);
@@ -86,5 +98,14 @@ final _contentPageProvider = StateProvider<int>((ref) => 1);
 final centerProvider =
     FutureProvider.autoDispose<List<YouthCenterEntity>>((ref) async {
   final repository = ref.watch(youthCenterRepositoryProvider);
-  return repository.getCenters();
+  final cancelToken = CancelToken();
+
+  ref.onDispose(() {
+    if (!cancelToken.isCancelled) {
+      cancelToken.cancel('disposed');
+      debugPrint('[PROVIDER-DISPOSE:CANCELLED] pending requests for youth centers');
+    }
+  });
+
+  return repository.getCenters(cancelToken: cancelToken);
 });

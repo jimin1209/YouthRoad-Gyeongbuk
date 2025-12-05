@@ -17,7 +17,10 @@ class YouthContentRemoteSource {
   final String _apiKey;
   final String _baseUrl;
 
-  Future<ContentYouthcenterDto> fetchContents({int page = 1}) async {
+  Future<ContentYouthcenterDto> fetchContents({
+    int page = 1,
+    CancelToken? cancelToken,
+  }) async {
     final parameters = <String, dynamic>{
       'pageNum': page,
       'pageSize': 10,
@@ -30,6 +33,7 @@ class YouthContentRemoteSource {
     final response = await _dio.get<Map<String, dynamic>>(
       '$_baseUrl/content.json',
       queryParameters: parameters,
+      cancelToken: cancelToken,
     );
 
     final data = response.data;

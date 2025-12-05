@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/policy.dart';
@@ -68,7 +69,11 @@ class PolicyPagingController extends StateNotifier<AsyncValue<List<Policy>>> {
   }
 
   Future<void> loadNextPage() async {
-    if (_isLast || _isLoading) return;
+    if (_isLast) {
+      debugPrint('[PAGING-LAST-PAGE:NO-OP]');
+      return;
+    }
+    if (_isLoading) return;
     _isLoading = true;
 
     logger.info('PolicyPagingController.loadNextPage(page: ${_page + 1})');

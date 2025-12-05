@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../../../domain/youthcenter/repositories/center_repository.dart';
 import '../../../domain/youthcenter/youth_center_entity.dart';
 import '../../mappers/youth_center_mapper.dart';
@@ -9,8 +11,8 @@ class CenterRepositoryImpl implements CenterRepository {
   final YouthCenterRemoteSource _remoteSource;
 
   @override
-  Future<List<YouthCenterEntity>> getCenters() async {
-    final dto = await _remoteSource.fetchCenters();
+  Future<List<YouthCenterEntity>> getCenters({CancelToken? cancelToken}) async {
+    final dto = await _remoteSource.fetchCenters(cancelToken: cancelToken);
     final items = dto.result?.youthPolicyList ?? [];
     return items.map((item) => item.toDomain()).toList();
   }

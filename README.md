@@ -213,3 +213,13 @@ Kakao Map	✔ 정상
 Youth API	✔ 정상
 AI Chat	✔ 정상
 EC2 Build	완전 성공
+
+## 테스트 실행 가이드
+
+이 프로젝트의 테스트는 Flutter 환경이 준비되어 있어야 실행할 수 있습니다.
+
+1. Flutter SDK가 PATH에 등록되어 있는지 확인합니다. (`flutter --version`)
+2. 의존성을 최신화합니다. (`flutter pub get`)
+3. 단위 테스트를 실행합니다. (`flutter test`)
+
+CI나 로컬 머신에 Flutter가 없으면 위 명령이 동작하지 않으므로, 사전에 SDK를 설치한 뒤 테스트를 수행해야 합니다.

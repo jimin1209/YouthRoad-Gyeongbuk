@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
 import '../../domain/values/policy_failure.dart';
@@ -99,13 +101,15 @@ class PolicyRepositoryImpl implements PolicyRepository {
     final effectivePageSize = pageSize == 0 ? settings.pageSize : pageSize;
 
     if (settings.enableCache) {
-      final cached = cache.getPage(page);
-      if (cached != null && cached.isNotEmpty) {
-        _revalidateDefault(page, effectivePageSize);
-        return PolicyResult.success(cached);
-      }
+      final cacheResult = _tryReturnCache(
+        cache.getPageWithStatus(page, settings.cacheTtl),
+        () => _fetchAndCacheDefault(page, effectivePageSize),
+      );
+
+      if (cacheResult != null) return cacheResult;
     }
 
+    debugPrint('[CACHE:MISS]');
     return _fetchAndCacheDefault(page, effectivePageSize);
   }
 
@@ -120,6 +124,25 @@ class PolicyRepositoryImpl implements PolicyRepository {
     final scopeKey = normalizedQuery.cacheScopeKey;
 
     if (_isIdBasedQuery(normalizedQuery)) {
+      if (settings.enableCache) {
+        final cacheResult = _tryReturnCache(
+          cache.getPageWithStatus(
+            page,
+            settings.cacheTtl,
+            scope: scopeKey,
+          ),
+          () => _fetchAndCacheByIds(
+            query: normalizedQuery,
+            page: page,
+            pageSize: effectivePageSize,
+            scopeKey: scopeKey,
+          ),
+        );
+
+        if (cacheResult != null) return cacheResult;
+      }
+
+      debugPrint('[CACHE:MISS]');
       return _fetchAndCacheByIds(
         query: normalizedQuery,
         page: page,
@@ -129,14 +152,24 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
 
     if (settings.enableCache) {
-      final cached = cache.getPageForScope(scopeKey, page);
-      if (cached != null && cached.isNotEmpty) {
-        logger.info('캐시 히트 (scope: $scopeKey, page: $page)');
-        _revalidateQuery(normalizedQuery, page, effectivePageSize);
-        return PolicyResult.success(cached);
-      }
+      final cacheResult = _tryReturnCache(
+        cache.getPageWithStatus(
+          page,
+          settings.cacheTtl,
+          scope: scopeKey,
+        ),
+        () => _fetchAndCacheQuery(
+          query: normalizedQuery,
+          page: page,
+          pageSize: effectivePageSize,
+          scopeKey: scopeKey,
+        ),
+      );
+
+      if (cacheResult != null) return cacheResult;
     }
 
+    debugPrint('[CACHE:MISS]');
     return _fetchAndCacheQuery(
       query: normalizedQuery,
       page: page,
@@ -212,14 +245,6 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
     if (ids.isEmpty) {
       return PolicyResult.success(<Policy>[]);
-    }
-
-    if (settings.enableCache) {
-      final cached = cache.getPageForScope(scopeKey, page);
-      if (cached != null) {
-        _revalidateIds(query, page, pageSize, scopeKey);
-        return PolicyResult.success(cached);
-      }
     }
 
     return _loadPoliciesByIds(
@@ -299,26 +324,6 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
   }
 
-  void _revalidateIds(
-    PolicyQuery query,
-    int page,
-    int pageSize,
-    String scopeKey,
-  ) {
-    Future(() async {
-      final result = await _loadPoliciesByIds(
-        ids: query.tags,
-        page: page,
-        pageSize: pageSize,
-        scopeKey: scopeKey,
-      );
-
-      if (!result.isSuccess) {
-        logger.warn('ID 기반 SWR 실패 (scope: $scopeKey, page: $page)');
-      }
-    });
-  }
-
   bool _isIdBasedQuery(PolicyQuery query) =>
       query.feedType == PolicyFeedType.favorite ||
       query.feedType == PolicyFeedType.compare;
@@ -339,31 +344,6 @@ class PolicyRepositoryImpl implements PolicyRepository {
         (tag) => haystack.contains(tag.toLowerCase()),
       );
     }).toList();
-  }
-
-  void _revalidateQuery(PolicyQuery query, int page, int pageSize) {
-    Future(() async {
-      final scopeKey = query.cacheScopeKey;
-      final result = await _fetchAndCacheQuery(
-        query: query,
-        page: page,
-        pageSize: pageSize,
-        scopeKey: scopeKey,
-      );
-
-      if (!result.isSuccess) {
-        logger.warn('SWR 재검증 실패 (scope: $scopeKey, page: $page)');
-      }
-    });
-  }
-
-  void _revalidateDefault(int page, int pageSize) {
-    Future(() async {
-      final result = await _fetchAndCacheDefault(page, pageSize);
-      if (!result.isSuccess) {
-        logger.warn('SWR 재검증 실패 (page: $page)');
-      }
-    });
   }
 
   @override
@@ -466,5 +446,41 @@ class PolicyRepositoryImpl implements PolicyRepository {
       case PolicyCategory.other:
         return '기타';
     }
+  }
+
+  PolicyResult<List<Policy>>? _tryReturnCache(
+    CacheLookupResult? cached,
+    Future<PolicyResult<List<Policy>>> Function() refresher,
+  ) {
+    if (cached == null) return null;
+
+    if (cached.isStale) {
+      debugPrint('[CACHE:STALE]');
+      _runAsyncRefresh(refresher);
+    } else {
+      debugPrint('[CACHE:HIT]');
+    }
+
+    return PolicyResult.success(cached.data);
+  }
+
+  void _runAsyncRefresh(
+    Future<PolicyResult<List<Policy>>> Function() refresher, {
+    String? context,
+  }) {
+    debugPrint('[ASYNC-REFRESH:STARTED]');
+    Future(() async {
+      try {
+        final result = await refresher();
+        if (!result.isSuccess) {
+          logger.warn('SWR 재검증 실패${context != null ? ' ($context)' : ''}');
+        }
+      } catch (e, st) {
+        logger.warn('SWR 재검증 중 예외 발생${context != null ? ' ($context)' : ''}');
+        logger.error('SWR 재검증 실패', e, st);
+      } finally {
+        debugPrint('[ASYNC-REFRESH:COMPLETED]');
+      }
+    });
   }
 }

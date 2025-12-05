@@ -17,7 +17,7 @@ class YouthCenterRemoteSource {
   final String _apiKey;
   final String _baseUrl;
 
-  Future<CenterYouthcenterDto> fetchCenters() async {
+  Future<CenterYouthcenterDto> fetchCenters({CancelToken? cancelToken}) async {
     final parameters = <String, dynamic>{};
 
     if (_apiKey.isNotEmpty) {
@@ -27,6 +27,7 @@ class YouthCenterRemoteSource {
     final response = await _dio.get<Map<String, dynamic>>(
       '$_baseUrl/center.json',
       queryParameters: parameters,
+      cancelToken: cancelToken,
     );
 
     final data = response.data;
