@@ -6,6 +6,7 @@ class PolicySettings {
   final bool enableCache;
   final String apiKey;
   final String baseUrl;
+  final Duration cacheTtl;
 
   const PolicySettings({
     this.pageSize = 20,
@@ -13,5 +14,6 @@ class PolicySettings {
     this.enableCache = true,
     this.apiKey = '',
     this.baseUrl = 'https://gbyouth.co.kr/openapi',
+    this.cacheTtl = const Duration(hours: 1),
   });
 }

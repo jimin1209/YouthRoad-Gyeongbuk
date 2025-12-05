@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../../../domain/youthcenter/paging_entity.dart';
 import '../../../domain/youthcenter/repositories/content_repository.dart';
 import '../../../domain/youthcenter/youth_content_entity.dart';
@@ -11,8 +13,14 @@ class ContentRepositoryImpl implements ContentRepository {
   final YouthContentRemoteSource _remoteSource;
 
   @override
-  Future<(List<YouthContentEntity>, PagingEntity?)> getContents(int page) async {
-    final dto = await _remoteSource.fetchContents(page: page);
+  Future<(List<YouthContentEntity>, PagingEntity?)> getContents(
+    int page, {
+    CancelToken? cancelToken,
+  }) async {
+    final dto = await _remoteSource.fetchContents(
+      page: page,
+      cancelToken: cancelToken,
+    );
     final items = dto.result?.youthPolicyList ?? [];
     final contents = items.map((item) => item.toDomain()).toList();
     final paging = dto.result?.pagging.toDomain();

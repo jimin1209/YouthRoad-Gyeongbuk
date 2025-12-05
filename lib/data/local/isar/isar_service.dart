@@ -32,6 +32,7 @@ class IsarService {
   Future<Isar> get instance async {
     // 이미 열린 상태이면 바로 리턴
     if (_globalIsar != null) {
+      debugPrint('[ISAR] EXISTING INSTANCE REUSED');
       return _globalIsar!;
     }
 
@@ -41,6 +42,7 @@ class IsarService {
     }
 
     // 첫 호출 → open 시작
+    debugPrint('[ISAR] OPENING FIRST INSTANCE');
     _openCompleter = Completer<Isar>();
     try {
       final isar = await _openInternal();
@@ -68,7 +70,10 @@ class IsarService {
     // 이미 같은 이름의 DB가 떠있음 → 재사용
     if (Isar.instanceNames.contains(_dbName)) {
       final existing = Isar.getInstance(_dbName);
-      if (existing != null) return existing;
+      if (existing != null) {
+        debugPrint('[ISAR] EXISTING INSTANCE REUSED');
+        return existing;
+      }
     }
 
     try {
@@ -266,5 +271,6 @@ class IsarService {
       await isar.close();
     }
     _globalIsar = null;
+    _openCompleter = null;
   }
 }
