@@ -18,7 +18,10 @@ class YouthPolicyRemoteSource {
   final String _apiKey;
   final String _baseUrl;
 
-  Future<PolicyYouthcenterDto> fetchPolicies(PolicySearchQuery query) async {
+  Future<PolicyYouthcenterDto> fetchPolicies(
+    PolicySearchQuery query, {
+    CancelToken? cancelToken,
+  }) async {
     final parameters = <String, dynamic>{
       ...query.toQueryParameters(),
     };
@@ -30,6 +33,7 @@ class YouthPolicyRemoteSource {
     final response = await _dio.get<Map<String, dynamic>>(
       '$_baseUrl/policy.json',
       queryParameters: parameters,
+      cancelToken: cancelToken,
     );
 
     final data = response.data;

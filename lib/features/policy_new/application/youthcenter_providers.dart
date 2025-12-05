@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di.dart' as app_di;
@@ -61,7 +62,16 @@ final policyListProvider =
     FutureProvider.autoDispose<(List<PolicyEntity>, PagingEntity)>((ref) async {
   final repository = ref.watch(youthPolicyRepositoryProvider);
   final query = ref.watch(policySearchQueryProvider);
-  return repository.getPolicies(query);
+  final cancelToken = CancelToken();
+
+  ref.onDispose(() {
+    if (!cancelToken.isCancelled) {
+      cancelToken.cancel('disposed');
+      debugPrint('[PROVIDER-DISPOSE:CANCELLED] pending requests for youth policies');
+    }
+  });
+
+  return repository.getPolicies(query, cancelToken: cancelToken);
 });
 
 final contentFeedProvider =
