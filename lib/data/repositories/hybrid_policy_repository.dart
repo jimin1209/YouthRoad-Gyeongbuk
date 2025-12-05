@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/policy.dart';
 import '../../domain/repositories/policy_repository.dart';
-import '../local/isar/isar_service.dart';
-import '../local/isar/policy_isar_model.dart';
+import '../local/isar/isar_service_stub.dart'
+    if (dart.library.io) '../local/isar/isar_service.dart';
+import '../local/isar/policy_isar_model_stub.dart'
+    if (dart.library.io) '../local/isar/policy_isar_model.dart';
 import '../models/policy_filter.dart';
 import '../models/policy_model.dart';
 import '../sources/remote/policy_remote_source.dart';
