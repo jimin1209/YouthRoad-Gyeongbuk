@@ -177,7 +177,12 @@ abstract class BasePolicyFeedController
   }
 
   Future<void> loadNextPage() async {
-    if (_isLoading || !state.hasMore || !_shouldFetchForFeedType()) return;
+    if (_isLoading) return;
+    if (!state.hasMore) {
+      debugPrint('[PAGING-LAST-PAGE:NO-OP] feed=${feedType.name}, page=$_page');
+      return;
+    }
+    if (!_shouldFetchForFeedType()) return;
 
     _isLoading = true;
     final nextPage = _page + 1;
