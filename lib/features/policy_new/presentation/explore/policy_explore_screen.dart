@@ -116,7 +116,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
             ),
 
             // 🔹 탐색 상단 공통 필터 바
-            const PolicyFilterBar(),
+            PolicyFilterBar(feedType: feedType),
 
             // 🔹 본문: 정책 리스트 (단일 스크롤)
             Expanded(

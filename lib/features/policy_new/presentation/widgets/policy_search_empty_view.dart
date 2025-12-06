@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/values/policy_feed_type.dart';
 import '../filters/policy_keyword_sheet.dart';
 
 class PolicySearchEmptyView extends ConsumerWidget {
   const PolicySearchEmptyView({
     super.key,
     required this.isKeywordTooShort,
+    this.feedType = PolicyFeedType.search,
   });
 
   final bool isKeywordTooShort;
+  final PolicyFeedType feedType;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -62,7 +65,7 @@ class PolicySearchEmptyView extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const PolicyKeywordSheet(),
+      builder: (_) => PolicyKeywordSheet(feedType: feedType),
     );
   }
 }

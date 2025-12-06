@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../filters/policy_filter_ui_state.dart';
@@ -10,6 +11,7 @@ import 'policy_feed_memory_cache.dart';
 import 'policy_paging_state.dart';
 import 'policy_query_engine.dart';
 import 'policy_query_state.dart';
+import 'ui_reaction_controller.dart';
 
 abstract class BasePolicyFeedController
     extends StateNotifier<PolicyPagingState> {
@@ -79,6 +81,8 @@ abstract class BasePolicyFeedController
   final PolicyFeedType feedType;
   final PolicyQueryEngine queryEngine;
   final PolicyFeedMemoryCache _memoryCache;
+  UIReactionController get _reaction =>
+      ref.read(uiReactionControllerProvider(feedType).notifier);
 
   PolicyQueryState? _currentQuery;
 
@@ -162,6 +166,7 @@ abstract class BasePolicyFeedController
   Future<void> _onQueryChanged() async {
     final queryState = queryEngine.buildQueryState(feedType);
     if (_currentQuery?.hash == queryState.hash) {
+      _reaction.markRestored(queryState.hash);
       _restoreFromCache(queryState);
       return;
     }
@@ -173,6 +178,7 @@ abstract class BasePolicyFeedController
   Future<void> _reloadCurrentQuery({bool force = false}) async {
     final queryState = queryEngine.buildQueryState(feedType);
     if (!force && _currentQuery?.hash == queryState.hash) {
+      _reaction.markRestored(queryState.hash);
       _restoreFromCache(queryState);
       return;
     }
@@ -212,16 +218,23 @@ abstract class BasePolicyFeedController
   }) async {
     if (_isLoading) return;
 
+    final previousItems = List<Policy>.from(state.items);
+    final isInitialLoad = !append && previousItems.isEmpty;
+
     final shouldFetch = _shouldFetchForFeedType(queryState.query);
 
     if (!shouldFetch) {
       _isLoading = false;
       state = const PolicyPagingState.initial();
       _memoryCache.save(feedType, queryState, state, page: 1);
+      _reaction.markUnchanged(queryState.hash);
       return;
     }
 
     _isLoading = true;
+    if (!append) {
+      _reaction.markLoading(queryState.hash, isInitialLoad: isInitialLoad);
+    }
     if (!append) {
       state = const PolicyPagingState.loading();
     }
@@ -241,12 +254,28 @@ abstract class BasePolicyFeedController
         );
         _page = page;
         _memoryCache.save(feedType, queryState, state, page: _page);
+        _reaction.markResult(
+          queryHash: queryState.hash,
+          changed: !_areSameItems(previousItems, merged),
+        );
       },
       onFailure: (failure) {
         state = PolicyPagingState.error(failure);
+        _reaction.markFailure(
+          queryHash: queryState.hash,
+          message: failure.message,
+        );
       },
     );
 
     _isLoading = false;
+  }
+
+  bool _areSameItems(List<Policy> prev, List<Policy> next) {
+    if (prev.length != next.length) return false;
+    for (var i = 0; i < prev.length; i++) {
+      if (prev[i].id != next[i].id) return false;
+    }
+    return true;
   }
 }
