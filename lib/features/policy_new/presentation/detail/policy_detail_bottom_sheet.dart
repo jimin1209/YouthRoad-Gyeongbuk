@@ -82,6 +82,8 @@ class _Content extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dDay = _buildDDayLabel(policy);
+    final hasSchedule =
+        policy.applicationStartDate != null || policy.applicationEndDate != null;
 
     return Column(
       children: [
@@ -148,13 +150,38 @@ class _Content extends StatelessWidget {
               horizontal: AppSpacing.lg,
               vertical: AppSpacing.md,
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: PolicyReminderButton(policy: policy),
-                ),
-              ],
-            ),
+            child: hasSchedule
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: PolicyReminderButton(policy: policy),
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ElevatedButton(
+                        onPressed: null,
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('알림 설정'),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        '일정 업데이트 되면 알려드릴게요',
+                        style: AppText.textTheme.bodyMedium!
+                            .copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ],
@@ -190,7 +217,7 @@ class _Content extends StatelessWidget {
     final end = policy.applicationEndDate;
 
     if (start == null && end == null) {
-      return 'Application period not available';
+      return '일정 미확정';
     }
     if (start != null && end == null) {
       return 'Start: ${start.toLocal().toString().split(" ").first}';

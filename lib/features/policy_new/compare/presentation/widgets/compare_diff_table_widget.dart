@@ -13,6 +13,7 @@ class CompareDiffTableWidget extends StatelessWidget {
     required this.fields,
     required this.labelWidth,
     required this.columnWidth,
+    this.showOnlyDiffs = false,
   });
 
   final List<Policy> policies;
@@ -21,11 +22,25 @@ class CompareDiffTableWidget extends StatelessWidget {
   final List<CompareFieldDefinition> fields;
   final double labelWidth;
   final double columnWidth;
+  final bool showOnlyDiffs;
 
   @override
   Widget build(BuildContext context) {
+    final visibleFields = showOnlyDiffs
+        ? fields.where((f) => diffs[f.key] == true).toList()
+        : fields;
+
+    if (visibleFields.isEmpty) {
+      return Container(
+        width: labelWidth + columnWidth * policies.length,
+        padding: const EdgeInsets.all(12),
+        alignment: Alignment.center,
+        child: const Text('모든 항목이 동일합니다.'),
+      );
+    }
+
     return Column(
-      children: fields
+      children: visibleFields
           .map(
             (field) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -46,7 +61,8 @@ class CompareDiffTableWidget extends StatelessWidget {
                     (p) {
                       final isDiff = diffs[field.key] ?? false;
                       final value = field.valueBuilder(p);
-                      final bgColor = _cellColor(field.key, p.id, isDiff, context);
+                      final bgColor =
+                          _cellColor(field.key, p.id, isDiff, context);
                       return Padding(
                         padding: const EdgeInsets.only(left: 12),
                         child: Container(

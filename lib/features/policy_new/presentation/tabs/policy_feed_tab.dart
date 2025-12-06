@@ -17,7 +17,7 @@ import '../../../../ui/components/app_section_title.dart';
 import '../../../../ui/theme/app_text.dart';
 import '../../../../ui/theme/app_spacing.dart';
 
-class PolicyFeedTab extends ConsumerWidget {
+class PolicyFeedTab extends ConsumerStatefulWidget {
   const PolicyFeedTab({
     super.key,
     required this.feedType,
@@ -28,14 +28,36 @@ class PolicyFeedTab extends ConsumerWidget {
   final bool enableSearch;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PolicyFeedTab> createState() => _PolicyFeedTabState();
+}
+
+class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listen<PolicyFilterUiState>(policyFilterUiStateProvider,
+        (prev, next) async {
+      if (!mounted) return;
+      if (prev == null || prev == next) return;
+      await _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final filter = ref.watch(policyFilterUiStateProvider);
     final compareCount = ref.watch(compareRepositoryProvider).ids.length;
     final showCompareBar =
-        feedType == PolicyFeedType.favorite && compareCount > 0;
+        widget.feedType == PolicyFeedType.favorite && compareCount > 0;
 
     final summaryText = _buildSummary(filter);
-    final showQuickFilter = _hasActiveQuickFilter(filter);
+    final filterKey = _filterKey(filter);
 
     return Scaffold(
       body: AppScreenContainer(
@@ -52,27 +74,30 @@ class PolicyFeedTab extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: AppSpacing.md),
-            _KeyInfoRow(),
-            if (showQuickFilter) ...[
-              const SizedBox(height: AppSpacing.md),
-              const AppDivider(),
-              const SizedBox(height: AppSpacing.sm),
-              const AppSectionTitle(title: '빠른 필터'),
-              _QuickFilterBar(
-                filter: filter,
-                onToggleOngoing: () => ref
-                    .read(policyFilterUiStateProvider.notifier)
-                    .toggleOngoingOnly(),
-                onClearKeyword: () =>
-                    ref.read(policyFilterUiStateProvider.notifier).setKeyword(''),
-              ),
-              const SizedBox(height: AppSpacing.md),
-            ],
+            _SelectedFilterBadges(
+              filter: filter,
+              onClearKeyword: () =>
+                  ref.read(policyFilterUiStateProvider.notifier).setKeyword(''),
+              onClearCategory: () => ref
+                  .read(policyFilterUiStateProvider.notifier)
+                  .setCategory(null),
+              onToggleOngoing: () => ref
+                  .read(policyFilterUiStateProvider.notifier)
+                  .toggleOngoingOnly(),
+            ),
+            const SizedBox(height: AppSpacing.md),
             Expanded(
               child: SafeArea(
                 top: false,
                 bottom: false,
-                child: PolicyFeedListView(feedType: feedType),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: PolicyFeedListView(
+                    key: ValueKey(filterKey),
+                    feedType: widget.feedType,
+                    externalScrollController: _scrollController,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -126,11 +151,15 @@ class PolicyFeedTab extends ConsumerWidget {
     return buffer.toString();
   }
 
-  bool _hasActiveQuickFilter(PolicyFilterUiState filter) {
-    return filter.keyword.isNotEmpty ||
-        filter.category != null ||
-        filter.showOnlyOngoing ||
-        filter.tags.isNotEmpty;
+  String _filterKey(PolicyFilterUiState filter) {
+    return [
+      filter.regionSummary,
+      filter.keyword,
+      filter.category?.name ?? '',
+      filter.showOnlyOngoing.toString(),
+      filter.sort.name,
+      filter.tags.join(','),
+    ].join('|');
   }
 
   String _categoryLabel(PolicyCategory category) {
@@ -155,90 +184,137 @@ class PolicyFeedTab extends ConsumerWidget {
   }
 }
 
-class _KeyInfoRow extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final textStyle = AppText.textTheme.bodyMedium.copyWith(
-      fontWeight: FontWeight.w600,
-      color: primary,
-    );
-
-    return Row(
-      children: [
-        _KeyInfoChip(label: '지원금 정보', style: textStyle),
-        const SizedBox(width: AppSpacing.sm),
-        _KeyInfoChip(label: '신청 기간', style: textStyle),
-      ],
-    );
-  }
-}
-
-class _KeyInfoChip extends StatelessWidget {
-  const _KeyInfoChip({
-    required this.label,
-    required this.style,
-  });
-
-  final String label;
-  final TextStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      child: Text(label, style: style, maxLines: 1),
-    );
-  }
-}
-
-class _QuickFilterBar extends StatelessWidget {
-  const _QuickFilterBar({
+class _SelectedFilterBadges extends StatelessWidget {
+  const _SelectedFilterBadges({
     required this.filter,
-    required this.onToggleOngoing,
     required this.onClearKeyword,
+    required this.onClearCategory,
+    required this.onToggleOngoing,
   });
 
   final PolicyFilterUiState filter;
-  final VoidCallback onToggleOngoing;
   final VoidCallback onClearKeyword;
+  final VoidCallback onClearCategory;
+  final VoidCallback onToggleOngoing;
 
   @override
   Widget build(BuildContext context) {
-    final chips = <Widget>[
-      ChoiceChip(
-        label: const Text('진행중만'),
-        selected: filter.showOnlyOngoing,
-        onSelected: (_) => onToggleOngoing(),
-      ),
-      if (filter.keyword.isNotEmpty)
-        ChoiceChip(
-          label: Text('검색어 ${filter.keyword}'),
-          selected: true,
-          onSelected: (_) => onClearKeyword(),
-        ),
-    ];
+    final badges = <Widget>[];
+    final color = Theme.of(context).colorScheme.primary;
+    final textStyle = AppText.textTheme.labelMedium.copyWith(color: color);
+
+    badges.add(_Badge(
+      label: filter.regionSummary,
+      color: color,
+      textStyle: textStyle,
+      onRemove: null,
+    ));
+
+    if (filter.keyword.isNotEmpty) {
+      badges.add(_Badge(
+        label: '검색어 "${filter.keyword}"',
+        color: color,
+        textStyle: textStyle,
+        onRemove: onClearKeyword,
+    )); 
+    }
+
+    if (filter.category != null) {
+      badges.add(_Badge(
+        label: _categoryLabel(filter.category!),
+        color: color,
+        textStyle: textStyle,
+        onRemove: onClearCategory,
+      ));
+    }
+
+    if (filter.showOnlyOngoing) {
+      badges.add(_Badge(
+        label: '모집중만',
+        color: color,
+        textStyle: textStyle,
+        onRemove: onToggleOngoing,
+      ));
+    }
+
+    if (badges.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          const SizedBox(width: 4),
-          ...chips.map(
-            (c) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: AppCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                child: c,
+          ...badges
+              .map((b) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: b,
+                  ))
+              .toList(),
+        ],
+      ),
+    );
+  }
+
+  String _categoryLabel(PolicyCategory category) {
+    switch (category) {
+      case PolicyCategory.employment:
+        return '취업';
+      case PolicyCategory.startup:
+        return '창업';
+      case PolicyCategory.housing:
+        return '주거';
+      case PolicyCategory.education:
+        return '교육';
+      case PolicyCategory.life:
+        return '생활';
+      case PolicyCategory.welfare:
+        return '복지';
+      case PolicyCategory.culture:
+        return '문화';
+      case PolicyCategory.other:
+        return '기타';
+    }
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({
+    required this.label,
+    required this.color,
+    required this.textStyle,
+    this.onRemove,
+  });
+
+  final String label;
+  final Color color;
+  final TextStyle textStyle;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: textStyle),
+          if (onRemove != null) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onRemove,
+              child: Icon(
+                Icons.close,
+                size: 16,
+                color: color,
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

@@ -19,9 +19,11 @@ class PolicyFeedListView extends ConsumerStatefulWidget {
   const PolicyFeedListView({
     super.key,
     required this.feedType,
+    this.externalScrollController,
   });
 
   final PolicyFeedType feedType;
+  final ScrollController? externalScrollController;
 
   @override
   ConsumerState<PolicyFeedListView> createState() => _PolicyFeedListViewState();
@@ -37,7 +39,9 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController()..addListener(_onScroll);
+    _scrollController =
+        (widget.externalScrollController ?? ScrollController())
+          ..addListener(_onScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _controllerFor(ref).ensureInitialized();
@@ -55,7 +59,9 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    if (widget.externalScrollController == null) {
+      _scrollController.dispose();
+    }
     super.dispose();
   }
 

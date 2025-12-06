@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../application/providers.dart';
+import '../../application/controllers/policy_reminder_controller.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/values/policy_reminder_status.dart';
@@ -15,12 +16,13 @@ class PolicyReminderButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (policy.applicationEndDate == null) {
+    if (policy.applicationEndDate == null && policy.applicationStartDate == null) {
       return _UnavailableNotice(policy: policy);
     }
 
     final reminderState = ref.watch(policyReminderControllerProvider(policy.id));
-    final controller = ref.read(policyReminderControllerProvider(policy.id).notifier);
+    final controller =
+        ref.read(policyReminderControllerProvider(policy.id).notifier);
 
     return reminderState.when(
       data: (viewState) {
@@ -44,12 +46,11 @@ class PolicyReminderButton extends ConsumerWidget {
           });
         }
 
-        return _ReminderSection(
+        return _ReminderSheetButton(
           policy: policy,
-          reminders: activeReminders,
-          isRefreshing: viewState.isRefreshing,
-          isMutating: viewState.isMutating,
+          viewState: viewState,
           activeOptions: activeOptions,
+          activeReminders: activeReminders,
           onToggleOption: (option, enabled) async {
             final next = {...activeOptions};
             if (enabled) {
@@ -61,22 +62,25 @@ class PolicyReminderButton extends ConsumerWidget {
             if (result.hasFailure && context.mounted) {
               final messages = controller.state.value?.messages ?? [];
               final message =
-                  messages.isNotEmpty ? messages.first : '알림을 설정하지 못했습니다.';
+                  messages.isNotEmpty ? messages.first : '알림을 설정하지 못했어요.';
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(message)),
               );
             }
           },
           onRemove: (reminderId) => controller.removeReminder(reminderId),
-          onOpenOptions: () => _selectOptions(context, activeOptions).then((selected) async {
-            if (selected == null) return;
-            await controller.setReminders(policy, selected.toList());
-          }),
+          onOpenOptions: () => _selectOptions(context, activeOptions).then(
+            (selected) async {
+              if (selected == null) return;
+              await controller.setReminders(policy, selected.toList());
+            },
+          ),
           onCancelAll: () => controller.cancelAll(),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, __) => Text('알림 상태를 불러오지 못했습니다: $err'),
+      error: (err, __) =>
+          const Text('알림 상태를 불러오지 못했어요', textAlign: TextAlign.center),
     );
   }
 
@@ -86,6 +90,7 @@ class PolicyReminderButton extends ConsumerWidget {
   ) async {
     return showModalBottomSheet<Set<ReminderTimeKind>>(
       context: context,
+      isScrollControlled: true,
       builder: (context) {
         final selected = {...current};
         return SafeArea(
@@ -109,7 +114,7 @@ class PolicyReminderButton extends ConsumerWidget {
                           });
                         },
                         title: Text(option.label),
-                        subtitle: const Text('신청 마감 기준 알림을 예약합니다'),
+                        subtitle: const Text('신청 마감 기준 알림을 예약해요'),
                       ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -126,7 +131,7 @@ class PolicyReminderButton extends ConsumerWidget {
                             child: ElevatedButton(
                               onPressed: () =>
                                   Navigator.of(context).pop(selected),
-                              child: const Text('저장'),
+                              child: const Text('선택 완료'),
                             ),
                           ),
                         ],
@@ -141,16 +146,14 @@ class PolicyReminderButton extends ConsumerWidget {
       },
     );
   }
-
 }
 
-class _ReminderSection extends StatelessWidget {
-  const _ReminderSection({
+class _ReminderSheetButton extends StatelessWidget {
+  const _ReminderSheetButton({
     required this.policy,
-    required this.reminders,
-    required this.isRefreshing,
-    required this.isMutating,
+    required this.viewState,
     required this.activeOptions,
+    required this.activeReminders,
     required this.onToggleOption,
     required this.onRemove,
     required this.onOpenOptions,
@@ -158,11 +161,61 @@ class _ReminderSection extends StatelessWidget {
   });
 
   final Policy policy;
-  final List<PolicyReminder> reminders;
-  final bool isRefreshing;
-  final bool isMutating;
+  final PolicyReminderViewState viewState;
   final Set<ReminderTimeKind> activeOptions;
-  final Future<void> Function(ReminderTimeKind option, bool enabled) onToggleOption;
+  final List<PolicyReminder> activeReminders;
+  final Future<void> Function(ReminderTimeKind option, bool enabled)
+      onToggleOption;
+  final Future<void> Function(String reminderId) onRemove;
+  final Future<void> Function() onOpenOptions;
+  final Future<void> Function() onCancelAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      icon: const Icon(Icons.notifications_outlined),
+      label: const Text('신청 알림 설정'),
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (context) {
+            return _ReminderSheet(
+              policy: policy,
+              viewState: viewState,
+              activeOptions: activeOptions,
+              activeReminders: activeReminders,
+              onToggleOption: onToggleOption,
+              onRemove: onRemove,
+              onOpenOptions: onOpenOptions,
+              onCancelAll: onCancelAll,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ReminderSheet extends StatelessWidget {
+  const _ReminderSheet({
+    required this.policy,
+    required this.viewState,
+    required this.activeOptions,
+    required this.activeReminders,
+    required this.onToggleOption,
+    required this.onRemove,
+    required this.onOpenOptions,
+    required this.onCancelAll,
+  });
+
+  final Policy policy;
+  final PolicyReminderViewState viewState;
+  final Set<ReminderTimeKind> activeOptions;
+  final List<PolicyReminder> activeReminders;
+  final Future<void> Function(ReminderTimeKind option, bool enabled)
+      onToggleOption;
   final Future<void> Function(String reminderId) onRemove;
   final Future<void> Function() onOpenOptions;
   final Future<void> Function() onCancelAll;
@@ -170,18 +223,16 @@ class _ReminderSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final cardColor = Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6);
+    final colorScheme = Theme.of(context).colorScheme;
+    final scrollController = ScrollController();
 
-    return Card(
-      elevation: 0,
-      color: cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.72,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(Icons.notifications_active_outlined),
@@ -194,13 +245,14 @@ class _ReminderSection extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         policy.title,
-                        style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style:
+                            textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _deadlineText(),
+                        _deadlineText(policy),
                         style: textTheme.bodySmall,
                       ),
                     ],
@@ -208,129 +260,108 @@ class _ReminderSection extends StatelessWidget {
                 ),
               ],
             ),
-            if (isRefreshing) ...[
-              const SizedBox(height: 12),
-              const LinearProgressIndicator(minHeight: 2),
-            ],
-            const SizedBox(height: 12),
-            Text('알림 옵션', style: textTheme.labelLarge),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final option in ReminderTimeKind.values)
-                  FilterChip(
-                    label: Text(option.label),
-                    selected: activeOptions.contains(option),
-                    onSelected: isMutating
-                        ? null
-                        : (value) {
-                            onToggleOption(option, value);
-                          },
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: isMutating
-                    ? null
-                    : () {
-                        onOpenOptions();
-                      },
-                icon: const Icon(Icons.tune),
-                label: const Text('세부 옵션 선택'),
-              ),
-            ),
-            const Divider(height: 24),
-            Text('예약된 알림', style: textTheme.labelLarge),
-            const SizedBox(height: 8),
-            if (reminders.isEmpty)
-              Text(
-                '아직 알림이 없습니다. 원하는 알림 시점을 선택하면 마감 전에 알려드려요.',
-                style: textTheme.bodyMedium,
-              )
-            else
-              Column(
+          ),
+          if (viewState.isRefreshing)
+            const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final reminder in reminders)
-                    _ReminderTile(
-                      reminder: reminder,
-                      isMutating: isMutating,
-                      onRemove: onRemove,
+                  Text('알림 옵션', style: textTheme.labelLarge),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final option in ReminderTimeKind.values)
+                        FilterChip(
+                          label: Text(option.label),
+                          selected: activeOptions.contains(option),
+                          onSelected: viewState.isMutating
+                              ? null
+                              : (value) => onToggleOption(option, value),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: viewState.isMutating ? null : onOpenOptions,
+                      icon: const Icon(Icons.tune),
+                      label: const Text('자세히 선택'),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 24),
+                  Text('예약된 알림', style: textTheme.labelLarge),
+                  const SizedBox(height: 12),
+                  if (activeReminders.isEmpty)
+                    Text(
+                      '아직 알림이 없습니다. 원하는 시점을 선택해 알림을 받아보세요.',
+                      style: textTheme.bodyMedium,
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: activeReminders.length,
+                      separatorBuilder: (_, __) => const Divider(height: 16),
+                      itemBuilder: (context, index) {
+                        final reminder = activeReminders[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            _iconForStatus(reminder.status),
+                            color: _colorForStatus(colorScheme, reminder.status),
+                          ),
+                          title: Text(reminder.timeKind.label),
+                          subtitle: Text(
+                            DateFormat('yyyy.MM.dd (E) a h:mm', 'ko')
+                                .format(reminder.scheduledAt.toLocal()),
+                          ),
+                          trailing: IconButton(
+                            onPressed: viewState.isMutating
+                                ? null
+                                : () => onRemove(reminder.reminderId),
+                            icon: const Icon(Icons.close),
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),
-            if (reminders.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: isMutating
-                      ? null
-                      : () {
-                          onCancelAll();
-                        },
-                  child: const Text('모든 알림 취소'),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed:
+                        viewState.isMutating ? null : () => onCancelAll(),
+                    child: const Text('모든 알림 취소'),
+                  ),
                 ),
-              ),
-            ],
-          ],
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  String _deadlineText() {
+  String _deadlineText(Policy policy) {
     final end = policy.applicationEndDate;
-    if (end == null) return '신청 마감일 정보가 없습니다.';
+    if (end == null) return '신청 마감 정보가 없습니다.';
     final formatter = DateFormat('yyyy.MM.dd (E)');
     final local = end.toLocal();
-    return '신청 마감일 · ${formatter.format(local)}';
-  }
-}
-
-class _ReminderTile extends StatelessWidget {
-  const _ReminderTile({
-    required this.reminder,
-    required this.isMutating,
-    required this.onRemove,
-  });
-
-  final PolicyReminder reminder;
-  final bool isMutating;
-  final Future<void> Function(String reminderId) onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final subtitle = _subtitle(reminder);
-
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        _iconForStatus(reminder.status),
-        color: _colorForStatus(colorScheme),
-      ),
-      title: Text(reminder.timeKind.label),
-      subtitle: Text(subtitle, style: textTheme.bodySmall),
-      trailing: reminder.status == PolicyReminderStatus.canceled
-          ? null
-          : IconButton(
-              onPressed: isMutating ? null : () => onRemove(reminder.reminderId),
-              icon: const Icon(Icons.close),
-            ),
-    );
-  }
-
-  String _subtitle(PolicyReminder reminder) {
-    final scheduleText =
-        DateFormat('yyyy.MM.dd (E) a h:mm', 'ko').format(reminder.scheduledAt.toLocal());
-    final statusLabel = reminder.status.label;
-    return '$scheduleText · $statusLabel';
+    return '신청 마감 · ${formatter.format(local)}';
   }
 
   IconData _iconForStatus(PolicyReminderStatus status) {
@@ -346,8 +377,8 @@ class _ReminderTile extends StatelessWidget {
     }
   }
 
-  Color _colorForStatus(ColorScheme scheme) {
-    switch (reminder.status) {
+  Color _colorForStatus(ColorScheme scheme, PolicyReminderStatus status) {
+    switch (status) {
       case PolicyReminderStatus.scheduled:
         return scheme.primary;
       case PolicyReminderStatus.fired:
@@ -377,10 +408,10 @@ class _UnavailableNotice extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('신청 알림을 사용할 수 없어요', style: textTheme.titleMedium),
+            Text('신청 알림을 설정할 수 없어요', style: textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
-              '이 정책은 신청 마감일 정보가 없어 알림을 설정할 수 없습니다.',
+              '이 정책은 일정 정보가 없어 알림을 설정할 수 없습니다.',
               style: textTheme.bodyMedium,
             ),
             const SizedBox(height: 8),

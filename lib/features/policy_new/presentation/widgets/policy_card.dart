@@ -5,7 +5,7 @@ import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import '../reminder/policy_reminder_badge.dart';
 
-class PolicyCard extends StatelessWidget {
+class PolicyCard extends ConsumerWidget {
   const PolicyCard({
     super.key,
     required this.policy,
@@ -16,8 +16,16 @@ class PolicyCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final textTheme = Theme.of(context).textTheme;
+    final compareState = ref.watch(compareRepositoryProvider);
+    final isCompared = compareState.ids.contains(policy.id);
+    final tint = isCompared
+        ? Theme.of(context).colorScheme.primary.withOpacity(0.06)
+        : null;
+
     return Card(
+      color: tint,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
@@ -29,14 +37,20 @@ class PolicyCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Text(
                       policy.title,
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: textTheme.titleMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (isCompared) ...[
+                    const SizedBox(width: 6),
+                    _CompareBadge(),
+                  ],
                   const SizedBox(width: 8),
                   PolicyReminderBadge(policyId: policy.id),
                   _FavoriteButton(policy: policy),
@@ -44,35 +58,66 @@ class PolicyCard extends StatelessWidget {
                   _CompareButton(policy: policy),
                 ],
               ),
+              const SizedBox(height: 8),
+              Text(
+                _supportSummary(policy),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${policy.region.name} | ${_targetLabel(policy)}',
+                style: textTheme.bodySmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: 6),
               Text(
-                policy.summary,
-                maxLines: 2,
+                _buildPeriodText(policy),
+                style: textTheme.labelMedium,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
                 runSpacing: 4,
-                children: [
-                  _chip(policy.region.name),
-                  _chip(policy.category.name),
-                  if (policy.isOngoing) _chip('모집중'),
-                  if (policy.isUpcoming) _chip('시작 예정'),
-                  if (policy.isClosed) _chip('마감'),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _buildPeriodText(policy),
-                style: Theme.of(context).textTheme.labelMedium,
+                children: _buildTags(policy)
+                    .take(3)
+                    .map((t) => _chip(t))
+                    .toList(),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  static String _supportSummary(Policy policy) {
+    if (policy.summary.isNotEmpty) return policy.summary;
+    return '지원 요약 정보 없음';
+  }
+
+  static String _targetLabel(Policy policy) {
+    final parts = <String>[];
+    if (policy.minAge != null || policy.maxAge != null) {
+      final min = policy.minAge != null ? '만 ${policy.minAge}세 이상' : null;
+      final max = policy.maxAge != null ? '만 ${policy.maxAge}세 이하' : null;
+      final age = [min, max].whereType<String>().join(' / ');
+      if (age.isNotEmpty) parts.add(age);
+    }
+    if (policy.isForYouth) parts.add('청년 대상');
+    if (parts.isEmpty) return '대상 정보 없음';
+    return parts.join(' · ');
+  }
+
+  static Iterable<String> _buildTags(Policy policy) {
+    if (policy.tags.isNotEmpty) {
+      return policy.tags;
+    }
+    return [policy.category.name];
   }
 
   Widget _chip(String label) {
@@ -89,11 +134,11 @@ class PolicyCard extends StatelessWidget {
     );
   }
 
-  String _buildPeriodText(Policy policy) {
+  static String _buildPeriodText(Policy policy) {
     final start = policy.applicationStartDate;
     final end = policy.applicationEndDate;
     if (start == null && end == null) {
-      return '신청 기간 정보 없음';
+      return '일정 미확정';
     }
     if (start != null && end == null) {
       return '신청 시작: ${start.toLocal().toString().split(" ").first}';
@@ -104,6 +149,27 @@ class PolicyCard extends StatelessWidget {
     return '신청 기간: '
         '${start!.toLocal().toString().split(" ").first} ~ '
         '${end!.toLocal().toString().split(" ").first}';
+  }
+}
+
+class _CompareBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        '비교 중',
+        style: Theme.of(context)
+            .textTheme
+            .labelSmall
+            ?.copyWith(color: color, fontWeight: FontWeight.w700),
+      ),
+    );
   }
 }
 
@@ -141,7 +207,8 @@ class _CompareButton extends ConsumerWidget {
     final compareController = ref.read(compareRepositoryProvider.notifier);
     final isCompared = compareState.ids.contains(policy.id);
 
-    final color = isCompared ? Theme.of(context).colorScheme.primary : Colors.grey;
+    final color =
+        isCompared ? Theme.of(context).colorScheme.primary : Colors.grey;
     final bg = isCompared ? color.withOpacity(0.12) : Colors.transparent;
 
     return RepaintBoundary(
@@ -160,7 +227,9 @@ class _CompareButton extends ConsumerWidget {
                 child: Tooltip(
                   message: isCompared ? '비교 해제' : '비교 추가',
                   child: Icon(
-                    isCompared ? Icons.compare_arrows : Icons.compare_arrows_outlined,
+                    isCompared
+                        ? Icons.compare_arrows
+                        : Icons.compare_arrows_outlined,
                     color: color,
                   ),
                 ),
