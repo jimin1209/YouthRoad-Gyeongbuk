@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,8 +70,17 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     _controller = ref.read(kakaoMapControllerProvider);
     _eventSub = _controller.events.listen(_handleEvent);
 
-    _safeLog("WebView init()");
+    _safeLog('WebView init()');
     _loadMap();
+
+    // 🔵 Failsafe: 3초가 지나도 아직 로딩 상태면 강제로 스피너 내리기
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      if (_loading) {
+        _safeLog('fallback: force loading=false after 3s');
+        _safeSetLoading(false);
+      }
+    });
   }
 
   @override
@@ -108,16 +117,30 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
 
     _scheduleReadyTimeout();
 
-    _safeLog("지도 로딩 시작");
+    _safeLog('지도 로딩 시작');
 
-    _controller.load(
+    // 🔵 load() Future 완료 시점에 한 번 더 안전하게 로딩 해제 시도
+    _controller
+        .load(
       center: widget.center,
       markers: widget.markers,
       polylines: widget.polylines,
       options: widget.options,
       enableClustering: widget.enableClustering,
       additionalScripts: widget.additionalScripts,
-    );
+    )
+        .then((_) {
+      if (!mounted) return;
+      if (_loading) {
+        _safeLog('load() completed, force loading=false (html injected)');
+        _safeSetLoading(false);
+      }
+    }).catchError((error, stack) {
+      _safeLog('load() error: $error');
+      _safeSetLoading(false);
+      _safeMarkFatalError();
+      _safeCallback(() => widget.onError?.call('LOAD_ERROR'));
+    });
   }
 
   // ==========================================================================
@@ -126,9 +149,15 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
   void _handleEvent(KakaoMapEvent event) {
     _pushLog(event);
 
+    // 🔵 어떤 이벤트든(로그 제외) 한 번 들어오면 스피너는 내려도 안전
+    if (_loading && event.type != KakaoMapEventType.log) {
+      _safeLog('event received (${event.type}) → loading=false');
+      _safeSetLoading(false);
+    }
+
     switch (event.type) {
       case KakaoMapEventType.ready:
-        _safeLog("MAP_READY");
+        _safeLog('MAP_READY');
 
         _readyTimeout?.cancel();
         _safeSetLoading(false);
@@ -149,8 +178,8 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
         _errorCount++;
         _safeSetLoading(false);
 
-        final code = event.errorCode ?? "unknown";
-        _safeLog("ERROR 발생 code=$code");
+        final code = event.errorCode ?? 'unknown';
+        _safeLog('ERROR 발생 code=$code');
 
         _safeCallback(() => widget.onError?.call(code));
 
@@ -176,8 +205,8 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     _readyTimeout = Timer(_readyTimeoutDuration, () {
       if (!_controller.isReady && mounted) {
         _safeMarkFatalError();
-        _safeCallback(() => widget.onError?.call("READY_TIMEOUT"));
-        _safeLog("READY_TIMEOUT");
+        _safeCallback(() => widget.onError?.call('READY_TIMEOUT'));
+        _safeLog('READY_TIMEOUT');
         _safeSetLoading(false);
       }
     });
@@ -222,13 +251,6 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     _logs.add(event);
     if (_logs.length > 100) _logs.removeAt(0);
 
-    // 🔵 콘솔에도 찍기
-    if (kDebugMode) {
-      debugPrint(
-        '[KAKAO_MAP_WEBVIEW][${event.type}] ${event.message.payload}',
-      );
-    }
-
     _safeCallback(() => widget.onLog?.call(event));
   }
 
@@ -236,8 +258,8 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     final evt = KakaoMapEvent(
       KakaoMapEventType.log,
       KakaoMapMessage(
-        type: "info",
-        payload: {"message": msg},
+        type: 'info',
+        payload: {'message': msg},
       ),
     );
     _pushLog(evt);
@@ -263,6 +285,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       children: [
         WebViewWidget(controller: _controller.webViewController),
         if (_loading)
+          // 🔵 이 Container가 터치 막고 있는 오버레이 → 위 로직으로 언제든 내려가게 해둠
           Container(
             color: Colors.black12,
             child: const Center(child: CircularProgressIndicator()),
@@ -283,19 +306,19 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                "지도를 불러오지 못했습니다.",
+                '지도를 불러오지 못했습니다.',
                 style: TextStyle(color: Colors.white),
               ),
               const SizedBox(height: 6),
               if (last != null)
                 Text(
-                  last.message.payload["message"]?.toString() ?? "",
+                  last.message.payload['message']?.toString() ?? '',
                   style: const TextStyle(color: Colors.white60),
                 ),
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: _loadMap,
-                child: const Text("다시 시도"),
+                child: const Text('다시 시도'),
               )
             ],
           ),

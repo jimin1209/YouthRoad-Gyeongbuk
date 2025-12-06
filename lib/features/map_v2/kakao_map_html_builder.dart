@@ -1,15 +1,20 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+/// ─────────────────────────────────────────────────────────────────────────────
 /// 지도 타입
+/// ─────────────────────────────────────────────────────────────────────────────
 enum KakaoMapType {
   roadmap,
   hybrid,
   skyview,
 }
 
+/// ─────────────────────────────────────────────────────────────────────────────
 /// LatLng
+/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapLatLng {
   const KakaoMapLatLng(this.lat, this.lng);
 
@@ -22,7 +27,12 @@ class KakaoMapLatLng {
       };
 }
 
+/// ─────────────────────────────────────────────────────────────────────────────
 /// 마커 이미지
+///   - url: 원격 이미지 (https://...)
+//    - assetPath: Flutter asset 를 직접 지정 (예: assets/images/marker.png)
+//    - asset: 의미상 alias (assetPath 대신 쓸 수 있게만 둠)
+/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapMarkerImage {
   const KakaoMapMarkerImage({
     this.asset,
@@ -34,13 +44,13 @@ class KakaoMapMarkerImage {
     this.offset,
   });
 
-  /// Flutter asset 경로
+  /// Flutter asset key (의미상 alias)
   final String? asset;
 
-  /// 직접 넘긴 assetPath
+  /// 실제 asset 경로 (예: assets/images/marker.png)
   final String? assetPath;
 
-  /// 원격 URL — ***새로 추가***
+  /// 원격 URL
   final String? url;
 
   final double? width;
@@ -66,7 +76,9 @@ class KakaoMapMarkerImage {
       };
 }
 
+/// ─────────────────────────────────────────────────────────────────────────────
 /// 마커
+/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapMarker {
   const KakaoMapMarker({
     required this.id,
@@ -98,7 +110,11 @@ class KakaoMapMarker {
       };
 }
 
+/// ─────────────────────────────────────────────────────────────────────────────
 /// 폴리라인
+///   - points / path 둘 다 지원 (예전 코드 호환)
+///   - strokeOpacity 추가
+/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapPolyline {
   const KakaoMapPolyline({
     required this.id,
@@ -106,14 +122,14 @@ class KakaoMapPolyline {
     List<KakaoMapLatLng>? path,
     this.strokeColor,
     this.strokeWeight = 3,
-    this.strokeOpacity = 1.0, // ← ★ 추가됨
+    this.strokeOpacity = 1.0,
   }) : points = points ?? path ?? const [];
 
   final String id;
   final List<KakaoMapLatLng> points;
   final String? strokeColor;
   final int strokeWeight;
-  final double strokeOpacity; // ← ★ 새 필드
+  final double strokeOpacity;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -124,7 +140,9 @@ class KakaoMapPolyline {
       };
 }
 
+/// ─────────────────────────────────────────────────────────────────────────────
 /// 지도 옵션
+/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapOptions {
   const KakaoMapOptions({
     this.level = 6,
@@ -146,7 +164,12 @@ class KakaoMapOptions {
       };
 }
 
+/// ─────────────────────────────────────────────────────────────────────────────
 /// HTML Builder
+///   - Kakao JS SDK v2 + autoload=false
+///   - window.kakaoBootstrap() 를 Flutter 쪽에서 호출
+///   - window.kakaoMap.* API 를 KakaoMapController 가 호출
+/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapHtmlBuilder {
   const KakaoMapHtmlBuilder();
 
@@ -154,7 +177,7 @@ class KakaoMapHtmlBuilder {
     required String apiKey,
     required KakaoMapLatLng center,
     required List<KakaoMapMarker> markers,
-    List<KakaoMapPolyline> polylines = const [], // ← ★ 기본값 추가
+    List<KakaoMapPolyline> polylines = const [],
     KakaoMapOptions options = const KakaoMapOptions(),
     required String bridgeName,
     bool enableClustering = false,
@@ -184,12 +207,12 @@ class KakaoMapHtmlBuilder {
 <script>
   function _post(msg) {
     try { $bridgeName.postMessage(JSON.stringify(msg)); }
-    catch(e) { console.log('bridge error', e); }
+    catch(e) { console.log('[KakaoMap][bridge error]', e); }
   }
 
   window.kakaoBootstrap = function() {
     if (!window.kakao || !window.kakao.maps) {
-      _post({type:'error',payload:{code:'sdkFail'}});
+      _post({type:'error',payload:{code:'sdkFail',detail:'kakao.maps not available'}});
       return;
     }
 
@@ -200,8 +223,37 @@ class KakaoMapHtmlBuilder {
       var center = new kakao.maps.LatLng(p.center.lat, p.center.lng);
 
       var map = new kakao.maps.Map(container, {
-        center:center,
-        level:p.options.level
+        center: center,
+        level: p.options.level
+      });
+
+      // 지도 타입
+      if (p.options.mapType === 'hybrid' || p.options.mapType === 'skyview') {
+        map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+      } else {
+        map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
+      }
+
+      // 컨트롤들
+      if (p.options.showZoomControl) {
+        var zoomControl = new kakao.maps.ZoomControl();
+        map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
+      }
+      if (p.options.showMapTypeControl) {
+        var mtc = new kakao.maps.MapTypeControl();
+        map.addControl(mtc, kakao.maps.ControlPosition.TOPRIGHT);
+      }
+
+      // 맵 클릭 이벤트
+      kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
+        var latlng = mouseEvent.latLng;
+        _post({
+          type: 'map',
+          payload: {
+            lat: latlng.getLat(),
+            lng: latlng.getLng()
+          }
+        });
       });
 
       window.kakaoMap = _wrap(map, p);
@@ -209,36 +261,115 @@ class KakaoMapHtmlBuilder {
     });
   };
 
-  function _wrap(map, p) {
-    var markers=[];
-    var polylines=[];
+  function _resolveMarkerImage(mImage) {
+    if (!mImage) return null;
 
-    function syncMarkers(list){
-      markers.forEach(m=>m.setMap(null));
-      markers=[];
-      list.forEach(m=>{
-        var pos = new kakao.maps.LatLng(m.lat,m.lng);
-        var mk = new kakao.maps.Marker({position:pos,title:m.title||''});
-        mk.setMap(map);
-        kakao.maps.event.addListener(mk,'click',function(){
-          _post({type:'marker',payload:{id:m.id,lat:m.lat,lng:m.lng}});
-        });
-        markers.push(mk);
-      });
+    var src = null;
+
+    if (mImage.url) {
+      src = mImage.url;
+    } else if (mImage.assetPath) {
+      // Flutter WebView 에서 asset 접근용 기본 스킴
+      src = 'https://appassets.androidplatform.net/' + mImage.assetPath;
+    } else if (mImage.asset) {
+      src = 'https://appassets.androidplatform.net/' + mImage.asset;
     }
 
-    function syncPolylines(list){
-      polylines.forEach(pl=>pl.setMap(null));
-      polylines=[];
-      list.forEach(l=>{
-        var path = l.points.map(pt=>new kakao.maps.LatLng(pt.lat,pt.lng));
-        var pl = new kakao.maps.Polyline({
-          path:path,
-          strokeWeight:l.strokeWeight,
-          strokeColor:l.strokeColor || '#3399ff',
-          strokeOpacity:l.strokeOpacity,
-          strokeStyle:'solid'
+    if (!src) return null;
+
+    var width = mImage.sizeWidth || mImage.width || 32;
+    var height = mImage.sizeHeight || mImage.height || 32;
+
+    var size = new kakao.maps.Size(width, height);
+
+    var offsetX = (typeof mImage.offsetX === 'number')
+      ? mImage.offsetX
+      : width / 2;
+    var offsetY = (typeof mImage.offsetY === 'number')
+      ? mImage.offsetY
+      : height;
+
+    var offset = new kakao.maps.Point(offsetX, offsetY);
+
+    return new kakao.maps.MarkerImage(src, size, { offset: offset });
+  }
+
+  function _wrap(map, p) {
+    var markers = [];
+    var polylines = [];
+    var clusterer = null;
+
+    if (p.clustering) {
+      try {
+        clusterer = new kakao.maps.MarkerClusterer({
+          map: map,
+          averageCenter: true,
+          minLevel: 7
         });
+      } catch (e) {
+        console.log('[KakaoMap] clusterer init fail', e);
+      }
+    }
+
+    function syncMarkers(list) {
+      markers.forEach(function(m) { m.setMap(null); });
+      markers = [];
+
+      list.forEach(function(m) {
+        var pos = new kakao.maps.LatLng(m.lat, m.lng);
+        var image = _resolveMarkerImage(m.image);
+
+        var mk = new kakao.maps.Marker({
+          position: pos,
+          title: m.title || '',
+          image: image || undefined
+        });
+
+        mk.setMap(map);
+
+        kakao.maps.event.addListener(mk, 'click', function() {
+          _post({
+            type: 'marker',
+            payload: {
+              id: m.id,
+              lat: m.lat,
+              lng: m.lng
+            }
+          });
+        });
+
+        markers.push(mk);
+      });
+
+      if (clusterer) {
+        try {
+          clusterer.clear();
+          clusterer.addMarkers(markers);
+        } catch (e) {
+          console.log('[KakaoMap] clusterer update fail', e);
+        }
+      }
+    }
+
+    function syncPolylines(list) {
+      polylines.forEach(function(pl) { pl.setMap(null); });
+      polylines = [];
+
+      list.forEach(function(l) {
+        var path = (l.points || []).map(function(pt) {
+          return new kakao.maps.LatLng(pt.lat, pt.lng);
+        });
+
+        if (!path.length) return;
+
+        var pl = new kakao.maps.Polyline({
+          path: path,
+          strokeWeight: l.strokeWeight || 3,
+          strokeColor: l.strokeColor || '#3399ff',
+          strokeOpacity: (typeof l.strokeOpacity === 'number') ? l.strokeOpacity : 1.0,
+          strokeStyle: 'solid'
+        });
+
         pl.setMap(map);
         polylines.push(pl);
       });
@@ -250,24 +381,52 @@ class KakaoMapHtmlBuilder {
     return {
       setMarkers: syncMarkers,
       setPolylines: syncPolylines,
-      clearMarkers: ()=>syncMarkers([]),
-      clearPolylines: ()=>syncPolylines([]),
-      moveTo: (lat,lng,lvl)=>{
-        map.setCenter(new kakao.maps.LatLng(lat,lng));
-        if (lvl!=null) map.setLevel(lvl);
+      clearMarkers: function() { syncMarkers([]); },
+      clearPolylines: function() { syncPolylines([]); },
+
+      moveTo: function(lat, lng, lvl) {
+        map.setCenter(new kakao.maps.LatLng(lat, lng));
+        if (lvl != null) map.setLevel(lvl);
       },
-      animateTo:(lat,lng,lvl)=>{
-        if (lvl!=null) map.setLevel(lvl);
-        map.panTo(new kakao.maps.LatLng(lat,lng));
+
+      animateTo: function(lat, lng, lvl) {
+        if (lvl != null) map.setLevel(lvl);
+        map.panTo(new kakao.maps.LatLng(lat, lng));
       },
-      setMapType:(t)=>{
-        map.setMapTypeId(t==='hybrid'||t==='skyview'
-          ? kakao.maps.MapTypeId.HYBRID
-          : kakao.maps.MapTypeId.ROADMAP
-        );
-        _post({type:'map_type',payload:{value:t}});
+
+      zoomIn: function() {
+        var level = map.getLevel();
+        map.setLevel(level + 1);
       },
-      reloadMap:()=>{
+
+      zoomOut: function() {
+        var level = map.getLevel();
+        if (level > 1) {
+          map.setLevel(level - 1);
+        }
+      },
+
+      setMapType: function(t) {
+        var id;
+        if (t === 'hybrid' || t === 'skyview') {
+          id = kakao.maps.MapTypeId.HYBRID;
+        } else {
+          id = kakao.maps.MapTypeId.ROADMAP;
+        }
+        map.setMapTypeId(id);
+        _post({ type:'map_type', payload:{ value: t }});
+      },
+
+      fitBounds: function(list) {
+        if (!list || !list.length) return;
+        var bounds = new kakao.maps.LatLngBounds();
+        list.forEach(function(m) {
+          bounds.extend(new kakao.maps.LatLng(m.lat, m.lng));
+        });
+        map.setBounds(bounds);
+      },
+
+      reloadMap: function() {
         syncMarkers(p.markers);
         syncPolylines(p.polylines);
       }
