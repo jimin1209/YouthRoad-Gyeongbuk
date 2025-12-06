@@ -1,24 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.youthroad.app">
 
+    <!-- Required Internet Access -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- url_launcher + 기타 인텐트 사용을 위한 queries -->
+    <!-- WebView SDK script 로딩을 위해 필요 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- For url_launcher and browser intents -->
     <queries>
-        <!-- 기존 PROCESS_TEXT 쿼리 유지 -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
 
-        <!-- http 링크용 브라우저 조회 -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="http" />
         </intent>
 
-        <!-- https 링크용 브라우저 조회 -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.BROWSABLE" />
@@ -32,9 +35,10 @@
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
         android:hardwareAccelerated="true"
-        android:largeHeap="true">
+        android:largeHeap="true"
+        android:networkSecurityConfig="@xml/network_security_config">
 
-        <!-- ⭐⭐⭐ Kakao Map Android Native AppKey 등록 (필수) ⭐⭐⭐ -->
+        <!-- Kakao Native AppKey -->
         <meta-data
             android:name="com.kakao.sdk.AppKey"
             android:value="@string/kakao_native_app_key" />
@@ -54,13 +58,13 @@
                 android:resource="@style/NormalTheme" />
 
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
         </activity>
 
-        <!-- flutter embedding version lock -->
+        <!-- Required Flutter metadata -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

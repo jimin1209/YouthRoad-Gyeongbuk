@@ -1,6 +1,7 @@
 import 'dart:async';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -32,6 +33,7 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
   final bool enableClustering;
   final KakaoMapOptions options;
   final String? additionalScripts;
+
   final void Function(String markerId)? onMarkerTap;
   final void Function(KakaoMapLatLng position)? onMapTap;
   final VoidCallback? onReady;
@@ -46,62 +48,68 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
 
 class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
   late final KakaoMapController _controller;
+
   StreamSubscription<KakaoMapEvent>? _eventSub;
+  Timer? _readyTimeout;
+
   bool _loading = true;
   bool _fatalError = false;
   int _errorCount = 0;
-  ProviderSubscription<KakaoMapController>? _controllerSubscription;
-  KakaoMapOptions? _lastOptions;
-  bool? _lastClustering;
-  Timer? _readyTimeout;
-  static const _readyTimeoutDuration = Duration(seconds: 20);
+
   final List<KakaoMapEvent> _logs = [];
-  bool _showDebug = false;
+
+  static const _readyTimeoutDuration = Duration(seconds: 20);
+
+  bool get _isSafeToUpdateUI =>
+      SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle;
 
   @override
   void initState() {
     super.initState();
+
     _controller = ref.read(kakaoMapControllerProvider);
-    _controllerSubscription = ref.listenManual<KakaoMapController>(
-      kakaoMapControllerProvider,
-      (_, __) {},
-    );
     _eventSub = _controller.events.listen(_handleEvent);
+
+    _safeLog("WebView init()");
     _loadMap();
   }
 
   @override
   void didUpdateWidget(covariant KakaoMapWebView oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (widget.center != oldWidget.center) {
       _controller.animateTo(widget.center);
     }
-    if (!_markersEqual(widget.markers, oldWidget.markers)) {
+
+    if (!_listEquals(widget.markers, oldWidget.markers)) {
       _controller.setMarkers(widget.markers);
     }
-    if (!_polylinesEqual(widget.polylines, oldWidget.polylines)) {
+
+    if (!_listEquals(widget.polylines, oldWidget.polylines)) {
       _controller.setPolylines(widget.polylines);
-    }
-    if (widget.enableClustering != _lastClustering || widget.options != _lastOptions) {
-      _loadMap();
     }
   }
 
   @override
   void dispose() {
     _eventSub?.cancel();
-    _controllerSubscription?.close();
     _readyTimeout?.cancel();
     super.dispose();
   }
 
+  // ==========================================================================
+  // LOAD MAP
+  // ==========================================================================
   void _loadMap() {
-    _lastOptions = widget.options;
-    _lastClustering = widget.enableClustering;
     _fatalError = false;
     _errorCount = 0;
-    _notifyLoading(true);
+    _safeSetLoading(true);
+
     _scheduleReadyTimeout();
+
+    _safeLog("지도 로딩 시작");
+
     _controller.load(
       center: widget.center,
       markers: widget.markers,
@@ -112,131 +120,161 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     );
   }
 
+  // ==========================================================================
+  // EVENT HANDLING
+  // ==========================================================================
   void _handleEvent(KakaoMapEvent event) {
+    _pushLog(event);
+
     switch (event.type) {
       case KakaoMapEventType.ready:
-        _errorCount = 0;
-        _fatalError = false;
+        _safeLog("MAP_READY");
+
         _readyTimeout?.cancel();
-        _notifyLoading(false);
-        widget.onReady?.call();
-        _recordLog(
-          KakaoMapEvent(
-            KakaoMapEventType.log,
-            KakaoMapMessage(
-              type: 'log',
-              payload: {'message': 'map-ready'},
-              logLevel: 'info',
-              timestamp: DateTime.now(),
-              origin: 'kakao-map-webview',
-            ),
-          ),
-        );
+        _safeSetLoading(false);
+
+        _safeCallback(() => widget.onReady?.call());
         break;
-      case KakaoMapEventType.loading:
-        _notifyLoading(event.loadingValue);
-        break;
+
       case KakaoMapEventType.markerTap:
-        final markerId = event.markerId;
-        if (markerId != null) {
-          widget.onMarkerTap?.call(markerId);
-        }
+        _safeCallback(() => widget.onMarkerTap?.call(event.markerId!));
         break;
+
       case KakaoMapEventType.mapTap:
       case KakaoMapEventType.clusterTap:
-        final position = event.position;
-        if (position != null) {
-          widget.onMapTap?.call(position);
-        }
+        _safeCallback(() => widget.onMapTap?.call(event.position!));
         break;
+
       case KakaoMapEventType.error:
-        _notifyLoading(false);
-        _errorCount += 1;
-        if (_errorCount > _controller.maxAutoReloads) {
-          setState(() {
-            _fatalError = true;
-          });
+        _errorCount++;
+        _safeSetLoading(false);
+
+        final code = event.errorCode ?? "unknown";
+        _safeLog("ERROR 발생 code=$code");
+
+        _safeCallback(() => widget.onError?.call(code));
+
+        if (_errorCount >= _controller.maxAutoReloads) {
+          _safeMarkFatalError();
+          return;
         }
-        final code = event.errorCode ?? 'unknown';
-        _recordLog(_logFromError(event, code));
-        widget.onError?.call(code);
+
+        _controller.reloadMap();
         break;
-      case KakaoMapEventType.log:
-        _recordLog(event);
-        break;
-      case KakaoMapEventType.mapType:
-      case KakaoMapEventType.heartbeat:
-      case KakaoMapEventType.unknown:
+
+      default:
         break;
     }
   }
 
-  void _notifyLoading(bool value) {
-    if (_loading == value) return;
-    setState(() {
-      _loading = value;
-    });
-    widget.onLoadingChanged?.call(value);
-  }
-
-  KakaoMapEvent _logFromError(KakaoMapEvent event, String code) {
-    final detail = event.message.payload['message'] ?? event.message.payload['detail'];
-    final message = '[error:$code] ${detail ?? 'kakao-map error'} (reloads:${_controller.reloadAttempts})';
-    final logMessage = KakaoMapMessage(
-      type: 'log',
-      payload: {'message': message},
-      logLevel: 'error',
-      timestamp: DateTime.now(),
-      origin: 'kakao-map-webview',
-      raw: event.message.raw,
-    );
-    return KakaoMapEvent(KakaoMapEventType.log, logMessage);
-  }
-
-  void _recordLog(KakaoMapEvent event) {
-    _logs.add(event);
-    if (_logs.length > 80) {
-      _logs.removeAt(0);
-    }
-    widget.onLog?.call(event);
-    if (widget.showDebugPanel && mounted) {
-      setState(() {});
-    }
-  }
-
+  // ==========================================================================
+  // TIMEOUT
+  // ==========================================================================
   void _scheduleReadyTimeout() {
     _readyTimeout?.cancel();
+
     _readyTimeout = Timer(_readyTimeoutDuration, () {
-      if (mounted && !_controller.isReady) {
-        setState(() {
-          _fatalError = true;
-          _loading = false;
-        });
-        widget.onError?.call('READY_TIMEOUT');
+      if (!_controller.isReady && mounted) {
+        _safeMarkFatalError();
+        _safeCallback(() => widget.onError?.call("READY_TIMEOUT"));
+        _safeLog("READY_TIMEOUT");
+        _safeSetLoading(false);
       }
     });
   }
 
-  bool _markersEqual(List<KakaoMapMarker> a, List<KakaoMapMarker> b) {
-    if (identical(a, b)) return true;
+  // ==========================================================================
+  // SAFE UI OPERATIONS
+  // ==========================================================================
+  void _safeMarkFatalError() {
+    _safeSetState(() => _fatalError = true);
+  }
+
+  void _safeSetLoading(bool value) {
+    if (_loading == value) return;
+    _safeSetState(() => _loading = value);
+    _safeCallback(() => widget.onLoadingChanged?.call(value));
+  }
+
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+
+    if (_isSafeToUpdateUI) {
+      setState(fn);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(fn);
+      });
+    }
+  }
+
+  void _safeCallback(VoidCallback fn) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) fn();
+    });
+  }
+
+  // ==========================================================================
+  // LOGGING
+  // ==========================================================================
+  void _pushLog(KakaoMapEvent event) {
+    _logs.add(event);
+    if (_logs.length > 100) _logs.removeAt(0);
+
+    // 🔵 콘솔에도 찍기
+    if (kDebugMode) {
+      debugPrint(
+        '[KAKAO_MAP_WEBVIEW][${event.type}] ${event.message.payload}',
+      );
+    }
+
+    _safeCallback(() => widget.onLog?.call(event));
+  }
+
+  void _safeLog(String msg) {
+    final evt = KakaoMapEvent(
+      KakaoMapEventType.log,
+      KakaoMapMessage(
+        type: "info",
+        payload: {"message": msg},
+      ),
+    );
+    _pushLog(evt);
+  }
+
+  // ==========================================================================
+  // UTILS
+  // ==========================================================================
+  bool _listEquals(List a, List b) {
     if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
+    for (int i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
     }
     return true;
   }
 
-  bool _polylinesEqual(List<KakaoMapPolyline> a, List<KakaoMapPolyline> b) {
-    if (identical(a, b)) return true;
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
+  // ==========================================================================
+  // BUILD UI
+  // ==========================================================================
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        WebViewWidget(controller: _controller.webViewController),
+        if (_loading)
+          Container(
+            color: Colors.black12,
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+        if (_fatalError) _buildFatalErrorUI(),
+      ],
+    );
   }
 
-  Widget _buildFatalOverlay() {
-    final lastLog = _logs.isNotEmpty ? _logs.last.logMessage : null;
+  Widget _buildFatalErrorUI() {
+    final last = _logs.isNotEmpty ? _logs.last : null;
+
     return Positioned.fill(
       child: Container(
         color: Colors.black54,
@@ -244,152 +282,25 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  '지도를 불러오지 못했습니다. 다시 시도해주세요.',
-                  style: TextStyle(color: Colors.white),
-                  textAlign: TextAlign.center,
-                ),
+              const Text(
+                "지도를 불러오지 못했습니다.",
+                style: TextStyle(color: Colors.white),
               ),
-              if (lastLog != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  child: Text(
-                    lastLog,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    textAlign: TextAlign.center,
-                  ),
+              const SizedBox(height: 6),
+              if (last != null)
+                Text(
+                  last.message.payload["message"]?.toString() ?? "",
+                  style: const TextStyle(color: Colors.white60),
                 ),
+              const SizedBox(height: 12),
               ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _fatalError = false;
-                    _loading = true;
-                    _logs.clear();
-                  });
-                  _controller.reloadMap();
-                  _scheduleReadyTimeout();
-                },
-                child: const Text('다시 시도'),
+                onPressed: _loadMap,
+                child: const Text("다시 시도"),
               )
             ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildLoading() {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
-  }
-
-  Widget _buildDebugPanel() {
-    if (!widget.showDebugPanel || !_showDebug) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    return Positioned(
-      right: 12,
-      top: 12,
-      child: Container(
-        width: 260,
-        constraints: const BoxConstraints(maxHeight: 260),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface.withOpacity(0.92),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text(
-                  'Map Debug',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _showDebug = false;
-                    });
-                  },
-                  icon: const Icon(Icons.close, size: 18),
-                  visualDensity: VisualDensity.compact,
-                )
-              ],
-            ),
-            const Divider(height: 8),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _logs.reversed
-                      .map(
-                        (e) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Text(
-                            '[${e.logLevel ?? e.type.name}] ${e.logMessage ?? e.message.type}',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        WebViewWidget(controller: _controller.webViewController),
-        if (_loading) _buildLoading(),
-        if (_fatalError) _buildFatalOverlay(),
-        Positioned(
-          bottom: 12,
-          right: 12,
-          child: Row(
-            children: [
-              if (widget.showDebugPanel)
-                IconButton(
-                  onPressed: () => setState(() => _showDebug = !_showDebug),
-                  icon: Icon(
-                    _showDebug ? Icons.bug_report : Icons.bug_report_outlined,
-                    color: Colors.white,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black54,
-                    padding: const EdgeInsets.all(8),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              IconButton(
-                onPressed: () {
-                  _controller.reloadMap();
-                  _scheduleReadyTimeout();
-                  _notifyLoading(true);
-                },
-                icon: const Icon(Icons.refresh, color: Colors.white),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.black54,
-                  padding: const EdgeInsets.all(8),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ],
-          ),
-        ),
-        _buildDebugPanel(),
-      ],
     );
   }
 }

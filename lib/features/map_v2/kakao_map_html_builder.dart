@@ -1,7 +1,15 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
-String _escape(String value) => const HtmlEscape().convert(value);
+/// 지도 타입
+enum KakaoMapType {
+  roadmap,
+  hybrid,
+  skyview,
+}
 
+/// LatLng
 class KakaoMapLatLng {
   const KakaoMapLatLng(this.lat, this.lng);
 
@@ -12,142 +20,117 @@ class KakaoMapLatLng {
         'lat': lat,
         'lng': lng,
       };
-
-  @override
-  bool operator ==(Object other) {
-    return other is KakaoMapLatLng && other.lat == lat && other.lng == lng;
-  }
-
-  @override
-  int get hashCode => Object.hash(lat, lng);
 }
 
+/// 마커 이미지
 class KakaoMapMarkerImage {
   const KakaoMapMarkerImage({
-    required this.url,
-    required this.width,
-    required this.height,
+    this.asset,
+    this.assetPath,
+    this.url,
+    this.width,
+    this.height,
+    this.size,
+    this.offset,
   });
 
-  final String url;
-  final int width;
-  final int height;
+  /// Flutter asset 경로
+  final String? asset;
+
+  /// 직접 넘긴 assetPath
+  final String? assetPath;
+
+  /// 원격 URL — ***새로 추가***
+  final String? url;
+
+  final double? width;
+  final double? height;
+
+  final Size? size;
+  final Offset? offset;
 
   Map<String, dynamic> toJson() => {
-        'url': url,
-        'width': width,
-        'height': height,
+        if (asset != null) 'asset': asset,
+        if (assetPath != null) 'assetPath': assetPath,
+        if (url != null) 'url': url,
+        if (width != null) 'width': width,
+        if (height != null) 'height': height,
+        if (size != null) ...{
+          'sizeWidth': size!.width,
+          'sizeHeight': size!.height,
+        },
+        if (offset != null) ...{
+          'offsetX': offset!.dx,
+          'offsetY': offset!.dy,
+        },
       };
-
-  @override
-  bool operator ==(Object other) {
-    return other is KakaoMapMarkerImage &&
-        other.url == url &&
-        other.width == width &&
-        other.height == height;
-  }
-
-  @override
-  int get hashCode => Object.hash(url, width, height);
 }
 
+/// 마커
 class KakaoMapMarker {
   const KakaoMapMarker({
     required this.id,
-    required this.title,
     required this.position,
+    this.title,
+    this.snippet,
+    this.regionName,
     this.image,
+    this.extra,
   });
 
   final String id;
-  final String title;
   final KakaoMapLatLng position;
+  final String? title;
+  final String? snippet;
+  final String? regionName;
   final KakaoMapMarkerImage? image;
+  final Map<String, dynamic>? extra;
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'title': _escape(title),
-        ...position.toJson(),
+        'lat': position.lat,
+        'lng': position.lng,
+        if (title != null) 'title': title,
+        if (snippet != null) 'snippet': snippet,
+        if (regionName != null) 'regionName': regionName,
         if (image != null) 'image': image!.toJson(),
+        if (extra != null) 'extra': extra,
       };
-
-  KakaoMapMarker copyWith({
-    String? id,
-    String? title,
-    KakaoMapLatLng? position,
-    KakaoMapMarkerImage? image,
-  }) {
-    return KakaoMapMarker(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      position: position ?? this.position,
-      image: image ?? this.image,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return other is KakaoMapMarker &&
-        other.id == id &&
-        other.title == title &&
-        other.position == position &&
-        other.image == image;
-  }
-
-  @override
-  int get hashCode => Object.hash(id, title, position, image);
 }
 
+/// 폴리라인
 class KakaoMapPolyline {
   const KakaoMapPolyline({
     required this.id,
-    required this.path,
-    this.strokeColor = '#2E8B57',
-    this.strokeWeight = 4,
-    this.strokeOpacity = 0.9,
-  });
+    List<KakaoMapLatLng>? points,
+    List<KakaoMapLatLng>? path,
+    this.strokeColor,
+    this.strokeWeight = 3,
+    this.strokeOpacity = 1.0, // ← ★ 추가됨
+  }) : points = points ?? path ?? const [];
 
   final String id;
-  final List<KakaoMapLatLng> path;
-  final String strokeColor;
+  final List<KakaoMapLatLng> points;
+  final String? strokeColor;
   final int strokeWeight;
-  final double strokeOpacity;
+  final double strokeOpacity; // ← ★ 새 필드
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'path': path.map((point) => point.toJson()).toList(),
-        'strokeColor': strokeColor,
+        'points': points.map((e) => e.toJson()).toList(),
         'strokeWeight': strokeWeight,
+        'strokeColor': strokeColor ?? '#3399ff',
         'strokeOpacity': strokeOpacity,
       };
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    if (other is! KakaoMapPolyline || other.id != id) return false;
-    if (other.strokeColor != strokeColor ||
-        other.strokeWeight != strokeWeight ||
-        other.strokeOpacity != strokeOpacity) return false;
-    if (path.length != other.path.length) return false;
-    for (var i = 0; i < path.length; i++) {
-      if (path[i] != other.path[i]) return false;
-    }
-    return true;
-  }
-
-  @override
-  int get hashCode =>
-      Object.hash(id, strokeColor, strokeWeight, strokeOpacity, Object.hashAll(path));
 }
 
-enum KakaoMapType { roadmap, skyview, hybrid, terrain }
-
+/// 지도 옵션
 class KakaoMapOptions {
   const KakaoMapOptions({
     this.level = 6,
     this.mapType = KakaoMapType.roadmap,
-    this.showZoomControl = false,
-    this.showMapTypeControl = false,
+    this.showZoomControl = true,
+    this.showMapTypeControl = true,
   });
 
   final int level;
@@ -161,20 +144,9 @@ class KakaoMapOptions {
         'showZoomControl': showZoomControl,
         'showMapTypeControl': showMapTypeControl,
       };
-
-  @override
-  bool operator ==(Object other) {
-    return other is KakaoMapOptions &&
-        other.level == level &&
-        other.mapType == mapType &&
-        other.showZoomControl == showZoomControl &&
-        other.showMapTypeControl == showMapTypeControl;
-  }
-
-  @override
-  int get hashCode => Object.hash(level, mapType, showZoomControl, showMapTypeControl);
 }
 
+/// HTML Builder
 class KakaoMapHtmlBuilder {
   const KakaoMapHtmlBuilder();
 
@@ -182,437 +154,133 @@ class KakaoMapHtmlBuilder {
     required String apiKey,
     required KakaoMapLatLng center,
     required List<KakaoMapMarker> markers,
-    List<KakaoMapPolyline> polylines = const [],
+    List<KakaoMapPolyline> polylines = const [], // ← ★ 기본값 추가
     KakaoMapOptions options = const KakaoMapOptions(),
-    String bridgeName = 'KakaoBridge',
+    required String bridgeName,
     bool enableClustering = false,
     String? additionalScripts,
   }) {
-    if (apiKey.isEmpty) {
-      return _missingApiKeyPage();
-    }
+    final payload = {
+      'center': center.toJson(),
+      'markers': markers.map((e) => e.toJson()).toList(),
+      'polylines': polylines.map((e) => e.toJson()).toList(),
+      'options': options.toJson(),
+      'clustering': enableClustering,
+    };
 
-    final markerJson = jsonEncode(markers.map((m) => m.toJson()).toList());
-    final polylineJson = jsonEncode(polylines.map((p) => p.toJson()).toList());
-    final optionsJson = jsonEncode(options.toJson());
-    final clusteringLibrary = enableClustering ? ',clusterer' : '';
+    final initJson = jsonEncode(payload);
 
     return '''
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' https://*.kakao.com https://dapi.kakao.com; script-src 'self' https://dapi.kakao.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src * data:; connect-src *;" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; }
+  #map { width:100%; height:100%; }
+</style>
+
+<script>
+  function _post(msg) {
+    try { $bridgeName.postMessage(JSON.stringify(msg)); }
+    catch(e) { console.log('bridge error', e); }
+  }
+
+  window.kakaoBootstrap = function() {
+    if (!window.kakao || !window.kakao.maps) {
+      _post({type:'error',payload:{code:'sdkFail'}});
+      return;
+    }
+
+    kakao.maps.load(function(){
+      var p = $initJson;
+
+      var container = document.getElementById('map');
+      var center = new kakao.maps.LatLng(p.center.lat, p.center.lng);
+
+      var map = new kakao.maps.Map(container, {
+        center:center,
+        level:p.options.level
+      });
+
+      window.kakaoMap = _wrap(map, p);
+      _post({type:'ready',payload:{}});
+    });
+  };
+
+  function _wrap(map, p) {
+    var markers=[];
+    var polylines=[];
+
+    function syncMarkers(list){
+      markers.forEach(m=>m.setMap(null));
+      markers=[];
+      list.forEach(m=>{
+        var pos = new kakao.maps.LatLng(m.lat,m.lng);
+        var mk = new kakao.maps.Marker({position:pos,title:m.title||''});
+        mk.setMap(map);
+        kakao.maps.event.addListener(mk,'click',function(){
+          _post({type:'marker',payload:{id:m.id,lat:m.lat,lng:m.lng}});
+        });
+        markers.push(mk);
+      });
+    }
+
+    function syncPolylines(list){
+      polylines.forEach(pl=>pl.setMap(null));
+      polylines=[];
+      list.forEach(l=>{
+        var path = l.points.map(pt=>new kakao.maps.LatLng(pt.lat,pt.lng));
+        var pl = new kakao.maps.Polyline({
+          path:path,
+          strokeWeight:l.strokeWeight,
+          strokeColor:l.strokeColor || '#3399ff',
+          strokeOpacity:l.strokeOpacity,
+          strokeStyle:'solid'
+        });
+        pl.setMap(map);
+        polylines.push(pl);
+      });
+    }
+
+    syncMarkers(p.markers);
+    syncPolylines(p.polylines);
+
+    return {
+      setMarkers: syncMarkers,
+      setPolylines: syncPolylines,
+      clearMarkers: ()=>syncMarkers([]),
+      clearPolylines: ()=>syncPolylines([]),
+      moveTo: (lat,lng,lvl)=>{
+        map.setCenter(new kakao.maps.LatLng(lat,lng));
+        if (lvl!=null) map.setLevel(lvl);
+      },
+      animateTo:(lat,lng,lvl)=>{
+        if (lvl!=null) map.setLevel(lvl);
+        map.panTo(new kakao.maps.LatLng(lat,lng));
+      },
+      setMapType:(t)=>{
+        map.setMapTypeId(t==='hybrid'||t==='skyview'
+          ? kakao.maps.MapTypeId.HYBRID
+          : kakao.maps.MapTypeId.ROADMAP
+        );
+        _post({type:'map_type',payload:{value:t}});
+      },
+      reloadMap:()=>{
+        syncMarkers(p.markers);
+        syncPolylines(p.polylines);
+      }
+    };
+  }
+</script>
+
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=$apiKey&autoload=false&libraries=services,clusterer"></script>
+
 </head>
 <body>
   <div id="map"></div>
-  <script>
-    (() => {
-      const ORIGIN = 'kakao-map-webview';
-      const SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=$apiKey&libraries=services$clusteringLibrary';
-      const state = {
-        ready: false,
-        loading: false,
-        loadTimer: null,
-        loadAttempts: 0,
-        sdkPollCount: 0,
-        maxPolls: 80,
-        maxReloads: 3,
-        map: null,
-        clusterer: null,
-        markers: [],
-        polylines: [],
-        markerData: $markerJson,
-        polylineData: $polylineJson,
-        options: $optionsJson,
-        enableClustering: ${enableClustering ? 'true' : 'false'},
-        sdkLoaded: false,
-        sdkLoading: false,
-        scriptInjected: false,
-      };
-
-      const bridge = window.$bridgeName;
-
-      function envelope(type, payload, level) {
-        return {
-          type: type,
-          payload: payload || {},
-          timestamp: Date.now(),
-          origin: ORIGIN,
-          logLevel: level || 'info',
-        };
-      }
-
-      function notifyFlutter(type, payload, level) {
-        if (!bridge) return;
-        try {
-          bridge.postMessage(JSON.stringify(envelope(type, payload, level)));
-        } catch (e) {
-          console.warn('[KakaoMap] Failed to post message', e);
-        }
-      }
-
-      function log(level, ...args) {
-        const message = args.map(String).join(' ');
-        notifyFlutter('log', { message }, level);
-      }
-
-      log('info', 'html-loaded');
-
-      function installConsoleProxy() {
-        const originalLog = console.log;
-        const originalWarn = console.warn;
-        const originalError = console.error;
-        console.log = function(...args) {
-          log('info', ...args);
-          originalLog.apply(console, args);
-        };
-        console.warn = function(...args) {
-          log('warn', ...args);
-          originalWarn.apply(console, args);
-        };
-        console.error = function(...args) {
-          log('error', ...args);
-          originalError.apply(console, args);
-        };
-      }
-
-      function handleGlobalErrors() {
-        window.addEventListener('error', function(event) {
-          notifyFlutter('error', {
-            code: 'jsException',
-            message: event.message,
-            source: event.filename,
-            line: event.lineno,
-            column: event.colno,
-          }, 'error');
-        });
-        window.addEventListener('unhandledrejection', function(event) {
-          notifyFlutter('error', {
-            code: 'jsException',
-            message: event.reason ? String(event.reason) : 'Unhandled rejection',
-          }, 'error');
-        });
-      }
-
-      function sendLoading(value) {
-        state.loading = value;
-        notifyFlutter('loading', { value });
-      }
-
-      function loadSdkScript(forceReload) {
-        const existing = document.querySelector('script[data-kakao-sdk="true"]');
-        if (forceReload && existing) {
-          existing.remove();
-          state.scriptInjected = false;
-        }
-
-        if (!state.scriptInjected) {
-          const script = document.createElement('script');
-          script.src = SDK_URL;
-          script.async = true;
-          script.defer = true;
-          script.dataset.kakaoSdk = 'true';
-          script.onload = function() {
-            state.sdkLoaded = true;
-            state.sdkLoading = false;
-            notifyFlutter('bootstrap', { status: 'sdkLoaded', attempt: state.loadAttempts });
-            log('info', 'sdkLoaded');
-            pollSdkLoaded(forceReload);
-          };
-          script.onerror = function(event) {
-            state.sdkLoading = false;
-            log('error', 'sdkFail');
-            notifyFlutter('error', {
-              code: 'sdkFail',
-              message: 'Failed to load Kakao SDK',
-              detail: event && event.message ? String(event.message) : 'script load error',
-              url: SDK_URL,
-              attempt: state.loadAttempts,
-            }, 'error');
-            notifyFlutter('bootstrap', { status: 'sdkFail', attempt: state.loadAttempts }, 'error');
-          };
-          document.head.appendChild(script);
-          state.scriptInjected = true;
-          state.sdkLoading = true;
-          log('info', 'sdk-script-load-start');
-        } else {
-          state.sdkLoading = false;
-          state.sdkLoaded = !!(window.kakao && window.kakao.maps);
-          log('info', 'sdk-script-cache');
-        }
-      }
-
-      function markerImage(options) {
-        if (!options || !options.url) return null;
-        const size = new kakao.maps.Size(options.width || 32, options.height || 32);
-        return new kakao.maps.MarkerImage(options.url, size);
-      }
-
-      function clearMarkers() {
-        state.markers.forEach(marker => marker.setMap(null));
-        state.markers = [];
-        if (state.clusterer) { state.clusterer.clear(); }
-      }
-
-      function clearPolylines() {
-        state.polylines.forEach(polyline => polyline.setMap(null));
-        state.polylines = [];
-      }
-
-      function createMarker(m) {
-        const position = new kakao.maps.LatLng(m.lat, m.lng);
-        const markerOptions = { position };
-        const image = markerImage(m.image);
-        if (image) { markerOptions.image = image; }
-        const marker = new kakao.maps.Marker(markerOptions);
-        const infoWindow = new kakao.maps.InfoWindow({
-          content: '<div style="padding:8px;font-size:13px;">' + m.title + '</div>'
-        });
-        kakao.maps.event.addListener(marker, 'click', function() {
-          infoWindow.open(state.map, marker);
-          notifyFlutter('marker', { id: m.id });
-        });
-        return marker;
-      }
-
-      function renderMarkers(targetMap) {
-        if (!Array.isArray(state.markerData)) return;
-        clearMarkers();
-        state.markerData.forEach(function(m) {
-          const marker = createMarker(m);
-          state.markers.push(marker);
-        });
-        if (state.clusterer) {
-          state.clusterer.addMarkers(state.markers);
-        } else {
-          state.markers.forEach(marker => marker.setMap(targetMap));
-        }
-      }
-
-      function renderPolylines(targetMap) {
-        if (!Array.isArray(state.polylineData)) return;
-        clearPolylines();
-        state.polylineData.forEach(function(p) {
-          const path = (p.path || []).map(function(point) {
-            return new kakao.maps.LatLng(point.lat, point.lng);
-          });
-          const polyline = new kakao.maps.Polyline({
-            path: path,
-            strokeWeight: p.strokeWeight || 4,
-            strokeColor: p.strokeColor || '#2E8B57',
-            strokeOpacity: p.strokeOpacity || 0.9,
-            strokeStyle: 'solid'
-          });
-          polyline.setMap(targetMap);
-          state.polylines.push(polyline);
-        });
-      }
-
-      function setMarkers(data) {
-        if (Array.isArray(data)) {
-          state.markerData = data;
-        }
-        if (!state.map) return;
-        renderMarkers(state.map);
-      }
-
-      function setPolylines(data) {
-        if (Array.isArray(data)) {
-          state.polylineData = data;
-        }
-        if (!state.map) return;
-        renderPolylines(state.map);
-      }
-
-      function moveTo(lat, lng, level) {
-        if (!state.map) return;
-        const latlng = new kakao.maps.LatLng(lat, lng);
-        state.map.setCenter(latlng);
-        if (typeof level === 'number') { state.map.setLevel(level); }
-      }
-
-      function animateTo(lat, lng, level) {
-        if (!state.map) return;
-        const latlng = new kakao.maps.LatLng(lat, lng);
-        state.map.panTo(latlng);
-        if (typeof level === 'number') { state.map.setLevel(level); }
-      }
-
-      function zoomIn() {
-        if (!state.map) return;
-        state.map.setLevel(state.map.getLevel() - 1);
-      }
-
-      function zoomOut() {
-        if (!state.map) return;
-        state.map.setLevel(state.map.getLevel() + 1);
-      }
-
-      function fitBounds(data) {
-        if (!state.map) return;
-        const points = Array.isArray(data) ? data : state.markerData;
-        if (!points || !points.length) return;
-        const bounds = new kakao.maps.LatLngBounds();
-        points.forEach(function(m) { bounds.extend(new kakao.maps.LatLng(m.lat, m.lng)); });
-        state.map.setBounds(bounds);
-      }
-
-      function setMapType(type) {
-        if (!state.map) return;
-        const mapping = {
-          'roadmap': kakao.maps.MapTypeId.ROADMAP,
-          'skyview': kakao.maps.MapTypeId.SKYVIEW,
-          'hybrid': kakao.maps.MapTypeId.HYBRID,
-          'terrain': kakao.maps.MapTypeId.TERRAIN
-        };
-        const target = mapping[type] || kakao.maps.MapTypeId.ROADMAP;
-        state.map.setMapTypeId(target);
-        notifyFlutter('map_type', { value: type });
-      }
-
-      function prepareClusterer(targetMap) {
-        if (!state.options || !state.enableClustering) return;
-        state.clusterer = new kakao.maps.MarkerClusterer({
-          map: targetMap,
-          averageCenter: true,
-          minLevel: 5,
-        });
-        kakao.maps.event.addListener(state.clusterer, 'clusterclick', function(cluster) {
-          const center = cluster.getCenter();
-          notifyFlutter('cluster', { lat: center.getLat(), lng: center.getLng() });
-        });
-      }
-
-      function initMap() {
-        log('info', 'init-start');
-        const container = document.getElementById('map');
-        const options = {
-          center: new kakao.maps.LatLng(${center.lat}, ${center.lng}),
-          level: state.options.level || 6,
-          mapTypeId: kakao.maps.MapTypeId[(state.options.mapType || 'roadmap').toUpperCase()] || kakao.maps.MapTypeId.ROADMAP,
-        };
-        state.map = new kakao.maps.Map(container, options);
-        clearTimeout(state.loadTimer);
-        prepareClusterer(state.map);
-        renderMarkers(state.map);
-        renderPolylines(state.map);
-        setMapType(state.options.mapType || 'roadmap');
-        if (state.options.showZoomControl) {
-          const zoomControl = new kakao.maps.ZoomControl();
-          state.map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
-        }
-        if (state.options.showMapTypeControl) {
-          const mapTypeControl = new kakao.maps.MapTypeControl();
-          state.map.addControl(mapTypeControl, kakao.maps.ControlPosition.TOPRIGHT);
-        }
-        kakao.maps.event.addListener(state.map, 'click', function(mouseEvent) {
-          notifyFlutter('map', {
-            lat: mouseEvent.latLng.getLat(),
-            lng: mouseEvent.latLng.getLng()
-          });
-        });
-        state.ready = true;
-        sendLoading(false);
-        notifyFlutter('ready', {
-          center: { lat: ${center.lat}, lng: ${center.lng} },
-          attempt: state.loadAttempts,
-        });
-        notifyFlutter('mapReady', { status: 'ready', attempt: state.loadAttempts });
-        log('info', 'init-end');
-      }
-
-      function handleLoadTimeout() {
-        if (state.ready) return;
-        notifyFlutter('error', { code: 'timeout', attempt: state.loadAttempts }, 'error');
-      }
-
-      function pollSdkLoaded(force) {
-        if (window.kakao && kakao.maps && kakao.maps.load) {
-          state.sdkLoaded = true;
-          log('info', 'bootstrap-ready');
-          kakao.maps.load(initMap);
-          return;
-        }
-        state.sdkPollCount += 1;
-        if (state.sdkPollCount > state.maxPolls) {
-          log('error', 'sdkFail');
-          notifyFlutter('error', { code: 'sdkFail', attempt: state.loadAttempts, polls: state.sdkPollCount }, 'error');
-          if (state.loadAttempts <= state.maxReloads) {
-            loadKakaoMap(true);
-          }
-          return;
-        }
-        setTimeout(function() { pollSdkLoaded(force); }, 250);
-      }
-
-      function loadKakaoMap(force) {
-        state.ready = false;
-        sendLoading(true);
-        state.loadAttempts += 1;
-        state.sdkPollCount = 0;
-        clearTimeout(state.loadTimer);
-        state.loadTimer = setTimeout(handleLoadTimeout, 12000);
-        if (force) {
-          state.map = null;
-        }
-        log('info', 'bootstrap-start', 'attempt', state.loadAttempts);
-        notifyFlutter('bootstrap', { status: 'start', attempt: state.loadAttempts });
-        loadSdkScript(force);
-        setTimeout(function() { pollSdkLoaded(force); }, 120);
-      }
-
-      window.kakaoMap = {
-        moveTo: moveTo,
-        animateTo: animateTo,
-        zoomIn: zoomIn,
-        zoomOut: zoomOut,
-        fitBounds: fitBounds,
-        setMarkers: setMarkers,
-        clearMarkers: clearMarkers,
-        setPolylines: setPolylines,
-        clearPolylines: clearPolylines,
-        setMapType: setMapType,
-        reloadMap: function() { loadKakaoMap(true); },
-        get isReady() { return !!state.ready; },
-      };
-
-      function bootstrap() {
-        installConsoleProxy();
-        handleGlobalErrors();
-        notifyFlutter('log', { message: 'bootstrap-start' }, 'info');
-        loadKakaoMap(false);
-        notifyFlutter('log', { message: 'bootstrap-end' }, 'info');
-      }
-
-      window.kakaoBootstrap = function() {
-        bootstrap();
-      };
-      ${additionalScripts ?? ''}
-    })();
-  </script>
-</body>
-</html>
-''';
-  }
-
-  String _escape(String value) {
-    return value.replaceAll("'", "\\'");
-  }
-
-  String _missingApiKeyPage() {
-    return '''
-<!DOCTYPE html>
-<html>
-<body>
-  <p style="padding:16px;font-size:16px;">
-    카카오맵 API 키가 설정되지 않았습니다. KAKAO_MAP_API_KEY 환경 변수를 추가해주세요.
-  </p>
+  ${additionalScripts ?? ''}
 </body>
 </html>
 ''';

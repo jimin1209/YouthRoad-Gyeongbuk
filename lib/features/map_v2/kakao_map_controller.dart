@@ -119,12 +119,14 @@ class KakaoMapController {
     required String apiKey,
     required KakaoMapHtmlBuilder builder,
     this.bridgeName = 'KakaoBridge',
-    this.baseUrl = 'https://youthroad.co.kr',
+    // 🔵 카카오 콘솔에 등록한 실제 도메인
+    this.baseUrl = 'https://gbyouth.co.kr',
     this.maxAutoReloads = 3,
   })  : _apiKey = apiKey,
         _builder = builder {
     _initializeController();
     _logApiKey();
+    _logBaseUrl();
   }
 
   final String _apiKey;
@@ -174,7 +176,12 @@ class KakaoMapController {
     );
 
     _ready = false;
-    await webViewController.loadHtmlString(html, baseUrl: baseUrl);
+
+    // 🔵 baseUrl 을 명시해서 WebView가 gbyouth.co.kr 도메인에서 온 페이지처럼 동작하게 함
+    await webViewController.loadHtmlString(
+      html,
+      baseUrl: baseUrl,
+    );
   }
 
   Future<void> moveTo(KakaoMapLatLng center, {int? level}) {
@@ -197,13 +204,15 @@ class KakaoMapController {
 
   Future<void> zoomIn() {
     return _runWhenReady(
-      () => webViewController.runJavaScript('window.kakaoMap && window.kakaoMap.zoomIn();'),
+      () => webViewController
+          .runJavaScript('window.kakaoMap && window.kakaoMap.zoomIn();'),
     );
   }
 
   Future<void> zoomOut() {
     return _runWhenReady(
-      () => webViewController.runJavaScript('window.kakaoMap && window.kakaoMap.zoomOut();'),
+      () => webViewController
+          .runJavaScript('window.kakaoMap && window.kakaoMap.zoomOut();'),
     );
   }
 
@@ -238,7 +247,8 @@ class KakaoMapController {
     }
     _reloadAttempts += 1;
     return _runWhenReady(
-      () => webViewController.runJavaScript('window.kakaoMap && window.kakaoMap.reloadMap();'),
+      () => webViewController
+          .runJavaScript('window.kakaoMap && window.kakaoMap.reloadMap();'),
     );
   }
 
@@ -283,6 +293,10 @@ class KakaoMapController {
   void _logApiKey() {
     final masked = _maskApiKey(_apiKey);
     debugPrint('[KAKAO_MAP_WEBVIEW] Using KakaoMap API Key: $masked');
+  }
+
+  void _logBaseUrl() {
+    debugPrint('[KAKAO_MAP_WEBVIEW] Using baseUrl: $baseUrl');
   }
 
   String _maskApiKey(String key) {
@@ -342,7 +356,8 @@ class KakaoMapController {
         ),
       )
       ..setOnConsoleMessage(
-        (message) => debugPrint('[KAKAO_MAP_WEBVIEW][${message.level}] ${message.message}'),
+        (message) => debugPrint(
+            '[KAKAO_MAP_WEBVIEW][${message.level}] ${message.message}'),
       );
 
     if (controller.platform is AndroidWebViewController) {
@@ -376,8 +391,10 @@ class KakaoMapController {
 
     if (type == KakaoMapEventType.error &&
         (parsed.errorCode?.toLowerCase().contains('sdkfail') ?? false)) {
-      final detail = parsed.errorDetail ?? parsed.logMessage ?? 'sdkFail detected';
-      _pushDebugLog('[sdkFail] $detail (attempt: $_reloadAttempts)', level: 'error');
+      final detail =
+          parsed.errorDetail ?? parsed.logMessage ?? 'sdkFail detected';
+      _pushDebugLog('[sdkFail] $detail (attempt: $_reloadAttempts)',
+          level: 'error');
     }
 
     _eventController.add(event);
@@ -394,7 +411,10 @@ class KakaoMapController {
     if (lower.contains('sdkfail') || lower.contains('timeout')) {
       final delay = Duration(milliseconds: 500 * (_reloadAttempts + 1));
       _reloadAttempts += 1;
-      _pushDebugLog('Retrying map load for $code in ${delay.inMilliseconds}ms. detail=${detail ?? 'n/a'}', level: 'warn');
+      _pushDebugLog(
+        'Retrying map load for $code in ${delay.inMilliseconds}ms. detail=${detail ?? 'n/a'}',
+        level: 'warn',
+      );
       Future.delayed(delay, () {
         if (_lastLoadRequest != null) {
           load(

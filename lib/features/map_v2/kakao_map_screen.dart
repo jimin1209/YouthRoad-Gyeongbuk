@@ -25,6 +25,12 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   String? _lastLog;
 
   @override
+  void initState() {
+    super.initState();
+    debugPrint('[KakaoMapScreen] initState() 초기화 완료');
+  }
+
+  @override
   Widget build(BuildContext context) {
     final regionName = ref.watch(regionProvider);
     final policyState = ref.watch(policyListNotifierProvider);
@@ -40,6 +46,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       showMapTypeControl: true,
     );
 
+    debugPrint('[KakaoMapScreen] 화면 Build() 호출');
+    debugPrint(' └ regionName: $regionName');
+    debugPrint(' └ centerLatLng: (${center.lat}, ${center.lng})');
+    debugPrint(' └ 정책 개수: ${policyState.policies.length}');
+
     return Scaffold(
       appBar: const AppAppBar(title: '카카오맵 보기'),
       body: Stack(
@@ -50,11 +61,26 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             polylines: polylines,
             enableClustering: true,
             options: options,
-            onMarkerTap: (id) => context.push(RoutePaths.policyDetail(id)),
-            onReady: () => _setLoading(false),
-            onLoadingChanged: _setLoading,
-            onError: (code) => setState(() => _errorCode = code),
-            onLog: (event) => setState(() => _lastLog = event.logMessage),
+            onMarkerTap: (id) {
+              debugPrint('[KakaoMap] 사용자가 마커 탭함 → $id');
+              context.push(RoutePaths.policyDetail(id));
+            },
+            onReady: () {
+              debugPrint('[KakaoMap] WebView Ready! 지도 로딩 완료');
+              _setLoading(false);
+            },
+            onLoadingChanged: (isLoading) {
+              debugPrint('[KakaoMap] WebView LoadingChanged → $isLoading');
+              _setLoading(isLoading);
+            },
+            onError: (code) {
+              debugPrint('[KakaoMap:ERROR] SDK Fail 발생 code=$code');
+              setState(() => _errorCode = code);
+            },
+            onLog: (event) {
+              debugPrint('[KakaoMap:LOG] ${event.logMessage}');
+              setState(() => _lastLog = event.logMessage);
+            },
             showDebugPanel: kDebugMode && debugPanelEnabled,
           ),
           if (_loading)
@@ -77,7 +103,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   children: [
                     const Text(
                       '지도 로딩 중 문제가 발생했습니다.',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -88,7 +115,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                       const SizedBox(height: 6),
                       Text(
                         '최근 로그: $_lastLog',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 12),
                       ),
                     ],
                   ],
@@ -108,6 +136,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   void _setLoading(bool value) {
     if (_loading == value) return;
+    debugPrint('[KakaoMap] 로딩 상태 변경 → $_loading → $value');
     setState(() {
       _loading = value;
     });
@@ -118,21 +147,35 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     PolicyListState asyncPolicies,
   ) {
     final policies = asyncPolicies.policies;
-    if (policies.isEmpty) return const [];
+
+    debugPrint('[KakaoMap] 마커 생성 요청');
+    debugPrint(' └ 정책 개수: ${policies.length}');
+
+    if (policies.isEmpty) {
+      debugPrint(' └ 정책 없음 → 마커 생성 안함');
+      return const [];
+    }
 
     final markerOffsets = _markerOffsets(center);
     final limitedPolicies = policies.take(markerOffsets.length).toList();
 
+    debugPrint(' └ 실제 마커 생성 개수: ${limitedPolicies.length}');
+
     return List.generate(limitedPolicies.length, (index) {
       final policy = limitedPolicies[index];
       final offset = markerOffsets[index];
+
+      debugPrint(
+          ' ⤷ Marker[$index] ${policy.policyNm} (${offset.lat}/${offset.lng})');
+
       return KakaoMapMarker(
         id: policy.id,
         title: policy.policyNm,
         position: offset,
         image: index == 0
             ? const KakaoMapMarkerImage(
-                url: 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
+                url:
+                    'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
                 width: 24,
                 height: 35,
               )
@@ -142,12 +185,16 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   }
 
   List<KakaoMapPolyline> _polylinesFromMarkers(List<KakaoMapMarker> markers) {
-    if (markers.length < 2) return const [];
-    final path = markers.map((m) => m.position).toList();
+    if (markers.length < 2) {
+      debugPrint('[KakaoMap] 마커가 1개 이하 → 폴리라인 생성 안함');
+      return const [];
+    }
+
+    debugPrint('[KakaoMap] 폴리라인 생성 [${markers.length}개 마커 연결]');
     return [
       KakaoMapPolyline(
         id: 'policy-path',
-        path: path,
+        path: markers.map((m) => m.position).toList(),
         strokeColor: '#3478f6',
         strokeWeight: 5,
         strokeOpacity: 0.8,
@@ -165,14 +212,20 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       KakaoMapLatLng(0.002, 0.007),
     ];
 
+    debugPrint('[KakaoMap] 마커 Offset 계산중');
+    debugPrint(' └ base center: (${base.lat}, ${base.lng})');
+
     return deltas
-        .map(
-          (delta) => KakaoMapLatLng(base.lat + delta.lat, base.lng + delta.lng),
-        )
+        .map((delta) => KakaoMapLatLng(
+              base.lat + delta.lat,
+              base.lng + delta.lng,
+            ))
         .toList();
   }
 
   KakaoMapLatLng _centerForRegion(String? regionName) {
+    debugPrint('[KakaoMap] 지역 선택됨: $regionName');
+
     final normalized = (regionName ?? '').trim();
     switch (normalized) {
       case '포항시':
@@ -188,17 +241,18 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       case '경북 전체':
         return _defaultCenter;
       default:
-        if (normalized.isEmpty) return _defaultCenter;
         return _defaultCenter;
     }
   }
 
   Widget _buildOverlay(PolicyListState state) {
     if (state.isLoading && state.policies.isEmpty) {
+      debugPrint('[KakaoMap] 정책 로딩중');
       return const Center(child: CircularProgressIndicator());
     }
 
     if (state.error != null && state.policies.isEmpty) {
+      debugPrint('[KakaoMap] 정책 로딩 실패');
       return Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.all(12),
