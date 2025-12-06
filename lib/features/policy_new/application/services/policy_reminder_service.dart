@@ -2,12 +2,12 @@ import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/repositories/policy_reminder_repository.dart';
 import '../../domain/values/policy_event.dart';
+import '../../domain/values/policy_logger.dart';
 import '../../domain/values/policy_reminder_status.dart';
+import '../../domain/values/reminder_sync_report.dart';
 import '../../domain/values/reminder_time_kind.dart';
 import '../../domain/utils/reminder_id_util.dart';
-import '../../domain/values/policy_logger.dart';
 import '../../domain/values/schedule_result.dart';
-import '../../domain/values/reminder_sync_report.dart';
 import '../controllers/policy_event_bus.dart';
 import '../gateways/notification_gateway.dart';
 import 'policy_reminder_scheduler.dart';
@@ -68,7 +68,21 @@ class PolicyReminderService {
   Future<ScheduleResult> _scheduleWithRetry(PolicyReminder reminder) async {
     ScheduleResult? result;
     for (var attempt = 0; attempt <= retryDelays.length; attempt++) {
-      result = await notificationGateway.scheduleReminder(reminder);
+      try {
+        result = await notificationGateway.scheduleReminder(reminder);
+      } catch (e, st) {
+        logger.warn(
+          'scheduleReminder threw for ${reminder.reminderId}: $e\n$st',
+        );
+        result = ScheduleResult.failure(
+          ScheduleFailure(
+            type: ScheduleFailureType.unknown,
+            message:
+                '알림 예약 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ($e)',
+          ),
+        );
+      }
+
       if (result.success || !_shouldRetry(result.failure)) {
         return result;
       }
@@ -99,21 +113,44 @@ class PolicyReminderService {
   }
 
   Future<bool> refreshEnvironment() async {
-    final ready = await notificationGateway.refreshEnvironment();
-    if (!ready) {
-      logger.warn('Notification environment not ready (permission or timezone).');
+    try {
+      final ready = await notificationGateway.refreshEnvironment();
+      if (!ready) {
+        logger
+            .warn('Notification environment not ready (permission or timezone).');
+      }
+      return ready;
+    } catch (e, st) {
+      logger.warn('Notification environment init failed: $e\n$st');
+      return false;
     }
-    return ready;
   }
 
   Future<ReminderMutationResult> createRemindersForPolicy(
     Policy policy,
     List<ReminderTimeKind> kinds,
   ) async {
-    final now = _now().toUtc();
+    final nowLocal = _now();
+    final now = nowLocal.toUtc();
     final reminders = <PolicyReminder>[];
     final failures = <ReminderMutationFailure>[];
     final uniqueKinds = kinds.toSet();
+
+    final deadline = policy.applicationEndDate ?? policy.applicationStartDate;
+    if (deadline != null && deadline.isBefore(nowLocal)) {
+      for (final kind in uniqueKinds) {
+        failures.add(
+          ReminderMutationFailure(
+            timeKind: kind,
+            failure: const ScheduleFailure(
+              type: ScheduleFailureType.invalidDate,
+              message: '마감된 정책은 알림을 설정할 수 없어요.',
+            ),
+          ),
+        );
+      }
+      return ReminderMutationResult(reminders: reminders, failures: failures);
+    }
 
     final environmentReady = await refreshEnvironment();
     if (!environmentReady) {
@@ -139,7 +176,11 @@ class PolicyReminderService {
         existingByKind[reminder.timeKind] = reminder;
       } else {
         await repository.deleteReminderById(reminder.reminderId);
-        await notificationGateway.cancelReminder(reminder.reminderId);
+        try {
+          await notificationGateway.cancelReminder(reminder.reminderId);
+        } catch (e, st) {
+          logger.warn('Reminder cleanup cancel failed: $e\n$st');
+        }
       }
     }
 
@@ -163,13 +204,14 @@ class PolicyReminderService {
         logger.warn('Reminder for ${policy.id} skipped: ${failure.message}');
         continue;
       }
-      if (schedule.status == PolicyReminderStatus.expired) {
+      if (schedule.status == PolicyReminderStatus.expired ||
+          schedule.scheduledAt.isBefore(now.add(const Duration(minutes: 1)))) {
         failures.add(
           ReminderMutationFailure(
             timeKind: kind,
             failure: const ScheduleFailure(
               type: ScheduleFailureType.invalidDate,
-              message: 'Scheduled time already passed',
+              message: '이미 지난 시각이라 알림을 설정할 수 없어요.',
             ),
           ),
         );
@@ -192,7 +234,21 @@ class PolicyReminderService {
         policyTitleSnapshot: policy.title,
       );
 
-      final scheduleResult = await _scheduleWithRetry(reminder);
+      ScheduleResult scheduleResult;
+      try {
+        scheduleResult = await _scheduleWithRetry(reminder);
+      } catch (e, st) {
+        scheduleResult = ScheduleResult.failure(
+          const ScheduleFailure(
+            type: ScheduleFailureType.unknown,
+            message: '알림 예약 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+          ),
+        );
+        logger.warn(
+          'Notification scheduling threw for ${reminder.reminderId}: $e\n$st',
+        );
+      }
+
       if (!scheduleResult.success) {
         final failure = scheduleResult.failure ??
             const ScheduleFailure(
@@ -247,11 +303,15 @@ class PolicyReminderService {
     );
 
     await repository.upsertReminder(canceledReminder);
-    final result = await notificationGateway.cancelReminder(reminder.reminderId);
-    if (!result.success) {
-      logger.warn(
-        'Failed to cancel reminder $reminderId: ${result.failure?.message}',
-      );
+    try {
+      final result = await notificationGateway.cancelReminder(reminder.reminderId);
+      if (!result.success) {
+        logger.warn(
+          'Failed to cancel reminder $reminderId: ${result.failure?.message}',
+        );
+      }
+    } catch (e, st) {
+      logger.warn('Cancel reminder threw for $reminderId: $e\n$st');
     }
     eventBus.emit(PolicyEvent(
       PolicyEventType.reminderChanged,
@@ -261,19 +321,28 @@ class PolicyReminderService {
 
   Future<void> cancelAllByPolicy(String policyId) async {
     final reminders = await repository.getRemindersForPolicy(policyId);
-    final bulkResult = await notificationGateway.cancelAllForPolicy(policyId);
-    if (!bulkResult.success) {
-      logger.warn(
-        'Failed to cancel all reminders for $policyId: ${bulkResult.failure?.message}',
-      );
+    try {
+      final bulkResult = await notificationGateway.cancelAllForPolicy(policyId);
+      if (!bulkResult.success) {
+        logger.warn(
+          'Failed to cancel all reminders for $policyId: ${bulkResult.failure?.message}',
+        );
+      }
+    } catch (e, st) {
+      logger.warn('Bulk cancel threw for $policyId: $e\n$st');
     }
     final now = _now().toUtc();
     for (final reminder in reminders) {
-      final result = await notificationGateway.cancelReminder(reminder.reminderId);
-      if (!result.success) {
-        logger.warn(
-          'Failed to cancel reminder ${reminder.reminderId}: ${result.failure?.message}',
-        );
+      try {
+        final result =
+            await notificationGateway.cancelReminder(reminder.reminderId);
+        if (!result.success) {
+          logger.warn(
+            'Failed to cancel reminder ${reminder.reminderId}: ${result.failure?.message}',
+          );
+        }
+      } catch (e, st) {
+        logger.warn('Cancel reminder threw for ${reminder.reminderId}: $e\n$st');
       }
 
       final canceledReminder = reminder.copyWith(
@@ -310,7 +379,11 @@ class PolicyReminderService {
         updatedAt: now,
       );
       await repository.upsertReminder(expiredReminder);
-      await notificationGateway.cancelReminder(expiredReminder.reminderId);
+      try {
+        await notificationGateway.cancelReminder(expiredReminder.reminderId);
+      } catch (e, st) {
+        logger.warn('Cleanup cancel threw for ${expiredReminder.reminderId}: $e\n$st');
+      }
       updated.add(expiredReminder);
     }
 
@@ -337,7 +410,25 @@ class PolicyReminderService {
     }
     final expired = await cleanupExpiredReminders();
     final reminders = await repository.getAllReminders();
-    final scheduledIds = await notificationGateway.listScheduledReminderIds();
+    Set<String> scheduledIds = const {};
+    try {
+      scheduledIds = (await notificationGateway.listScheduledReminderIds()).toSet();
+    } catch (e, st) {
+      logger.warn('listScheduledReminderIds threw: $e\n$st');
+      return ReminderSyncReport(
+        rescheduledCount: 0,
+        expiredCount: expired.length,
+        firedCount: expired
+            .where((reminder) => reminder.status == PolicyReminderStatus.fired)
+            .length,
+        failures: const [
+          ScheduleFailure(
+            type: ScheduleFailureType.unknown,
+            message: '알림 동기화에 실패했습니다.',
+          ),
+        ],
+      );
+    }
     final now = _now().toUtc();
     var rescheduledCount = 0;
     var hasUpdated = expired.isNotEmpty;
@@ -351,23 +442,31 @@ class PolicyReminderService {
     final reminderById = {for (final reminder in reminders) reminder.reminderId: reminder};
     final orphanedIds = scheduledIds.where((id) => !reminderById.containsKey(id));
     for (final orphanId in orphanedIds) {
-      final result = await notificationGateway.cancelReminder(orphanId);
-      if (!result.success) {
-        failures.add(
-          result.failure ??
-              const ScheduleFailure(
-                type: ScheduleFailureType.unknown,
-                message: 'Unknown cancellation failure during sync',
-              ),
-        );
-      } else {
-        orphanedPlatformReminders++;
+      try {
+        final result = await notificationGateway.cancelReminder(orphanId);
+        if (!result.success) {
+          failures.add(
+            result.failure ??
+                const ScheduleFailure(
+                  type: ScheduleFailureType.unknown,
+                  message: 'Unknown cancellation failure during sync',
+                ),
+          );
+        } else {
+          orphanedPlatformReminders++;
+        }
+      } catch (e, st) {
+        logger.warn('Cancel orphan reminder threw for $orphanId: $e\n$st');
       }
     }
 
     for (final reminder in reminders) {
       if (reminder.status == PolicyReminderStatus.canceled) {
-        await notificationGateway.cancelReminder(reminder.reminderId);
+        try {
+          await notificationGateway.cancelReminder(reminder.reminderId);
+        } catch (e, st) {
+          logger.warn('Cancel canceled reminder threw: $e\n$st');
+        }
         continue;
       }
 
@@ -377,7 +476,18 @@ class PolicyReminderService {
       }
 
       final wasMissing = !scheduledIds.contains(reminder.reminderId);
-      final scheduleResult = await _scheduleWithRetry(reminder);
+      ScheduleResult scheduleResult;
+      try {
+        scheduleResult = await _scheduleWithRetry(reminder);
+      } catch (e, st) {
+        scheduleResult = ScheduleResult.failure(
+          const ScheduleFailure(
+            type: ScheduleFailureType.unknown,
+            message: '알림 동기화 중 오류가 발생했습니다.',
+          ),
+        );
+        logger.warn('Reschedule threw for ${reminder.reminderId}: $e\n$st');
+      }
       if (!scheduleResult.success) {
         failures.add(
           scheduleResult.failure ??

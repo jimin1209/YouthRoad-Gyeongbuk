@@ -131,6 +131,7 @@ class _ReminderButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasScheduleWindow = policy.applicationEndDate != null ||
         policy.applicationStartDate != null;
+    final isClosed = policy.isClosed;
 
     if (!hasScheduleWindow) {
       return Column(
@@ -145,6 +146,27 @@ class _ReminderButton extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '신청 일정 정보가 없어 알림을 설정할 수 없습니다.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+          ),
+        ],
+      );
+    }
+
+    if (isClosed) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          OutlinedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.notifications_off_outlined),
+            label: const Text('마감된 정책입니다'),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '마감된 정책은 알림을 설정할 수 없어요.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.error,
                 ),

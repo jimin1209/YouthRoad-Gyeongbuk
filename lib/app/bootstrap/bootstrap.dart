@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import '../../application/di.dart';
 import '../../core/logging/app_log_level.dart';
@@ -19,6 +21,14 @@ Future<void> bootstrap({
   List<Override> overrides = const [],
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // intl 로케일 초기화 (LocaleDataException 방지)
+  try {
+    Intl.defaultLocale ??= 'ko_KR';
+    await initializeDateFormatting('ko_KR');
+  } catch (e, st) {
+    debugPrint('intl locale init failed: $e');
+    debugPrint('$st');
+  }
 
   // Flutter error hook 설정
   final previousOnError = FlutterError.onError;

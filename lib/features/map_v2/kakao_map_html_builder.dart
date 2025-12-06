@@ -210,7 +210,17 @@ class KakaoMapHtmlBuilder {
     catch(e) { console.log('[KakaoMap][bridge error]', e); }
   }
 
+  function _logOrigin() {
+    var href = window.location.href;
+    var origin = window.location.origin;
+    var referrer = document.referrer;
+    var msg = '[KakaoMap][origin] href=' + href + ' origin=' + origin + ' referrer=' + referrer;
+    console.log(msg);
+    _post({ type: 'log', payload: { message: msg } });
+  }
+
   window.kakaoBootstrap = function() {
+    _logOrigin();
     if (!window.kakao || !window.kakao.maps) {
       _post({type:'error',payload:{code:'sdkFail',detail:'kakao.maps not available'}});
       return;

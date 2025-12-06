@@ -28,6 +28,7 @@ class _PolicyFilterBottomSheetState
   String? _institutionName;
   String? _departmentId;
   String? _departmentName;
+  ProviderSubscription<String?>? _regionSubscription;
 
   @override
   void initState() {
@@ -41,9 +42,16 @@ class _PolicyFilterBottomSheetState
     _institutionName = ui.institutionName;
     _departmentId = ui.departmentId?.isEmpty == true ? null : ui.departmentId;
     _departmentName = ui.departmentName;
-    ref.listen<String?>(regionProvider, (_, __) {
-      setState(() {});
-    });
+    _regionSubscription = ref.listenManual<String?>(
+      regionProvider,
+      (_, __) => setState(() {}),
+    );
+  }
+
+  @override
+  void dispose() {
+    _regionSubscription?.close();
+    super.dispose();
   }
 
   @override

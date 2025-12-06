@@ -1,4 +1,4 @@
-// lib/features/policy_new/application/controllers/policy_reminder_controller.dart
+﻿// lib/features/policy_new/application/controllers/policy_reminder_controller.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -54,15 +54,11 @@ class PolicyReminderController
 
   PolicyReminderService get _service => ref.read(policyReminderServiceProvider);
 
-  bool _initialized = false; // 🔵 중복 init 방지
+  bool _initialized = false;
 
-  /// ---------------------------------------------------------------------------
-  /// 🔵 Init은 외부에서 한 번만 호출하도록 변경 (Race 완전 방지)
-  /// ---------------------------------------------------------------------------
   Future<void> onInit() async {
     if (_initialized) return;
     _initialized = true;
-
     await initialize();
   }
 
@@ -110,8 +106,6 @@ class PolicyReminderController
     );
   }
 
-  // ---- 이하 동일 (생략 없음, 기존 코드 전체 유지) ----
-
   Future<ReminderMutationResult> setReminders(
     Policy policy,
     List<ReminderTimeKind> kinds,
@@ -157,11 +151,11 @@ class PolicyReminderController
       state = AsyncData(
         reloaded.copyWith(
           isMutating: false,
-          messages: ['알림을 설정하지 못했습니다. 다시 시도해 주세요.'],
+          messages: ['알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.'],
         ),
       );
       print('PolicyReminderController.setReminders failed: $e\n$st');
-      rethrow;
+      return const ReminderMutationResult(reminders: [], failures: []);
     }
   }
 
@@ -185,7 +179,7 @@ class PolicyReminderController
       state = AsyncData(
         previous.copyWith(
           isMutating: false,
-          messages: ['알림을 취소하지 못했습니다. 다시 시도해 주세요.'],
+          messages: ['알림을 취소하지 못했어요. 잠시 후 다시 시도해 주세요.'],
         ),
       );
       print('PolicyReminderController.removeReminder failed: $e\n$st');
@@ -208,7 +202,7 @@ class PolicyReminderController
       state = AsyncData(
         previous.copyWith(
           isMutating: false,
-          messages: ['모든 알림을 취소하지 못했습니다. 다시 시도해 주세요.'],
+          messages: ['모든 알림을 취소하지 못했어요. 잠시 후 다시 시도해 주세요.'],
         ),
       );
       print('PolicyReminderController.cancelAll failed: $e\n$st');
@@ -245,7 +239,7 @@ class PolicyReminderController
   String _messageForFailure(ScheduleFailure failure) {
     switch (failure.type) {
       case ScheduleFailureType.permissionDenied:
-        return '알림 권한이 꺼져 있어 예약에 실패했어요. 설정에서 권한을 허용해 주세요.';
+        return '알림 권한이 꺼져 있어 예약에 실패했어요. 설정에서 권한을 허용해주세요.';
       case ScheduleFailureType.invalidDate:
         if (failure.message.isNotEmpty) {
           return failure.message;
@@ -257,7 +251,7 @@ class PolicyReminderController
         if (failure.message.isNotEmpty) {
           return failure.message;
         }
-        return '알 수 없는 이유로 알림을 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+        return '알 수 없는 이유로 알림을 예약하지 못했어요. 잠시 후 다시 시도해주세요.';
     }
   }
 
@@ -272,10 +266,10 @@ class PolicyReminderController
     messages.addAll(report.failures.map(_messageForFailure));
 
     if (report.expiredCount > 0 || report.firedCount > 0) {
-      messages.add('만료된 알림을 정리했어요. 필요한 알림은 다시 설정해 주세요.');
+      messages.add('만료된 알림을 정리했어요. 필요한 알림을 다시 설정해주세요.');
     }
     if (report.rescheduledCount > 0) {
-      messages.add('예약에서 누락된 알림을 다시 등록했어요.');
+      messages.add('예약이 누락된 알림을 다시 등록했어요.');
     }
 
     return messages;
@@ -286,7 +280,7 @@ class PolicyReminderController
     if (failureMessages.isNotEmpty) return failureMessages;
 
     if (result.reminders.isEmpty) {
-      return const ['알림을 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.'];
+      return const ['알림을 예약하지 못했어요. 잠시 후 다시 시도해주세요.'];
     }
 
     return const [];
