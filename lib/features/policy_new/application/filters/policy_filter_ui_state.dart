@@ -55,6 +55,10 @@ class PolicyFilterUiState {
     String? departmentId,
     String? departmentName,
   }) {
+    final nextTags = tags != null
+        ? List<String>.unmodifiable(tags)
+        : List<String>.unmodifiable(this.tags);
+
     return PolicyFilterUiState(
       region: region ?? this.region,
       province: province ?? this.province,
@@ -63,7 +67,7 @@ class PolicyFilterUiState {
       category: category ?? this.category,
       sort: sort ?? this.sort,
       keyword: keyword ?? this.keyword,
-      tags: tags ?? this.tags,
+      tags: nextTags,
       showOnlyOnline: showOnlyOnline ?? this.showOnlyOnline,
       showOnlyOngoing: showOnlyOngoing ?? this.showOnlyOngoing,
       institutionId: institutionId ?? this.institutionId,
