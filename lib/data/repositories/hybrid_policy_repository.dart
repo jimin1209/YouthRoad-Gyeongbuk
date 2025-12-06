@@ -64,7 +64,6 @@ class HybridPolicyRepository implements PolicyRepository {
     );
   }
 
-  @override
   Future<List<Policy>> fetchPolicies({
     PolicyFilter filter = const PolicyFilter(),
   }) async {

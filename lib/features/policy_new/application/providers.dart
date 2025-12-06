@@ -28,6 +28,7 @@ import '../domain/values/policy_sort.dart';
 import '../compare/controllers/compare_diff_service.dart';
 import '../compare/controllers/compare_feed_controller.dart';
 import '../compare/models/compare_state.dart';
+export 'controllers/policy_event_bus.dart' show policyEventBusProvider;
 import 'behavior/policy_behavior_tracker.dart';
 import 'controllers/base_feed_controller.dart';
 import 'controllers/policy_detail_controller.dart';

@@ -14,12 +14,13 @@ class CompareNeedMoreWidget extends StatelessWidget {
             const Icon(Icons.playlist_add, size: 56, color: Colors.grey),
             const SizedBox(height: 12),
             Text(
-              '정책을 한 개 더 선택해주세요',
+              '비교를 시작하려면 정책을 하나 더 추가해 주세요',
               style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             const Text(
-              '두 개 이상 선택하면 표로 비교해드려요.',
+              '두 번째 정책까지 담으면 자동으로 비교가 진행됩니다.',
               textAlign: TextAlign.center,
             ),
           ],

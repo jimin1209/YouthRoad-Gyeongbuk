@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
@@ -143,6 +144,9 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
     final hadExisting = pending.any((request) => request.id == notificationId);
     final hasPermission = await _ensurePermissions();
     if (!hasPermission) {
+      debugPrint(
+        '[NotificationGateway] permission denied for ${reminder.reminderId} (${reminder.policyId})',
+      );
       return ScheduleResult.failure(
         const ScheduleFailure(
           type: ScheduleFailureType.permissionDenied,
@@ -154,6 +158,9 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
 
     final scheduledLocal = ReminderTimeUtil.toUtc(reminder.scheduledAt).toLocal();
     if (scheduledLocal.isBefore(DateTime.now())) {
+      debugPrint(
+        '[NotificationGateway] invalid past time for ${reminder.reminderId} (${reminder.policyId}) at $scheduledLocal',
+      );
       return ScheduleResult.failure(
         const ScheduleFailure(
           type: ScheduleFailureType.invalidDate,
@@ -168,9 +175,10 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
 
       final notificationTitle =
           '[${reminder.policyTitleSnapshot ?? '정책 신청'}] ${reminder.timeKind.label}';
-      final formattedTime = DateFormat('M월 d일 a h:mm', 'ko_KR').format(scheduledLocal);
+      final formattedTime =
+          DateFormat('M월 d일 a h:mm', 'ko_KR').format(scheduledLocal);
       final notificationBody =
-          '${reminder.policyTitleSnapshot ?? reminder.policyId} 마감 ${formattedTime} 전에 신청을 완료해 주세요.';
+          '${reminder.policyTitleSnapshot ?? reminder.policyId} 마감 $formattedTime 에 신청을 완료해주세요.';
 
       await _plugin.zonedSchedule(
         notificationId,
@@ -183,7 +191,13 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
-    } catch (error) {
+      debugPrint(
+        '[NotificationGateway] scheduled ${reminder.reminderId} (${reminder.policyId}) at $scheduledLocal (id=$notificationId, duplicate=$hadExisting)',
+      );
+    } catch (error, st) {
+      debugPrint(
+        '[NotificationGateway] schedule failed for ${reminder.reminderId} (${reminder.policyId}): $error\n$st',
+      );
       return ScheduleResult.failure(
         ScheduleFailure(
           type: ScheduleFailureType.gatewayError,
@@ -205,6 +219,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
     try {
       await _plugin.cancel(_notificationId(reminderId));
     } catch (error) {
+      debugPrint('[NotificationGateway] cancel failed for $reminderId: $error');
       return ScheduleResult.failure(
         ScheduleFailure(
           type: ScheduleFailureType.gatewayError,
@@ -212,6 +227,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         ),
       );
     }
+    debugPrint('[NotificationGateway] cancel success for $reminderId');
     return ScheduleResult.success();
   }
 

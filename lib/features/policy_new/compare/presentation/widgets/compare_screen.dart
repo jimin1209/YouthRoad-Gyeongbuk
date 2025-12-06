@@ -43,7 +43,7 @@ class CompareScreen extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                '선택한 정책 ${state.policies.length}개',
+                '비교 중인 정책 ${state.policies.length}개',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const Spacer(),

@@ -82,6 +82,7 @@ Future<SharedPreferences> _initSharedPreferences() async {
     debugPrint('SharedPreferences 초기화에 실패했습니다: $e');
     debugPrint('$stackTrace');
 
+    // ignore: invalid_use_of_visible_for_testing_member
     SharedPreferences.setMockInitialValues({});
     return SharedPreferences.getInstance();
   }

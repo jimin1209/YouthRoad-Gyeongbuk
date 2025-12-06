@@ -58,7 +58,7 @@ class CompareTab extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              '비교 정보를 불러오지 못했습니다.',
+              '비교 정보를 불러오지 못했어요',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),

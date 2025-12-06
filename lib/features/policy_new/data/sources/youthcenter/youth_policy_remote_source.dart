@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../../../../core/constants/env.dart';
+import 'package:youth_road_app/core/constants/env.dart';
 import '../../../domain/youthcenter/policy_search_query.dart';
 import '../../dto/policy_youthcenter_dto.dart';
 

@@ -23,6 +23,7 @@ class PolicyReminderListItem extends StatelessWidget {
       PolicyReminderStatus.canceled => Icons.notifications_off_outlined,
       _ => Icons.notifications_active,
     };
+
     final iconColor = switch (reminder.status) {
       PolicyReminderStatus.expired => Colors.grey,
       PolicyReminderStatus.canceled => Colors.grey,
@@ -30,25 +31,48 @@ class PolicyReminderListItem extends StatelessWidget {
     };
 
     final title = reminder.policyTitleSnapshot ?? reminder.policyId;
+    final subtitle =
+        '${reminder.timeKind.label} · 예정 시각: ${reminder.scheduledAt.toLocal()}';
+
     return ListTile(
       leading: Icon(iconData, color: iconColor),
-      title: Text(title),
-      subtitle: Text(
-        '${reminder.timeKind.label} · 예정 시각: ${reminder.scheduledAt.toLocal()}',
+      title: Text(
+        title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
       ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(reminder.status.label),
-          const SizedBox(height: 4),
-          TextButton(
-            onPressed: reminder.status == PolicyReminderStatus.canceled
-                ? null
-                : onCancel,
-            child: const Text('해제'),
-          ),
-        ],
+      subtitle: Text(
+        subtitle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              reminder.status.label,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: reminder.status == PolicyReminderStatus.canceled
+                  ? null
+                  : onCancel,
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 0),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: const Text('취소'),
+            ),
+          ],
+        ),
       ),
       onTap: onTap,
     );

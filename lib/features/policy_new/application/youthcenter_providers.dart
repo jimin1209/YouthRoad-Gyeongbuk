@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../app/di.dart' as app_di;
+import 'package:youth_road_app/application/di.dart' as app_di;
 import '../domain/youthcenter/paging_entity.dart';
 import '../domain/youthcenter/policy_entity.dart';
 import '../domain/youthcenter/policy_search_query.dart';

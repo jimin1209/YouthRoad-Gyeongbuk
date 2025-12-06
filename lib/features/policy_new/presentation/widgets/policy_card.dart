@@ -40,6 +40,7 @@ class PolicyCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   PolicyReminderBadge(policyId: policy.id),
                   _FavoriteButton(policy: policy),
+                  const SizedBox(width: 4),
                   _CompareButton(policy: policy),
                 ],
               ),
@@ -140,15 +141,28 @@ class _CompareButton extends ConsumerWidget {
     final compareController = ref.read(compareRepositoryProvider.notifier);
     final isCompared = compareState.ids.contains(policy.id);
 
+    final color = isCompared ? Theme.of(context).colorScheme.primary : Colors.grey;
+    final bg = isCompared ? color.withOpacity(0.12) : Colors.transparent;
+
     return RepaintBoundary(
-      child: IconButton(
-        icon: Icon(
-          isCompared
-              ? Icons.compare_arrows
-              : Icons.compare_arrows_outlined,
-          color: isCompared ? Colors.blueAccent : Colors.grey,
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Material(
+          color: bg,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => compareController.toggleCompare(policy),
+            child: Tooltip(
+              message: isCompared ? '비교 해제' : '비교 추가',
+              child: Icon(
+                isCompared ? Icons.compare_arrows : Icons.compare_arrows_outlined,
+                color: color,
+              ),
+            ),
+          ),
         ),
-        onPressed: () => compareController.toggleCompare(policy),
       ),
     );
   }

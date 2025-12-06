@@ -17,7 +17,7 @@ import '../ui/screens/setting/setting_screen.dart';
 import '../ui/screens/setting/setting_v2_screen.dart';
 import '../ui/widgets/bottom_nav.dart';
 import '../ui/widgets/global_error_view.dart';
-import '../ui/screens/policy/policy_search_screen.dart';
+import '../features/policy_new/presentation/explore/policy_explore_screen.dart';
 import '../features/policy_new/presentation/detail/policy_detail_bottom_sheet.dart';
 import '../features/policy_new/presentation/screens/policy_webview_page.dart';
 
@@ -181,7 +181,8 @@ class AppRouter {
           path: RoutePaths.search,
           pageBuilder: (context, state) => buildSearchOverlayPage(
             key: state.pageKey,
-            child: const PolicySearchScreen(),
+            // TODO(TASK21): Legacy 검색 화면 대신 ExploreScreen을 사용
+            child: const PolicyExploreScreen(),
           ),
         ),
         GoRoute(

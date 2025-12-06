@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../domain/entities/policy.dart';
-import 'compare_policy_column_widget.dart';
 import '../../models/compare_state.dart';
+import 'compare_policy_column_widget.dart';
 
 class CompareHeaderRowWidget extends StatelessWidget {
   const CompareHeaderRowWidget({
@@ -29,33 +29,49 @@ class CompareHeaderRowWidget extends StatelessWidget {
       children: [
         SizedBox(
           width: labelWidth,
-          child: Text(
-            '정책 목록',
-            style: Theme.of(context).textTheme.titleSmall,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                '정책',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                '카드를 탭하면 상세를 열고\n× 버튼으로 비교에서 제거할 수 있어요.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
           ),
         ),
-        ...policies.map(
-          (p) => Padding(
+        ...policies.map((policy) {
+          final recommendedLabel = insights.recommendedPolicyId == policy.id
+              ? '추천 ${insights.recommendedScore}점'
+              : null;
+          final nearestDeadlineLabel = insights.nearestDeadlinePolicyId == policy.id
+              ? _deadlineLabel(insights.nearestDeadlineDays)
+              : null;
+
+          return Padding(
             padding: const EdgeInsets.only(left: 12),
             child: ComparePolicyColumnWidget(
-              policy: p,
-              recommendedLabel: insights.recommendedPolicyId == p.id
-                  ? '추천 ${insights.recommendedScore}점'
-                  : null,
-              nearestDeadlineLabel: insights.nearestDeadlinePolicyId == p.id
-                  ? _deadlineLabel(insights.nearestDeadlineDays)
-                  : null,
+              policy: policy,
+              onRemove: () => onRemove(policy.id),
+              onTap: () => onOpenDetail(policy.id),
               width: columnWidth,
-              onRemove: () => onRemove(p.id),
-              onTap: () => onOpenDetail(p.id),
+              recommendedLabel: recommendedLabel,
+              nearestDeadlineLabel: nearestDeadlineLabel,
             ),
-          ),
-        ),
+          );
+        }),
       ],
     );
   }
 
-  String _deadlineLabel(int? days) {
+  String? _deadlineLabel(int? days) {
     if (days == null) return '마감 임박';
     if (days <= 0) return '오늘 마감';
     return 'D-$days';

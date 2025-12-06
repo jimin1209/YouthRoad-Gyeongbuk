@@ -14,7 +14,7 @@ class PolicyReminderListScreen extends ConsumerWidget {
     final controller = ref.read(notificationCenterControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('내 알림 관리')),
+      appBar: AppBar(title: const Text('알림 관리')),
       body: reminderState.when(
         data: (centerState) {
           final hasData =
@@ -64,7 +64,7 @@ class PolicyReminderListScreen extends ConsumerWidget {
                             if (centerState.past.isNotEmpty) ...[
                               const ListTile(
                                 title: Text(
-                                  '지난 알림',
+                                  '지나간 알림',
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                               ),
@@ -88,7 +88,7 @@ class PolicyReminderListScreen extends ConsumerWidget {
                         child: ListView(
                           children: const [
                             SizedBox(height: 120),
-                            Center(child: Text('설정된 알림이 없습니다')),
+                            Center(child: Text('예정된 알림이 없습니다')),
                           ],
                         ),
                       ),
@@ -97,7 +97,7 @@ class PolicyReminderListScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, __) => Center(child: Text('알림을 불러오지 못했습니다: $err')),
+        error: (err, __) => Center(child: Text('알림을 불러오지 못했어요: $err')),
       ),
     );
   }
