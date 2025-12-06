@@ -30,7 +30,9 @@
         android:label="youth_road_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true">
 
         <!-- ⭐⭐⭐ Kakao Map Android Native AppKey 등록 (필수) ⭐⭐⭐ -->
         <meta-data
@@ -58,6 +60,7 @@
 
         </activity>
 
+        <!-- flutter embedding version lock -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
