@@ -8,6 +8,12 @@ import '../../domain/values/policy_failure.dart';
 import '../widgets/policy_list_loading.dart';
 import '../reminder/policy_reminder_button.dart';
 import 'widgets/policy_action_bar.dart';
+import '../../../../ui/layout/app_screen_container.dart';
+import '../../../../ui/components/app_section_title.dart';
+import '../../../../ui/components/app_divider.dart';
+import '../../../../ui/components/app_card.dart';
+import '../../../../ui/theme/app_text.dart';
+import '../../../../ui/theme/app_spacing.dart';
 
 class PolicyDetailBottomSheet extends ConsumerStatefulWidget {
   const PolicyDetailBottomSheet({
@@ -27,8 +33,6 @@ class _PolicyDetailBottomSheetState
   @override
   void initState() {
     super.initState();
-
-    // 🔵 여기서 PolicyReminderController를 한 번만 초기화!
     ref
         .read(policyReminderControllerProvider(widget.policyId).notifier)
         .onInit();
@@ -42,168 +46,142 @@ class _PolicyDetailBottomSheetState
 
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.85,
+      initialChildSize: 0.88,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.98,
       builder: (context, scrollController) {
         return Material(
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           clipBehavior: Clip.antiAlias,
           child: asyncPolicy.when(
-            data: (policy) => _buildContent(context, scrollController, policy),
+            data: (policy) =>
+                _Content(policy: policy, controller: scrollController),
             loading: () => const PolicyListLoading(),
-            error: (err, __) => _buildError(context, err, detailController),
+            error: (err, __) => _ErrorView(
+              error: err,
+              onRetry: detailController.refresh,
+            ),
           ),
         );
       },
     );
   }
+}
 
-  Widget _buildContent(
-      BuildContext context, ScrollController controller, Policy policy) {
-    return SingleChildScrollView(
-      controller: controller,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              policy.title,
-              style: Theme.of(context).textTheme.titleLarge,
+class _Content extends StatelessWidget {
+  const _Content({
+    required this.policy,
+    required this.controller,
+  });
+
+  final Policy policy;
+  final ScrollController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: AppScreenContainer(
+            child: SingleChildScrollView(
+              controller: controller,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    policy.title,
+                    style: AppText.textTheme.headlineSmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    '${policy.institution} · ${policy.department}',
+                    style: AppText.textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  PolicyActionBar(policy: policy),
+                  const SizedBox(height: AppSpacing.lg),
+                  const AppDivider(),
+                  const SizedBox(height: AppSpacing.lg),
+                  _InfoSection(
+                    title: '지원 대상',
+                    content: _buildTargetText(policy),
+                  ),
+                  _InfoSection(
+                    title: '신청 기간',
+                    content: _buildPeriodText(policy),
+                  ),
+                  _InfoSection(
+                    title: '신청 방법',
+                    content: policy.applyUrl.isNotEmpty
+                        ? '온라인 신청\n${policy.applyUrl}'
+                        : '신청 방법 정보가 없습니다.',
+                  ),
+                  _InfoSection(
+                    title: '문의처 정보',
+                    content: (policy.contact ?? '').isNotEmpty
+                        ? policy.contact!
+                        : '문의 정보가 없습니다.',
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              policy.summary,
-              style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+        const AppDivider(),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
-            const SizedBox(height: 16),
-            PolicyActionBar(policy: policy),
-            const SizedBox(height: 12),
-            PolicyReminderButton(policy: policy),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
+            child: Row(
               children: [
-                _chip(policy.region.name),
-                _chip(policy.category.name),
-                if (policy.isOngoing) _chip('모집중'),
-                if (policy.isUpcoming) _chip('시작 예정'),
-                if (policy.isClosed) _chip('마감'),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => Scaffold(
+                            appBar: AppBar(title: const Text('비교 화면')),
+                            body: const SizedBox.shrink(),
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('비교하기'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                PolicyReminderButton(policy: policy),
               ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              '지원내용',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              policy.description,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              '접수기간',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _buildPeriodText(policy),
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            _infoRow('기관명', policy.institution),
-            _infoRow('담당부서', policy.department),
-            _infoRow('문의처', policy.contact ?? ''),
-            _infoRow('지원대상', _buildTargetText(policy)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildError(
-    BuildContext context,
-    Object error,
-    PolicyDetailController controller,
-  ) {
-    final message = error is PolicyFailure ? error.message : '알 수 없는 오류';
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('상세 정보를 불러오지 못했습니다.'),
-            const SizedBox(height: 8),
-            Text(message, style: const TextStyle(color: Colors.grey)),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: controller.refresh,
-              child: const Text('다시 시도'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _chip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.blueGrey.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 11),
-      ),
-    );
-  }
-
-  Widget _infoRow(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 72,
-            child: Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value.isNotEmpty ? value : '정보 없음',
-              style: const TextStyle(height: 1.35),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  String _buildTargetText(Policy policy) {
+  static String _buildTargetText(Policy policy) {
     final targets = <String>[];
 
     if (policy.minAge != null || policy.maxAge != null) {
       final min = policy.minAge != null ? '${policy.minAge}세' : '';
       final max = policy.maxAge != null ? '${policy.maxAge}세' : '';
-      targets.add('연령 ${[min, max].where((e) => e.isNotEmpty).join(' ~ ')}');
+      final ageText = [min, max].where((e) => e.isNotEmpty).join(' ~ ');
+      targets.add('연령 $ageText');
     }
     if (policy.isForYouth) targets.add('청년 대상');
     if ((policy.incomeCondition ?? '').isNotEmpty) {
@@ -216,22 +194,89 @@ class _PolicyDetailBottomSheetState
       targets.add('취업 상태: ${policy.employmentCondition}');
     }
 
-    if (targets.isEmpty) return '대상 정보 없음';
+    if (targets.isEmpty) return '지원 대상 정보가 없습니다.';
     return targets.join('\n');
   }
 
-  String _buildPeriodText(Policy policy) {
+  static String _buildPeriodText(Policy policy) {
     final start = policy.applicationStartDate;
     final end = policy.applicationEndDate;
 
     if (start == null && end == null) return '신청 기간 정보 없음';
-    if (start != null && end == null)
-      return '신청 시작일: ${start.toLocal().toString().split(" ").first}';
-    if (start == null && end != null)
-      return '신청 마감일: ${end.toLocal().toString().split(" ").first}';
+    if (start != null && end == null) {
+      return '신청 시작: ${start.toLocal().toString().split(" ").first}';
+    }
+    if (start == null && end != null) {
+      return '신청 마감: ${end.toLocal().toString().split(" ").first}';
+    }
 
-    return '신청 기간: '
-        '${start!.toLocal().toString().split(" ").first} ~ '
+    return '신청 기간: ${start!.toLocal().toString().split(" ").first} ~ '
         '${end!.toLocal().toString().split(" ").first}';
+  }
+}
+
+class _InfoSection extends StatelessWidget {
+  const _InfoSection({
+    required this.title,
+    required this.content,
+  });
+
+  final String title;
+  final String content;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+      child: AppCard(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppSectionTitle(title: title, padding: EdgeInsets.zero),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              content,
+              style: AppText.textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({
+    required this.error,
+    required this.onRetry,
+  });
+
+  final Object error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final message =
+        error is PolicyFailure ? (error as PolicyFailure).message : '알 수 없는 오류';
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('상세 정보를 불러오지 못했어요'),
+            const SizedBox(height: 8),
+            Text(message, style: AppText.textTheme.bodyMedium),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

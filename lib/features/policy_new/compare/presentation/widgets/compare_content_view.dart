@@ -27,29 +27,40 @@ class CompareContentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CompareHeaderRowWidget(
-          policies: state.policies,
-          insights: state.insights,
-          onRemove: onRemove,
-          onOpenDetail: onOpenDetail,
-          labelWidth: labelWidth,
-          columnWidth: columnWidth,
-        ),
-        const SizedBox(height: 12),
-        CompareSummaryHighlight(insights: state.insights),
-        const SizedBox(height: 12),
-        CompareDiffTableWidget(
-          policies: state.policies,
-          diffs: state.diffs,
-          insights: state.insights,
-          fields: service.fields,
-          labelWidth: labelWidth,
-          columnWidth: columnWidth,
-        ),
-      ],
+    // 🔵 전체 비교 테이블 폭을 명시적으로 계산
+    final int columnCount = state.policies.length;
+    final double totalWidth = labelWidth + columnWidth * columnCount;
+
+    return SizedBox(
+      // InteractiveViewer + SingleChildScrollView(horizontal)에서
+      // 기준이 되는 실제 콘텐츠 폭
+      width: totalWidth,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CompareHeaderRowWidget(
+            policies: state.policies,
+            insights: state.insights,
+            onRemove: onRemove,
+            onOpenDetail: onOpenDetail,
+            labelWidth: labelWidth,
+            columnWidth: columnWidth,
+          ),
+          const SizedBox(height: 12),
+          CompareSummaryHighlight(
+            insights: state.insights,
+          ),
+          const SizedBox(height: 12),
+          CompareDiffTableWidget(
+            policies: state.policies,
+            diffs: state.diffs,
+            insights: state.insights,
+            fields: service.fields,
+            labelWidth: labelWidth,
+            columnWidth: columnWidth,
+          ),
+        ],
+      ),
     );
   }
 }
