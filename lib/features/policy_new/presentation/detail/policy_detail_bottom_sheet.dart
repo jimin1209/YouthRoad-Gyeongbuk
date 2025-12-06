@@ -80,6 +80,9 @@ class _Content extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dDay = _buildDDayLabel(policy);
+
     return Column(
       children: [
         Expanded(
@@ -115,18 +118,21 @@ class _Content extends StatelessWidget {
                   _InfoSection(
                     title: '신청 기간',
                     content: _buildPeriodText(policy),
+                    badge: dDay != null
+                        ? _DDayBadge(label: dDay, color: theme.colorScheme)
+                        : null,
                   ),
                   _InfoSection(
                     title: '신청 방법',
                     content: policy.applyUrl.isNotEmpty
-                        ? '온라인 신청\n${policy.applyUrl}'
-                        : '신청 방법 정보가 없습니다.',
+                        ? 'Online: ${policy.applyUrl}'
+                        : 'Application method not available.',
                   ),
                   _InfoSection(
-                    title: '문의처 정보',
+                    title: '문의처',
                     content: (policy.contact ?? '').isNotEmpty
                         ? policy.contact!
-                        : '문의 정보가 없습니다.',
+                        : 'Contact info not available.',
                   ),
                   const SizedBox(height: AppSpacing.xl),
                 ],
@@ -145,27 +151,8 @@ class _Content extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => Scaffold(
-                            appBar: AppBar(title: const Text('비교 화면')),
-                            body: const SizedBox.shrink(),
-                          ),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text('비교하기'),
-                  ),
+                  child: PolicyReminderButton(policy: policy),
                 ),
-                const SizedBox(width: AppSpacing.md),
-                PolicyReminderButton(policy: policy),
               ],
             ),
           ),
@@ -178,10 +165,10 @@ class _Content extends StatelessWidget {
     final targets = <String>[];
 
     if (policy.minAge != null || policy.maxAge != null) {
-      final min = policy.minAge != null ? '${policy.minAge}세' : '';
-      final max = policy.maxAge != null ? '${policy.maxAge}세' : '';
-      final ageText = [min, max].where((e) => e.isNotEmpty).join(' ~ ');
-      targets.add('연령 $ageText');
+      final min = policy.minAge != null ? '만 ${policy.minAge}세 이상' : '';
+      final max = policy.maxAge != null ? '만 ${policy.maxAge}세 이하' : '';
+      final ageText = [min, max].where((e) => e.isNotEmpty).join(' / ');
+      targets.add(ageText);
     }
     if (policy.isForYouth) targets.add('청년 대상');
     if ((policy.incomeCondition ?? '').isNotEmpty) {
@@ -191,10 +178,10 @@ class _Content extends StatelessWidget {
       targets.add('학력: ${policy.educationCondition}');
     }
     if ((policy.employmentCondition ?? '').isNotEmpty) {
-      targets.add('취업 상태: ${policy.employmentCondition}');
+      targets.add('고용: ${policy.employmentCondition}');
     }
 
-    if (targets.isEmpty) return '지원 대상 정보가 없습니다.';
+    if (targets.isEmpty) return 'Eligibility info not available.';
     return targets.join('\n');
   }
 
@@ -202,16 +189,31 @@ class _Content extends StatelessWidget {
     final start = policy.applicationStartDate;
     final end = policy.applicationEndDate;
 
-    if (start == null && end == null) return '신청 기간 정보 없음';
+    if (start == null && end == null) {
+      return 'Application period not available';
+    }
     if (start != null && end == null) {
-      return '신청 시작: ${start.toLocal().toString().split(" ").first}';
+      return 'Start: ${start.toLocal().toString().split(" ").first}';
     }
     if (start == null && end != null) {
-      return '신청 마감: ${end.toLocal().toString().split(" ").first}';
+      return 'End: ${end.toLocal().toString().split(" ").first}';
     }
-
-    return '신청 기간: ${start!.toLocal().toString().split(" ").first} ~ '
+    return 'Period: ${start!.toLocal().toString().split(" ").first} ~ '
         '${end!.toLocal().toString().split(" ").first}';
+  }
+
+  static String? _buildDDayLabel(Policy policy) {
+    final end = policy.applicationEndDate;
+    if (end == null) return null;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final endDate = DateTime(end.year, end.month, end.day);
+
+    final diff = endDate.difference(today).inDays;
+    if (diff < 0) return '마감됨';
+    if (diff == 0) return '오늘 마감';
+    return 'D-$diff';
   }
 }
 
@@ -219,10 +221,12 @@ class _InfoSection extends StatelessWidget {
   const _InfoSection({
     required this.title,
     required this.content,
+    this.badge,
   });
 
   final String title;
   final String content;
+  final Widget? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -233,14 +237,45 @@ class _InfoSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppSectionTitle(title: title, padding: EdgeInsets.zero),
+            AppSectionTitle(
+              title: title,
+              trailing: badge,
+              padding: EdgeInsets.zero,
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               content,
               style: AppText.textTheme.bodyMedium,
+              softWrap: true,
+              overflow: TextOverflow.visible,
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DDayBadge extends StatelessWidget {
+  const _DDayBadge({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final ColorScheme color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.primary.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: AppText.textTheme.labelMedium,
       ),
     );
   }
@@ -257,8 +292,9 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final message =
-        error is PolicyFailure ? (error as PolicyFailure).message : '알 수 없는 오류';
+    final String message = error is PolicyFailure
+        ? (error as PolicyFailure).message
+        : 'An unknown error occurred while loading the policy.';
 
     return Center(
       child: Padding(
@@ -266,13 +302,17 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('상세 정보를 불러오지 못했어요'),
+            const Text('Failed to load policy details'),
             const SizedBox(height: 8),
-            Text(message, style: AppText.textTheme.bodyMedium),
+            Text(
+              message,
+              style: AppText.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('다시 시도'),
+              child: const Text('Retry'),
             ),
           ],
         ),

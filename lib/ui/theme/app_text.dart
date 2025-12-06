@@ -7,62 +7,62 @@ class AppText {
 
   static const String _fontFamily = 'Pretendard';
 
-  static TextTheme textTheme = const TextTheme(
-    displayLarge: TextStyle(
+  static TextTheme textTheme = TextTheme(
+    displayLarge: const TextStyle(
       fontFamily: _fontFamily,
       fontSize: 32,
       fontWeight: FontWeight.w700,
       color: AppColors.textPrimary,
     ),
-    displayMedium: TextStyle(
+    displayMedium: const TextStyle(
       fontFamily: _fontFamily,
       fontSize: 28,
       fontWeight: FontWeight.w700,
       color: AppColors.textPrimary,
     ),
-    headlineSmall: TextStyle(
+    headlineSmall: const TextStyle(
       fontFamily: _fontFamily,
       fontSize: 20,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w800,
       color: AppColors.textPrimary,
     ),
-    titleMedium: TextStyle(
+    titleMedium: const TextStyle(
       fontFamily: _fontFamily,
       fontSize: 16,
       fontWeight: FontWeight.w600,
       color: AppColors.textPrimary,
     ),
-    titleSmall: TextStyle(
+    titleSmall: const TextStyle(
       fontFamily: _fontFamily,
       fontSize: 14,
       fontWeight: FontWeight.w600,
       color: AppColors.textPrimary,
     ),
-    bodyLarge: TextStyle(
+    bodyLarge: const TextStyle(
       fontFamily: _fontFamily,
       fontSize: 16,
       fontWeight: FontWeight.w500,
       color: AppColors.textPrimary,
     ),
-    bodyMedium: TextStyle(
+    bodyMedium: const TextStyle(
       fontFamily: _fontFamily,
       fontSize: 14,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
       color: AppColors.textSecondary,
     ),
-    bodySmall: TextStyle(
+    bodySmall: const TextStyle(
       fontFamily: _fontFamily,
       fontSize: 12,
       fontWeight: FontWeight.w500,
       color: AppColors.textSecondary,
     ),
-    labelLarge: TextStyle(
+    labelLarge: const TextStyle(
       fontFamily: _fontFamily,
       fontSize: 14,
       fontWeight: FontWeight.w700,
       color: AppColors.surface,
     ),
-    labelMedium: TextStyle(
+    labelMedium: const TextStyle(
       fontFamily: _fontFamily,
       fontSize: 12,
       fontWeight: FontWeight.w600,
@@ -72,7 +72,7 @@ class AppText {
       fontFamily: _fontFamily,
       fontSize: 11,
       fontWeight: FontWeight.w600,
-      color: AppColors.textSecondary,
+      color: AppColors.textSecondary.withOpacity(0.6),
     ),
   );
 }

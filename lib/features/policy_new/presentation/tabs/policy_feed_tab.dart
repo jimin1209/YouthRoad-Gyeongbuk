@@ -52,14 +52,17 @@ class PolicyFeedTab extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: AppSpacing.md),
+            _KeyInfoRow(),
             if (showQuickFilter) ...[
+              const SizedBox(height: AppSpacing.md),
               const AppDivider(),
               const SizedBox(height: AppSpacing.sm),
-              const AppSectionTitle(title: '퀵 필터'),
+              const AppSectionTitle(title: '빠른 필터'),
               _QuickFilterBar(
                 filter: filter,
-                onToggleOngoing: () =>
-                    ref.read(policyFilterUiStateProvider.notifier).toggleOngoingOnly(),
+                onToggleOngoing: () => ref
+                    .read(policyFilterUiStateProvider.notifier)
+                    .toggleOngoingOnly(),
                 onClearKeyword: () =>
                     ref.read(policyFilterUiStateProvider.notifier).setKeyword(''),
               ),
@@ -152,6 +155,46 @@ class PolicyFeedTab extends ConsumerWidget {
   }
 }
 
+class _KeyInfoRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final textStyle = AppText.textTheme.bodyMedium.copyWith(
+      fontWeight: FontWeight.w600,
+      color: primary,
+    );
+
+    return Row(
+      children: [
+        _KeyInfoChip(label: '지원금 정보', style: textStyle),
+        const SizedBox(width: AppSpacing.sm),
+        _KeyInfoChip(label: '신청 기간', style: textStyle),
+      ],
+    );
+  }
+}
+
+class _KeyInfoChip extends StatelessWidget {
+  const _KeyInfoChip({
+    required this.label,
+    required this.style,
+  });
+
+  final String label;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Text(label, style: style, maxLines: 1),
+    );
+  }
+}
+
 class _QuickFilterBar extends StatelessWidget {
   const _QuickFilterBar({
     required this.filter,
@@ -173,7 +216,7 @@ class _QuickFilterBar extends StatelessWidget {
       ),
       if (filter.keyword.isNotEmpty)
         ChoiceChip(
-          label: Text('검색: ${filter.keyword}'),
+          label: Text('검색어 ${filter.keyword}'),
           selected: true,
           onSelected: (_) => onClearKeyword(),
         ),
