@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/controllers/ui_reaction_controller.dart';
 import '../../application/filters/policy_filter_ui_state.dart';
+import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_sort.dart';
 import 'policy_filter_bottom_sheet.dart';
 import 'policy_keyword_sheet.dart';
 import 'policy_sort_bottom_sheet.dart';
 
 class PolicyFilterBar extends ConsumerWidget {
-  const PolicyFilterBar({super.key});
+  const PolicyFilterBar({
+    super.key,
+    this.feedType = PolicyFeedType.recommend,
+  });
+
+  final PolicyFeedType feedType;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,7 +28,7 @@ class PolicyFilterBar extends ConsumerWidget {
         children: [
           Expanded(
             child: GestureDetector(
-              onTap: () => _openKeywordSheet(context),
+              onTap: () => _openKeywordSheet(context, ref),
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -54,14 +61,14 @@ class PolicyFilterBar extends ConsumerWidget {
             context,
             label: _sortLabel(ui.sort),
             icon: Icons.swap_vert,
-            onTap: () => _openSortSheet(context),
+            onTap: () => _openSortSheet(context, ref),
           ),
           const SizedBox(width: 6),
           _chipButton(
             context,
             label: '필터',
             icon: Icons.filter_alt_outlined,
-            onTap: () => _openFilterSheet(context),
+            onTap: () => _openFilterSheet(context, ref),
           ),
         ],
       ),
@@ -106,25 +113,34 @@ class PolicyFilterBar extends ConsumerWidget {
     }
   }
 
-  void _openKeywordSheet(BuildContext context) {
+  void _openKeywordSheet(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const PolicyKeywordSheet(),
+      builder: (_) => PolicyKeywordSheet(feedType: feedType),
     );
+    ref
+        .read(uiReactionControllerProvider(feedType).notifier)
+        .markSearchConfirmed(ref.read(policyFilterUiStateProvider).keyword);
   }
 
-  void _openSortSheet(BuildContext context) {
+  void _openSortSheet(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
-      builder: (_) => const PolicySortBottomSheet(),
+      builder: (_) => PolicySortBottomSheet(feedType: feedType),
     );
+    ref
+        .read(uiReactionControllerProvider(feedType).notifier)
+        .markFilterConfirmed('정렬 옵션을 선택해보세요.');
   }
 
-  void _openFilterSheet(BuildContext context) {
+  void _openFilterSheet(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
-      builder: (_) => const PolicyFilterBottomSheet(),
+      builder: (_) => PolicyFilterBottomSheet(feedType: feedType),
     );
+    ref
+        .read(uiReactionControllerProvider(feedType).notifier)
+        .markFilterConfirmed('필터 조건을 업데이트했어요.');
   }
 }

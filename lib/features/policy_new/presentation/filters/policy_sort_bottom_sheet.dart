@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/controllers/ui_reaction_controller.dart';
 import '../../application/filters/policy_filter_ui_state.dart';
+import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_sort.dart';
 
 class PolicySortBottomSheet extends ConsumerWidget {
-  const PolicySortBottomSheet({super.key});
+  const PolicySortBottomSheet({
+    super.key,
+    required this.feedType,
+  });
+
+  final PolicyFeedType feedType;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,6 +37,9 @@ class PolicySortBottomSheet extends ConsumerWidget {
                 onChanged: (value) {
                   if (value == null) return;
                   ref.read(policyFilterUiStateProvider.notifier).setSort(value);
+                  ref
+                      .read(uiReactionControllerProvider(feedType).notifier)
+                      .markFilterConfirmed('${_label(value)} 정렬을 적용했어요.');
                   Navigator.of(context).pop();
                 },
               ),

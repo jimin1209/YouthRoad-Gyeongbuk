@@ -3,10 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/controllers/ui_reaction_controller.dart';
 import '../../application/filters/policy_filter_ui_state.dart';
+import '../../application/providers.dart';
+import '../../domain/values/policy_feed_type.dart';
 
 class PolicyKeywordSheet extends ConsumerStatefulWidget {
-  const PolicyKeywordSheet({super.key});
+  const PolicyKeywordSheet({
+    super.key,
+    this.feedType = PolicyFeedType.search,
+  });
+
+  final PolicyFeedType feedType;
 
   @override
   ConsumerState<PolicyKeywordSheet> createState() => _PolicyKeywordSheetState();
@@ -87,6 +95,16 @@ class _PolicyKeywordSheetState extends ConsumerState<PolicyKeywordSheet> {
   }
 
   void _applyKeyword(String value) {
-    ref.read(policyFilterUiStateProvider.notifier).setKeyword(value.trim());
+    final keyword = value.trim();
+    final prev = ref.read(policyFilterUiStateProvider).keyword;
+    ref.read(policyFilterUiStateProvider.notifier).setKeyword(keyword);
+
+    final reaction =
+        ref.read(uiReactionControllerProvider(widget.feedType).notifier);
+    if (prev == keyword) {
+      reaction.markUnchanged(ref.read(policyQueryProvider(widget.feedType)).hash);
+    } else {
+      reaction.markSearchConfirmed(keyword);
+    }
   }
 }

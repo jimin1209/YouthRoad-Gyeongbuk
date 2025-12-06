@@ -99,7 +99,7 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
         children: [
           // 🔵 추천 탭에서만 상단 필터 바 노출
           if (currentFeedType == PolicyFeedType.recommend)
-            const PolicyFilterBar(),
+            const PolicyFilterBar(feedType: PolicyFeedType.recommend),
 
           // 🔵 추천 탭에서만 추천 태그 바 노출
           if (_shouldShowTagsBar(currentFeedType))
