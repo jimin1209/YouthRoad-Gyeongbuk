@@ -37,7 +37,7 @@ void main() {
 
       expect(restored, isNotNull);
       expect(restored!.page, 2);
-      expect(restored.state.items, isEmpty);
+      expect(restored.state.currentResults, isEmpty);
       expect(restored.query.hash, 'q1');
     });
 

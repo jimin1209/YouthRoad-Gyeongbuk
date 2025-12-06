@@ -103,7 +103,7 @@ abstract class BasePolicyFeedController
   }
 
   Future<void> ensureInitialized() async {
-    if (state.items.isNotEmpty || state.isLoading) return;
+    if (state.visibleItems.isNotEmpty || state.isLoading) return;
     await _reloadCurrentQuery();
   }
 
@@ -131,7 +131,7 @@ abstract class BasePolicyFeedController
 
     result.fold(
       onSuccess: (list) {
-        final merged = [...state.items, ...list];
+        final merged = [...state.currentResults, ...list];
         state = PolicyPagingState.data(
           items: merged,
           hasMore: list.length == queryEngine.pageSize,
@@ -218,7 +218,8 @@ abstract class BasePolicyFeedController
   }) async {
     if (_isLoading) return;
 
-    final previousItems = List<Policy>.from(state.items);
+    final previousItems = List<Policy>.from(state.visibleItems);
+    final previousResults = previousItems.isEmpty ? null : previousItems;
     final isInitialLoad = !append && previousItems.isEmpty;
 
     final shouldFetch = _shouldFetchForFeedType(queryState.query);
@@ -236,7 +237,7 @@ abstract class BasePolicyFeedController
       _reaction.markLoading(queryState.hash, isInitialLoad: isInitialLoad);
     }
     if (!append) {
-      state = const PolicyPagingState.loading();
+      state = PolicyPagingState.loading(previousResults: previousResults);
     }
 
     final result = await queryEngine.fetch(
@@ -247,7 +248,7 @@ abstract class BasePolicyFeedController
 
     result.fold(
       onSuccess: (list) {
-        final merged = append ? [...state.items, ...list] : list;
+        final merged = append ? [...state.currentResults, ...list] : list;
         state = PolicyPagingState.data(
           items: merged,
           hasMore: list.length == queryEngine.pageSize,
@@ -260,7 +261,7 @@ abstract class BasePolicyFeedController
         );
       },
       onFailure: (failure) {
-        state = PolicyPagingState.error(failure);
+        state = PolicyPagingState.error(failure, previousResults: previousResults);
         _reaction.markFailure(
           queryHash: queryState.hash,
           message: failure.message,

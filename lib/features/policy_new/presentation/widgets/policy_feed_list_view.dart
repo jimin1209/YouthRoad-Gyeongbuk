@@ -7,6 +7,7 @@ import '../../application/controllers/base_feed_controller.dart';
 import '../../application/controllers/ui_reaction_controller.dart';
 import '../../application/controllers/policy_paging_state.dart';
 import '../../application/providers.dart';
+import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../detail/policy_detail_bottom_sheet.dart';
 import 'policy_feed_reaction_banner.dart';
@@ -81,6 +82,15 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
       _isLoadingMore = false;
     }
 
+    final visibleItems = state.visibleItems;
+    final isInitialLoading = state.isLoading && visibleItems.isEmpty;
+    final isTransitionLoading = state.isLoading && state.previousResults != null;
+    var showSkeleton =
+        reaction.shouldHoldSkeleton || isInitialLoading || isTransitionLoading;
+    if (state.failure != null) {
+      showSkeleton = false;
+    }
+
     final keyword = query.keyword?.trim() ?? '';
     final hasKeyword = keyword.isNotEmpty;
     final isKeywordTooShort = hasKeyword && keyword.length < 2;
@@ -88,17 +98,14 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
 
     final shouldShowSearchGuide =
         widget.feedType == PolicyFeedType.search &&
-            state.items.isEmpty &&
-            !state.isLoading &&
+            visibleItems.isEmpty &&
+            !isInitialLoading &&
             !hasTags &&
             (!hasKeyword || isKeywordTooShort);
 
     Widget content;
 
-    if (reaction.shouldHoldSkeleton ||
-        (state.isLoading && state.items.isEmpty)) {
-      content = const PolicyListSkeleton();
-    } else if (state.failure != null) {
+    if (state.failure != null) {
       content = PolicyListError(
         key: const ValueKey('policy-list-error'),
         message: state.failure!.message,
@@ -110,7 +117,7 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
         isKeywordTooShort: isKeywordTooShort,
         feedType: widget.feedType,
       );
-    } else if (!state.isLoading && state.items.isEmpty) {
+    } else if (!state.isLoading && visibleItems.isEmpty) {
       final emptyMessage = widget.feedType == PolicyFeedType.favorite
           ? '즐겨찾기한 정책이 없습니다.\n마음에 드는 정책의 하트 버튼을 눌러 저장해보세요.'
           : '조건에 맞는 정책이 없습니다.\n${queryState.conditionSummary} 조건을 조정해보세요.';
@@ -133,11 +140,11 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
           addAutomaticKeepAlives: false,
           addSemanticIndexes: false,
           addRepaintBoundaries: false,
-          itemCount:
-              state.items.length + (_shouldShowFooterLoader(state) ? 1 : 0),
+          itemCount: visibleItems.length +
+              (_shouldShowFooterLoader(state, visibleItems) ? 1 : 0),
           itemBuilder: (context, index) {
-            if (index < state.items.length) {
-              final policy = state.items[index];
+            if (index < visibleItems.length) {
+              final policy = visibleItems[index];
               return RepaintBoundary(
                 child: PolicyCard(
                   key: ValueKey('policy-${policy.id}'),
@@ -159,6 +166,18 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
           },
         ),
       );
+
+      if (showSkeleton) {
+        content = Stack(
+          key: const ValueKey('policy-list-content'),
+          children: [
+            Positioned.fill(child: content),
+            const Positioned.fill(
+              child: IgnorePointer(child: PolicyListSkeleton()),
+            ),
+          ],
+        );
+      }
     }
 
     return Column(
@@ -179,8 +198,9 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
     );
   }
 
-  bool _shouldShowFooterLoader(PolicyPagingState state) {
-    if (state.items.isEmpty) return false;
+  bool _shouldShowFooterLoader(PolicyPagingState state, List<Policy> items) {
+    if (items.isEmpty) return false;
+    if (state.previousResults != null) return false;
     return _isLoadingMore || (state.isLoading && state.hasMore);
   }
 
