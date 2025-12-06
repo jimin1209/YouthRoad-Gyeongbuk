@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../controllers/compare_diff_service.dart';
 import '../../models/compare_state.dart';
-import 'compare_diff_table_widget.dart';
-import 'compare_header_row_widget.dart';
-import 'compare_summary_highlight.dart';
+import 'compare_content_view.dart';
 
 class CompareScreen extends StatelessWidget {
   const CompareScreen({
@@ -62,35 +60,25 @@ class CompareScreen extends StatelessWidget {
         ),
         const Divider(height: 1),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: totalWidth,
+          child: InteractiveViewer(
+            minScale: 1.0,
+            maxScale: 2.5,
+            boundaryMargin: const EdgeInsets.all(32),
+            clipBehavior: Clip.none,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
               child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CompareHeaderRowWidget(
-                      policies: state.policies,
-                      insights: state.insights,
-                      onRemove: onRemove,
-                      onOpenDetail: onOpenDetail,
-                      labelWidth: labelWidth,
-                      columnWidth: _columnWidth,
-                    ),
-                    const SizedBox(height: 12),
-                    CompareSummaryHighlight(insights: state.insights),
-                    const SizedBox(height: 12),
-                    CompareDiffTableWidget(
-                      policies: state.policies,
-                      diffs: state.diffs,
-                      insights: state.insights,
-                      fields: service.fields,
-                      labelWidth: labelWidth,
-                      columnWidth: _columnWidth,
-                    ),
-                  ],
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: totalWidth,
+                  child: CompareContentView(
+                    state: state,
+                    service: service,
+                    labelWidth: labelWidth,
+                    columnWidth: _columnWidth,
+                    onRemove: onRemove,
+                    onOpenDetail: onOpenDetail,
+                  ),
                 ),
               ),
             ),

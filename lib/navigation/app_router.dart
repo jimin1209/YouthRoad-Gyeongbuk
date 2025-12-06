@@ -12,6 +12,7 @@ import '../features/map_v2/kakao_map_screen.dart';
 import '../features/map_v2/kakao_map_test_page.dart';
 import '../features/map_v2/map_with_list_screen.dart';
 import '../ui/screens/compare/compare_screen.dart';
+import '../features/policy_new/presentation/compare/policy_compare_screen.dart';
 import '../ui/screens/region/region_select_screen.dart';
 import '../ui/screens/setting/setting_screen.dart';
 import '../ui/screens/setting/setting_v2_screen.dart';
@@ -145,14 +146,14 @@ class AppRouter {
           path: RoutePaths.policyCompare,
           pageBuilder: (context, state) => buildSlideFadePage(
             key: state.pageKey,
-            child: const CompareScreen(),
+            child: const PolicyCompareScreen(),
           ),
         ),
         GoRoute(
           path: RoutePaths.compare,
           pageBuilder: (context, state) => buildSlideFadePage(
             key: state.pageKey,
-            child: const CompareScreen(),
+            child: const PolicyCompareScreen(),
           ),
         ),
         GoRoute(

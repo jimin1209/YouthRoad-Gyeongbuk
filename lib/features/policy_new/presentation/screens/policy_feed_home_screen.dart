@@ -2,17 +2,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/values/policy_feed_type.dart';
+import '../../application/providers.dart' show compareRepositoryProvider;
 import '../filters/policy_filter_bar.dart';
 import '../filters/policy_recommend_tags_bar.dart';
 import '../reminder/policy_reminder_list_screen.dart';
 import '../widgets/policy_feed_list_view.dart';
 import '../explore/policy_explore_screen.dart';
+import '../compare/widgets/compare_entry_bar.dart';
+import '../compare/policy_compare_screen.dart';
 
 class PolicyFeedHomeScreen extends ConsumerStatefulWidget {
   const PolicyFeedHomeScreen({super.key});
 
   @override
-  ConsumerState<PolicyFeedHomeScreen> createState() => _PolicyFeedHomeScreenState();
+  ConsumerState<PolicyFeedHomeScreen> createState() =>
+      _PolicyFeedHomeScreenState();
 }
 
 class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
@@ -53,6 +57,14 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final currentFeedType = _tabs[_currentIndex].type;
+
+    // 🔵 비교 보관함 상태
+    final compareRepo = ref.watch(compareRepositoryProvider);
+    final compareCount = compareRepo.ids.length;
+    final showCompareBar =
+        currentFeedType == PolicyFeedType.favorite && compareCount > 0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('정책 탐색'),
@@ -85,24 +97,46 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
       ),
       body: Column(
         children: [
-          if (_tabs[_currentIndex].type != PolicyFeedType.favorite &&
-              _tabs[_currentIndex].type != PolicyFeedType.all)
+          // 🔵 추천 탭에서만 상단 필터 바 노출
+          if (currentFeedType == PolicyFeedType.recommend)
             const PolicyFilterBar(),
-          if (_shouldShowTagsBar(_tabs[_currentIndex].type))
+
+          // 🔵 추천 탭에서만 추천 태그 바 노출
+          if (_shouldShowTagsBar(currentFeedType))
             const PolicyRecommendTagsBar(),
+
+          // 🔵 실제 리스트 부분
           Expanded(
             child: TabBarView(
               controller: _tabController,
               physics: const BouncingScrollPhysics(),
               children: _tabs.map((tab) {
+                // 탐색 탭은 ExploreScreen 사용
                 if (tab.type == PolicyFeedType.all) {
-                  // 탐색 탭은 ExploreScreen으로 대체
                   return const PolicyExploreScreen();
                 }
+
+                // 추천 / 보관함 탭은 기본 피드 리스트 사용
                 return PolicyFeedListView(feedType: tab.type);
               }).toList(),
             ),
           ),
+
+          // 🔵 보관함 탭 + 비교 항목 있을 때만 하단 CompareEntryBar 노출
+          if (showCompareBar)
+            SafeArea(
+              top: false,
+              child: CompareEntryBar(
+                itemCount: compareCount,
+                onOpenCompare: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const PolicyCompareScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
@@ -112,4 +146,3 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
     return feedType == PolicyFeedType.recommend;
   }
 }
-

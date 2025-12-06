@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../application/notifiers/region_notifier.dart';
@@ -17,7 +18,7 @@ class ExploreController extends StateNotifier<ExploreState> {
   final Ref ref;
 
   void setMode(ExploreSubMode mode) {
-    // 검색 모드가 아닌 경우 키워드를 비워 검색 상태를 초기화
+    debugPrint('[Explore] setMode: $mode');
     if (mode != ExploreSubMode.search && state.keyword.isNotEmpty) {
       _syncKeyword('');
       state = state.copyWith(keyword: '');
@@ -30,6 +31,7 @@ class ExploreController extends StateNotifier<ExploreState> {
 
   void setKeyword(String value) {
     final trimmed = value.trim();
+    debugPrint('[Explore] setKeyword: "$trimmed"');
     if (trimmed.isEmpty) {
       _syncKeyword('');
       state = state.copyWith(
@@ -50,6 +52,7 @@ class ExploreController extends StateNotifier<ExploreState> {
   void clearKeyword() => setKeyword('');
 
   Future<void> setMyRegion() async {
+    debugPrint('[Explore] setMyRegion');
     final notifier = ref.read(regionProvider.notifier);
     final city = notifier.selectedCity;
     final summary = notifier.summary;
@@ -61,7 +64,6 @@ class ExploreController extends StateNotifier<ExploreState> {
         mode: ExploreSubMode.region,
       );
     } else {
-      // city 정보가 없는 경우에도 기본 region 모드로 전환
       state = state.copyWith(
         selectedRegionName: '경북 전체',
         selectedRegionCode: null,
@@ -72,6 +74,7 @@ class ExploreController extends StateNotifier<ExploreState> {
   }
 
   void setCustomRegion({required String name, required String code}) {
+    debugPrint('[Explore] setCustomRegion: $name ($code)');
     state = state.copyWith(
       selectedRegionName: name,
       selectedRegionCode: code,
@@ -85,8 +88,8 @@ class ExploreController extends StateNotifier<ExploreState> {
   }
 
   void setStatusFilter(PolicyStatusFilter filter) {
+    debugPrint('[Explore] setStatus: $filter');
     state = state.copyWith(statusFilter: filter);
-    // Map to existing filter state (showOnlyOngoing)
     final filterNotifier = ref.read(policyFilterUiStateProvider.notifier);
     final current = ref.read(policyFilterUiStateProvider).showOnlyOngoing;
     final shouldBeOngoingOnly = filter == PolicyStatusFilter.inProgressOnly;
@@ -96,6 +99,7 @@ class ExploreController extends StateNotifier<ExploreState> {
   }
 
   void setSortKind(PolicySortKind sortKind) {
+    debugPrint('[Explore] setSort: $sortKind');
     state = state.copyWith(sortKind: sortKind);
     final notifier = ref.read(policyFilterUiStateProvider.notifier);
     PolicySortOption option;
@@ -117,6 +121,7 @@ class ExploreController extends StateNotifier<ExploreState> {
   }
 
   void toggleCategory(String categoryId) {
+    debugPrint('[Explore] toggleCategory: $categoryId');
     final current = [...state.selectedCategories];
     if (current.contains(categoryId)) {
       current.remove(categoryId);
@@ -125,12 +130,12 @@ class ExploreController extends StateNotifier<ExploreState> {
     }
     state = state.copyWith(selectedCategories: current);
 
-    // 단일 카테고리만 매핑 (기존 필터 구조에 맞춤)
     final catEnum = _mapCategory(categoryId);
     ref.read(policyFilterUiStateProvider.notifier).setCategory(catEnum);
   }
 
   void clearFilters() {
+    debugPrint('[Explore] clearFilters');
     state = state.copyWith(
       statusFilter: PolicyStatusFilter.inProgressOnly,
       sortKind: PolicySortKind.recommended,

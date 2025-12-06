@@ -96,10 +96,10 @@ class PolicyCard extends StatelessWidget {
       return '신청 기간 정보 없음';
     }
     if (start != null && end == null) {
-      return '신청 시작일: ${start.toLocal().toString().split(" ").first}';
+      return '신청 시작: ${start.toLocal().toString().split(" ").first}';
     }
     if (start == null && end != null) {
-      return '신청 마감일: ${end.toLocal().toString().split(" ").first}';
+      return '신청 마감: ${end.toLocal().toString().split(" ").first}';
     }
     return '신청 기간: '
         '${start!.toLocal().toString().split(" ").first} ~ '
@@ -145,24 +145,40 @@ class _CompareButton extends ConsumerWidget {
     final bg = isCompared ? color.withOpacity(0.12) : Colors.transparent;
 
     return RepaintBoundary(
-      child: SizedBox(
-        width: 44,
-        height: 44,
-        child: Material(
-          color: bg,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: () => compareController.toggleCompare(policy),
-            child: Tooltip(
-              message: isCompared ? '비교 해제' : '비교 추가',
-              child: Icon(
-                isCompared ? Icons.compare_arrows : Icons.compare_arrows_outlined,
-                color: color,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: Material(
+              color: bg,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => compareController.toggleCompare(policy),
+                child: Tooltip(
+                  message: isCompared ? '비교 해제' : '비교 추가',
+                  child: Icon(
+                    isCompared ? Icons.compare_arrows : Icons.compare_arrows_outlined,
+                    color: color,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+          if (isCompared)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '비교 중',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: color, fontWeight: FontWeight.w600),
+              ),
+            ),
+        ],
       ),
     );
   }

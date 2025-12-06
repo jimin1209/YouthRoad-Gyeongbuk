@@ -1,10 +1,14 @@
+// lib/features/policy_new/presentation/explore/policy_explore_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/explore/explore_providers.dart';
 import '../../application/explore/explore_state.dart';
 import '../../application/filters/policy_filter_ui_state.dart';
+import '../../application/providers.dart';
 import '../../domain/values/policy_feed_type.dart';
+import '../../domain/values/policy_sort.dart';
 import '../filters/policy_filter_bar.dart';
 import '../widgets/policy_feed_list_view.dart';
 import '../../../../application/notifiers/region_notifier.dart';
@@ -14,11 +18,20 @@ class PolicyExploreScreen extends ConsumerStatefulWidget {
   const PolicyExploreScreen({super.key});
 
   @override
-  ConsumerState<PolicyExploreScreen> createState() => _PolicyExploreScreenState();
+  ConsumerState<PolicyExploreScreen> createState() =>
+      _PolicyExploreScreenState();
 }
 
 class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
   late final TextEditingController _searchController;
+
+  static const _categories = [
+    (id: 'employment', label: '취업'),
+    (id: 'startup', label: '창업'),
+    (id: 'housing', label: '주거'),
+    (id: 'education', label: '교육'),
+    (id: 'life', label: '생활'),
+  ];
 
   @override
   void initState() {
@@ -35,139 +48,82 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final exploreState = ref.watch(exploreStateProvider);
+    final state = ref.watch(exploreStateProvider);
     final controller = ref.read(exploreStateProvider.notifier);
     final filterUi = ref.watch(policyFilterUiStateProvider);
     final regionNotifier = ref.read(regionProvider.notifier);
-    final regionName = exploreState.selectedRegionName ?? regionNotifier.summary;
+    final regionName = state.selectedRegionName ?? regionNotifier.summary;
 
-    if (_searchController.text != exploreState.keyword) {
-      _searchController.text = exploreState.keyword;
+    // 검색어 동기화
+    if (_searchController.text != state.keyword) {
+      _searchController.text = state.keyword;
       _searchController.selection = TextSelection.fromPosition(
         TextPosition(offset: _searchController.text.length),
       );
     }
 
-    final feedType = _feedTypeFor(exploreState);
-    final summary = _summaryFor(exploreState, filterUi.regionSummary);
+    final feedType = _feedTypeFor(state);
+    final summary = _summaryFor(state, filterUi.regionSummary);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('정책 탐색'),
       ),
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: '검색어를 입력하거나 태그를 선택해보세요.',
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.search),
-                      onPressed: () => controller.setKeyword(_searchController.text),
-                    ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 🔹 상단 컨트롤 영역 (검색 / 퀵 필터 / 요약)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SearchBarRow(
+                    keyword: state.keyword,
+                    sortKind: state.sortKind,
+                    onKeywordChanged: controller.setKeyword,
+                    onSubmit: controller.setKeyword,
+                    onSortChanged: controller.setSortKind,
+                    onOpenFilterSheet: () =>
+                        _openFilterBottomSheet(context, controller, state),
+                    textController: _searchController,
                   ),
-                  textInputAction: TextInputAction.search,
-                  onChanged: controller.setKeyword,
-                  onTap: () => controller.setMode(ExploreSubMode.search),
-                  onSubmitted: controller.setKeyword,
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Wrap(
-                  spacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('전체'),
-                      selected: exploreState.mode == ExploreSubMode.all &&
-                          !exploreState.hasKeyword,
-                      onSelected: (_) => controller.setMode(ExploreSubMode.all),
-                    ),
-                    ChoiceChip(
-                      label: Text('내 지역 ($regionName)'),
-                      selected: exploreState.mode == ExploreSubMode.region &&
-                          exploreState.useMyRegionAsDefault,
-                      onSelected: (_) async {
-                        await controller.setMyRegion();
+                  const SizedBox(height: 8),
+                  _QuickFilterChips(
+                    state: state,
+                    regionName: regionName,
+                    onToggleStatus: (value) =>
+                        controller.setStatusFilter(value),
+                    onToggleRegion: () {
+                      final isRegion = state.mode == ExploreSubMode.region;
+                      if (isRegion) {
+                        controller.setMode(ExploreSubMode.all);
+                      } else {
                         controller.setMode(ExploreSubMode.region);
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('검색'),
-                      selected: exploreState.mode == ExploreSubMode.search,
-                      onSelected: (_) => controller.setMode(ExploreSubMode.search),
-                    ),
-                    TextButton.icon(
-                      onPressed: () async {
-                        if (!mounted) return;
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const RegionSelectScreen(),
-                          ),
-                        );
-                        final notifier = ref.read(regionProvider.notifier);
-                        final city = notifier.selectedCity;
-                        final summary = notifier.summary;
-                        if (city != null && city.isNotEmpty) {
-                          controller.setCustomRegion(name: summary, code: city);
-                        } else {
-                          controller.setMode(ExploreSubMode.region);
-                        }
-                      },
-                      icon: const Icon(Icons.edit_location_alt_outlined, size: 18),
-                      label: const Text('다른 지역 선택'),
-                    ),
-                  ],
-                ),
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _SummaryRow(
+                    summary: summary,
+                    onReset: controller.clearFilters,
+                    onTap: () =>
+                        _openFilterBottomSheet(context, controller, state),
+                  ),
+                ],
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        summary,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        controller.clearKeyword();
-                        controller.clearFilters();
-                      },
-                      child: const Text('초기화'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _StatusChips(state: exploreState, controller: controller),
-            ),
-            SliverToBoxAdapter(
-              child: _SortMenu(state: exploreState, controller: controller),
-            ),
-            SliverToBoxAdapter(
-              child: _CategoryChips(state: exploreState, controller: controller),
-            ),
-            const SliverToBoxAdapter(child: PolicyFilterBar()),
-            SliverFillRemaining(
-              hasScrollBody: true,
+
+            // 🔹 탐색 상단 공통 필터 바
+            const PolicyFilterBar(),
+
+            // 🔹 본문: 정책 리스트 (단일 스크롤)
+            Expanded(
               child: _buildBody(
                 context: context,
                 feedType: feedType,
-                exploreState: exploreState,
+                exploreState: state,
               ),
             ),
           ],
@@ -190,7 +146,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
             mainAxisSize: MainAxisSize.min,
             children: const [
               Text(
-                '검색어를 입력해 주세요.',
+                '검색어를 입력해 주세요',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               SizedBox(height: 8),
@@ -200,6 +156,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
         ),
       );
     }
+
     return PolicyFeedListView(feedType: feedType);
   }
 
@@ -215,7 +172,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
 
   String _summaryFor(ExploreState state, String regionSummary) {
     if (state.mode == ExploreSubMode.search && state.keyword.isNotEmpty) {
-      return '\"${state.keyword}\" 검색결과';
+      return '"${state.keyword}" 검색 결과';
     }
     if (state.mode == ExploreSubMode.region) {
       final name = state.selectedRegionName?.isNotEmpty == true
@@ -223,69 +180,223 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
           : regionSummary;
       return '$name 지역 정책';
     }
-    return '경북 전체 정책';
+    final statusLabel = _statusLabel(state.statusFilter);
+    return '경북 전체 · $statusLabel';
   }
-}
 
-class _StatusChips extends StatelessWidget {
-  const _StatusChips({
-    required this.state,
-    required this.controller,
-  });
+  String _statusLabel(PolicyStatusFilter filter) {
+    switch (filter) {
+      case PolicyStatusFilter.inProgressOnly:
+        return '진행중만';
+      case PolicyStatusFilter.includeClosed:
+        return '마감 포함';
+      case PolicyStatusFilter.closedOnly:
+        return '마감만';
+    }
+  }
 
-  final ExploreState state;
-  final ExploreController controller;
+  void _openFilterBottomSheet(
+    BuildContext context,
+    ExploreController controller,
+    ExploreState state,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final tempCategories = {...state.selectedCategories};
+        var tempStatus = state.statusFilter;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          '필터',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              tempCategories.clear();
+                              tempStatus = PolicyStatusFilter.inProgressOnly;
+                            });
+                          },
+                          child: const Text('초기화'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '진행 상태',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        _statusChip(
+                          label: '진행중만',
+                          selected:
+                              tempStatus == PolicyStatusFilter.inProgressOnly,
+                          onTap: () => setState(
+                            () =>
+                                tempStatus = PolicyStatusFilter.inProgressOnly,
+                          ),
+                        ),
+                        _statusChip(
+                          label: '마감 포함',
+                          selected:
+                              tempStatus == PolicyStatusFilter.includeClosed,
+                          onTap: () => setState(
+                            () => tempStatus = PolicyStatusFilter.includeClosed,
+                          ),
+                        ),
+                        _statusChip(
+                          label: '마감만',
+                          selected: tempStatus == PolicyStatusFilter.closedOnly,
+                          onTap: () => setState(
+                            () => tempStatus = PolicyStatusFilter.closedOnly,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      '카테고리',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: _categories
+                          .map(
+                            (c) => FilterChip(
+                              label: Text(c.label),
+                              selected: tempCategories.contains(c.id),
+                              onSelected: (_) {
+                                setState(() {
+                                  if (tempCategories.contains(c.id)) {
+                                    tempCategories.remove(c.id);
+                                  } else {
+                                    tempCategories.add(c.id);
+                                  }
+                                });
+                              },
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('닫기'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              controller.clearFilters();
+                              controller.setStatusFilter(tempStatus);
+                              for (final id in tempCategories) {
+                                controller.toggleCategory(id);
+                              }
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text('적용'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Wrap(
-        spacing: 8,
-        children: [
-          ChoiceChip(
-            label: const Text('진행중만'),
-            selected: state.statusFilter == PolicyStatusFilter.inProgressOnly,
-            onSelected: (_) =>
-                controller.setStatusFilter(PolicyStatusFilter.inProgressOnly),
-          ),
-          ChoiceChip(
-            label: const Text('마감 포함'),
-            selected: state.statusFilter == PolicyStatusFilter.includeClosed,
-            onSelected: (_) =>
-                controller.setStatusFilter(PolicyStatusFilter.includeClosed),
-          ),
-          ChoiceChip(
-            label: const Text('마감만'),
-            selected: state.statusFilter == PolicyStatusFilter.closedOnly,
-            onSelected: (_) =>
-                controller.setStatusFilter(PolicyStatusFilter.closedOnly),
-          ),
-        ],
-      ),
+  Widget _statusChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
     );
   }
 }
 
-class _SortMenu extends StatelessWidget {
-  const _SortMenu({
-    required this.state,
-    required this.controller,
+class _SearchBarRow extends StatelessWidget {
+  const _SearchBarRow({
+    required this.keyword,
+    required this.sortKind,
+    required this.onKeywordChanged,
+    required this.onSubmit,
+    required this.onSortChanged,
+    required this.onOpenFilterSheet,
+    required this.textController,
   });
 
-  final ExploreState state;
-  final ExploreController controller;
+  final String keyword;
+  final PolicySortKind sortKind;
+  final void Function(String) onKeywordChanged;
+  final void Function(String) onSubmit;
+  final void Function(PolicySortKind) onSortChanged;
+  final VoidCallback onOpenFilterSheet;
+  final TextEditingController textController;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: PopupMenuButton<PolicySortKind>(
-          initialValue: state.sortKind,
-          icon: const Icon(Icons.sort),
-          onSelected: controller.setSortKind,
+    if (textController.text != keyword) {
+      textController.text = keyword;
+      textController.selection = TextSelection.fromPosition(
+        TextPosition(offset: textController.text.length),
+      );
+    }
+
+    final sortLabel = _sortLabel(sortKind);
+
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: textController,
+            decoration: const InputDecoration(
+              hintText: '검색어를 입력하세요',
+            ),
+            textInputAction: TextInputAction.search,
+            onChanged: onKeywordChanged,
+            onSubmitted: onSubmit,
+          ),
+        ),
+        const SizedBox(width: 8),
+        PopupMenuButton<PolicySortKind>(
+          tooltip: '정렬',
+          initialValue: sortKind,
+          onSelected: onSortChanged,
           itemBuilder: (context) => const [
             PopupMenuItem(
               value: PolicySortKind.recommended,
@@ -293,53 +404,141 @@ class _SortMenu extends StatelessWidget {
             ),
             PopupMenuItem(
               value: PolicySortKind.newest,
-              child: Text('최신 등록순'),
+              child: Text('최신순'),
             ),
             PopupMenuItem(
               value: PolicySortKind.deadline,
-              child: Text('마감 임박순'),
+              child: Text('마감임박'),
             ),
             PopupMenuItem(
               value: PolicySortKind.amount,
-              child: Text('지원금 많은순'),
+              child: Text('인기순'),
             ),
           ],
+          // 🔵 OutlinedButton.icon 대신, 폭 제약이 안전한 커스텀 뷰
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.sort, size: 18),
+                const SizedBox(width: 4),
+                Text(
+                  sortLabel,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
         ),
+        IconButton(
+          tooltip: '필터',
+          onPressed: onOpenFilterSheet,
+          icon: const Icon(Icons.filter_alt),
+        ),
+      ],
+    );
+  }
+
+  String _sortLabel(PolicySortKind kind) {
+    switch (kind) {
+      case PolicySortKind.recommended:
+        return '추천순';
+      case PolicySortKind.newest:
+        return '최신순';
+      case PolicySortKind.deadline:
+        return '마감임박';
+      case PolicySortKind.amount:
+        return '인기순';
+    }
+  }
+}
+
+class _QuickFilterChips extends StatelessWidget {
+  const _QuickFilterChips({
+    required this.state,
+    required this.regionName,
+    required this.onToggleStatus,
+    required this.onToggleRegion,
+  });
+
+  final ExploreState state;
+  final String regionName;
+  final void Function(PolicyStatusFilter) onToggleStatus;
+  final VoidCallback onToggleRegion;
+
+  @override
+  Widget build(BuildContext context) {
+    final chips = <Widget>[
+      ChoiceChip(
+        label: const Text('진행중만'),
+        selected: state.statusFilter == PolicyStatusFilter.inProgressOnly,
+        onSelected: (_) => onToggleStatus(PolicyStatusFilter.inProgressOnly),
+      ),
+      ChoiceChip(
+        label: Text('내 지역 ($regionName)'),
+        selected: state.mode == ExploreSubMode.region,
+        onSelected: (_) => onToggleRegion(),
+      ),
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          const SizedBox(width: 4),
+          ...chips.map(
+            (c) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: c,
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
     );
   }
 }
 
-class _CategoryChips extends StatelessWidget {
-  const _CategoryChips({
-    required this.state,
-    required this.controller,
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.summary,
+    required this.onReset,
+    required this.onTap,
   });
 
-  final ExploreState state;
-  final ExploreController controller;
+  final String summary;
+  final VoidCallback onReset;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final categories = const [
-      (id: 'employment', label: '취업'),
-      (id: 'startup', label: '창업'),
-      (id: 'housing', label: '주거'),
-      (id: 'education', label: '교육'),
-      (id: 'life', label: '생활지원'),
-    ];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Wrap(
-        spacing: 8,
-        children: categories.map((c) {
-          final selected = state.selectedCategories.contains(c.id);
-          return FilterChip(
-            label: Text(c.label),
-            selected: selected,
-            onSelected: (_) => controller.toggleCategory(c.id),
-          );
-        }).toList(),
+    return InkWell(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              summary,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            onPressed: onReset,
+            child: const Text('초기화'),
+          ),
+        ],
       ),
     );
   }

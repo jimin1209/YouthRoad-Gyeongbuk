@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/filters/policy_filter_ui_state.dart';
+import '../../application/providers.dart';
 import '../../domain/values/policy_feed_type.dart';
+import '../compare/widgets/compare_entry_bar.dart';
 import '../widgets/policy_feed_list_view.dart';
+import '../compare/policy_compare_screen.dart';
 
 class PolicyFeedTab extends ConsumerStatefulWidget {
   const PolicyFeedTab({
@@ -39,13 +42,21 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
     final ui = ref.watch(policyFilterUiStateProvider);
-    final content = PolicyFeedListView(feedType: widget.feedType);
+    final compareState = ref.watch(compareRepositoryProvider);
+    final compareCount = compareState.ids.length;
 
-    if (!widget.enableSearch) {
-      return content;
-    }
+    // 🔵 보관함 탭인지 여부만으로 하단 바 노출 여부 결정
+    final feedType = widget.feedType;
+    final isFavoriteTab = feedType == PolicyFeedType.favorite;
+    final showCompareBar = isFavoriteTab;
 
+    debugPrint(
+      '[PolicyFeedTab] feedType=$feedType, compareCount=$compareCount, showCompareBar=$showCompareBar',
+    );
+
+    // 검색어 컨트롤러 동기화
     if (_searchController.text != ui.keyword) {
       _searchController.text = ui.keyword;
       _searchController.selection = TextSelection.fromPosition(
@@ -53,6 +64,32 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab>
       );
     }
 
+    final content = PolicyFeedListView(feedType: widget.feedType);
+
+    // 검색 비활성 모드 (추천/보관함)
+    if (!widget.enableSearch) {
+      return Column(
+        children: [
+          Expanded(child: content),
+          if (showCompareBar)
+            SafeArea(
+              top: false,
+              child: CompareEntryBar(
+                itemCount: compareCount,
+                onOpenCompare: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const PolicyCompareScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      );
+    }
+
+    // 검색 활성 모드 (검색 탭 등)
     return Column(
       children: [
         Padding(
@@ -71,6 +108,20 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab>
           ),
         ),
         Expanded(child: content),
+        if (showCompareBar)
+          SafeArea(
+            top: false,
+            child: CompareEntryBar(
+              itemCount: compareCount,
+              onOpenCompare: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const PolicyCompareScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
       ],
     );
   }
