@@ -62,7 +62,7 @@ class UIReactionController extends StateNotifier<UIReactionState> {
   final PolicyFeedType feedType;
 
   static const _debounce = Duration(milliseconds: 320);
-  static const _holdSkeleton = Duration(milliseconds: 640);
+  static const _holdSkeleton = Duration(milliseconds: 400);
   static const _toastDuration = Duration(milliseconds: 1500);
 
   Timer? _clearTimer;
@@ -81,7 +81,7 @@ class UIReactionController extends StateNotifier<UIReactionState> {
       message: '결과를 준비하고 있어요...',
       queryHash: queryHash,
       updatedAt: now,
-      lockUntil: isInitialLoad ? now.add(_holdSkeleton) : null,
+      lockUntil: now.add(_holdSkeleton),
     );
   }
 

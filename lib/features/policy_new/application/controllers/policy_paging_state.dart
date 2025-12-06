@@ -6,26 +6,30 @@ import '../../domain/values/policy_failure.dart';
 @immutable
 class PolicyPagingState {
   final bool isLoading;
-  final List<Policy> items;
+  final List<Policy> currentResults;
+  final List<Policy>? previousResults;
   final PolicyFailure? failure;
   final bool hasMore;
 
   const PolicyPagingState({
     required this.isLoading,
-    required this.items,
+    required this.currentResults,
+    required this.previousResults,
     required this.failure,
     required this.hasMore,
   });
 
   const PolicyPagingState.initial()
       : isLoading = false,
-        items = const [],
+        currentResults = const [],
+        previousResults = null,
         failure = null,
         hasMore = true;
 
-  const PolicyPagingState.loading()
+  const PolicyPagingState.loading({List<Policy>? previousResults})
       : isLoading = true,
-        items = const [],
+        currentResults = previousResults ?? const [],
+        previousResults = previousResults,
         failure = null,
         hasMore = true;
 
@@ -35,15 +39,24 @@ class PolicyPagingState {
   }) =>
       PolicyPagingState(
         isLoading: false,
-        items: items,
+        currentResults: items,
+        previousResults: null,
         failure: null,
         hasMore: hasMore,
       );
 
-  factory PolicyPagingState.error(PolicyFailure failure) => PolicyPagingState(
+  factory PolicyPagingState.error(
+    PolicyFailure failure, {
+    List<Policy>? previousResults,
+  }) =>
+      PolicyPagingState(
         isLoading: false,
-        items: const [],
+        currentResults: previousResults ?? const [],
+        previousResults: null,
         failure: failure,
         hasMore: false,
       );
+
+  List<Policy> get visibleItems =>
+      currentResults.isNotEmpty ? currentResults : (previousResults ?? const []);
 }
