@@ -18,11 +18,7 @@ abstract class BasePolicyFeedController
   }) : super(const PolicyPagingState.initial()) {
     ref.listen<PolicyFilterUiState>(
       policyFilterUiStateProvider,
-      (previous, next) {
-        if (_shouldRefreshForFilterChange(previous, next)) {
-          refresh();
-        }
-      },
+      (_, next) => forceReload(next),
     );
 
     ref.listen<String?>(
@@ -87,53 +83,6 @@ abstract class BasePolicyFeedController
       feedType == PolicyFeedType.region ||
       feedType == PolicyFeedType.search;
 
-  bool _shouldRefreshForFilterChange(
-    PolicyFilterUiState? previous,
-    PolicyFilterUiState next,
-  ) {
-    switch (feedType) {
-      case PolicyFeedType.recommend:
-        return previous == null ||
-            previous.region != next.region ||
-            previous.category != next.category ||
-            previous.showOnlyOnline != next.showOnlyOnline ||
-            previous.showOnlyOngoing != next.showOnlyOngoing ||
-            previous.institutionId != next.institutionId ||
-            previous.departmentId != next.departmentId ||
-            !listEquals(previous.tags, next.tags);
-      case PolicyFeedType.all:
-        return previous == null ||
-            previous.region != next.region ||
-            previous.category != next.category ||
-            previous.keyword != next.keyword ||
-            previous.sort != next.sort ||
-            previous.showOnlyOnline != next.showOnlyOnline ||
-            previous.showOnlyOngoing != next.showOnlyOngoing ||
-            !listEquals(previous.tags, next.tags) ||
-            previous.institutionId != next.institutionId ||
-            previous.departmentId != next.departmentId;
-      case PolicyFeedType.region:
-        return previous == null ||
-            previous.region != next.region ||
-            previous.category != next.category ||
-            previous.sort != next.sort ||
-            previous.showOnlyOnline != next.showOnlyOnline ||
-            previous.showOnlyOngoing != next.showOnlyOngoing;
-      case PolicyFeedType.search:
-        return previous == null ||
-            previous.keyword != next.keyword ||
-            previous.region != next.region ||
-            previous.category != next.category ||
-            previous.sort != next.sort ||
-            previous.showOnlyOnline != next.showOnlyOnline ||
-            previous.showOnlyOngoing != next.showOnlyOngoing ||
-            !listEquals(previous.tags, next.tags);
-      case PolicyFeedType.favorite:
-      case PolicyFeedType.compare:
-        return previous == null || previous.sort != next.sort;
-    }
-  }
-
   void _resetPaging() {
     _page = 1;
     _isLoading = false;
@@ -145,36 +94,8 @@ abstract class BasePolicyFeedController
     await loadFirstPage();
   }
 
-  Future<void> loadFirstPage() async {
-    final shouldFetch = _shouldFetchForFeedType();
-
-    if (!shouldFetch) {
-      _page = 1;
-      _isLoading = false;
-      state = const PolicyPagingState.initial();
-      return;
-    }
-
-    _page = 1;
-    _isLoading = true;
-    state = const PolicyPagingState.loading();
-
-    final result = await queryEngine.fetch(feedType, page: _page);
-
-    result.fold(
-      onSuccess: (list) {
-        state = PolicyPagingState.data(
-          items: list,
-          hasMore: list.length == queryEngine.pageSize,
-        );
-      },
-      onFailure: (failure) {
-        state = PolicyPagingState.error(failure);
-      },
-    );
-
-    _isLoading = false;
-  }
+  Future<void> loadFirstPage() async =>
+      reload(ref.read(policyFilterUiStateProvider));
 
   Future<void> loadNextPage() async {
     if (_isLoading) return;
@@ -182,7 +103,7 @@ abstract class BasePolicyFeedController
       debugPrint('[PAGING-LAST-PAGE:NO-OP] feed=${feedType.name}, page=$_page');
       return;
     }
-    if (!_shouldFetchForFeedType()) return;
+    if (!_shouldFetchForFeedType(ref.read(policyFilterUiStateProvider))) return;
 
     _isLoading = true;
     final nextPage = _page + 1;
@@ -207,24 +128,56 @@ abstract class BasePolicyFeedController
   }
 
   Future<void> refresh() async {
-    await loadFirstPage();
+    await reload(ref.read(policyFilterUiStateProvider));
   }
 
   /// 지역 등 주요 조건 변경 시 사용: 페이징 초기화 후 첫 페이지 재로딩
   Future<void> onRegionChanged() async {
-    _resetPaging();
-    await loadFirstPage();
+    await reload(ref.read(policyFilterUiStateProvider));
   }
 
-  bool _shouldFetchForFeedType() {
+  Future<void> reload(PolicyFilterUiState filter) async {
+    await forceReload(filter);
+  }
+
+  Future<void> forceReload(PolicyFilterUiState filter) async {
+    _page = 1;
+    _isLoading = true;
+    state = const PolicyPagingState.loading();
+
+    final shouldFetch = _shouldFetchForFeedType(filter);
+
+    if (!shouldFetch) {
+      _isLoading = false;
+      state = const PolicyPagingState.initial();
+      return;
+    }
+
+    final result = await queryEngine.fetch(feedType, page: _page);
+
+    result.fold(
+      onSuccess: (list) {
+        state = PolicyPagingState.data(
+          items: list,
+          hasMore: list.length == queryEngine.pageSize,
+        );
+      },
+      onFailure: (failure) {
+        state = PolicyPagingState.error(failure);
+      },
+    );
+
+    _isLoading = false;
+  }
+
+  bool _shouldFetchForFeedType(PolicyFilterUiState filter) {
     if (feedType != PolicyFeedType.search) {
       return true;
     }
 
-    final ui = ref.read(policyFilterUiStateProvider);
-    final keyword = ui.keyword.trim();
+    final keyword = filter.keyword.trim();
     final hasKeyword = keyword.length >= 2;
-    final hasTags = ui.tags.isNotEmpty;
+    final hasTags = filter.tags.isNotEmpty;
 
     return hasKeyword || hasTags;
   }
