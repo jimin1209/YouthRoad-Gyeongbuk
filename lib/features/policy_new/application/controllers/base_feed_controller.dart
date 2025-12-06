@@ -6,8 +6,10 @@ import '../../domain/values/policy_feed_type.dart';
 import '../filters/policy_filter_ui_state.dart';
 import '../../../../application/notifiers/region_notifier.dart';
 import 'policy_event_bus.dart';
+import 'policy_feed_memory_cache.dart';
 import 'policy_paging_state.dart';
 import 'policy_query_engine.dart';
+import 'policy_query_state.dart';
 
 abstract class BasePolicyFeedController
     extends StateNotifier<PolicyPagingState> {
@@ -15,17 +17,19 @@ abstract class BasePolicyFeedController
     required this.ref,
     required this.feedType,
     required this.queryEngine,
-  }) : super(const PolicyPagingState.initial()) {
+    required PolicyFeedMemoryCache memoryCache,
+  })  : _memoryCache = memoryCache,
+        super(const PolicyPagingState.initial()) {
     ref.listen<PolicyFilterUiState>(
       policyFilterUiStateProvider,
-      (_, next) => forceReload(next),
+      (_, __) => _onQueryChanged(),
     );
 
     ref.listen<String?>(
       regionProvider,
       (previous, next) {
         if (previous != next) {
-          onRegionChanged();
+          _reloadCurrentQuery(force: true);
         }
       },
     );
@@ -36,6 +40,7 @@ abstract class BasePolicyFeedController
         if (next == null) return;
         switch (next.type) {
           case PolicyEventType.cacheCleared:
+            _memoryCache.evictFeed(feedType);
             _resetPaging();
             break;
           case PolicyEventType.refreshRequested:
@@ -73,6 +78,9 @@ abstract class BasePolicyFeedController
   final Ref ref;
   final PolicyFeedType feedType;
   final PolicyQueryEngine queryEngine;
+  final PolicyFeedMemoryCache _memoryCache;
+
+  PolicyQueryState? _currentQuery;
 
   int _page = 1;
   bool _isLoading = false;
@@ -86,16 +94,16 @@ abstract class BasePolicyFeedController
   void _resetPaging() {
     _page = 1;
     _isLoading = false;
+    _currentQuery = null;
     state = const PolicyPagingState.initial();
   }
 
   Future<void> ensureInitialized() async {
     if (state.items.isNotEmpty || state.isLoading) return;
-    await loadFirstPage();
+    await _reloadCurrentQuery();
   }
 
-  Future<void> loadFirstPage() async =>
-      reload(ref.read(policyFilterUiStateProvider));
+  Future<void> loadFirstPage() async => _reloadCurrentQuery(force: true);
 
   Future<void> loadNextPage() async {
     if (_isLoading) return;
@@ -103,12 +111,19 @@ abstract class BasePolicyFeedController
       debugPrint('[PAGING-LAST-PAGE:NO-OP] feed=${feedType.name}, page=$_page');
       return;
     }
-    if (!_shouldFetchForFeedType(ref.read(policyFilterUiStateProvider))) return;
+
+    final queryState = _currentQuery ?? queryEngine.buildQueryState(feedType);
+
+    if (!_shouldFetchForFeedType(queryState.query)) return;
 
     _isLoading = true;
     final nextPage = _page + 1;
 
-    final result = await queryEngine.fetch(feedType, page: nextPage);
+    final result = await queryEngine.fetch(
+      feedType,
+      page: nextPage,
+      queryState: queryState,
+    );
 
     result.fold(
       onSuccess: (list) {
@@ -118,6 +133,7 @@ abstract class BasePolicyFeedController
           hasMore: list.length == queryEngine.pageSize,
         );
         _page = nextPage;
+        _memoryCache.save(feedType, queryState, state, page: _page);
       },
       onFailure: (failure) {
         state = PolicyPagingState.error(failure);
@@ -128,39 +144,103 @@ abstract class BasePolicyFeedController
   }
 
   Future<void> refresh() async {
-    await reload(ref.read(policyFilterUiStateProvider));
+    await _reloadCurrentQuery(force: true);
   }
 
-  /// 지역 등 주요 조건 변경 시 사용: 페이징 초기화 후 첫 페이지 재로딩
-  Future<void> onRegionChanged() async {
-    await reload(ref.read(policyFilterUiStateProvider));
+  bool _shouldFetchForFeedType(PolicyQuery query) {
+    if (feedType != PolicyFeedType.search) {
+      return true;
+    }
+
+    final keyword = query.keyword?.trim() ?? '';
+    final hasKeyword = keyword.length >= 2;
+    final hasTags = query.tags.isNotEmpty || query.filter.tags.isNotEmpty;
+
+    return hasKeyword || hasTags;
   }
 
-  Future<void> reload(PolicyFilterUiState filter) async {
-    await forceReload(filter);
+  Future<void> _onQueryChanged() async {
+    final queryState = queryEngine.buildQueryState(feedType);
+    if (_currentQuery?.hash == queryState.hash) {
+      _restoreFromCache(queryState);
+      return;
+    }
+
+    _currentQuery = queryState;
+    await _restoreOrFetch(queryState);
   }
 
-  Future<void> forceReload(PolicyFilterUiState filter) async {
+  Future<void> _reloadCurrentQuery({bool force = false}) async {
+    final queryState = queryEngine.buildQueryState(feedType);
+    if (!force && _currentQuery?.hash == queryState.hash) {
+      _restoreFromCache(queryState);
+      return;
+    }
+
+    _currentQuery = queryState;
+    await _fetchFirstPage(queryState);
+  }
+
+  Future<void> _restoreOrFetch(PolicyQueryState queryState) async {
+    if (_restoreFromCache(queryState)) {
+      return;
+    }
+
+    await _fetchFirstPage(queryState);
+  }
+
+  bool _restoreFromCache(PolicyQueryState queryState) {
+    final cached = _memoryCache.restore(feedType, queryState.hash);
+    if (cached == null) return false;
+
+    _page = cached.page;
+    _currentQuery = queryState;
+    _isLoading = false;
+    state = cached.state;
+    return true;
+  }
+
+  Future<void> _fetchFirstPage(PolicyQueryState queryState) async {
     _page = 1;
-    _isLoading = true;
-    state = const PolicyPagingState.loading();
+    await _fetchPage(queryState, page: _page, append: false);
+  }
 
-    final shouldFetch = _shouldFetchForFeedType(filter);
+  Future<void> _fetchPage(
+    PolicyQueryState queryState, {
+    required int page,
+    required bool append,
+  }) async {
+    if (_isLoading) return;
+
+    final shouldFetch = _shouldFetchForFeedType(queryState.query);
 
     if (!shouldFetch) {
       _isLoading = false;
       state = const PolicyPagingState.initial();
+      _memoryCache.save(feedType, queryState, state, page: 1);
       return;
     }
 
-    final result = await queryEngine.fetch(feedType, page: _page);
+    _isLoading = true;
+    if (!append) {
+      state = const PolicyPagingState.loading();
+    }
+
+    final result = await queryEngine.fetch(
+      feedType,
+      page: page,
+      queryState: queryState,
+    );
 
     result.fold(
       onSuccess: (list) {
+        final merged = append ? [...state.items, ...list] : list;
         state = PolicyPagingState.data(
-          items: list,
+          items: merged,
           hasMore: list.length == queryEngine.pageSize,
         );
+        _page = page;
+        _memoryCache.save(feedType, queryState, state, page: _page);
       },
       onFailure: (failure) {
         state = PolicyPagingState.error(failure);
@@ -168,17 +248,5 @@ abstract class BasePolicyFeedController
     );
 
     _isLoading = false;
-  }
-
-  bool _shouldFetchForFeedType(PolicyFilterUiState filter) {
-    if (feedType != PolicyFeedType.search) {
-      return true;
-    }
-
-    final keyword = filter.keyword.trim();
-    final hasKeyword = keyword.length >= 2;
-    final hasTags = filter.tags.isNotEmpty;
-
-    return hasKeyword || hasTags;
   }
 }

@@ -5,7 +5,6 @@ import '../../application/filters/policy_filter_ui_state.dart';
 import '../../application/providers.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_category.dart';
-import '../../domain/values/policy_sort.dart';
 import '../compare/widgets/compare_entry_bar.dart';
 import '../widgets/policy_feed_list_view.dart';
 import '../compare/policy_compare_screen.dart';
@@ -52,12 +51,13 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(policyFilterUiStateProvider);
+    final queryState = ref.watch(policyQueryProvider(widget.feedType));
     final compareCount = ref.watch(compareRepositoryProvider).ids.length;
     final showCompareBar =
         widget.feedType == PolicyFeedType.favorite && compareCount > 0;
 
-    final summaryText = _buildSummary(filter);
-    final filterKey = _filterKey(filter);
+    final summaryText = queryState.summary;
+    final filterKey = queryState.hash;
 
     return Scaffold(
       body: AppScreenContainer(
@@ -122,66 +122,6 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
     );
   }
 
-  String _buildSummary(PolicyFilterUiState filter) {
-    final buffer = StringBuffer();
-    buffer.write(filter.regionSummary);
-    if (filter.keyword.isNotEmpty) {
-      buffer.write(' · "${filter.keyword}"');
-    }
-    if (filter.category != null) {
-      buffer.write(' · ${_categoryLabel(filter.category!)}');
-    }
-    if (filter.showOnlyOngoing) {
-      buffer.write(' · 진행중만');
-    }
-    switch (filter.sort) {
-      case PolicySortOption.recommendation:
-        buffer.write(' · 추천순');
-        break;
-      case PolicySortOption.latest:
-        buffer.write(' · 최신순');
-        break;
-      case PolicySortOption.deadline:
-        buffer.write(' · 마감임박');
-        break;
-      case PolicySortOption.popularity:
-        buffer.write(' · 인기순');
-        break;
-    }
-    return buffer.toString();
-  }
-
-  String _filterKey(PolicyFilterUiState filter) {
-    return [
-      filter.regionSummary,
-      filter.keyword,
-      filter.category?.name ?? '',
-      filter.showOnlyOngoing.toString(),
-      filter.sort.name,
-      filter.tags.join(','),
-    ].join('|');
-  }
-
-  String _categoryLabel(PolicyCategory category) {
-    switch (category) {
-      case PolicyCategory.employment:
-        return '취업';
-      case PolicyCategory.startup:
-        return '창업';
-      case PolicyCategory.housing:
-        return '주거';
-      case PolicyCategory.education:
-        return '교육';
-      case PolicyCategory.life:
-        return '생활';
-      case PolicyCategory.welfare:
-        return '복지';
-      case PolicyCategory.culture:
-        return '문화';
-      case PolicyCategory.other:
-        return '기타';
-    }
-  }
 }
 
 class _SelectedFilterBadges extends StatelessWidget {

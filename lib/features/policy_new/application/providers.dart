@@ -47,7 +47,9 @@ import 'services/policy_favorite_service.dart';
 import 'services/policy_reminder_scheduler.dart';
 import 'services/policy_reminder_service.dart';
 import 'filters/policy_filter_ui_state.dart';
+import 'filters/policy_filter_summary.dart';
 import 'models/user_collections.dart';
+import 'controllers/policy_feed_memory_cache.dart';
 import '../data/cache/policy_cache.dart';
 import '../data/repositories/department_repository_impl.dart';
 import '../data/repositories/institution_repository_impl.dart';
@@ -65,6 +67,7 @@ import '../data/sources/policy_remote_source_mock.dart';
 import '../data/sources/compare_local_data_source.dart';
 import '../../../application/di.dart' as app_di;
 import 'recommendation/user_profile_service.dart';
+import 'controllers/policy_query_state.dart';
 
 class ConsolePolicyLogger implements PolicyLogger {
   @override
@@ -234,6 +237,18 @@ final departmentListProvider = FutureProvider.family<List<Department>, String>(
 
 final policyCacheProvider = Provider((ref) => PolicyCache());
 
+final policyFeedMemoryCacheProvider = Provider<PolicyFeedMemoryCache>((ref) {
+  final cache = PolicyFeedMemoryCache();
+
+  ref.listen<PolicyEvent?>(policyEventBusProvider, (previous, next) {
+    if (next?.type == PolicyEventType.cacheCleared) {
+      cache.clear();
+    }
+  });
+
+  return cache;
+});
+
 final policyRepositoryProvider = Provider<PolicyRepository>((ref) {
   return PolicyRepositoryImpl(
     remote: ref.watch(activePolicyRemoteProvider),
@@ -302,6 +317,7 @@ final recommendFeedControllerProvider =
   (ref) => RecommendFeedController(
     ref: ref,
     queryEngine: ref.read(policyQueryEngineProvider),
+    memoryCache: ref.read(policyFeedMemoryCacheProvider),
   ),
 );
 
@@ -310,6 +326,7 @@ final allFeedControllerProvider =
   (ref) => AllFeedController(
     ref: ref,
     queryEngine: ref.read(policyQueryEngineProvider),
+    memoryCache: ref.read(policyFeedMemoryCacheProvider),
   ),
 );
 
@@ -318,6 +335,7 @@ final regionFeedControllerProvider =
   (ref) => RegionFeedController(
     ref: ref,
     queryEngine: ref.read(policyQueryEngineProvider),
+    memoryCache: ref.read(policyFeedMemoryCacheProvider),
   ),
 );
 
@@ -326,6 +344,7 @@ final searchFeedControllerProvider =
   (ref) => SearchFeedController(
     ref: ref,
     queryEngine: ref.read(policyQueryEngineProvider),
+    memoryCache: ref.read(policyFeedMemoryCacheProvider),
   ),
 );
 
@@ -334,6 +353,7 @@ final favoriteFeedControllerProvider =
   (ref) => FavoriteFeedController(
     ref: ref,
     queryEngine: ref.read(policyQueryEngineProvider),
+    memoryCache: ref.read(policyFeedMemoryCacheProvider),
   ),
 );
 
@@ -393,16 +413,24 @@ final notificationCenterControllerProvider = StateNotifierProvider<
   (ref) => NotificationCenterController(ref: ref),
 );
 
-final policyQueryProvider = Provider.family<PolicyQuery, PolicyFeedType>(
+final policyQueryProvider = Provider.family<PolicyQueryState, PolicyFeedType>(
   (ref, feedType) {
+    final filter = ref.watch(policyFilterUiStateProvider);
+
     // dependencies to rebuild query on changes
-    ref.watch(policyFilterUiStateProvider);
     ref.watch(userProfileProvider);
     ref.watch(policyBehaviorTrackerProvider);
     ref.watch(favoriteIdsProvider);
     ref.watch(compareRepositoryProvider);
 
     final orchestrator = ref.read(policyQueryOrchestratorProvider);
-    return orchestrator.buildQuery(feedType);
+    final query = orchestrator.buildQuery(feedType);
+
+    return PolicyQueryState(
+      query: query,
+      hash: query.cacheScopeKey,
+      summary: buildPolicyFilterSummary(filter),
+      conditionSummary: buildPolicyFilterConditionSummary(filter),
+    );
   },
 );
