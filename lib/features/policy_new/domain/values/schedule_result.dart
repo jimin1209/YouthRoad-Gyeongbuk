@@ -28,12 +28,25 @@ enum ScheduleFailureType {
   unknown,
 }
 
+enum ScheduleFailureCode {
+  permissionDenied('E_PERMISSION_DENIED'),
+  pastTime('E_PAST_TIME'),
+  invalidPolicy('E_INVALID_POLICY'),
+  internalException('E_INTERNAL_EXCEPTION');
+
+  const ScheduleFailureCode(this.label);
+
+  final String label;
+}
+
 class ScheduleFailure {
   const ScheduleFailure({
     required this.type,
     required this.message,
+    this.code,
   });
 
   final ScheduleFailureType type;
   final String message;
+  final ScheduleFailureCode? code;
 }

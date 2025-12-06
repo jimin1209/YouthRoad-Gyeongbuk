@@ -138,12 +138,12 @@ class NotificationCenterController
   Future<void> cancelReminder(String reminderId) async {
     final previous = state.value ?? NotificationCenterState.initial;
     final actionId = ++_actionCounter;
-    final optimisticState = _removeReminder(previous, reminderId);
+    final optimisticState = _applyCanceledReminder(previous, reminderId);
     _optimisticActions.add(
       _OptimisticAction(
         id: actionId,
         rollbackState: previous,
-        reducer: (state) => _removeReminder(state, reminderId),
+        reducer: (state) => _applyCanceledReminder(state, reminderId),
       ),
     );
 
@@ -159,13 +159,16 @@ class NotificationCenterController
     await _enqueue(() async {
       try {
         await _service.cancelReminder(reminderId);
-        await ref
+        final updated = await ref
             .read(policyReminderRepositoryProvider)
-            .deleteReminderById(reminderId);
+            .getReminder(reminderId);
         _removeOptimisticAction(actionId);
-        final current = _applyOptimisticReducers(
+        final optimisticMerged = _applyOptimisticReducers(
           state.value ?? optimisticState.copyWith(pendingActions: 0),
         );
+        final current = updated == null
+            ? _applyCanceledReminder(optimisticMerged, reminderId)
+            : _mergeReminders(optimisticMerged, [updated]);
         state = AsyncData(
           current.copyWith(
             status: NotificationCenterStatus.success,
@@ -236,12 +239,12 @@ class NotificationCenterController
   Future<void> deleteReminder(String reminderId) async {
     final previous = state.value ?? NotificationCenterState.initial;
     final actionId = ++_actionCounter;
-    final optimisticState = _removeReminder(previous, reminderId);
+    final optimisticState = _applyCanceledReminder(previous, reminderId);
     _optimisticActions.add(
       _OptimisticAction(
         id: actionId,
         rollbackState: previous,
-        reducer: (state) => _removeReminder(state, reminderId),
+        reducer: (state) => _applyCanceledReminder(state, reminderId),
       ),
     );
 
@@ -257,13 +260,16 @@ class NotificationCenterController
     await _enqueue(() async {
       try {
         await _service.cancelReminder(reminderId);
-        await ref
+        final updated = await ref
             .read(policyReminderRepositoryProvider)
-            .deleteReminderById(reminderId);
+            .getReminder(reminderId);
         _removeOptimisticAction(actionId);
-        final current = _applyOptimisticReducers(
+        final optimisticMerged = _applyOptimisticReducers(
           state.value ?? optimisticState.copyWith(pendingActions: 0),
         );
+        final current = updated == null
+            ? _applyCanceledReminder(optimisticMerged, reminderId)
+            : _mergeReminders(optimisticMerged, [updated]);
         state = AsyncData(
           current.copyWith(
             status: NotificationCenterStatus.success,
@@ -340,20 +346,30 @@ class NotificationCenterController
     }
   }
 
-  NotificationCenterState _removeReminder(
+  NotificationCenterState _applyCanceledReminder(
     NotificationCenterState state,
     String reminderId,
   ) {
-    final upcoming = [
-      for (final reminder in state.upcoming)
-        if (reminder.reminderId != reminderId) reminder,
-    ];
-    final past = [
-      for (final reminder in state.past)
-        if (reminder.reminderId != reminderId) reminder,
-    ];
+    final allReminders = [...state.upcoming, ...state.past];
+    PolicyReminder? target;
+    for (final reminder in allReminders) {
+      if (reminder.reminderId == reminderId) {
+        target = reminder;
+        break;
+      }
+    }
 
-    return state.copyWith(upcoming: upcoming, past: past);
+    if (target == null) return state;
+
+    final now = DateTime.now().toUtc();
+    final canceledReminder = target.copyWith(
+      status: PolicyReminderStatus.canceled,
+      isActive: false,
+      canceledAt: target.canceledAt ?? now,
+      updatedAt: now,
+    );
+
+    return _mergeReminders(state, [canceledReminder]);
   }
 
   NotificationCenterState _mergeReminders(

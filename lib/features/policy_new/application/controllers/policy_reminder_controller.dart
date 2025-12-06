@@ -237,21 +237,27 @@ class PolicyReminderController
   }
 
   String _messageForFailure(ScheduleFailure failure) {
+    final codeLabel = failure.code?.label;
+    String withCode(String message) {
+      if (codeLabel == null) return message;
+      return '[$codeLabel] $message';
+    }
+
     switch (failure.type) {
       case ScheduleFailureType.permissionDenied:
-        return '알림 권한이 꺼져 있어 예약에 실패했어요. 설정에서 권한을 허용해주세요.';
+        return withCode('알림 권한이 꺼져 있어 예약에 실패했어요. 설정에서 권한을 허용해주세요.');
       case ScheduleFailureType.invalidDate:
         if (failure.message.isNotEmpty) {
-          return failure.message;
+          return withCode(failure.message);
         }
-        return '이미 지난 시각에는 알림을 설정할 수 없습니다.';
+        return withCode('이미 지난 시각에는 알림을 설정할 수 없습니다.');
       case ScheduleFailureType.gatewayError:
       case ScheduleFailureType.idCollision:
       case ScheduleFailureType.unknown:
         if (failure.message.isNotEmpty) {
-          return failure.message;
+          return withCode(failure.message);
         }
-        return '알 수 없는 이유로 알림을 예약하지 못했어요. 잠시 후 다시 시도해주세요.';
+        return withCode('알 수 없는 이유로 알림을 예약하지 못했어요. 잠시 후 다시 시도해주세요.');
     }
   }
 
