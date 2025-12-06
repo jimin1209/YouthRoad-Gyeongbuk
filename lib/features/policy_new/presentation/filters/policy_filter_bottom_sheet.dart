@@ -3,15 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/filters/policy_filter_ui_state.dart';
 import '../../application/providers.dart';
+import '../../application/controllers/ui_reaction_controller.dart';
 import '../../domain/entities/department.dart';
 import '../../domain/entities/institution.dart';
 import '../../domain/values/policy_category.dart';
+import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_region.dart';
 import '../../../../application/notifiers/region_notifier.dart';
 import 'widgets/region_selector_section.dart';
 
 class PolicyFilterBottomSheet extends ConsumerStatefulWidget {
-  const PolicyFilterBottomSheet({super.key});
+  const PolicyFilterBottomSheet({
+    super.key,
+    required this.feedType,
+  });
+
+  final PolicyFeedType feedType;
 
   @override
   ConsumerState<PolicyFilterBottomSheet> createState() =>
@@ -385,41 +392,52 @@ class _PolicyFilterBottomSheetState
       _departmentId = null;
       _departmentName = null;
     });
+    _notifyReaction('필터가 초기화됐어요.');
   }
 
   void _applyFilters() {
     final notifier = ref.read(policyFilterUiStateProvider.notifier);
     final current = ref.read(policyFilterUiStateProvider);
+    var hasChanged = false;
 
     if (current.region != _region) {
       notifier.setRegion(_region);
+      hasChanged = true;
     }
 
     if (current.category != _category) {
       notifier.setCategory(_category);
+      hasChanged = true;
     }
 
     if (current.showOnlyOnline != _showOnlyOnline) {
       notifier.toggleOnlineOnly();
+      hasChanged = true;
     }
 
     if (current.showOnlyOngoing != _showOnlyOngoing) {
       notifier.toggleOngoingOnly();
+      hasChanged = true;
     }
 
     if (current.institutionId != _institutionId ||
         current.institutionName != _institutionName) {
       notifier.setInstitution(id: _institutionId, name: _institutionName);
+      hasChanged = true;
     }
 
     if (current.departmentId != _departmentId ||
         current.departmentName != _departmentName) {
       notifier.setDepartment(id: _departmentId, name: _departmentName);
+      hasChanged = true;
     }
 
     ref.read(regionProvider.notifier).applyToFilter();
 
     Navigator.of(context).pop();
+    _notifyReaction(hasChanged
+        ? '필터가 적용됐어요. 결과를 새로 불러옵니다.'
+        : '변경된 조건이 없어요.');
   }
 
   String _regionLabel(PolicyRegion region) {
@@ -466,6 +484,12 @@ class _PolicyFilterBottomSheetState
       case PolicyCategory.other:
         return '기타';
     }
+  }
+
+  void _notifyReaction(String summary) {
+    ref
+        .read(uiReactionControllerProvider(widget.feedType).notifier)
+        .markFilterConfirmed(summary);
   }
 }
 

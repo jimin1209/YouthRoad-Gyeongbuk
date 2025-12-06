@@ -41,6 +41,7 @@ import 'controllers/policy_paging_controller.dart';
 import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
 import 'controllers/policy_selection_controller.dart';
+import 'controllers/ui_reaction_controller.dart';
 import 'gateways/notification_gateway.dart';
 import 'gateways/notification_gateway_impl.dart';
 import 'services/policy_favorite_service.dart';

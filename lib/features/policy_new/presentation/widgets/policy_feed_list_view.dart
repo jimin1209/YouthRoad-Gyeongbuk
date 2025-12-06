@@ -4,15 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/behavior/policy_behavior_tracker.dart';
 import '../../application/controllers/base_feed_controller.dart';
+import '../../application/controllers/ui_reaction_controller.dart';
 import '../../application/controllers/policy_paging_state.dart';
 import '../../application/providers.dart';
-import '../../application/filters/policy_filter_ui_state.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../detail/policy_detail_bottom_sheet.dart';
+import 'policy_feed_reaction_banner.dart';
 import 'policy_card.dart';
 import 'policy_list_empty.dart';
 import 'policy_list_error.dart';
 import 'policy_list_loading.dart';
+import 'policy_list_skeleton.dart';
 import 'policy_search_empty_view.dart';
 
 class PolicyFeedListView extends ConsumerStatefulWidget {
@@ -68,10 +70,10 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final ui = ref.watch(policyFilterUiStateProvider);
     final queryState = ref.watch(policyQueryProvider(widget.feedType));
     final query = queryState.query;
     final (state, notifier) = _useController();
+    final reaction = ref.watch(uiReactionControllerProvider(widget.feedType));
     _latestState = state;
     _latestController = notifier;
 
@@ -93,18 +95,20 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
 
     Widget content;
 
-    if (state.failure != null) {
+    if (reaction.shouldHoldSkeleton ||
+        (state.isLoading && state.items.isEmpty)) {
+      content = const PolicyListSkeleton();
+    } else if (state.failure != null) {
       content = PolicyListError(
         key: const ValueKey('policy-list-error'),
         message: state.failure!.message,
         onRetry: notifier.loadFirstPage,
       );
-    } else if (state.isLoading && state.items.isEmpty) {
-      content = const PolicyListLoading(key: ValueKey('policy-list-loading'));
     } else if (shouldShowSearchGuide) {
       content = PolicySearchEmptyView(
         key: const ValueKey('policy-search-guide'),
         isKeywordTooShort: isKeywordTooShort,
+        feedType: widget.feedType,
       );
     } else if (!state.isLoading && state.items.isEmpty) {
       final emptyMessage = widget.feedType == PolicyFeedType.favorite
@@ -157,11 +161,21 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
       );
     }
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 180),
-      switchInCurve: Curves.easeOut,
-      switchOutCurve: Curves.easeOut,
-      child: content,
+    return Column(
+      children: [
+        PolicyFeedReactionBanner(
+          state: reaction,
+          onRetry: notifier.loadFirstPage,
+        ),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeOut,
+            child: content,
+          ),
+        ),
+      ],
     );
   }
 
