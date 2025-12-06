@@ -69,6 +69,8 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
   Widget build(BuildContext context) {
     super.build(context);
     final ui = ref.watch(policyFilterUiStateProvider);
+    final queryState = ref.watch(policyQueryProvider(widget.feedType));
+    final query = queryState.query;
     final (state, notifier) = _useController();
     _latestState = state;
     _latestController = notifier;
@@ -77,10 +79,10 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
       _isLoadingMore = false;
     }
 
-    final keyword = ui.keyword.trim();
+    final keyword = query.keyword?.trim() ?? '';
     final hasKeyword = keyword.isNotEmpty;
     final isKeywordTooShort = hasKeyword && keyword.length < 2;
-    final hasTags = ui.tags.isNotEmpty;
+    final hasTags = query.tags.isNotEmpty || query.filter.tags.isNotEmpty;
 
     final shouldShowSearchGuide =
         widget.feedType == PolicyFeedType.search &&
@@ -107,11 +109,14 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
     } else if (!state.isLoading && state.items.isEmpty) {
       final emptyMessage = widget.feedType == PolicyFeedType.favorite
           ? '즐겨찾기한 정책이 없습니다.\n마음에 드는 정책의 하트 버튼을 눌러 저장해보세요.'
-          : '표시할 정책이 없습니다.\n필터나 검색 조건을 바꿔보세요.';
+          : '조건에 맞는 정책이 없습니다.\n${queryState.conditionSummary} 조건을 조정해보세요.';
 
       content = PolicyListEmpty(
         key: const ValueKey('policy-list-empty'),
         message: emptyMessage,
+        summary: widget.feedType == PolicyFeedType.favorite
+            ? null
+            : queryState.summary,
       );
     } else {
       content = RefreshIndicator(
