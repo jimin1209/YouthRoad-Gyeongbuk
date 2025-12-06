@@ -79,6 +79,7 @@ class PolicyReminderService {
             type: ScheduleFailureType.unknown,
             message:
                 '알림 예약 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ($e)',
+            code: ScheduleFailureCode.internalException,
           ),
         );
       }
@@ -103,6 +104,7 @@ class PolicyReminderService {
       ScheduleFailure(
         type: ScheduleFailureType.unknown,
         message: 'Scheduling failed with no result',
+        code: ScheduleFailureCode.internalException,
       ),
     );
     final failure = result ?? fallback;
@@ -145,6 +147,7 @@ class PolicyReminderService {
             failure: const ScheduleFailure(
               type: ScheduleFailureType.invalidDate,
               message: '마감된 정책은 알림을 설정할 수 없어요.',
+              code: ScheduleFailureCode.pastTime,
             ),
           ),
         );
@@ -161,6 +164,7 @@ class PolicyReminderService {
             failure: const ScheduleFailure(
               type: ScheduleFailureType.permissionDenied,
               message: 'Notification environment not ready',
+              code: ScheduleFailureCode.permissionDenied,
             ),
           ),
         );
@@ -194,6 +198,7 @@ class PolicyReminderService {
         final failure = ScheduleFailure(
           type: ScheduleFailureType.invalidDate,
           message: '신청 기간 정보가 없어 알림을 설정할 수 없습니다.',
+          code: ScheduleFailureCode.invalidPolicy,
         );
         failures.add(
           ReminderMutationFailure(
@@ -212,6 +217,7 @@ class PolicyReminderService {
             failure: const ScheduleFailure(
               type: ScheduleFailureType.invalidDate,
               message: '이미 지난 시각이라 알림을 설정할 수 없어요.',
+              code: ScheduleFailureCode.pastTime,
             ),
           ),
         );
@@ -242,6 +248,7 @@ class PolicyReminderService {
           const ScheduleFailure(
             type: ScheduleFailureType.unknown,
             message: '알림 예약 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+            code: ScheduleFailureCode.internalException,
           ),
         );
         logger.warn(
@@ -254,6 +261,7 @@ class PolicyReminderService {
             const ScheduleFailure(
               type: ScheduleFailureType.unknown,
               message: 'Unknown scheduling failure',
+              code: ScheduleFailureCode.internalException,
             );
         failures.add(
           ReminderMutationFailure(
@@ -404,6 +412,7 @@ class PolicyReminderService {
           ScheduleFailure(
             type: ScheduleFailureType.permissionDenied,
             message: 'Notification environment not ready',
+            code: ScheduleFailureCode.permissionDenied,
           ),
         ],
       );
@@ -425,6 +434,7 @@ class PolicyReminderService {
           ScheduleFailure(
             type: ScheduleFailureType.unknown,
             message: '알림 동기화에 실패했습니다.',
+            code: ScheduleFailureCode.internalException,
           ),
         ],
       );
@@ -450,6 +460,7 @@ class PolicyReminderService {
                 const ScheduleFailure(
                   type: ScheduleFailureType.unknown,
                   message: 'Unknown cancellation failure during sync',
+                  code: ScheduleFailureCode.internalException,
                 ),
           );
         } else {
@@ -484,6 +495,7 @@ class PolicyReminderService {
           const ScheduleFailure(
             type: ScheduleFailureType.unknown,
             message: '알림 동기화 중 오류가 발생했습니다.',
+            code: ScheduleFailureCode.internalException,
           ),
         );
         logger.warn('Reschedule threw for ${reminder.reminderId}: $e\n$st');
@@ -494,6 +506,7 @@ class PolicyReminderService {
               const ScheduleFailure(
                 type: ScheduleFailureType.unknown,
                 message: 'Unknown scheduling failure during sync',
+                code: ScheduleFailureCode.internalException,
               ),
         );
         logger.warn(

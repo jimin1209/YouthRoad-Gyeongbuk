@@ -151,6 +151,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         const ScheduleFailure(
           type: ScheduleFailureType.permissionDenied,
           message: 'Notification permission denied',
+          code: ScheduleFailureCode.permissionDenied,
         ),
         isDuplicate: hadExisting,
       );
@@ -165,6 +166,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         const ScheduleFailure(
           type: ScheduleFailureType.invalidDate,
           message: 'Scheduled time is already in the past',
+          code: ScheduleFailureCode.pastTime,
         ),
         isDuplicate: hadExisting,
       );
@@ -202,6 +204,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         ScheduleFailure(
           type: ScheduleFailureType.gatewayError,
           message: 'Failed to schedule notification: $error',
+          code: ScheduleFailureCode.internalException,
         ),
       );
     }
@@ -224,6 +227,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         ScheduleFailure(
           type: ScheduleFailureType.gatewayError,
           message: 'Failed to cancel notification: $error',
+          code: ScheduleFailureCode.internalException,
         ),
       );
     }
@@ -247,6 +251,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         ScheduleFailure(
           type: ScheduleFailureType.gatewayError,
           message: 'Failed to cancel notifications: $error',
+          code: ScheduleFailureCode.internalException,
         ),
       );
     }
