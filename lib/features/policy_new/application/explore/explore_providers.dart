@@ -104,7 +104,7 @@ class ExploreController extends StateNotifier<ExploreState> {
 
   void applyFromDetail({
     required PolicyFilterUiState filter,
-    required PolicyReExploreMode _mode,
+    required PolicyReExploreMode mode,
   }) {
     state = state.copyWith(
       mode: ExploreSubMode.all,

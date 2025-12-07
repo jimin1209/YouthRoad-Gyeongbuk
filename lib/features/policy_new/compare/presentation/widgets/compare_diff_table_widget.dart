@@ -29,62 +29,69 @@ class CompareDiffTableWidget extends StatelessWidget {
     final visibleFields = showOnlyDiffs
         ? fields.where((f) => diffs[f.key] == true).toList()
         : fields;
+    final totalWidth = labelWidth + (columnWidth + 12) * policies.length;
 
-    if (visibleFields.isEmpty) {
-      return Container(
-        width: labelWidth + columnWidth * policies.length,
-        padding: const EdgeInsets.all(12),
-        alignment: Alignment.center,
-        child: const Text('모든 항목이 동일합니다.'),
-      );
-    }
-
-    return Column(
-      children: visibleFields
-          .map(
-            (field) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: labelWidth,
-                    child: Text(
-                      field.label,
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelLarge
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  ...policies.map(
-                    (p) {
-                      final isDiff = diffs[field.key] ?? false;
-                      final value = field.valueBuilder(p);
-                      final bgColor =
-                          _cellColor(field.key, p.id, isDiff, context);
-                      return Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: Container(
-                          width: columnWidth,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: bgColor,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+    final content = visibleFields.isEmpty
+        ? Container(
+            width: totalWidth,
+            padding: const EdgeInsets.all(12),
+            alignment: Alignment.center,
+            child: const Text('紐⑤뱺 ??ぉ???숈씪?⑸땲??'),
+          )
+        : Column(
+            children: visibleFields
+                .map(
+                  (field) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: labelWidth,
                           child: Text(
-                            value.isNotEmpty ? value : '-',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                            field.label,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                         ),
-                      );
-                    },
+                        ...policies.map(
+                          (p) {
+                            final isDiff = diffs[field.key] ?? false;
+                            final value = field.valueBuilder(p);
+                            final bgColor =
+                                _cellColor(field.key, p.id, isDiff, context);
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 12),
+                              child: Container(
+                                width: columnWidth,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: bgColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  value.isNotEmpty ? value : '-',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
-          )
-          .toList(),
+                )
+                .toList(),
+          );
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: totalWidth),
+        child: content,
+      ),
     );
   }
 

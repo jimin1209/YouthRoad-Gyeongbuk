@@ -22,7 +22,7 @@ class UIReactionState {
   final DateTime updatedAt;
   final DateTime? lockUntil;
 
-  const UIReactionState({
+  UIReactionState({
     this.phase = UIReactionPhase.idle,
     this.message = '',
     this.queryHash,
@@ -57,7 +57,7 @@ class UIReactionState {
 class UIReactionController extends StateNotifier<UIReactionState> {
   UIReactionController({
     required this.feedType,
-  }) : super(const UIReactionState());
+  }) : super(UIReactionState());
 
   final PolicyFeedType feedType;
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_feed_type.dart';
+import '../../domain/values/policy_query.dart';
 import '../filters/policy_filter_ui_state.dart';
 import '../filters/policy_search_keyword_provider.dart';
 import '../../../../application/notifiers/region_notifier.dart';
