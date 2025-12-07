@@ -1,3 +1,5 @@
+// lib/features/kakaomap/kakao_map_html_builder.dart
+
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -29,9 +31,10 @@ class KakaoMapLatLng {
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 마커 이미지
+/// ─────────────────────────────────────────────────────────────────────────────
 ///   - url: 원격 이미지 (https://...)
-//    - assetPath: Flutter asset 를 직접 지정 (예: assets/images/marker.png)
-//    - asset: 의미상 alias (assetPath 대신 쓸 수 있게만 둠)
+///   - assetPath: Flutter asset 경로
+///   - asset: 의미상 alias (assetPath 대신)
 /// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapMarkerImage {
   const KakaoMapMarkerImage({
@@ -44,13 +47,8 @@ class KakaoMapMarkerImage {
     this.offset,
   });
 
-  /// Flutter asset key (의미상 alias)
   final String? asset;
-
-  /// 실제 asset 경로 (예: assets/images/marker.png)
   final String? assetPath;
-
-  /// 원격 URL
   final String? url;
 
   final double? width;
@@ -112,8 +110,6 @@ class KakaoMapMarker {
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 폴리라인
-///   - points / path 둘 다 지원 (예전 코드 호환)
-///   - strokeOpacity 추가
 /// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapPolyline {
   const KakaoMapPolyline({
@@ -205,7 +201,7 @@ class KakaoMapHtmlBuilder {
 </style>
 
 <script>
-  const SEARCH_RADIUS_METERS = 40000;
+  const SEARCH_RADIUS_METERS = 40000; // 40km
 
   function _post(msg) {
     try { $bridgeName.postMessage(JSON.stringify(msg)); }
@@ -287,23 +283,27 @@ class KakaoMapHtmlBuilder {
       });
 
       window.kakaoMap = _wrap(map, p);
+
       window.app = window.app || {};
       window.app._myMarker = window.app._myMarker || null;
       window.app._searchCircle = window.app._searchCircle || null;
       window.app._markerTooltip = window.app._markerTooltip || null;
+
       window.app.updateCircle = function(lat, lng) {
         _renderSearchCircle(lat, lng);
       };
+
       window.app.showMyPosition = function(lat, lng) {
         if (!map) return;
         if (window.app._myMarker) {
           window.app._myMarker.setMap(null);
         }
 
-        var svg = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\">'
-          + '<circle cx=\"16\" cy=\"16\" r=\"8\" fill=\"%23007aff\" stroke=\"white\" stroke-width=\"2\"/>'
-          + '<circle cx=\"16\" cy=\"16\" r=\"4\" fill=\"white\"/>'
-          + '</svg>';
+        var svg =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">' +
+          '<circle cx="16" cy="16" r="8" fill="#007aff" stroke="white" stroke-width="2"/>' +
+          '<circle cx="16" cy="16" r="4" fill="white"/>' +
+          '</svg>';
 
         var imgSrc = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
         var size = new kakao.maps.Size(32, 32);
@@ -319,19 +319,22 @@ class KakaoMapHtmlBuilder {
         });
         window.app._myMarker.setMap(map);
       };
+
       window.app.moveTo = function(lat, lng) {
         if (!map) return;
-        const center = new kakao.maps.LatLng(lat, lng);
-        map.setCenter(center);
+        const c = new kakao.maps.LatLng(lat, lng);
+        map.setCenter(c);
         if (window.app.updateCircle) {
           window.app.updateCircle(lat, lng);
         }
       };
+
       window.app.showMarkerTooltip = function(id, name, lat, lng) {
         if (!map) return;
         if (window.app._markerTooltip) {
           window.app._markerTooltip.setMap(null);
         }
+
         var content = document.createElement('div');
         content.style.backgroundColor = '#ffffff';
         content.style.borderRadius = '8px';
@@ -352,12 +355,14 @@ class KakaoMapHtmlBuilder {
           zIndex: 9999,
         });
       };
+
       window.app.hideMarkerTooltip = function() {
         if (window.app._markerTooltip) {
           window.app._markerTooltip.setMap(null);
           window.app._markerTooltip = null;
         }
       };
+
       window.app.updateCircle(center.getLat(), center.getLng());
       _post({type:'ready',payload:{}});
     });
@@ -371,7 +376,6 @@ class KakaoMapHtmlBuilder {
     if (mImage.url) {
       src = mImage.url;
     } else if (mImage.assetPath) {
-      // Flutter WebView 에서 asset 접근용 기본 스킴
       src = 'https://appassets.androidplatform.net/' + mImage.assetPath;
     } else if (mImage.asset) {
       src = 'https://appassets.androidplatform.net/' + mImage.asset;
@@ -451,13 +455,16 @@ class KakaoMapHtmlBuilder {
             }, 2000);
           }
 
-          if (m.id && m.id.indexOf('CENTER-') === 0 && window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+          if (m.id && m.id.indexOf('CENTER-') === 0 &&
+              window.flutter_inappwebview &&
+              window.flutter_inappwebview.callHandler) {
             window.flutter_inappwebview.callHandler('onMarkerClicked', {
               id: m.id,
               extra: m.extra || null
             });
           }
         });
+
         kakao.maps.event.addListener(mk, 'mouseover', function() {
           if (window.app && window.app.showMarkerTooltip) {
             window.app.showMarkerTooltip(m.id, m.title, m.lat, m.lng);
@@ -574,6 +581,7 @@ class KakaoMapHtmlBuilder {
         syncMarkers(p.markers);
         syncPolylines(p.polylines);
       },
+
       highlightMarker: function(id, lat, lng) {
         if (!id) return;
         var target = markerLookup[id];
