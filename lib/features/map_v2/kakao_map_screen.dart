@@ -1,3 +1,8 @@
+// lib/features/kakaomap/kakao_map_screen.dart
+
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,8 +12,19 @@ import '../../application/providers.dart';
 import '../../debug/debug_settings_provider.dart';
 import '../../navigation/route_paths.dart';
 import '../../ui/widgets/app_appbar.dart';
+import '../../env/app_env.dart';
+import '../center/presentation/center_detail_bottom_sheet.dart';
+import '../policy_new/data/mappers/youth_center_mapper.dart';
+import '../policy_new/presentation/map/youth_center_map_provider.dart';
 import 'kakao_map_html_builder.dart';
 import 'kakao_map_webview.dart';
+
+// flutter run
+//   --dart-define=YOUTH_CENTER_KEY=$YOUTH_CENTER_KEY
+//   --dart-define=YOUTH_API_KEY=$YOUTH_API_KEY
+//   --dart-define=KAKAO_MAP_API_KEY=$KAKAO_MAP_API_KEY
+//   --dart-define=KAKAO_REST_API_KEY=$KAKAO_REST_API_KEY
+//   --dart-define=CHAT_ENDPOINT=$CHAT_ENDPOINT
 
 class KakaoMapScreen extends ConsumerStatefulWidget {
   const KakaoMapScreen({super.key});
@@ -18,119 +34,437 @@ class KakaoMapScreen extends ConsumerStatefulWidget {
 }
 
 class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
-  static const _defaultCenter = KakaoMapLatLng(36.4919, 128.8889);
+  static final _defaultCenter = KakaoMapLatLng(36.4919, 128.8889);
+  static const _debounceMs = 800;
 
   bool _loading = true;
   String? _errorCode;
   String? _lastLog;
+  KakaoMapLatLng? _latestCenter;
+  int? _latestZoom;
+  CenterFetchRequest? _currentRequest;
+  Timer? _moveDebounce;
 
   @override
   void initState() {
     super.initState();
-    debugPrint('[KakaoMapScreen] initState() 초기화 완료');
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ENV 체크 (KAKAO_REST_API_KEY, KAKAO_MAP_API_KEY) — 키 전달 여부 디버깅용
+    // ─────────────────────────────────────────────────────────────────────────
+    debugPrint('[KakaoMapScreen] initState() 완료');
+    debugPrint(
+        '[KakaoMapScreen][ENV] kakaoRestApiKey isEmpty=${AppEnv.kakaoRestApiKey.isEmpty} len=${AppEnv.kakaoRestApiKey.length}');
+    // 다른 ENV 값들도 필요하면 여기서 같이 찍을 수 있음 (예: kakaoMapApiKey 등)
+
+    _latestCenter = _defaultCenter;
+    _currentRequest = const CenterFetchRequest(
+      lat: 36.4919,
+      lng: 128.8889,
+      radiusKm: kCenterRangeKm,
+    );
+
+    debugPrint(
+        '[KakaoMapScreen] 초기 요청 CenterFetchRequest(lat=${_currentRequest!.lat}, lng=${_currentRequest!.lng}, radius=${_currentRequest!.radiusKm})');
+  }
+
+  @override
+  void dispose() {
+    _moveDebounce?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final regionName = ref.watch(regionProvider);
     final policyState = ref.watch(policyListNotifierProvider);
+    final request = _currentRequest!;
+    final centerMarkersAsync = ref.watch(youthCenterMapProvider(request));
     final debugPanelEnabled = ref.watch(debugPanelEnabledProvider);
 
-    final center = _centerForRegion(regionName);
-    final markers = _policyMarkers(center, policyState);
-    final polylines = _polylinesFromMarkers(markers);
-    const options = KakaoMapOptions(
-      level: 6,
-      mapType: KakaoMapType.roadmap,
-      showZoomControl: true,
-      showMapTypeControl: true,
-    );
-
-    debugPrint('[KakaoMapScreen] 화면 Build() 호출');
+    debugPrint('────────────────────────────────────────');
+    debugPrint('[KakaoMapScreen] build() 호출');
     debugPrint(' └ regionName: $regionName');
-    debugPrint(' └ centerLatLng: (${center.lat}, ${center.lng})');
+    debugPrint(
+        ' └ currentRequest: center=(${request.lat}, ${request.lng}), radius=${request.radiusKm}');
+    debugPrint(
+        ' └ latestCenter: ${_latestCenter != null ? '(${_latestCenter!.lat}, ${_latestCenter!.lng})' : 'null'}');
+    debugPrint(' └ latestZoom: ${_latestZoom ?? -1}');
     debugPrint(' └ 정책 개수: ${policyState.policies.length}');
+    debugPrint(' └ centerMarkersAsync = $centerMarkersAsync');
+    debugPrint('────────────────────────────────────────');
 
-    return Scaffold(
-      appBar: const AppAppBar(title: '카카오맵 보기'),
-      body: Stack(
-        children: [
-          KakaoMapWebView(
-            center: center,
-            markers: markers,
-            polylines: polylines,
-            enableClustering: true,
-            options: options,
-            onMarkerTap: (id) {
-              debugPrint('[KakaoMap] 사용자가 마커 탭함 → $id');
-              context.push(RoutePaths.policyDetail(id));
-            },
-            onReady: () {
-              debugPrint('[KakaoMap] WebView Ready! 지도 로딩 완료');
-              _setLoading(false);
-            },
-            onLoadingChanged: (isLoading) {
-              debugPrint('[KakaoMap] WebView LoadingChanged → $isLoading');
-              _setLoading(isLoading);
-            },
-            onError: (code) {
-              debugPrint('[KakaoMap:ERROR] SDK Fail 발생 code=$code');
-              setState(() => _errorCode = code);
-            },
-            onLog: (event) {
-              debugPrint('[KakaoMap:LOG] ${event.logMessage}');
-              setState(() => _lastLog = event.logMessage);
-            },
-            showDebugPanel: kDebugMode && debugPanelEnabled,
-          ),
-          if (_loading)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
-          if (_errorCode != null)
-            Positioned(
-              top: 16,
-              left: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.65),
-                  borderRadius: BorderRadius.circular(12),
+    final defaultCenter = _centerForRegion(regionName);
+    final effectiveRequestCenter =
+        _latestCenter ?? KakaoMapLatLng(request.lat, request.lng);
+
+    debugPrint(
+        '[KakaoMapScreen] region 기반 defaultCenter=(${defaultCenter.lat}, ${defaultCenter.lng})');
+    debugPrint(
+        '[KakaoMapScreen] effectiveRequestCenter=(${effectiveRequestCenter.lat}, ${effectiveRequestCenter.lng})');
+
+    return centerMarkersAsync.when(
+      // ───────────────────────────────────────────────────────────────────────
+      // LOADING 상태
+      // ───────────────────────────────────────────────────────────────────────
+      loading: () {
+        debugPrint('[YCMAP] centerMarkersAsync: LOADING');
+        final fallbackCenter = effectiveRequestCenter;
+        final policies = _policyMarkers(fallbackCenter, policyState);
+        final polylines = _polylinesFromMarkers(policies);
+
+        return Scaffold(
+          appBar: const AppAppBar(title: '카카오맵 보기'),
+          body: Stack(
+            children: [
+              KakaoMapWebView(
+                center: fallbackCenter,
+                markers: policies,
+                polylines: polylines,
+                enableClustering: true,
+                options: const KakaoMapOptions(
+                  level: 6,
+                  mapType: KakaoMapType.roadmap,
+                  showZoomControl: true,
+                  showMapTypeControl: true,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '지도 로딩 중 문제가 발생했습니다.',
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '오류 코드: ${_errorCode ?? ''}',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                    if (_lastLog != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        '최근 로그: $_lastLog',
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 12),
-                      ),
-                    ],
-                  ],
+                onMarkerTap: (id) {
+                  debugPrint('[KakaoMap] markerTap(LOADING_CENTER) -> $id');
+                  if (!id.startsWith('CENTER-')) {
+                    context.push(RoutePaths.policyDetail(id));
+                  }
+                },
+                onReady: () {
+                  debugPrint('[KakaoMap] WebView Ready! (LOADING state)');
+                  _setLoading(false);
+                },
+                onLoadingChanged: (isLoading) {
+                  debugPrint(
+                      '[KakaoMap] WebView LoadingChanged(LOADING) → $isLoading');
+                  _setLoading(isLoading);
+                },
+                onError: (code) {
+                  debugPrint(
+                      '[KakaoMap:ERROR][LOADING] WebView error code=$code');
+                  setState(() => _errorCode = code);
+                },
+                onLog: (event) {
+                  debugPrint(
+                      '[KakaoMap:LOG][LOADING] ${event.logMessage ?? ''}');
+                  setState(() => _lastLog = event.logMessage);
+                },
+                showDebugPanel: kDebugMode && debugPanelEnabled,
+              ),
+              if (_loading) const Center(child: CircularProgressIndicator()),
+              if (_errorCode != null)
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: _buildErrorBanner(),
+                ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 16,
+                child: _buildOverlay(policyState),
+              ),
+            ],
+          ),
+        );
+      },
+
+      // ───────────────────────────────────────────────────────────────────────
+      // ERROR 상태 (FutureProvider 실패)
+      // ───────────────────────────────────────────────────────────────────────
+      error: (err, stack) {
+        debugPrint('[YCMAP] centerMarkersAsync: ERROR = $err');
+        if (stack != null) {
+          debugPrint('[YCMAP] ERROR stack = $stack');
+        }
+
+        final fallbackCenter = effectiveRequestCenter;
+        final policies = _policyMarkers(fallbackCenter, policyState);
+        final polylines = _polylinesFromMarkers(policies);
+
+        return Scaffold(
+          appBar: const AppAppBar(title: '카카오맵 보기'),
+          body: Stack(
+            children: [
+              KakaoMapWebView(
+                center: fallbackCenter,
+                markers: policies,
+                polylines: polylines,
+                enableClustering: true,
+                options: const KakaoMapOptions(
+                  level: 6,
+                  mapType: KakaoMapType.roadmap,
+                  showZoomControl: true,
+                  showMapTypeControl: true,
+                ),
+                onMarkerTap: (id) {
+                  debugPrint('[KakaoMap] markerTap(CENTER_ERROR) -> $id');
+                  if (!id.startsWith('CENTER-')) {
+                    context.push(RoutePaths.policyDetail(id));
+                  }
+                },
+                onReady: () {
+                  debugPrint('[KakaoMap] WebView Ready! (ERROR state)');
+                  _setLoading(false);
+                },
+                onLoadingChanged: (isLoading) {
+                  debugPrint(
+                      '[KakaoMap] WebView LoadingChanged(ERROR) → $isLoading');
+                  _setLoading(isLoading);
+                },
+                onError: (code) {
+                  debugPrint(
+                      '[KakaoMap:ERROR][ERROR_STATE] WebView error code=$code');
+                  setState(() => _errorCode = code);
+                },
+                onLog: (event) {
+                  debugPrint(
+                      '[KakaoMap:LOG][ERROR_STATE] ${event.logMessage ?? ''}');
+                  setState(() => _lastLog = event.logMessage);
+                },
+                showDebugPanel: kDebugMode && debugPanelEnabled,
+              ),
+              if (_loading) const Center(child: CircularProgressIndicator()),
+              if (_errorCode != null)
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: _buildErrorBanner(),
+                ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 16,
+                child: _buildOverlay(policyState),
+              ),
+            ],
+          ),
+        );
+      },
+
+      // ───────────────────────────────────────────────────────────────────────
+      // DATA 상태 (센터 좌표 로딩 완료)
+      // ───────────────────────────────────────────────────────────────────────
+      data: (centerPoints) {
+        debugPrint(
+            '[YCMAP] centerMarkersAsync: DATA, rawCount=${centerPoints.length}');
+
+        final validCenters =
+            centerPoints.where((c) => c.lat != null && c.lng != null).toList();
+
+        final currentCenter = _latestCenter ?? defaultCenter;
+        debugPrint(
+            '[YCMAP] DATA currentCenter=(${currentCenter.lat}, ${currentCenter.lng})');
+
+        final sortedCenters = validCenters
+            .map(
+              (c) => (
+                point: c,
+                distance: _distanceFrom(
+                  currentCenter.lat,
+                  currentCenter.lng,
+                  c.lat,
+                  c.lng,
                 ),
               ),
+            )
+            .toList()
+          ..sort((a, b) => a.distance.compareTo(b.distance));
+
+        final centerMarkers = List.generate(sortedCenters.length, (index) {
+          final entry = sortedCenters[index];
+          final c = entry.point;
+          final markerId = 'CENTER-$index-${c.name}';
+          return KakaoMapMarker(
+            id: markerId,
+            title: c.name,
+            position: KakaoMapLatLng(c.lat, c.lng),
+            image: const KakaoMapMarkerImage(
+              url: 'https://developers.kakao.com/docs/static/images/marker.png',
+              width: 26,
+              height: 37,
             ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 16,
-            child: _buildOverlay(policyState),
+          );
+        });
+
+        debugPrint(
+            '[YCMAP] centerPoints=${centerPoints.length} validCenters=${validCenters.length}');
+        debugPrint(
+            '[YCMAP] centerMarkers=${centerMarkers.length} (지도에 찍을 센터 마커 수)');
+
+        final policyMarkers = _policyMarkers(currentCenter, policyState);
+        final mergedMarkers = <KakaoMapMarker>[
+          ...centerMarkers,
+          ...policyMarkers,
+        ];
+
+        debugPrint(
+            '[YCMAP] policyMarkers=${policyMarkers.length}, mergedMarkers=${mergedMarkers.length}');
+
+        final polylines = centerMarkers.isNotEmpty
+            ? <KakaoMapPolyline>[]
+            : _polylinesFromMarkers(policyMarkers);
+
+        if (centerMarkers.isNotEmpty) {
+          debugPrint('[YCMAP] polyline disabled due to center markers');
+        }
+
+        KakaoMapLatLng mapCenter = currentCenter;
+        int mapLevel = _latestZoom ?? 6;
+
+        if (validCenters.isNotEmpty) {
+          final avgLat = validCenters
+                  .map((c) => c.lat)
+                  .fold<double>(0, (prev, lat) => prev + lat) /
+              validCenters.length;
+          final avgLng = validCenters
+                  .map((c) => c.lng)
+                  .fold<double>(0, (prev, lng) => prev + lng) /
+              validCenters.length;
+
+          mapCenter = KakaoMapLatLng(avgLat, avgLng);
+          mapLevel = _latestZoom ?? 12;
+
+          debugPrint(
+              '[YCMAP] mapInitialCenter(centersBased)=(${mapCenter.lat}, ${mapCenter.lng}) zoom=$mapLevel');
+        } else {
+          debugPrint(
+              '[YCMAP] mapInitialCenter(default/current)=(${mapCenter.lat}, ${mapCenter.lng}) zoom=$mapLevel (default)');
+        }
+
+        return Scaffold(
+          appBar: const AppAppBar(title: '카카오맵 보기'),
+          body: Stack(
+            children: [
+              KakaoMapWebView(
+                center: mapCenter,
+                markers: mergedMarkers,
+                polylines: polylines,
+                enableClustering: true,
+                options: KakaoMapOptions(
+                  level: mapLevel,
+                  mapType: KakaoMapType.roadmap,
+                  showZoomControl: true,
+                  showMapTypeControl: true,
+                ),
+                onMapMoved: (center, zoom) {
+                  debugPrint(
+                      '[YCMAP] onMapMoved center=(${center.lat}, ${center.lng}) zoom=$zoom');
+                  _latestCenter = center;
+                  _latestZoom = zoom;
+
+                  // 디바운스 로그
+                  _moveDebounce?.cancel();
+                  debugPrint(
+                      '[YCMAP] onMapMoved → debounce ${_debounceMs}ms 후 CenterFetchRequest 갱신 예정');
+
+                  _moveDebounce = Timer(
+                    const Duration(milliseconds: _debounceMs),
+                    () {
+                      final req = CenterFetchRequest(
+                        lat: center.lat,
+                        lng: center.lng,
+                        radiusKm: kCenterRangeKm,
+                      );
+                      debugPrint(
+                          '[YCMAP] debounce 완료 → provider 재요청 CenterFetchRequest(lat=${req.lat}, lng=${req.lng}, radius=${req.radiusKm})');
+
+                      setState(() {
+                        _currentRequest = req;
+                      });
+
+                      ref.refresh(youthCenterMapProvider(req));
+                    },
+                  );
+                },
+                onMarkerTap: (id) {
+                  if (id.startsWith('CENTER-')) {
+                    debugPrint('[YCMAP] CENTER marker tapped -> $id');
+                    final selectedName = id.replaceFirst('CENTER-', '');
+                    if (centerPoints.isEmpty) {
+                      debugPrint(
+                          '[YCMAP] CENTER marker tapped but centerPoints is empty');
+                      return;
+                    }
+                    final selected = centerPoints.firstWhere(
+                      (c) => c.name == selectedName,
+                      orElse: () {
+                        debugPrint(
+                            '[YCMAP] CENTER marker name mismatch, fallback to first center');
+                        return centerPoints.first;
+                      },
+                    );
+
+                    if (mounted) {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.white,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                        builder: (_) => CenterDetailBottomSheet(
+                          name: selected.name,
+                          address: selected.fullAddress,
+                          phone: selected.phone,
+                          homepageUrl: selected.url,
+                          regionLabel: selected.regionLabel,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+
+                  debugPrint('[KakaoMap] POLICY marker tapped -> $id');
+                  context.push(RoutePaths.policyDetail(id));
+                },
+                onReady: () {
+                  debugPrint('[KakaoMap] WebView Ready! 지도 로딩 완료 (DATA)');
+                  _setLoading(false);
+                },
+                onLoadingChanged: (isLoading) {
+                  debugPrint(
+                      '[KakaoMap] WebView LoadingChanged(DATA) → $isLoading');
+                  _setLoading(isLoading);
+                },
+                onError: (code) {
+                  debugPrint('[KakaoMap:ERROR][DATA] SDK Fail code=$code');
+                  setState(() => _errorCode = code);
+                },
+                onLog: (event) {
+                  debugPrint('[KakaoMap:LOG][DATA] ${event.logMessage ?? ''}');
+                  setState(() => _lastLog = event.logMessage);
+                },
+                showDebugPanel: kDebugMode && debugPanelEnabled,
+              ),
+              if (_loading)
+                const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              if (_errorCode != null)
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: _buildErrorBanner(),
+                ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 16,
+                child: _buildOverlay(policyState),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -148,7 +482,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   ) {
     final policies = asyncPolicies.policies;
 
-    debugPrint('[KakaoMap] 마커 생성 요청');
+    debugPrint('[KakaoMap] 정책 마커 생성 요청');
     debugPrint(' └ 정책 개수: ${policies.length}');
 
     if (policies.isEmpty) {
@@ -159,14 +493,15 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     final markerOffsets = _markerOffsets(center);
     final limitedPolicies = policies.take(markerOffsets.length).toList();
 
-    debugPrint(' └ 실제 마커 생성 개수: ${limitedPolicies.length}');
+    debugPrint(
+        ' └ 실제 마커 생성 개수: ${limitedPolicies.length} (offset 패턴 길이=${markerOffsets.length})');
 
     return List.generate(limitedPolicies.length, (index) {
       final policy = limitedPolicies[index];
       final offset = markerOffsets[index];
 
       debugPrint(
-          ' ⤷ Marker[$index] ${policy.policyNm} (${offset.lat}/${offset.lng})');
+          ' ⤷ PolicyMarker[$index] ${policy.policyNm} (${offset.lat}/${offset.lng})');
 
       return KakaoMapMarker(
         id: policy.id,
@@ -216,12 +551,34 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     debugPrint(' └ base center: (${base.lat}, ${base.lng})');
 
     return deltas
-        .map((delta) => KakaoMapLatLng(
-              base.lat + delta.lat,
-              base.lng + delta.lng,
-            ))
+        .map(
+          (delta) => KakaoMapLatLng(
+            base.lat + delta.lat,
+            base.lng + delta.lng,
+          ),
+        )
         .toList();
   }
+
+  double _distanceFrom(
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
+    const earthRadiusKm = 6371.0;
+    final dLat = _deg2rad(lat2 - lat1);
+    final dLon = _deg2rad(lng2 - lng1);
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_deg2rad(lat1)) *
+            cos(_deg2rad(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadiusKm * c;
+  }
+
+  double _deg2rad(double deg) => deg * (pi / 180.0);
 
   KakaoMapLatLng _centerForRegion(String? regionName) {
     debugPrint('[KakaoMap] 지역 선택됨: $regionName');
@@ -247,12 +604,12 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   Widget _buildOverlay(PolicyListState state) {
     if (state.isLoading && state.policies.isEmpty) {
-      debugPrint('[KakaoMap] 정책 로딩중');
+      debugPrint('[KakaoMap] 정책 로딩중 (Overlay)');
       return const Center(child: CircularProgressIndicator());
     }
 
     if (state.error != null && state.policies.isEmpty) {
-      debugPrint('[KakaoMap] 정책 로딩 실패');
+      debugPrint('[KakaoMap] 정책 로딩 실패 (Overlay) → ${state.error}');
       return Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.all(12),
@@ -269,5 +626,36 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     }
 
     return const SizedBox.shrink();
+  }
+
+  Widget _buildErrorBanner() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.65),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '지도 로딩 중 문제가 발생했습니다.',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '오류 코드: ${_errorCode ?? ''}',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          if (_lastLog != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              '최근 로그: $_lastLog',
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

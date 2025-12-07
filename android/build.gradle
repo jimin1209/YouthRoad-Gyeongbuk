@@ -1,44 +1,32 @@
-// android/build.gradle
+buildscript {
+    ext.kotlin_version = '1.9.22'
+
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://devrepo.kakao.com/nexus/content/groups/public/" }
+    }
+
+    dependencies {
+        classpath "com.android.tools.build:gradle:8.1.2"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
 
 allprojects {
     repositories {
         google()
         mavenCentral()
+        maven { url "https://devrepo.kakao.com/nexus/content/groups/public/" }
     }
 }
 
-/* ──────────────────────────────
-   🔵 APK 강제 복사 패치
-   ────────────────────────────── */
-subprojects { subproject ->
-    if (subproject.name == "app") {
-        subproject.afterEvaluate {
+rootProject.buildDir = "../build"
 
-            subproject.tasks.matching { it.name == "packageDebug" }.configureEach { t ->
-                t.doLast {
-                    def fromApk = subproject.file(
-                        "${subproject.projectDir}/build/outputs/apk/debug/app-debug.apk"
-                    )
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
 
-                    // 🔵 핵심: Flutter가 인식하는 위치 (프로젝트 루트/build)
-                    def flutterDir = new File(
-                        rootProject.projectDir,
-                        "build/app/outputs/flutter-apk"
-                    )
-
-                    flutterDir.mkdirs()
-
-                    if (fromApk.exists()) {
-                        println("✔ Copying APK to Flutter directory: ${flutterDir}")
-                        subproject.copy {
-                            from fromApk
-                            into flutterDir
-                        }
-                    } else {
-                        println("✘ APK NOT FOUND at: ${fromApk}")
-                    }
-                }
-            }
-        }
-    }
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
 }

@@ -1,67 +1,50 @@
-// android/app/build.gradle
-
 plugins {
     id "com.android.application"
-    id "org.jetbrains.kotlin.android"
+    id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
 android {
-    namespace = "com.youthroad.app"
-    compileSdk = 34  // SDK 34가 설치돼 있을 가능성이 높아서 34로 맞추는 걸 권장합니다.
+    namespace "com.youthroad.app"
+    compileSdk 34
+    ndkVersion = flutter.ndkVersion
 
     defaultConfig {
-        applicationId = "com.youthroad.app"
-        minSdk = 24
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
-        multiDexEnabled = true
+        applicationId "com.youthroad.app"
+        minSdk 23
+        targetSdk 34
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     buildTypes {
-        debug {
-            // 기본 debug keystore 사용 (Flutter/AGP가 자동으로 처리)
-            debuggable true
-        }
         release {
-            // 당장은 배포용 아니고, 디버그 빌드만 필요하므로
-            // release도 debug 서명 재사용 - 나중에 스토어 배포 시에만 별도 서명 설정
             signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
         }
     }
-
-    packagingOptions {
-        jniLibs {
-            useLegacyPackaging = true
-        }
-        doNotStrip "*/arm64-v8a/*.so"
-
-        resources.pickFirsts += ['**/*.xml']
-        resources.pickFirsts += ['**/*.properties']
-        resources.pickFirsts += ['META-INF/*']
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-        coreLibraryDesugaringEnabled true
-    }
-
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
 }
 
-flutter {
-    source = "../.."
+repositories {
+    google()
+    mavenCentral()
+    maven { url "https://devrepo.kakao.com/nexus/content/groups/public/" }
 }
 
 dependencies {
-    implementation "androidx.multidex:multidex:2.0.1"
-    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
+    implementation "com.kakao.sdk:v2-common:2.23.1"
 }
 
-
+flutter {
+    source "../.."
+}

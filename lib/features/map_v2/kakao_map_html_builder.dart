@@ -210,17 +210,7 @@ class KakaoMapHtmlBuilder {
     catch(e) { console.log('[KakaoMap][bridge error]', e); }
   }
 
-  function _logOrigin() {
-    var href = window.location.href;
-    var origin = window.location.origin;
-    var referrer = document.referrer;
-    var msg = '[KakaoMap][origin] href=' + href + ' origin=' + origin + ' referrer=' + referrer;
-    console.log(msg);
-    _post({ type: 'log', payload: { message: msg } });
-  }
-
   window.kakaoBootstrap = function() {
-    _logOrigin();
     if (!window.kakao || !window.kakao.maps) {
       _post({type:'error',payload:{code:'sdkFail',detail:'kakao.maps not available'}});
       return;
@@ -387,6 +377,18 @@ class KakaoMapHtmlBuilder {
 
     syncMarkers(p.markers);
     syncPolylines(p.polylines);
+
+    kakao.maps.event.addListener(map, 'idle', function() {
+      var center = map.getCenter();
+      _post({
+        type: 'map_move',
+        payload: {
+          lat: center.getLat(),
+          lng: center.getLng(),
+          level: map.getLevel()
+        }
+      });
+    });
 
     return {
       setMarkers: syncMarkers,

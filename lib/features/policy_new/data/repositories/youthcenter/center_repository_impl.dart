@@ -16,4 +16,23 @@ class CenterRepositoryImpl implements CenterRepository {
     final items = dto.result?.youthPolicyList ?? [];
     return items.map((item) => item.toDomain()).toList();
   }
+
+  @override
+  Future<List<YouthCenterEntity>> getCentersV2({
+    String? ctpvCd,
+    String? sggCd,
+    int pageNum = 1,
+    int pageSize = 300,
+    CancelToken? cancelToken,
+  }) async {
+    final dto = await _remoteSource.fetchCentersV2(
+      ctpvCd: ctpvCd,
+      sggCd: sggCd,
+      pageNum: pageNum,
+      pageSize: pageSize,
+      cancelToken: cancelToken,
+    );
+    final items = dto.result?.youthPolicyList ?? [];
+    return items.map((item) => item.toDomain()).toList();
+  }
 }

@@ -17,6 +17,7 @@ enum KakaoMapEventType {
   markerTap,
   mapTap,
   clusterTap,
+  mapMove,
   loading,
   error,
   mapType,
@@ -87,6 +88,12 @@ class KakaoMapMessage {
     return null;
   }
 
+  int? get level {
+    final lvl = payload['level'];
+    if (lvl is num) return lvl.toInt();
+    return null;
+  }
+
   bool get loadingValue => payload['value'] == true;
   String? get errorCode => payload['code']?.toString();
   String? get errorDetail => payload['detail']?.toString();
@@ -104,6 +111,7 @@ class KakaoMapEvent {
 
   String? get markerId => message.markerId;
   KakaoMapLatLng? get position => message.position;
+  int? get level => message.level;
   bool get loadingValue => message.loadingValue;
   String? get errorCode => message.errorCode;
   String? get logLevel => message.logLevel;
@@ -487,6 +495,8 @@ class KakaoMapController {
         return KakaoMapEventType.mapTap;
       case 'cluster':
         return KakaoMapEventType.clusterTap;
+      case 'map_move':
+        return KakaoMapEventType.mapMove;
       case 'loading':
         return KakaoMapEventType.loading;
       case 'error':

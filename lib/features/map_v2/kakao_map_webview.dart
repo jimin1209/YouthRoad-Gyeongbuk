@@ -20,6 +20,7 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
     this.additionalScripts,
     this.onMarkerTap,
     this.onMapTap,
+    this.onMapMoved,
     this.onReady,
     this.onLoadingChanged,
     this.onError,
@@ -36,6 +37,7 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
 
   final void Function(String markerId)? onMarkerTap;
   final void Function(KakaoMapLatLng position)? onMapTap;
+  final void Function(KakaoMapLatLng center, int zoom)? onMapMoved;
   final VoidCallback? onReady;
   final void Function(bool isLoading)? onLoadingChanged;
   final void Function(String code)? onError;
@@ -172,6 +174,14 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       case KakaoMapEventType.mapTap:
       case KakaoMapEventType.clusterTap:
         _safeCallback(() => widget.onMapTap?.call(event.position!));
+        break;
+
+      case KakaoMapEventType.mapMove:
+        final position = event.position;
+        if (position != null) {
+          final zoom = event.level ?? widget.options.level;
+          _safeCallback(() => widget.onMapMoved?.call(position, zoom));
+        }
         break;
 
       case KakaoMapEventType.error:
