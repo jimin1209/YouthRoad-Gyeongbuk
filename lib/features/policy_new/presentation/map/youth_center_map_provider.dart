@@ -12,7 +12,7 @@ import '../../application/youthcenter_providers.dart';
 import '../../data/mappers/youth_center_mapper.dart';
 import '../../data/remote/youth_center_geocode_remote.dart';
 
-const double kCenterRangeKm = 20.0;
+const double kCenterRangeKm = 40.0;
 
 class CenterFetchRequest {
   const CenterFetchRequest({

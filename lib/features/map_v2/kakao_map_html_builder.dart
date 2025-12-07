@@ -257,6 +257,38 @@ class KakaoMapHtmlBuilder {
       });
 
       window.kakaoMap = _wrap(map, p);
+      window.app = window.app || {};
+      window.app._myMarker = window.app._myMarker || null;
+      window.app.showMyPosition = function(lat, lng) {
+        if (!map) return;
+        if (window.app._myMarker) {
+          window.app._myMarker.setMap(null);
+        }
+
+        var svg = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\">'
+          + '<circle cx=\"16\" cy=\"16\" r=\"8\" fill=\"%23007aff\" stroke=\"white\" stroke-width=\"2\"/>'
+          + '<circle cx=\"16\" cy=\"16\" r=\"4\" fill=\"white\"/>'
+          + '</svg>';
+
+        var imgSrc = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+        var size = new kakao.maps.Size(32, 32);
+        var anchor = new kakao.maps.Point(16, 16);
+        var markerImage = new kakao.maps.MarkerImage(imgSrc, size, {
+          offset: anchor,
+        });
+
+        window.app._myMarker = new kakao.maps.Marker({
+          position: new kakao.maps.LatLng(lat, lng),
+          image: markerImage,
+          zIndex: 999,
+        });
+        window.app._myMarker.setMap(map);
+      };
+      window.app.moveTo = function(lat, lng) {
+        if (!map) return;
+        const center = new kakao.maps.LatLng(lat, lng);
+        map.panTo(center);
+      };
       _post({type:'ready',payload:{}});
     });
   };

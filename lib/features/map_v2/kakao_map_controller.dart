@@ -328,6 +328,28 @@ class KakaoMapController {
     return _runWhenReady(() => webViewController.runJavaScript(script));
   }
 
+  Future<void> showMyPosition(KakaoMapLatLng position) {
+    final script = '''
+      if (window.app && window.app.showMyPosition) {
+        window.app.showMyPosition(${position.lat}, ${position.lng});
+      }
+    ''';
+    return _runWhenReady(
+      () => webViewController.runJavaScript(script),
+    );
+  }
+
+  Future<void> moveMapTo(KakaoMapLatLng position) {
+    final script = '''
+      if (window.app && window.app.moveTo) {
+        window.app.moveTo(${position.lat}, ${position.lng});
+      }
+    ''';
+    return _runWhenReady(
+      () => webViewController.runJavaScript(script),
+    );
+  }
+
   /// ---------------------------------------------------------------------------
   /// 내부 로깅
   /// ---------------------------------------------------------------------------
