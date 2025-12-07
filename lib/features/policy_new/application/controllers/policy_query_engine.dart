@@ -4,7 +4,6 @@ import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_result.dart';
 import '../providers.dart';
-import 'policy_query_orchestrator.dart';
 import 'policy_query_state.dart';
 
 class PolicyQueryEngine {
@@ -18,16 +17,13 @@ class PolicyQueryEngine {
     return ref.read(policyQueryProvider(feedType));
   }
 
-  PolicyQueryOrchestrator get _orchestrator =>
-      ref.read(policyQueryOrchestratorProvider);
-
   Future<PolicyResult<List<Policy>>> fetch(
     PolicyFeedType feedType, {
     required int page,
     PolicyQueryState? queryState,
   }) async {
-    final query =
-        queryState?.query ?? _orchestrator.buildQuery(feedType).normalize();
+    final state = queryState ?? buildQueryState(feedType);
+    final query = state.query.normalize();
     final repo = ref.read(policyRepositoryProvider);
 
     return repo.fetchPoliciesByQuery(

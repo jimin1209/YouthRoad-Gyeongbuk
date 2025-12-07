@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/controllers/ui_reaction_controller.dart';
-import '../../application/filters/policy_filter_ui_state.dart';
+import '../../application/filters/policy_search_keyword_provider.dart';
 import '../../application/providers.dart';
 import '../../domain/values/policy_feed_type.dart';
 
@@ -27,8 +27,8 @@ class _PolicyKeywordSheetState extends ConsumerState<PolicyKeywordSheet> {
   @override
   void initState() {
     super.initState();
-    final ui = ref.read(policyFilterUiStateProvider);
-    _controller = TextEditingController(text: ui.keyword);
+    final keyword = ref.read(policySearchKeywordProvider(widget.feedType));
+    _controller = TextEditingController(text: keyword);
   }
 
   @override
@@ -96,8 +96,9 @@ class _PolicyKeywordSheetState extends ConsumerState<PolicyKeywordSheet> {
 
   void _applyKeyword(String value) {
     final keyword = value.trim();
-    final prev = ref.read(policyFilterUiStateProvider).keyword;
-    ref.read(policyFilterUiStateProvider.notifier).setKeyword(keyword);
+    final notifier = ref.read(policySearchKeywordProvider(widget.feedType).notifier);
+    final prev = ref.read(policySearchKeywordProvider(widget.feedType));
+    notifier.set(keyword);
 
     final reaction =
         ref.read(uiReactionControllerProvider(widget.feedType).notifier);

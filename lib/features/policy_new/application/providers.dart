@@ -39,6 +39,7 @@ import 'controllers/notification_center_controller.dart';
 import 'controllers/policy_action_controller.dart';
 import 'controllers/policy_paging_controller.dart';
 import 'controllers/policy_paging_state.dart';
+import 'controllers/global_filter_controller.dart';
 import 'controllers/policy_query_engine.dart';
 import 'controllers/policy_selection_controller.dart';
 import 'controllers/policy_query_override.dart';
@@ -49,6 +50,7 @@ import 'services/policy_favorite_service.dart';
 import 'services/policy_reminder_scheduler.dart';
 import 'services/policy_reminder_service.dart';
 import 'filters/policy_filter_ui_state.dart';
+import 'filters/policy_search_keyword_provider.dart';
 import 'filters/policy_filter_summary.dart';
 import 'models/user_collections.dart';
 import 'controllers/policy_feed_memory_cache.dart';
@@ -417,7 +419,8 @@ final notificationCenterControllerProvider = StateNotifierProvider<
 
 final policyQueryProvider = Provider.family<PolicyQueryState, PolicyFeedType>(
   (ref, feedType) {
-    final filter = ref.watch(policyFilterUiStateProvider);
+    final filter = ref.watch(globalFilterProvider);
+    final keyword = ref.watch(policySearchKeywordProvider(feedType));
 
     // dependencies to rebuild query on changes
     ref.watch(userProfileProvider);
@@ -425,26 +428,27 @@ final policyQueryProvider = Provider.family<PolicyQueryState, PolicyFeedType>(
     ref.watch(favoriteIdsProvider);
     ref.watch(compareRepositoryProvider);
 
-  final orchestrator = ref.read(policyQueryOrchestratorProvider);
-  final query = orchestrator.buildQuery(feedType);
+    final orchestrator = ref.read(policyQueryOrchestratorProvider);
+    final query = orchestrator.buildQuery(feedType, keyword: keyword);
 
-  final baseState = PolicyQueryState(
-    query: query,
-    hash: query.cacheScopeKey,
-    summary: buildPolicyFilterSummary(filter),
-    conditionSummary: buildPolicyFilterConditionSummary(filter),
-  );
+    final baseState = PolicyQueryState(
+      query: query,
+      hash: query.cacheScopeKey,
+      summary: buildPolicyFilterSummary(filter, keyword: keyword),
+      conditionSummary:
+          buildPolicyFilterConditionSummary(filter, keyword: keyword),
+    );
 
-  final overrideNotifier =
-      ref.read(policyQueryOverrideProvider(feedType).notifier);
-  overrideNotifier.ensureActiveForHash(baseState.hash);
+    final overrideNotifier =
+        ref.read(policyQueryOverrideProvider(feedType).notifier);
+    overrideNotifier.ensureActiveForHash(baseState.hash);
 
-  final overrideState = ref.watch(policyQueryOverrideProvider(feedType));
-  if (overrideState != null &&
-      overrideState.queryState.hash == baseState.hash) {
-    return overrideState.queryState;
-  }
+    final overrideState = ref.watch(policyQueryOverrideProvider(feedType));
+    if (overrideState != null &&
+        overrideState.queryState.hash == baseState.hash) {
+      return overrideState.queryState;
+    }
 
-  return baseState;
+    return baseState;
   },
 );

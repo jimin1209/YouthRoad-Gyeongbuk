@@ -21,7 +21,7 @@ class PolicyQueryOverrideNotifier
   String? _hash;
 
   PolicyFilterUiState applyFromDetail(Policy policy, PolicyReExploreMode mode) {
-    final filter = ref.read(policyFilterUiStateProvider.notifier).applyFromDetail(
+    final filter = ref.read(globalFilterProvider.notifier).applyFromDetail(
           policy,
           mode,
           PolicyReExploreBuilder.buildFilter,

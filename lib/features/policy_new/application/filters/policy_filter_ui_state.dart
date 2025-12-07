@@ -15,7 +15,6 @@ class PolicyFilterUiState {
   final String? district;
   final PolicyCategory? category;
   final PolicySortOption sort;
-  final String keyword;
   final List<String> tags;
   final bool showOnlyOnline;
   final bool showOnlyOngoing;
@@ -31,7 +30,6 @@ class PolicyFilterUiState {
     this.district,
     this.category,
     this.sort = PolicySortOption.latest,
-    this.keyword = '',
     this.tags = const [],
     this.showOnlyOnline = false,
     this.showOnlyOngoing = false,
@@ -48,7 +46,6 @@ class PolicyFilterUiState {
     String? district,
     PolicyCategory? category,
     PolicySortOption? sort,
-    String? keyword,
     List<String>? tags,
     bool? showOnlyOnline,
     bool? showOnlyOngoing,
@@ -68,7 +65,6 @@ class PolicyFilterUiState {
       district: district ?? this.district,
       category: category ?? this.category,
       sort: sort ?? this.sort,
-      keyword: keyword ?? this.keyword,
       tags: nextTags,
       showOnlyOnline: showOnlyOnline ?? this.showOnlyOnline,
       showOnlyOngoing: showOnlyOngoing ?? this.showOnlyOngoing,
@@ -112,9 +108,6 @@ class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
 
   void setSort(PolicySortOption sort) => state = state.copyWith(sort: sort);
 
-  void setKeyword(String keyword) =>
-      state = state.copyWith(keyword: keyword);
-
   void setTags(List<String> tags) => state = state.copyWith(tags: tags);
 
   void toggleOnlineOnly() =>
@@ -149,7 +142,10 @@ class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
   }
 }
 
-final policyFilterUiStateProvider =
+final globalFilterProvider =
     StateNotifierProvider<PolicyFilterUiStateNotifier, PolicyFilterUiState>(
   (ref) => PolicyFilterUiStateNotifier(),
 );
+
+@Deprecated('Use globalFilterProvider instead')
+final policyFilterUiStateProvider = globalFilterProvider;
