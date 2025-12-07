@@ -41,6 +41,7 @@ import 'controllers/policy_paging_controller.dart';
 import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_engine.dart';
 import 'controllers/policy_selection_controller.dart';
+import 'controllers/policy_query_override.dart';
 import 'controllers/ui_reaction_controller.dart';
 import 'gateways/notification_gateway.dart';
 import 'gateways/notification_gateway_impl.dart';
@@ -424,14 +425,26 @@ final policyQueryProvider = Provider.family<PolicyQueryState, PolicyFeedType>(
     ref.watch(favoriteIdsProvider);
     ref.watch(compareRepositoryProvider);
 
-    final orchestrator = ref.read(policyQueryOrchestratorProvider);
-    final query = orchestrator.buildQuery(feedType);
+  final orchestrator = ref.read(policyQueryOrchestratorProvider);
+  final query = orchestrator.buildQuery(feedType);
 
-    return PolicyQueryState(
-      query: query,
-      hash: query.cacheScopeKey,
-      summary: buildPolicyFilterSummary(filter),
-      conditionSummary: buildPolicyFilterConditionSummary(filter),
-    );
+  final baseState = PolicyQueryState(
+    query: query,
+    hash: query.cacheScopeKey,
+    summary: buildPolicyFilterSummary(filter),
+    conditionSummary: buildPolicyFilterConditionSummary(filter),
+  );
+
+  final overrideNotifier =
+      ref.read(policyQueryOverrideProvider(feedType).notifier);
+  overrideNotifier.ensureActiveForHash(baseState.hash);
+
+  final overrideState = ref.watch(policyQueryOverrideProvider(feedType));
+  if (overrideState != null &&
+      overrideState.queryState.hash == baseState.hash) {
+    return overrideState.queryState;
+  }
+
+  return baseState;
   },
 );
