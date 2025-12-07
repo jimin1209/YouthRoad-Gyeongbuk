@@ -194,14 +194,6 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   child: _buildErrorBanner(),
                 ),
               if (_locationError != null) _buildLocationErrorBanner(),
-              if (sortedCenterPoints.isNotEmpty) ...[
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _buildCenterList(sortedCenterPoints),
-                ),
-              ],
               Positioned(
                 left: 0,
                 right: 0,

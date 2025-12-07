@@ -290,6 +290,7 @@ class KakaoMapHtmlBuilder {
       window.app = window.app || {};
       window.app._myMarker = window.app._myMarker || null;
       window.app._searchCircle = window.app._searchCircle || null;
+      window.app._markerTooltip = window.app._markerTooltip || null;
       window.app.updateCircle = function(lat, lng) {
         _renderSearchCircle(lat, lng);
       };
@@ -324,6 +325,37 @@ class KakaoMapHtmlBuilder {
         map.setCenter(center);
         if (window.app.updateCircle) {
           window.app.updateCircle(lat, lng);
+        }
+      };
+      window.app.showMarkerTooltip = function(id, name, lat, lng) {
+        if (!map) return;
+        if (window.app._markerTooltip) {
+          window.app._markerTooltip.setMap(null);
+        }
+        var content = document.createElement('div');
+        content.style.backgroundColor = '#ffffff';
+        content.style.borderRadius = '8px';
+        content.style.boxShadow = '0 2px 4px rgba(0,0,0,0.15)';
+        content.style.padding = '6px 10px';
+        content.style.fontSize = '13px';
+        content.style.fontWeight = '600';
+        content.style.pointerEvents = 'none';
+        content.style.whiteSpace = 'nowrap';
+        content.innerText = name || id;
+
+        var overlayPosition = new kakao.maps.LatLng(lat, lng);
+        window.app._markerTooltip = new kakao.maps.CustomOverlay({
+          map: map,
+          position: overlayPosition,
+          content: content,
+          yAnchor: 1,
+          zIndex: 9999,
+        });
+      };
+      window.app.hideMarkerTooltip = function() {
+        if (window.app._markerTooltip) {
+          window.app._markerTooltip.setMap(null);
+          window.app._markerTooltip = null;
         }
       };
       window.app.updateCircle(center.getLat(), center.getLng());
@@ -410,11 +442,30 @@ class KakaoMapHtmlBuilder {
             }
           });
 
+          if (window.app && window.app.showMarkerTooltip) {
+            window.app.showMarkerTooltip(m.id, m.title, m.lat, m.lng);
+            setTimeout(function() {
+              if (window.app && window.app.hideMarkerTooltip) {
+                window.app.hideMarkerTooltip();
+              }
+            }, 2000);
+          }
+
           if (m.id && m.id.indexOf('CENTER-') === 0 && window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
             window.flutter_inappwebview.callHandler('onMarkerClicked', {
               id: m.id,
               extra: m.extra || null
             });
+          }
+        });
+        kakao.maps.event.addListener(mk, 'mouseover', function() {
+          if (window.app && window.app.showMarkerTooltip) {
+            window.app.showMarkerTooltip(m.id, m.title, m.lat, m.lng);
+          }
+        });
+        kakao.maps.event.addListener(mk, 'mouseout', function() {
+          if (window.app && window.app.hideMarkerTooltip) {
+            window.app.hideMarkerTooltip();
           }
         });
 
