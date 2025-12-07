@@ -321,7 +321,10 @@ class KakaoMapHtmlBuilder {
       window.app.moveTo = function(lat, lng) {
         if (!map) return;
         const center = new kakao.maps.LatLng(lat, lng);
-        map.panTo(center);
+        map.setCenter(center);
+        if (window.app.updateCircle) {
+          window.app.updateCircle(lat, lng);
+        }
       };
       window.app.updateCircle(center.getLat(), center.getLng());
       _post({type:'ready',payload:{}});

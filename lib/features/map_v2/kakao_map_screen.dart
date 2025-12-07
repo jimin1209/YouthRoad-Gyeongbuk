@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,9 @@ import '../policy_new/presentation/map/youth_center_map_provider.dart';
 import 'kakao_map_html_builder.dart';
 import 'kakao_map_providers.dart';
 import 'kakao_map_webview.dart';
+import 'services/gps_service.dart';
+import 'services/location_permission_service.dart';
+import '../../ui/components/app_common_bottom_sheets.dart';
 
 // flutter run
 //   --dart-define=YOUTH_CENTER_KEY=$YOUTH_CENTER_KEY
@@ -40,6 +44,8 @@ class KakaoMapScreen extends ConsumerStatefulWidget {
 class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   static final _defaultCenter = KakaoMapLatLng(36.4919, 128.8889);
   static const _debounceMs = 400;
+  static const _gpsService = GpsService();
+  static const _permissionService = LocationPermissionService();
 
   bool _loading = true;
   String? _errorCode;
@@ -319,6 +325,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                 url: 'data:image/png;base64,$_centerMarkerIconBase64',
                 width: 36,
                 height: 36,
+                offset: const Offset(18, 36),
               )
             : const KakaoMapMarkerImage(
                 url:
@@ -637,27 +644,30 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     });
 
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      final serviceEnabled = await _gpsService.isLocationServiceEnabled();
       if (!serviceEnabled) {
+        await _showLocationPermissionGuide(
+          LocationBottomSheetIssue.serviceDisabled,
+        );
         throw '위치 서비스가 꺼져 있습니다. 설정에서 활성화해주세요.';
       }
 
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied) {
+      final permissionResult = await _permissionService.ensurePermission();
+      if (permissionResult == LocationPermissionIssue.denied) {
+        await _showLocationPermissionGuide(
+          LocationBottomSheetIssue.permissionDenied,
+        );
         throw '위치 권한이 거부되었습니다.';
       }
 
-      if (permission == LocationPermission.deniedForever) {
+      if (permissionResult == LocationPermissionIssue.deniedForever) {
+        await _showLocationPermissionGuide(
+          LocationBottomSheetIssue.permissionPermanentlyDenied,
+        );
         throw '위치 권한이 영구히 거부되었으며, 설정에서 위치 권한을 허용해 주세요.';
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      final position = await _gpsService.getCurrentPosition();
 
       if (!mounted) return;
 
@@ -693,6 +703,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           _locationError = message;
         });
       }
+      if (_currentRequest == null) {
+        await _applyFallbackCenter();
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -727,6 +740,38 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         debugPrint(stack.toString());
       }
     }
+  }
+
+  Future<void> _showLocationPermissionGuide(
+    LocationBottomSheetIssue issue,
+  ) async {
+    if (!mounted) return;
+    await showLocationPermissionBottomSheet(
+      context,
+      issue: issue,
+    );
+  }
+
+  Future<void> _applyFallbackCenter() async {
+    if (!mounted) return;
+    final fallback = _defaultCenter;
+    final request = CenterFetchRequest(
+      lat: fallback.lat,
+      lng: fallback.lng,
+      radiusKm: kCenterRangeKm,
+    );
+
+    setState(() {
+      _deviceLocation = null;
+      _latestCenter = fallback;
+      _latestZoom = 12;
+      _currentRequest = request;
+      _locationError ??= '기본 위치(대구)를 기준으로 지도를 표시합니다.';
+    });
+
+    await _moveMapToLocation(fallback);
+    await _updateSearchCircle(fallback);
+    ref.refresh(youthCenterMapProvider(request));
   }
 
   Future<void> _moveMapToLocation(KakaoMapLatLng location) async {
