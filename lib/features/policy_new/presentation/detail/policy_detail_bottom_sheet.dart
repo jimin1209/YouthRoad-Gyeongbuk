@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:intl/intl.dart';
-
 import '../../application/controllers/policy_detail_controller.dart';
 import '../../application/controllers/policy_query_override.dart';
 import '../../application/providers.dart';
@@ -15,6 +13,7 @@ import '../widgets/policy_list_loading.dart';
 import '../reminder/policy_reminder_button.dart';
 import 'widgets/policy_action_bar.dart';
 import '../explore/policy_explore_screen.dart';
+import '../utils/policy_date_formatter.dart';
 import '../../../../ui/layout/app_screen_container.dart';
 import '../../../../ui/components/app_section_title.dart';
 import '../../../../ui/components/app_divider.dart';
@@ -152,22 +151,22 @@ class _Content extends StatelessWidget {
                   ),
                   _InfoSection(
                     title: '신청 기간',
-                    content: _buildPeriodText(policy),
+                    content: _buildPeriodText(policy, dDay: dDay),
                     badge: dDay != null
-                        ? _DDayBadge(label: dDay, color: theme.colorScheme)
+                        ? _DDayBadge(label: '신청 마감 $dDay', color: theme.colorScheme)
                         : null,
                   ),
                   _InfoSection(
                     title: '신청 방법',
                     content: policy.applyUrl.isNotEmpty
-                        ? 'Online: ${policy.applyUrl}'
-                        : 'Application method not available.',
+                        ? '온라인 신청 · ${policy.applyUrl}'
+                        : '신청 방법 정보를 찾을 수 없습니다.',
                   ),
                   _InfoSection(
                     title: '문의처',
                     content: (policy.contact ?? '').isNotEmpty
                         ? policy.contact!
-                        : 'Contact info not available.',
+                        : '문의처 정보가 없습니다.',
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   _ReExploreSection(
@@ -246,25 +245,29 @@ class _Content extends StatelessWidget {
       targets.add('고용: ${policy.employmentCondition}');
     }
 
-    if (targets.isEmpty) return 'Eligibility info not available.';
+    if (targets.isEmpty) return '대상 정보를 찾을 수 없습니다.';
     return targets.join('\n');
   }
 
-  static String _buildPeriodText(Policy policy) {
+  static String _buildPeriodText(Policy policy, {String? dDay}) {
     final start = policy.applicationStartDate;
     final end = policy.applicationEndDate;
-    final format = DateFormat('yyyy.MM.dd (E)', 'ko');
 
-    if (start == null && end == null) {
-      return '일정 미확정';
+    final baseRange =
+        PolicyDateFormatter.formatRange(start: start, end: end);
+
+    if (end == null) return baseRange;
+
+    final deadline = PolicyDateFormatter.buildDeadlineText(
+      end: end,
+      dDayLabel: dDay,
+    );
+
+    if (start == null) {
+      return deadline;
     }
-    if (start != null && end == null) {
-      return '신청 시작일 ${format.format(start.toLocal())}';
-    }
-    if (start == null && end != null) {
-      return '신청 마감일 ${format.format(end.toLocal())}';
-    }
-    return '${format.format(start!.toLocal())} ~ ${format.format(end!.toLocal())}';
+
+    return '$baseRange\n$deadline';
   }
 
   static String? _buildDDayLabel(Policy policy) {
@@ -430,7 +433,7 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final String message = error is PolicyFailure
         ? (error as PolicyFailure).message
-        : 'An unknown error occurred while loading the policy.';
+        : '정책 정보를 불러오는 중 알 수 없는 오류가 발생했어요.';
 
     return Center(
       child: Padding(
@@ -438,7 +441,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Failed to load policy details'),
+            const Text('정책 정보를 불러오지 못했어요'),
             const SizedBox(height: 8),
             Text(
               message,
@@ -448,7 +451,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('Retry'),
+              child: const Text('다시 시도'),
             ),
           ],
         ),

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-
 import '../../application/providers.dart';
 import '../../application/controllers/policy_reminder_controller.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
 import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
+import '../utils/policy_date_formatter.dart';
 
 class PolicyReminderButton extends ConsumerWidget {
   const PolicyReminderButton({super.key, required this.policy});
@@ -33,6 +32,7 @@ class PolicyReminderButton extends ConsumerWidget {
           ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
         final activeOptions =
             activeReminders.map((reminder) => reminder.timeKind).toSet();
+        final hasActiveReminders = activeReminders.isNotEmpty;
 
         if (viewState.messages.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -51,6 +51,7 @@ class PolicyReminderButton extends ConsumerWidget {
           viewState: viewState,
           activeOptions: activeOptions,
           activeReminders: activeReminders,
+          hasActiveReminders: hasActiveReminders,
           onToggleOption: (option, enabled) async {
             final next = {...activeOptions};
             if (enabled) {
@@ -154,6 +155,7 @@ class _ReminderSheetButton extends StatelessWidget {
     required this.viewState,
     required this.activeOptions,
     required this.activeReminders,
+    required this.hasActiveReminders,
     required this.onToggleOption,
     required this.onRemove,
     required this.onOpenOptions,
@@ -164,6 +166,7 @@ class _ReminderSheetButton extends StatelessWidget {
   final PolicyReminderViewState viewState;
   final Set<ReminderTimeKind> activeOptions;
   final List<PolicyReminder> activeReminders;
+  final bool hasActiveReminders;
   final Future<void> Function(ReminderTimeKind option, bool enabled)
       onToggleOption;
   final Future<void> Function(String reminderId) onRemove;
@@ -172,9 +175,11 @@ class _ReminderSheetButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final buttonLabel = hasActiveReminders ? '신청 알림 관리' : '신청 알림 설정';
+
     return ElevatedButton.icon(
       icon: const Icon(Icons.notifications_outlined),
-      label: const Text('신청 알림 설정'),
+      label: Text(buttonLabel),
       onPressed: () {
         showModalBottomSheet(
           context: context,
@@ -225,6 +230,9 @@ class _ReminderSheet extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
     final scrollController = ScrollController();
+    final reminderSummary = activeReminders.isEmpty
+        ? '알림이 설정되지 않았어요. 원하는 시점을 선택해보세요.'
+        : '알림 ${activeReminders.length}건이 예약되어 있어요.';
 
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.72,
@@ -255,6 +263,12 @@ class _ReminderSheet extends StatelessWidget {
                         _deadlineText(policy),
                         style: textTheme.bodySmall,
                       ),
+                      const SizedBox(height: 6),
+                      Text(
+                        reminderSummary,
+                        style: textTheme.bodySmall
+                            ?.copyWith(color: colorScheme.onSurfaceVariant),
+                      ),
                     ],
                   ),
                 ),
@@ -270,7 +284,7 @@ class _ReminderSheet extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('알림 옵션', style: textTheme.labelLarge),
+                  Text('알림 옵션 선택', style: textTheme.labelLarge),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -321,8 +335,8 @@ class _ReminderSheet extends StatelessWidget {
                           ),
                           title: Text(reminder.timeKind.label),
                           subtitle: Text(
-                            DateFormat('yyyy.MM.dd (E) a h:mm', 'ko')
-                                .format(reminder.scheduledAt.toLocal()),
+                            PolicyDateFormatter
+                                .formatDateTime(reminder.scheduledAt),
                           ),
                           trailing: IconButton(
                             onPressed: viewState.isMutating
@@ -343,8 +357,9 @@ class _ReminderSheet extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed:
-                        viewState.isMutating ? null : () => onCancelAll(),
+                    onPressed: viewState.isMutating || activeReminders.isEmpty
+                        ? null
+                        : () => onCancelAll(),
                     child: const Text('모든 알림 취소'),
                   ),
                 ),
@@ -359,9 +374,7 @@ class _ReminderSheet extends StatelessWidget {
   String _deadlineText(Policy policy) {
     final end = policy.applicationEndDate;
     if (end == null) return '신청 마감 정보가 없습니다.';
-    final formatter = DateFormat('yyyy.MM.dd (E)');
-    final local = end.toLocal();
-    return '신청 마감 · ${formatter.format(local)}';
+    return PolicyDateFormatter.buildDeadlineText(end: end);
   }
 
   IconData _iconForStatus(PolicyReminderStatus status) {
