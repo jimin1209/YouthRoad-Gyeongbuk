@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/controllers/policy_detail_controller.dart';
+import '../../application/controllers/policy_query_override.dart';
 import '../../application/providers.dart';
+import '../../application/explore/explore_providers.dart';
+import '../../application/reexplore/policy_reexplore.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_failure.dart';
+import '../../domain/values/policy_feed_type.dart';
 import '../widgets/policy_list_loading.dart';
 import '../reminder/policy_reminder_button.dart';
 import 'widgets/policy_action_bar.dart';
+import '../explore/policy_explore_screen.dart';
 import '../../../../ui/layout/app_screen_container.dart';
 import '../../../../ui/components/app_section_title.dart';
 import '../../../../ui/components/app_divider.dart';
@@ -38,6 +43,27 @@ class _PolicyDetailBottomSheetState
         .onInit();
   }
 
+  void _onReExplore(
+    BuildContext context,
+    Policy policy,
+    PolicyReExploreMode mode,
+  ) {
+    final overrideNotifier =
+        ref.read(policyQueryOverrideProvider(PolicyFeedType.all).notifier);
+    final filter = overrideNotifier.applyFromDetail(policy, mode);
+
+    ref
+        .read(exploreStateProvider.notifier)
+        .applyFromDetail(filter: filter, mode: mode);
+
+    Navigator.of(context).pop();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const PolicyExploreScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final asyncPolicy = ref.watch(policyDetailProvider(widget.policyId));
@@ -55,8 +81,11 @@ class _PolicyDetailBottomSheetState
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           clipBehavior: Clip.antiAlias,
           child: asyncPolicy.when(
-            data: (policy) =>
-                _Content(policy: policy, controller: scrollController),
+            data: (policy) => _Content(
+              policy: policy,
+              controller: scrollController,
+              onReExplore: (mode) => _onReExplore(context, policy, mode),
+            ),
             loading: () => const PolicyListLoading(),
             error: (err, __) => _ErrorView(
               error: err,
@@ -73,10 +102,12 @@ class _Content extends StatelessWidget {
   const _Content({
     required this.policy,
     required this.controller,
+    required this.onReExplore,
   });
 
   final Policy policy;
   final ScrollController controller;
+  final ValueChanged<PolicyReExploreMode> onReExplore;
 
   @override
   Widget build(BuildContext context) {
@@ -135,6 +166,11 @@ class _Content extends StatelessWidget {
                     content: (policy.contact ?? '').isNotEmpty
                         ? policy.contact!
                         : 'Contact info not available.',
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  _ReExploreSection(
+                    policy: policy,
+                    onSelect: onReExplore,
                   ),
                   const SizedBox(height: AppSpacing.xl),
                 ],
@@ -278,6 +314,77 @@ class _InfoSection extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ReExploreSection extends StatelessWidget {
+  const _ReExploreSection({
+    required this.policy,
+    required this.onSelect,
+  });
+
+  final Policy policy;
+  final ValueChanged<PolicyReExploreMode> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasInstitution = (policy.institutionId ?? '').isNotEmpty;
+
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppSectionTitle(title: '이 정책과 함께 보기'),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '비슷한 정책이나 같은 기관·카테고리의 최신 정책을 이어서 탐색해보세요.',
+            style: AppText.textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          FilledButton.icon(
+            onPressed: () => onSelect(PolicyReExploreMode.similar),
+            icon: const Icon(Icons.auto_awesome),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            label: const Text('비슷한 정책 더 보기'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FilledButton.tonalIcon(
+            onPressed: () => onSelect(PolicyReExploreMode.category),
+            icon: const Icon(Icons.category_outlined),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            label: const Text('같은 카테고리 최신 정책 보기'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FilledButton.tonalIcon(
+            onPressed:
+                hasInstitution ? () => onSelect(PolicyReExploreMode.institution) : null,
+            icon: const Icon(Icons.apartment_outlined),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            label: Text(
+              hasInstitution ? '같은 기관 정책 보기' : '기관 정보가 없습니다',
+            ),
+          ),
+        ],
       ),
     );
   }

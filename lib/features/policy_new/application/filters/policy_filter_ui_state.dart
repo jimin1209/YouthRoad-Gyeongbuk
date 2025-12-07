@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_region.dart';
 import '../../domain/values/policy_sort.dart';
+import '../reexplore/policy_reexplore.dart';
 
 @immutable
 class PolicyFilterUiState {
@@ -134,6 +136,17 @@ class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
       );
 
   void resetAll() => state = const PolicyFilterUiState();
+
+  PolicyFilterUiState applyFromDetail(
+    Policy policy,
+    PolicyReExploreMode mode,
+    PolicyFilterUiState Function(PolicyFilterUiState, Policy, PolicyReExploreMode)
+        builder,
+  ) {
+    final next = builder(state, policy, mode);
+    state = next;
+    return next;
+  }
 }
 
 final policyFilterUiStateProvider =

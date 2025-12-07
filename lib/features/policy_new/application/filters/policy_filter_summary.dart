@@ -18,6 +18,12 @@ String buildPolicyFilterSummary(PolicyFilterUiState filter) {
     buffer.write(' · ${_categoryLabel(filter.category!)}');
   }
 
+  if ((filter.institutionName ?? '').isNotEmpty) {
+    buffer.write(' · ${filter.institutionName}');
+  } else if ((filter.institutionId ?? '').isNotEmpty) {
+    buffer.write(' · 기관 필터 적용');
+  }
+
   if (filter.showOnlyOngoing) {
     buffer.write(' · 모집중만');
   }
@@ -47,6 +53,12 @@ String buildPolicyFilterConditionSummary(PolicyFilterUiState filter) {
 
   if (filter.category != null) {
     parts.add(_categoryLabel(filter.category!));
+  }
+
+  if ((filter.institutionName ?? '').isNotEmpty) {
+    parts.add(filter.institutionName!);
+  } else if ((filter.institutionId ?? '').isNotEmpty) {
+    parts.add('기관 필터 적용');
   }
 
   if (filter.showOnlyOngoing) {

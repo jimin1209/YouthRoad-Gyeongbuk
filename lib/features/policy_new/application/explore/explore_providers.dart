@@ -6,6 +6,7 @@ import '../filters/policy_filter_ui_state.dart';
 import 'explore_state.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_sort.dart';
+import '../reexplore/policy_reexplore.dart';
 
 final exploreStateProvider =
     StateNotifierProvider<ExploreController, ExploreState>(
@@ -146,6 +147,26 @@ class ExploreController extends StateNotifier<ExploreState> {
     notifier.resetAll();
   }
 
+  void applyFromDetail({
+    required PolicyFilterUiState filter,
+    required PolicyReExploreMode _mode,
+  }) {
+    final categoryId = _categoryId(filter.category);
+    final status = filter.showOnlyOngoing
+        ? PolicyStatusFilter.inProgressOnly
+        : PolicyStatusFilter.includeClosed;
+    final sortKind = _mapSortKind(filter.sort);
+
+    state = state.copyWith(
+      mode: ExploreSubMode.all,
+      keyword: '',
+      statusFilter: status,
+      sortKind: sortKind,
+      selectedCategories:
+          categoryId != null ? List.unmodifiable([categoryId]) : const [],
+    );
+  }
+
   PolicyCategory? _mapCategory(String id) {
     switch (id) {
       case 'employment':
@@ -160,6 +181,42 @@ class ExploreController extends StateNotifier<ExploreState> {
         return PolicyCategory.life;
       default:
         return null;
+    }
+  }
+
+  String? _categoryId(PolicyCategory? category) {
+    switch (category) {
+      case PolicyCategory.employment:
+        return 'employment';
+      case PolicyCategory.startup:
+        return 'startup';
+      case PolicyCategory.housing:
+        return 'housing';
+      case PolicyCategory.education:
+        return 'education';
+      case PolicyCategory.life:
+        return 'life';
+      case PolicyCategory.welfare:
+        return 'welfare';
+      case PolicyCategory.culture:
+        return 'culture';
+      case PolicyCategory.other:
+        return 'other';
+      case null:
+        return null;
+    }
+  }
+
+  PolicySortKind _mapSortKind(PolicySortOption option) {
+    switch (option) {
+      case PolicySortOption.recommendation:
+        return PolicySortKind.recommended;
+      case PolicySortOption.latest:
+        return PolicySortKind.newest;
+      case PolicySortOption.deadline:
+        return PolicySortKind.deadline;
+      case PolicySortOption.popularity:
+        return PolicySortKind.amount;
     }
   }
 }

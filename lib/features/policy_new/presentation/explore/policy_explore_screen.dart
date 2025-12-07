@@ -63,7 +63,8 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
     }
 
     final feedType = _feedTypeFor(state);
-    final summary = _summaryFor(state, filterUi.regionSummary);
+    final queryState = ref.watch(policyQueryProvider(feedType));
+    final summary = queryState.summary;
 
     return Scaffold(
       appBar: AppBar(
@@ -107,6 +108,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                   const SizedBox(height: 8),
                   _SummaryRow(
                     summary: summary,
+                    conditionSummary: queryState.conditionSummary,
                     onReset: controller.clearFilters,
                     onTap: () =>
                         _openFilterBottomSheet(context, controller, state),
@@ -168,31 +170,6 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
       return PolicyFeedType.region;
     }
     return PolicyFeedType.all;
-  }
-
-  String _summaryFor(ExploreState state, String regionSummary) {
-    if (state.mode == ExploreSubMode.search && state.keyword.isNotEmpty) {
-      return '"${state.keyword}" 검색 결과';
-    }
-    if (state.mode == ExploreSubMode.region) {
-      final name = state.selectedRegionName?.isNotEmpty == true
-          ? state.selectedRegionName!
-          : regionSummary;
-      return '$name 지역 정책';
-    }
-    final statusLabel = _statusLabel(state.statusFilter);
-    return '경북 전체 · $statusLabel';
-  }
-
-  String _statusLabel(PolicyStatusFilter filter) {
-    switch (filter) {
-      case PolicyStatusFilter.inProgressOnly:
-        return '진행중만';
-      case PolicyStatusFilter.includeClosed:
-        return '마감 포함';
-      case PolicyStatusFilter.closedOnly:
-        return '마감만';
-    }
   }
 
   void _openFilterBottomSheet(
@@ -509,11 +486,13 @@ class _QuickFilterChips extends StatelessWidget {
 class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
     required this.summary,
+    required this.conditionSummary,
     required this.onReset,
     required this.onTap,
   });
 
   final String summary;
+  final String conditionSummary;
   final VoidCallback onReset;
   final VoidCallback onTap;
 
@@ -524,14 +503,29 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              summary,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  summary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  conditionSummary,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Colors.black54),
+                ),
+              ],
             ),
           ),
           TextButton(
