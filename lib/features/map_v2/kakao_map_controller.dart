@@ -353,10 +353,14 @@ class KakaoMapController {
     );
   }
 
-  Future<void> moveMapTo(KakaoMapLatLng position) {
+  Future<void> moveMapTo(
+    KakaoMapLatLng position, {
+    int? level,
+  }) {
+    final levelArg = level != null ? level.toString() : 'undefined';
     final script = '''
       if (window.app && window.app.moveTo) {
-        window.app.moveTo(${position.lat}, ${position.lng});
+        window.app.moveTo(${position.lat}, ${position.lng}, $levelArg);
       }
     ''';
     return _runWhenReady(

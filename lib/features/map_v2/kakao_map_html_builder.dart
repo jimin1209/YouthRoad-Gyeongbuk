@@ -330,10 +330,13 @@ class KakaoMapHtmlBuilder {
         window.app._myMarker.setMap(map);
       };
 
-      window.app.moveTo = function(lat, lng) {
+      window.app.moveTo = function(lat, lng, level) {
         if (!map) return;
         const c = new kakao.maps.LatLng(lat, lng);
         map.setCenter(c);
+        if (typeof level === 'number') {
+          map.setLevel(level);
+        }
         if (window.app.updateCircle) {
           window.app.updateCircle(lat, lng);
         }
