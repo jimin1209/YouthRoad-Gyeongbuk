@@ -32,7 +32,16 @@ class CompareScreen extends StatefulWidget {
 class _CompareScreenState extends State<CompareScreen> {
   final HorizontalOverflowController _overflowController =
       HorizontalOverflowController();
+  final TransformationController _transformationController =
+      TransformationController();
   bool _showDiffOnly = false;
+  bool _isZoomed = false;
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,34 +102,63 @@ class _CompareScreenState extends State<CompareScreen> {
           ),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CompareSummaryHighlight(
-                  insights: state.insights,
-                ),
-                const SizedBox(height: 12),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: CompareDiffTableWidget(
-                    key: ValueKey(_showDiffOnly),
-                    policies: state.policies,
-                    diffs: state.diffs,
-                    insights: state.insights,
-                    fields: service.fields,
-                    labelWidth: labelWidth,
-                    columnWidth: CompareScreen._columnWidth,
-                    showOnlyDiffs: _showDiffOnly,
-                    overflowController: _overflowController,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return ClipRect(
+                child: InteractiveViewer(
+                  transformationController: _transformationController,
+                  boundaryMargin: const EdgeInsets.all(48),
+                  minScale: 1.0,
+                  maxScale: 2.5,
+                  panEnabled: _isZoomed,
+                  onInteractionUpdate: (_) => _updateZoomState(),
+                  onInteractionEnd: (_) => _updateZoomState(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: SingleChildScrollView(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CompareSummaryHighlight(
+                            insights: state.insights,
+                          ),
+                          const SizedBox(height: 12),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            child: CompareDiffTableWidget(
+                              key: ValueKey(_showDiffOnly),
+                              policies: state.policies,
+                              diffs: state.diffs,
+                              insights: state.insights,
+                              fields: service.fields,
+                              labelWidth: labelWidth,
+                              columnWidth: CompareScreen._columnWidth,
+                              showOnlyDiffs: _showDiffOnly,
+                              overflowController: _overflowController,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ],
     );
+  }
+
+  void _updateZoomState() {
+    final scale = _transformationController.value.getMaxScaleOnAxis();
+    final shouldEnablePan = scale > 1.01;
+    if (_isZoomed != shouldEnablePan) {
+      setState(() {
+        _isZoomed = shouldEnablePan;
+      });
+    }
   }
 }
