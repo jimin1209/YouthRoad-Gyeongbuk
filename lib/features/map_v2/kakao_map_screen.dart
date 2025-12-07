@@ -26,6 +26,8 @@ import 'kakao_map_webview.dart';
 import 'services/gps_service.dart';
 import 'services/location_permission_service.dart';
 import '../../ui/components/app_common_bottom_sheets.dart';
+import 'widgets/center_card_item.dart';
+import 'widgets/center_marker_tooltip.dart';
 
 // flutter run
 //   --dart-define=YOUTH_CENTER_KEY=$YOUTH_CENTER_KEY
@@ -58,6 +60,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   String? _locationError;
   String? _centerMarkerIconBase64;
   Timer? _moveDebounce;
+  Timer? _tooltipTimer;
+  String? _activeTooltipName;
 
   @override
   void initState() {
@@ -77,6 +81,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   @override
   void dispose() {
     _moveDebounce?.cancel();
+    _tooltipTimer?.cancel();
     super.dispose();
   }
 
@@ -505,6 +510,15 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                 },
                 showDebugPanel: kDebugMode && debugPanelEnabled,
               ),
+              if (_activeTooltipName != null)
+                Positioned(
+                  top: 32,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: CenterMarkerTooltip(name: _activeTooltipName!),
+                  ),
+                ),
 
               // 전역 로딩 인디케이터
               if (_loading)
@@ -703,60 +717,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           separatorBuilder: (_, __) => const SizedBox(width: 12),
           itemBuilder: (_, index) {
             final center = centers[index];
-            return SizedBox(
-              width: 220,
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                clipBehavior: Clip.hardEdge,
-                child: InkWell(
-                  onTap: () => _onCenterCardTap(center, index),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          center.name,
-                          style: Theme.of(context).textTheme.titleSmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          center.regionLabel,
-                          style: Theme.of(context).textTheme.bodySmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-                        Expanded(
-                          child: Text(
-                            center.fullAddress,
-                            style: Theme.of(context).textTheme.bodySmall,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (center.phone != null &&
-                            center.phone!.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            '전화: ${center.phone}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: Colors.blue),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            return CenterCardItem(
+              center: center,
+              onTap: () => _onCenterCardTap(center, index),
             );
           },
         ),
@@ -1041,6 +1004,19 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     );
   }
 
+  void _showMarkerTooltip(String name) {
+    _tooltipTimer?.cancel();
+    setState(() {
+      _activeTooltipName = name;
+    });
+    _tooltipTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() {
+        _activeTooltipName = null;
+      });
+    });
+  }
+
   void _handleCenterMarkerClicked(
     String markerId,
     Map<String, dynamic>? extra,
@@ -1049,6 +1025,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     if (extra == null) {
       debugPrint('[KakaoMap] center marker payload missing, ignoring');
       return;
+    }
+
+    final tooltipName = extra['name']?.toString();
+    if (tooltipName != null && tooltipName.isNotEmpty) {
+      _showMarkerTooltip(tooltipName);
     }
 
     _showCenterDetailSheet(
