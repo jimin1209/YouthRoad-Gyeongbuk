@@ -24,56 +24,65 @@ class CompareHeaderRowWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: labelWidth,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                '정책',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                '카드를 탭하면 상세를 열고\n× 버튼으로 비교에서 제거할 수 있어요.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-        ...policies.map((policy) {
-          final recommendedLabel = insights.recommendedPolicyId == policy.id
-              ? '추천 ${insights.recommendedScore}점'
-              : null;
-          final nearestDeadlineLabel = insights.nearestDeadlinePolicyId == policy.id
-              ? _deadlineLabel(insights.nearestDeadlineDays)
-              : null;
+    final totalWidth = labelWidth + (columnWidth + 12) * policies.length;
 
-          return Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: ComparePolicyColumnWidget(
-              policy: policy,
-              onRemove: () => onRemove(policy.id),
-              onTap: () => onOpenDetail(policy.id),
-              width: columnWidth,
-              recommendedLabel: recommendedLabel,
-              nearestDeadlineLabel: nearestDeadlineLabel,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: totalWidth),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: labelWidth,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    '?曥眳',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '旃措摐毳???晿氅??侅劯毳??搓碃\n脳 氩勴娂?茧 牍勱祼?愳劀 ?滉卑?????堨柎??',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
-          );
-        }),
-      ],
+            ...policies.map((policy) {
+              final recommendedLabel = insights.recommendedPolicyId == policy.id
+                  ? '於旍矞 ${insights.recommendedScore}??'
+                  : null;
+              final nearestDeadlineLabel =
+                  insights.nearestDeadlinePolicyId == policy.id
+                      ? _deadlineLabel(insights.nearestDeadlineDays)
+                      : null;
+
+              return Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: ComparePolicyColumnWidget(
+                  policy: policy,
+                  onRemove: () => onRemove(policy.id),
+                  onTap: () => onOpenDetail(policy.id),
+                  width: columnWidth,
+                  recommendedLabel: recommendedLabel,
+                  nearestDeadlineLabel: nearestDeadlineLabel,
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
     );
   }
 
   String? _deadlineLabel(int? days) {
-    if (days == null) return '마감 임박';
-    if (days <= 0) return '오늘 마감';
+    if (days == null) return '毵堦皭 ?勲皶';
+    if (days <= 0) return '?る姌 毵堦皭';
     return 'D-$days';
   }
 }
