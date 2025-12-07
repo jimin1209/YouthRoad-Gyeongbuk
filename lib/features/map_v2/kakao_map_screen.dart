@@ -46,6 +46,8 @@ class KakaoMapScreen extends ConsumerStatefulWidget {
 class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   static final _defaultCenter = KakaoMapLatLng(36.4919, 128.8889);
   static const _debounceMs = 400;
+  static const _centerListHeight = 210.0;
+  static const _floatingActionButtonBottomSpacing = 140.0;
   static const _gpsService = GpsService();
   static const _permissionService = LocationPermissionService();
   static const _locationZoomLevel = 6;
@@ -106,7 +108,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             if (_locationError != null) _buildLocationErrorBanner(),
           ],
         ),
-        floatingActionButton: _buildGpsButton(),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        floatingActionButton: _buildPositionedGpsButton(),
       );
     }
 
@@ -220,7 +223,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
               ),
             ],
           ),
-          floatingActionButton: _buildGpsButton(),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          floatingActionButton: _buildPositionedGpsButton(),
         );
       },
 
@@ -308,7 +312,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
               ),
             ],
           ),
-          floatingActionButton: _buildGpsButton(),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          floatingActionButton: _buildPositionedGpsButton(),
         );
       },
 
@@ -550,11 +555,15 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
               // ✅ 센터 목록 카드 리스트 (지도 하단에 고정)
               Align(
                 alignment: Alignment.bottomCenter,
-                child: _buildCenterList(sortedCenterPoints),
+                child: _buildCenterList(
+                  sortedCenterPoints,
+                  radiusKm: _currentRequest?.radiusKm ?? kCenterRangeKm,
+                ),
               ),
             ],
           ),
-          floatingActionButton: _buildGpsButton(),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          floatingActionButton: _buildPositionedGpsButton(),
         );
       },
     );
@@ -694,13 +703,14 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     );
   }
 
-  Widget _buildCenterList(List<CenterMarkerPoint> centers) {
-    if (centers.isEmpty) return const SizedBox.shrink();
-
+  Widget _buildCenterList(
+    List<CenterMarkerPoint> centers, {
+    required double radiusKm,
+  }) {
     return SafeArea(
       top: false,
       child: Container(
-        height: 180,
+        height: _centerListHeight,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -711,18 +721,34 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             ],
           ),
         ),
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-          itemCount: centers.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 12),
-          itemBuilder: (_, index) {
-            final center = centers[index];
-            return CenterCardItem(
-              center: center,
-              onTap: () => _onCenterCardTap(center, index),
-            );
-          },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: _buildRadiusPill(radiusKm),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: centers.isEmpty
+                  ? const Center(
+                      child: Text('주변 센터 정보를 불러오는 중입니다.'),
+                    )
+                  : ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      itemCount: centers.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (_, index) {
+                        final center = centers[index];
+                        return CenterCardItem(
+                          center: center,
+                          onTap: () => _onCenterCardTap(center, index),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
     );
@@ -969,6 +995,38 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       onPressed: _isRequestingLocation ? null : _loadInitialPosition,
       tooltip: '내 위치로 이동',
       child: const Icon(Icons.my_location),
+    );
+  }
+
+  Widget _buildPositionedGpsButton() {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.only(
+          bottom: _floatingActionButtonBottomSpacing,
+          right: 4,
+        ),
+        child: _buildGpsButton(),
+      ),
+    );
+  }
+
+  Widget _buildRadiusPill(double radiusKm) {
+    final colors = Theme.of(context).colorScheme;
+    final roundedRadius = radiusKm.round();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: colors.primary.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: colors.primary.withOpacity(0.2)),
+      ),
+      child: Text(
+        '내 위치 기준 반경 ${roundedRadius}km',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
     );
   }
 
