@@ -194,10 +194,18 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   child: _buildErrorBanner(),
                 ),
               if (_locationError != null) _buildLocationErrorBanner(),
+              if (sortedCenterPoints.isNotEmpty) ...[
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildCenterList(sortedCenterPoints),
+                ),
+              ],
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 16,
+                top: 16,
                 child: _buildOverlay(policyState),
               ),
             ],
@@ -282,7 +290,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 16,
+                top: 16,
                 child: _buildOverlay(policyState),
               ),
             ],
@@ -319,6 +327,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             )
             .toList()
           ..sort((a, b) => a.distance.compareTo(b.distance));
+        final sortedCenterPoints =
+            sortedCenters.map((entry) => entry.point).toList();
 
         final centerMarkerImage = _centerMarkerIconBase64 != null
             ? KakaoMapMarkerImage(
@@ -334,9 +344,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                 height: 37,
               );
 
-        final centerMarkers = List.generate(sortedCenters.length, (index) {
-          final entry = sortedCenters[index];
-          final c = entry.point;
+        final centerMarkers = List.generate(sortedCenterPoints.length, (index) {
+          final c = sortedCenterPoints[index];
           final markerId = 'CENTER-$index';
           return KakaoMapMarker(
             id: markerId,
@@ -492,7 +501,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 16,
+                top: 16,
                 child: _buildOverlay(policyState),
               ),
             ],
@@ -632,6 +641,79 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildCenterList(List<CenterMarkerPoint> centers) {
+    if (centers.isEmpty) return const SizedBox.shrink();
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        height: 150,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: centers.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (_, index) {
+            final center = centers[index];
+            return SizedBox(
+              width: 220,
+              child: Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                clipBehavior: Clip.hardEdge,
+                child: InkWell(
+                  onTap: () => _onCenterCardTap(center, index),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          center.name,
+                          style: Theme.of(context).textTheme.titleSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          center.regionLabel,
+                          style: Theme.of(context).textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: Text(
+                            center.fullAddress,
+                            style: Theme.of(context).textTheme.bodySmall,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (center.phone != null && center.phone!.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            '전화: ${center.phone}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.blue),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -859,23 +941,43 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     );
   }
 
-  void _handleCenterMarkerClicked(
+  Future<void> _onCenterCardTap(
+    CenterMarkerPoint center,
+    int index,
+  ) async {
+    final markerId = 'CENTER-$index';
+    final position = KakaoMapLatLng(center.lat, center.lng);
+    await _highlightCenterMarker(markerId, position);
+    _showCenterDetailSheet(
+      name: center.name,
+      address: center.fullAddress,
+      phone: center.phone,
+      homepageUrl: center.url,
+      regionLabel: center.regionLabel,
+    );
+  }
+
+  Future<void> _highlightCenterMarker(
     String markerId,
-    Map<String, dynamic>? extra,
-  ) {
-    debugPrint('[KakaoMap] markerClicked event -> $markerId');
-    if (!mounted) return;
-    if (extra == null) {
-      debugPrint('[KakaoMap] center marker payload missing, ignoring');
-      return;
+    KakaoMapLatLng position,
+  ) async {
+    try {
+      final controller = ref.read(kakaoMapControllerProvider);
+      await controller.highlightMarker(markerId, position);
+    } catch (error, stack) {
+      debugPrint('[KakaoMapScreen] highlightCenterMarker failed: $error');
+      if (stack != null) debugPrint(stack.toString());
     }
+  }
 
-    final name = extra['name']?.toString() ?? '청년센터';
-    final address = extra['fullAddress']?.toString() ?? '';
-    final phone = extra['phone']?.toString();
-    final url = extra['url']?.toString();
-    final regionLabel = extra['regionLabel']?.toString() ?? '';
-
+  void _showCenterDetailSheet({
+    required String name,
+    required String address,
+    String? phone,
+    String? homepageUrl,
+    required String regionLabel,
+  }) {
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -887,9 +989,28 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         name: name,
         address: address,
         phone: phone,
-        homepageUrl: url,
+        homepageUrl: homepageUrl,
         regionLabel: regionLabel,
       ),
+    );
+  }
+
+  void _handleCenterMarkerClicked(
+    String markerId,
+    Map<String, dynamic>? extra,
+  ) {
+    debugPrint('[KakaoMap] markerClicked event -> $markerId');
+    if (extra == null) {
+      debugPrint('[KakaoMap] center marker payload missing, ignoring');
+      return;
+    }
+
+    _showCenterDetailSheet(
+      name: extra['name']?.toString() ?? '청년센터',
+      address: extra['fullAddress']?.toString() ?? '',
+      phone: extra['phone']?.toString(),
+      homepageUrl: extra['url']?.toString(),
+      regionLabel: extra['regionLabel']?.toString() ?? '',
     );
   }
 }

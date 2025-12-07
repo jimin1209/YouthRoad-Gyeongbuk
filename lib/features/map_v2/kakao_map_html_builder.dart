@@ -367,6 +367,7 @@ class KakaoMapHtmlBuilder {
   function _wrap(map, p) {
     var markers = [];
     var polylines = [];
+    var markerLookup = {};
     var clusterer = null;
 
     if (p.clustering) {
@@ -384,6 +385,7 @@ class KakaoMapHtmlBuilder {
     function syncMarkers(list) {
       markers.forEach(function(m) { m.setMap(null); });
       markers = [];
+      markerLookup = {};
 
       list.forEach(function(m) {
         var pos = new kakao.maps.LatLng(m.lat, m.lng);
@@ -416,6 +418,7 @@ class KakaoMapHtmlBuilder {
           }
         });
 
+        markerLookup[m.id] = mk;
         markers.push(mk);
       });
 
@@ -519,6 +522,24 @@ class KakaoMapHtmlBuilder {
       reloadMap: function() {
         syncMarkers(p.markers);
         syncPolylines(p.polylines);
+      },
+      highlightMarker: function(id, lat, lng) {
+        if (!id) return;
+        var target = markerLookup[id];
+        if (!target) return;
+
+        if (lat != null && lng != null) {
+          map.setCenter(new kakao.maps.LatLng(lat, lng));
+        }
+
+        try {
+          target.setAnimation(kakao.maps.MarkerAnimation.BOUNCE);
+          setTimeout(function() {
+            target.setAnimation(null);
+          }, 1500);
+        } catch (e) {
+          console.log('[KakaoMap] highlightMarker error', e);
+        }
       }
     };
   }

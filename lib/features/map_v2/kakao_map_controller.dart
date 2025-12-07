@@ -301,6 +301,18 @@ class KakaoMapController {
     );
   }
 
+  Future<void> highlightMarker(
+    String markerId,
+    KakaoMapLatLng center,
+  ) {
+    return _runWhenReady(
+      () => webViewController.runJavaScript(
+        'window.kakaoMap && window.kakaoMap.highlightMarker && '
+            "window.kakaoMap.highlightMarker('$markerId', ${center.lat}, ${center.lng});",
+      ),
+    );
+  }
+
   Future<void> setPolylines(List<KakaoMapPolyline> polylines) {
     final encoded = jsonEncode(polylines.map((p) => p.toJson()).toList());
     return _runWhenReady(
