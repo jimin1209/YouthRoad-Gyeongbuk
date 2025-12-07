@@ -43,20 +43,20 @@ abstract class BasePolicyFeedController extends StateNotifier<PolicyPagingState>
     _isLoadingPage = false;
 
     final query = buildBaseQuery();
+    ref.read(policyScoreProvider.notifier).reset();
     state = const PolicyPagingState.loading();
 
     final result = await queryEngine.fetch(query, page: _page);
-    result.fold(
-      onSuccess: (list) {
-        state = PolicyPagingState.data(
-          items: list,
-          hasMore: list.length == queryEngine.pageSize,
-        );
-      },
-      onFailure: (err) {
-        state = PolicyPagingState.error(err);
-      },
-    );
+    if (result.isSuccess && result.data != null) {
+      final scored =
+          ref.read(policyScoreProvider.notifier).applyScore(result.data!, query: query);
+      state = PolicyPagingState.data(
+        items: scored,
+        hasMore: result.data!.length == queryEngine.pageSize,
+      );
+    } else {
+      state = PolicyPagingState.error(result.failure!);
+    }
   }
 
   Future<void> loadNextPage() async {
@@ -68,19 +68,18 @@ abstract class BasePolicyFeedController extends StateNotifier<PolicyPagingState>
     final query = buildBaseQuery();
 
     final result = await queryEngine.fetch(query, page: nextPage);
-    result.fold(
-      onSuccess: (list) {
-        final merged = [...state.items, ...list];
-        state = PolicyPagingState.data(
-          items: merged,
-          hasMore: list.length == queryEngine.pageSize,
-        );
-        _page = nextPage;
-      },
-      onFailure: (err) {
-        state = PolicyPagingState.error(err);
-      },
-    );
+    if (result.isSuccess && result.data != null) {
+      final merged = [...state.items, ...result.data!];
+      final scored =
+          ref.read(policyScoreProvider.notifier).applyScore(merged, query: query);
+      state = PolicyPagingState.data(
+        items: scored,
+        hasMore: result.data!.length == queryEngine.pageSize,
+      );
+      _page = nextPage;
+    } else {
+      state = PolicyPagingState.error(result.failure!);
+    }
 
     _isLoadingPage = false;
   }

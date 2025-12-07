@@ -26,17 +26,20 @@ class PolicyDetailBottomSheet extends ConsumerWidget {
       initialChildSize: 0.85,
       minChildSize: 0.5,
       maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return Material(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          clipBehavior: Clip.antiAlias,
-          child: asyncPolicy.when(
-            data: (policy) => _buildContent(context, scrollController, policy),
-            loading: () => const PolicyListLoading(),
-            error: (err, __) => _buildError(context, err, detailController),
-          ),
-        );
-      },
+          builder: (context, scrollController) {
+            return Material(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              clipBehavior: Clip.antiAlias,
+              child: asyncPolicy.when(
+                data: (policy) {
+                  ref.read(policyBehaviorProvider.notifier).recordView(policy);
+                  return _buildContent(context, scrollController, policy);
+                },
+                loading: () => const PolicyListLoading(),
+                error: (err, __) => _buildError(context, err, detailController),
+              ),
+            );
+          },
     );
   }
 

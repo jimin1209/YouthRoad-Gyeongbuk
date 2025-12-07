@@ -13,11 +13,13 @@ import '../domain/values/policy_settings.dart';
 import '../domain/values/policy_sort.dart';
 import 'controllers/base_feed_controller.dart';
 import 'controllers/policy_detail_controller.dart';
+import 'controllers/policy_behavior_controller.dart';
 import 'controllers/policy_event_bus.dart';
 import 'controllers/policy_feed_controllers.dart';
 import 'controllers/policy_paging_state.dart';
 import 'controllers/policy_query_controller.dart';
 import 'controllers/policy_query_engine.dart';
+import 'controllers/policy_scoring_controller.dart';
 import '../data/cache/policy_cache.dart';
 import '../data/repositories/policy_repository_impl.dart';
 import '../data/sources/policy_remote_source.dart';
@@ -83,6 +85,18 @@ final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) {
 final compareRepositoryProvider = Provider<CompareRepository>((ref) {
   return const CompareRepository();
 });
+
+final policyBehaviorProvider =
+    StateNotifierProvider<PolicyBehaviorController, PolicyBehaviorState>(
+  (ref) => PolicyBehaviorController(),
+);
+
+final policyScoreProvider =
+    StateNotifierProvider<PolicyScoreController, Map<String, double>>(
+  (ref) => PolicyScoreController(ref),
+);
+
+final policyDebugModeProvider = StateProvider<bool>((ref) => false);
 
 final isMockModeProvider = Provider<bool>((ref) => false);
 
