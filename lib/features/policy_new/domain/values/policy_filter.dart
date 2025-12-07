@@ -47,7 +47,7 @@ class PolicyFilter {
     );
   }
 
-    PolicyFilter copyWith({
+  PolicyFilter copyWith({
     PolicyRegion? region,
     String? province,
     String? city,

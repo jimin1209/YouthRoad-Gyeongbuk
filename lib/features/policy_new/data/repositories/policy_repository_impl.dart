@@ -269,11 +269,17 @@ class PolicyRepositoryImpl implements PolicyRepository {
     );
 
     try {
+      logger.info(
+        '원격 데이터 수신 요청 (scope: $scopeKey, page: $page, params: ${_debugParams(params)})',
+      );
+
       final models = await remote.fetchPoliciesWithParams(params);
       final domainList = models.map((e) => e.toDomain()).toList();
+      final filteredByStatus =
+          _applyStatusFilter(query.filter, domainList);
       final filtered = _isIdBasedQuery(query)
-          ? domainList
-          : _applyTagFilter(query, domainList);
+          ? filteredByStatus
+          : _applyTagFilter(query, filteredByStatus);
       final sorted = _applySorting(query.sort, filtered);
 
       logger.info('원격 데이터 수신 (scope: $scopeKey, page: $page)');
@@ -328,6 +334,21 @@ class PolicyRepositoryImpl implements PolicyRepository {
       query.feedType == PolicyFeedType.favorite ||
       query.feedType == PolicyFeedType.compare;
 
+  List<Policy> _applyStatusFilter(PolicyFilter filter, List<Policy> list) {
+    if (filter.isOngoing != true) return list;
+
+    final now = DateTime.now();
+    return list.where((policy) {
+      final start = policy.applicationStartDate;
+      final end = policy.applicationEndDate;
+      if (start == null || end == null) return false;
+
+      final hasStarted = !start.isAfter(now);
+      final notEnded = !end.isBefore(now);
+      return hasStarted && notEnded;
+    }).toList();
+  }
+
   List<Policy> _applyTagFilter(PolicyQuery query, List<Policy> list) {
     final combinedTags = {
       ...query.tags,
@@ -362,20 +383,32 @@ class PolicyRepositoryImpl implements PolicyRepository {
   List<Policy> _applySorting(PolicySortOption sort, List<Policy> list) {
     final sorted = List<Policy>.from(list);
 
-    int compareDate(DateTime? a, DateTime? b) {
+    int compareDesc(DateTime? a, DateTime? b) {
       if (a == null && b == null) return 0;
       if (a == null) return 1;
       if (b == null) return -1;
       return b.compareTo(a);
     }
 
+    DateTime? coalesce(DateTime? primary, DateTime? secondary) {
+      return primary ?? secondary;
+    }
+
     switch (sort) {
       case PolicySortOption.latest:
+        sorted.sort((a, b) {
+          return compareDesc(
+            coalesce(a.createdAt, a.updatedAt),
+            coalesce(b.createdAt, b.updatedAt),
+          );
+        });
+        break;
       case PolicySortOption.recommendation:
         sorted.sort((a, b) {
-          final updatedCompare = compareDate(a.updatedAt, b.updatedAt);
-          if (updatedCompare != 0) return updatedCompare;
-          return compareDate(a.createdAt, b.createdAt);
+          return compareDesc(
+            coalesce(a.updatedAt, a.createdAt),
+            coalesce(b.updatedAt, b.createdAt),
+          );
         });
         break;
       case PolicySortOption.deadline:
@@ -389,11 +422,20 @@ class PolicyRepositoryImpl implements PolicyRepository {
         });
         break;
       case PolicySortOption.popularity:
-        sorted.sort((a, b) => compareDate(a.createdAt, b.createdAt));
+        sorted.sort((a, b) {
+          return compareDesc(
+            coalesce(a.applicationStartDate, a.createdAt),
+            coalesce(b.applicationStartDate, b.createdAt),
+          );
+        });
         break;
     }
 
     return sorted;
+  }
+
+  String _debugParams(Map<String, dynamic> params) {
+    return params.entries.map((e) => '${e.key}=${e.value}').join(', ');
   }
 
   String _mapRegion(PolicyRegion region) {
