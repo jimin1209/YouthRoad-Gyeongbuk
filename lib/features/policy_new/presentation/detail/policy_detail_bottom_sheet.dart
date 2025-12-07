@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:intl/intl.dart';
+
 import '../../application/controllers/policy_detail_controller.dart';
 import '../../application/controllers/policy_query_override.dart';
 import '../../application/providers.dart';
@@ -251,18 +253,18 @@ class _Content extends StatelessWidget {
   static String _buildPeriodText(Policy policy) {
     final start = policy.applicationStartDate;
     final end = policy.applicationEndDate;
+    final format = DateFormat('yyyy.MM.dd (E)', 'ko');
 
     if (start == null && end == null) {
       return '일정 미확정';
     }
     if (start != null && end == null) {
-      return 'Start: ${start.toLocal().toString().split(" ").first}';
+      return '신청 시작일 ${format.format(start.toLocal())}';
     }
     if (start == null && end != null) {
-      return 'End: ${end.toLocal().toString().split(" ").first}';
+      return '신청 마감일 ${format.format(end.toLocal())}';
     }
-    return 'Period: ${start!.toLocal().toString().split(" ").first} ~ '
-        '${end!.toLocal().toString().split(" ").first}';
+    return '${format.format(start!.toLocal())} ~ ${format.format(end!.toLocal())}';
   }
 
   static String? _buildDDayLabel(Policy policy) {
