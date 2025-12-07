@@ -22,6 +22,8 @@ class PolicyFeedListView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final (state, notifier) = _useController(ref);
+    final debugMode = ref.watch(policyDebugModeProvider);
+    final scores = ref.watch(policyScoreProvider);
 
     notifier.ensureInitialized();
 
@@ -50,6 +52,7 @@ class PolicyFeedListView extends ConsumerWidget {
             final policy = state.items[index];
             return PolicyCard(
               policy: policy,
+              debugScore: debugMode ? scores[policy.id] : null,
               onTap: () => _openDetail(context, policy.id),
             );
           }

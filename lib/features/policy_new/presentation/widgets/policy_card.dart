@@ -7,10 +7,12 @@ class PolicyCard extends StatelessWidget {
     super.key,
     required this.policy,
     required this.onTap,
+    this.debugScore,
   });
 
   final Policy policy;
   final VoidCallback onTap;
+  final double? debugScore;
 
   @override
   Widget build(BuildContext context) {
@@ -25,9 +27,32 @@ class PolicyCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                policy.title,
-                style: Theme.of(context).textTheme.titleMedium,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      policy.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  if (debugScore != null)
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'score ${debugScore!.toStringAsFixed(1)}',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(color: Colors.blueGrey.shade700),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 6),
               Text(
