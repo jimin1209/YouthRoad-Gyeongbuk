@@ -421,6 +421,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                         _currentRequest = req;
                       });
 
+                      unawaited(_updateSearchCircle(center));
+
                       ref.refresh(youthCenterMapProvider(req));
                     },
                   );
@@ -693,6 +695,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       });
 
       await _moveMapToLocation(location);
+      await _updateSearchCircle(location);
       ref.refresh(youthCenterMapProvider(request));
       debugPrint(
           '[KakaoMapScreen] GPS 위치 읽기 완료 (${position.latitude}, ${position.longitude})');
@@ -726,6 +729,19 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       await controller.showMyPosition(location);
     } catch (error, stack) {
       debugPrint('[KakaoMapScreen] showMyPosition failed: $error');
+      if (stack != null) {
+        debugPrint(stack.toString());
+      }
+    }
+  }
+
+  Future<void> _updateSearchCircle(KakaoMapLatLng center) async {
+    if (!mounted) return;
+    try {
+      final controller = ref.read(kakaoMapControllerProvider);
+      await controller.updateCircle(center);
+    } catch (error, stack) {
+      debugPrint('[KakaoMapScreen] updateCircle failed: $error');
       if (stack != null) {
         debugPrint(stack.toString());
       }

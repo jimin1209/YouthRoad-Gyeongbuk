@@ -350,6 +350,17 @@ class KakaoMapController {
     );
   }
 
+  Future<void> updateCircle(KakaoMapLatLng center) {
+    final script = '''
+      if (window.app && window.app.updateCircle) {
+        window.app.updateCircle(${center.lat}, ${center.lng});
+      }
+    ''';
+    return _runWhenReady(
+      () => webViewController.runJavaScript(script),
+    );
+  }
+
   /// ---------------------------------------------------------------------------
   /// 내부 로깅
   /// ---------------------------------------------------------------------------

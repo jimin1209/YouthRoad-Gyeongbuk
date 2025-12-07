@@ -205,6 +205,8 @@ class KakaoMapHtmlBuilder {
 </style>
 
 <script>
+  const SEARCH_RADIUS_METERS = 40000;
+
   function _post(msg) {
     try { $bridgeName.postMessage(JSON.stringify(msg)); }
     catch(e) { console.log('[KakaoMap][bridge error]', e); }
@@ -226,6 +228,24 @@ class KakaoMapHtmlBuilder {
         center: center,
         level: p.options.level
       });
+
+      var _searchCircle = null;
+      function _renderSearchCircle(lat, lng) {
+        if (!map) return;
+        if (_searchCircle) {
+          _searchCircle.setMap(null);
+        }
+        _searchCircle = new kakao.maps.Circle({
+          center: new kakao.maps.LatLng(lat, lng),
+          radius: SEARCH_RADIUS_METERS,
+          strokeColor: '#3478F6',
+          strokeOpacity: 0.9,
+          strokeWeight: 2,
+          fillColor: '#3478F6',
+          fillOpacity: 0.12,
+        });
+        _searchCircle.setMap(map);
+      }
 
       // 지도 타입
       if (p.options.mapType === 'hybrid' || p.options.mapType === 'skyview') {
@@ -259,6 +279,10 @@ class KakaoMapHtmlBuilder {
       window.kakaoMap = _wrap(map, p);
       window.app = window.app || {};
       window.app._myMarker = window.app._myMarker || null;
+      window.app._searchCircle = window.app._searchCircle || null;
+      window.app.updateCircle = function(lat, lng) {
+        _renderSearchCircle(lat, lng);
+      };
       window.app.showMyPosition = function(lat, lng) {
         if (!map) return;
         if (window.app._myMarker) {
@@ -289,6 +313,7 @@ class KakaoMapHtmlBuilder {
         const center = new kakao.maps.LatLng(lat, lng);
         map.panTo(center);
       };
+      window.app.updateCircle(center.getLat(), center.getLng());
       _post({type:'ready',payload:{}});
     });
   };
