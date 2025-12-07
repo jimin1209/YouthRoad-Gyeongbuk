@@ -5,18 +5,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-/// ─────────────────────────────────────────────────────────────────────────────
-/// 지도 타입
-/// ─────────────────────────────────────────────────────────────────────────────
 enum KakaoMapType {
   roadmap,
   hybrid,
   skyview,
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
-/// LatLng
-/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapLatLng {
   const KakaoMapLatLng(this.lat, this.lng);
 
@@ -29,13 +23,6 @@ class KakaoMapLatLng {
       };
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
-/// 마커 이미지
-/// ─────────────────────────────────────────────────────────────────────────────
-///   - url: 원격 이미지 (https://...)
-///   - assetPath: Flutter asset 경로
-///   - asset: 의미상 alias (assetPath 대신)
-/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapMarkerImage {
   const KakaoMapMarkerImage({
     this.asset,
@@ -74,9 +61,6 @@ class KakaoMapMarkerImage {
       };
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
-/// 마커
-/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapMarker {
   const KakaoMapMarker({
     required this.id,
@@ -108,9 +92,6 @@ class KakaoMapMarker {
       };
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
-/// 폴리라인
-/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapPolyline {
   const KakaoMapPolyline({
     required this.id,
@@ -136,9 +117,6 @@ class KakaoMapPolyline {
       };
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
-/// 지도 옵션
-/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapOptions {
   const KakaoMapOptions({
     this.level = 6,
@@ -160,12 +138,6 @@ class KakaoMapOptions {
       };
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
-/// HTML Builder
-///   - Kakao JS SDK v2 + autoload=false
-///   - window.kakaoBootstrap() 를 Flutter 쪽에서 호출
-///   - window.kakaoMap.* API 를 KakaoMapController 가 호출
-/// ─────────────────────────────────────────────────────────────────────────────
 class KakaoMapHtmlBuilder {
   const KakaoMapHtmlBuilder();
 
@@ -201,11 +173,14 @@ class KakaoMapHtmlBuilder {
 </style>
 
 <script>
-  const SEARCH_RADIUS_METERS = 40000; // 40km
+  const SEARCH_RADIUS_METERS = 40000;
 
   function _post(msg) {
-    try { $bridgeName.postMessage(JSON.stringify(msg)); }
-    catch(e) { console.log('[KakaoMap][bridge error]', e); }
+    try {
+      $bridgeName.postMessage(JSON.stringify(msg));
+    } catch (e) {
+      console.log('[KakaoMap][bridge error]', e);
+    }
   }
 
   window.flutter_inappwebview = window.flutter_inappwebview || {};
@@ -220,13 +195,12 @@ class KakaoMapHtmlBuilder {
 
   window.kakaoBootstrap = function() {
     if (!window.kakao || !window.kakao.maps) {
-      _post({type:'error',payload:{code:'sdkFail',detail:'kakao.maps not available'}});
+      _post({type:'error', payload:{code:'sdkFail', detail:'kakao.maps not available'}});
       return;
     }
 
-    kakao.maps.load(function(){
+    kakao.maps.load(function() {
       var p = $initJson;
-
       var container = document.getElementById('map');
       var center = new kakao.maps.LatLng(p.center.lat, p.center.lng);
 
@@ -236,6 +210,7 @@ class KakaoMapHtmlBuilder {
       });
 
       var _searchCircle = null;
+
       function _renderSearchCircle(lat, lng) {
         if (!map) return;
         if (_searchCircle) {
@@ -253,14 +228,12 @@ class KakaoMapHtmlBuilder {
         _searchCircle.setMap(map);
       }
 
-      // 지도 타입
       if (p.options.mapType === 'hybrid' || p.options.mapType === 'skyview') {
         map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
       } else {
         map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
       }
 
-      // 컨트롤들
       if (p.options.showZoomControl) {
         var zoomControl = new kakao.maps.ZoomControl();
         map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
@@ -270,7 +243,6 @@ class KakaoMapHtmlBuilder {
         map.addControl(mtc, kakao.maps.ControlPosition.TOPRIGHT);
       }
 
-      // 맵 클릭 이벤트
       kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
         var latlng = mouseEvent.latLng;
         _post({
@@ -298,13 +270,11 @@ class KakaoMapHtmlBuilder {
         if (window.app._myMarker) {
           window.app._myMarker.setMap(null);
         }
-
         var svg =
           '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">' +
           '<circle cx="16" cy="16" r="8" fill="#007aff" stroke="white" stroke-width="2"/>' +
           '<circle cx="16" cy="16" r="4" fill="white"/>' +
           '</svg>';
-
         var imgSrc = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
         var size = new kakao.maps.Size(32, 32);
         var anchor = new kakao.maps.Point(16, 16);
@@ -334,7 +304,6 @@ class KakaoMapHtmlBuilder {
         if (window.app._markerTooltip) {
           window.app._markerTooltip.setMap(null);
         }
-
         var content = document.createElement('div');
         content.style.backgroundColor = '#ffffff';
         content.style.borderRadius = '8px';
@@ -364,7 +333,7 @@ class KakaoMapHtmlBuilder {
       };
 
       window.app.updateCircle(center.getLat(), center.getLng());
-      _post({type:'ready',payload:{}});
+      _post({type:'ready', payload:{}});
     });
   };
 
@@ -388,12 +357,8 @@ class KakaoMapHtmlBuilder {
 
     var size = new kakao.maps.Size(width, height);
 
-    var offsetX = (typeof mImage.offsetX === 'number')
-      ? mImage.offsetX
-      : width / 2;
-    var offsetY = (typeof mImage.offsetY === 'number')
-      ? mImage.offsetY
-      : height;
+    var offsetX = (typeof mImage.offsetX === 'number') ? mImage.offsetX : width / 2;
+    var offsetY = (typeof mImage.offsetY === 'number') ? mImage.offsetY : height;
 
     var offset = new kakao.maps.Point(offsetX, offsetY);
 

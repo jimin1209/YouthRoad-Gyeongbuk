@@ -19,7 +19,9 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
     this.options = const KakaoMapOptions(),
     this.additionalScripts,
     this.onMarkerTap,
+    this.onMarkerClicked,
     this.onMapTap,
+    this.onMapMoved,
     this.onReady,
     this.onLoadingChanged,
     this.onError,
@@ -35,7 +37,10 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
   final String? additionalScripts;
 
   final void Function(String markerId)? onMarkerTap;
+  final void Function(String markerId, Map<String, dynamic>? extra)?
+      onMarkerClicked;
   final void Function(KakaoMapLatLng position)? onMapTap;
+  final void Function(KakaoMapLatLng center, int zoom)? onMapMoved;
   final VoidCallback? onReady;
   final void Function(bool isLoading)? onLoadingChanged;
   final void Function(String code)? onError;
@@ -57,7 +62,6 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
   int _errorCount = 0;
 
   final List<KakaoMapEvent> _logs = [];
-
   static const _readyTimeoutDuration = Duration(seconds: 20);
 
   bool get _isSafeToUpdateUI =>
@@ -73,7 +77,6 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     _safeLog('WebView init()');
     _loadMap();
 
-    // 🔵 Failsafe: 3초가 지나도 아직 로딩 상태면 강제로 스피너 내리기
     Future.delayed(const Duration(seconds: 3), () {
       if (!mounted) return;
       if (_loading) {
@@ -107,19 +110,14 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     super.dispose();
   }
 
-  // ==========================================================================
-  // LOAD MAP
-  // ==========================================================================
   void _loadMap() {
     _fatalError = false;
     _errorCount = 0;
     _safeSetLoading(true);
 
     _scheduleReadyTimeout();
+    _safeLog('map load start');
 
-    _safeLog('지도 로딩 시작');
-
-    // 🔵 load() Future 완료 시점에 한 번 더 안전하게 로딩 해제 시도
     _controller
         .load(
       center: widget.center,
@@ -143,62 +141,89 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     });
   }
 
-  // ==========================================================================
-  // EVENT HANDLING
-  // ==========================================================================
   void _handleEvent(KakaoMapEvent event) {
     _pushLog(event);
 
-    // 🔵 어떤 이벤트든(로그 제외) 한 번 들어오면 스피너는 내려도 안전
     if (_loading && event.type != KakaoMapEventType.log) {
-      _safeLog('event received (${event.type}) → loading=false');
+      _safeLog('event received (${event.type}) -> loading=false');
       _safeSetLoading(false);
+    }
+
+    final rawType = event.message.type;
+    bool handledMarkerClicked = false;
+    bool handledMapMove = false;
+
+    if (rawType == 'marker') {
+      final markerId = event.markerId;
+      if (markerId != null) {
+        handledMarkerClicked = true;
+        _safeCallback(
+          () => widget.onMarkerClicked?.call(markerId, event.extra),
+        );
+      }
+    }
+
+    if (rawType == 'map_move') {
+      final position = event.position;
+      if (position != null) {
+        handledMapMove = true;
+        final zoom = event.level ?? widget.options.level;
+        _safeCallback(
+          () => widget.onMapMoved?.call(position, zoom),
+        );
+      }
     }
 
     switch (event.type) {
       case KakaoMapEventType.ready:
         _safeLog('MAP_READY');
-
         _readyTimeout?.cancel();
         _safeSetLoading(false);
-
         _safeCallback(() => widget.onReady?.call());
         break;
-
       case KakaoMapEventType.markerTap:
         _safeCallback(() => widget.onMarkerTap?.call(event.markerId!));
         break;
-
+      case KakaoMapEventType.markerClicked:
+        if (!handledMarkerClicked) {
+          final markerId = event.markerId;
+          if (markerId != null) {
+            _safeCallback(
+              () => widget.onMarkerClicked?.call(markerId, event.extra),
+            );
+          }
+        }
+        break;
       case KakaoMapEventType.mapTap:
       case KakaoMapEventType.clusterTap:
         _safeCallback(() => widget.onMapTap?.call(event.position!));
         break;
-
+      case KakaoMapEventType.mapMove:
+        final position = event.position;
+        if (position != null) {
+          final zoom = event.level ?? widget.options.level;
+          if (!handledMapMove) {
+            _safeCallback(() => widget.onMapMoved?.call(position, zoom));
+          }
+        }
+        break;
       case KakaoMapEventType.error:
         _errorCount++;
         _safeSetLoading(false);
-
         final code = event.errorCode ?? 'unknown';
-        _safeLog('ERROR 발생 code=$code');
-
+        _safeLog('ERROR code=$code');
         _safeCallback(() => widget.onError?.call(code));
-
         if (_errorCount >= _controller.maxAutoReloads) {
           _safeMarkFatalError();
           return;
         }
-
         _controller.reloadMap();
         break;
-
       default:
         break;
     }
   }
 
-  // ==========================================================================
-  // TIMEOUT
-  // ==========================================================================
   void _scheduleReadyTimeout() {
     _readyTimeout?.cancel();
 
@@ -212,9 +237,6 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     });
   }
 
-  // ==========================================================================
-  // SAFE UI OPERATIONS
-  // ==========================================================================
   void _safeMarkFatalError() {
     _safeSetState(() => _fatalError = true);
   }
@@ -227,7 +249,6 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
 
   void _safeSetState(VoidCallback fn) {
     if (!mounted) return;
-
     if (_isSafeToUpdateUI) {
       setState(fn);
     } else {
@@ -244,13 +265,9 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     });
   }
 
-  // ==========================================================================
-  // LOGGING
-  // ==========================================================================
   void _pushLog(KakaoMapEvent event) {
     _logs.add(event);
     if (_logs.length > 100) _logs.removeAt(0);
-
     _safeCallback(() => widget.onLog?.call(event));
   }
 
@@ -265,9 +282,6 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     _pushLog(evt);
   }
 
-  // ==========================================================================
-  // UTILS
-  // ==========================================================================
   bool _listEquals(List a, List b) {
     if (a.length != b.length) return false;
     for (int i = 0; i < a.length; i++) {
@@ -276,16 +290,12 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     return true;
   }
 
-  // ==========================================================================
-  // BUILD UI
-  // ==========================================================================
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         WebViewWidget(controller: _controller.webViewController),
         if (_loading)
-          // 🔵 이 Container가 터치 막고 있는 오버레이 → 위 로직으로 언제든 내려가게 해둠
           Container(
             color: Colors.black12,
             child: const Center(child: CircularProgressIndicator()),
@@ -306,7 +316,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                '지도를 불러오지 못했습니다.',
+                'Maps loading failed. Please try again.',
                 style: TextStyle(color: Colors.white),
               ),
               const SizedBox(height: 6),
@@ -318,7 +328,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: _loadMap,
-                child: const Text('다시 시도'),
+                child: const Text('Reload'),
               )
             ],
           ),
