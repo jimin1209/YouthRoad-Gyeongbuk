@@ -48,6 +48,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   static const _debounceMs = 400;
   static const _gpsService = GpsService();
   static const _permissionService = LocationPermissionService();
+  static const _locationZoomLevel = 6;
+  static const _centerMarkerFallbackBase64 =
+      'CjxzdmcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJyB3aWR0aD0nMzYnIGhlaWdodD0nMzYnIHZpZXdCb3g9JzAgMCAzNiAzNic+CjxwYXRoIGZpbGw9JyMzNDc4RjYnIGQ9J00xOCAyYy02LjA4IDAtMTEgNC45Mi0xMSAxMSAwIDcuNTQgOS4wNyAxOS40NyA5LjQ2IDE5Ljk3LjM0LjQzLjg4LjY4IDEuNDQuNjguNTcgMCAxLjEtLjI1IDEuNDUtLjY4QzE5LjkzIDMyLjQ3IDI5IDIwLjU0IDI5IDEzYzAtNi4wOC00LjkyLTExLTExLTExeicvPgo8Y2lyY2xlIGN4PScxOCcgY3k9JzEzJyByPSc0LjUnIGZpbGw9J3doaXRlJy8+Cjwvc3ZnPgo=';
+  static const _userLocationMarkerBase64 =
+      'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmV3Qm94PSIwIDAgNDAgNDAiPgogIDxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjciIGZpbGw9IiMwMDdhZmYiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIvPgogIDxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjQiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPg==';
 
   bool _loading = true;
   String? _errorCode;
@@ -339,19 +344,14 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         final sortedCenterPoints =
             sortedCenters.map((entry) => entry.point).toList();
 
-        final centerMarkerImage = _centerMarkerIconBase64 != null
-            ? KakaoMapMarkerImage(
-                url: 'data:image/png;base64,$_centerMarkerIconBase64',
-                width: 36,
-                height: 36,
-                offset: const Offset(18, 36),
-              )
-            : const KakaoMapMarkerImage(
-                url:
-                    'https://developers.kakao.com/docs/static/images/marker.png',
-                width: 26,
-                height: 37,
-              );
+        final centerIconBase64 =
+            _centerMarkerIconBase64 ?? _centerMarkerFallbackBase64;
+        final centerMarkerImage = KakaoMapMarkerImage(
+          url: 'data:image/png;base64,$centerIconBase64',
+          width: 36,
+          height: 36,
+          offset: const Offset(18, 36),
+        );
 
         final centerMarkers = List.generate(sortedCenterPoints.length, (index) {
           final c = sortedCenterPoints[index];
@@ -469,7 +469,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                         _currentRequest = req;
                       });
 
-                      unawaited(_updateSearchCircle(center));
+                      final circleCenter = _deviceLocation ?? center;
+                      unawaited(_updateSearchCircle(circleCenter));
                       ref.refresh(youthCenterMapProvider(req));
                     },
                   );
@@ -699,7 +700,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     return SafeArea(
       top: false,
       child: Container(
-        height: 150,
+        height: 180,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -772,11 +773,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       setState(() {
         _deviceLocation = location;
         _latestCenter = _deviceLocation;
-        _latestZoom = 12;
+        _latestZoom = _locationZoomLevel;
         _currentRequest = request;
       });
 
-      await _moveMapToLocation(location);
+      await _moveMapToLocation(location, level: _locationZoomLevel);
       await _updateSearchCircle(location);
       ref.refresh(youthCenterMapProvider(request));
       debugPrint(
@@ -812,6 +813,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     try {
       final controller = ref.read(kakaoMapControllerProvider);
       await controller.showMyPosition(location);
+      await controller.updateCircle(location);
     } catch (error, stack) {
       debugPrint('[KakaoMapScreen] showMyPosition failed: $error');
       if (stack != null) {
@@ -855,20 +857,34 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     setState(() {
       _deviceLocation = null;
       _latestCenter = fallback;
-      _latestZoom = 12;
+      _latestZoom = _locationZoomLevel;
       _currentRequest = request;
       _locationError ??= '기본 위치(대구)를 기준으로 지도를 표시합니다.';
     });
 
-    await _moveMapToLocation(fallback);
+    await _moveMapToLocation(fallback, level: _locationZoomLevel);
     await _updateSearchCircle(fallback);
     ref.refresh(youthCenterMapProvider(request));
   }
 
-  Future<void> _moveMapToLocation(KakaoMapLatLng location) async {
+  Future<void> _moveMapToLocation(
+    KakaoMapLatLng location, {
+    int? level,
+    bool updateMyPosition = true,
+    bool updateCircle = true,
+  }) async {
     try {
       final controller = ref.read(kakaoMapControllerProvider);
-      await controller.moveMapTo(location);
+      await controller.moveMapTo(location, level: level);
+      if (level != null) {
+        _latestZoom = level;
+      }
+      if (updateMyPosition) {
+        await controller.showMyPosition(location);
+      }
+      if (updateCircle) {
+        await controller.updateCircle(location);
+      }
     } catch (error, stack) {
       debugPrint('[KakaoMapScreen] moveMapTo failed: $error');
       if (stack != null) {
@@ -890,6 +906,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       if (stack != null) {
         debugPrint(stack.toString());
       }
+      if (mounted) {
+        setState(() {
+          _centerMarkerIconBase64 ??= _centerMarkerFallbackBase64;
+        });
+      }
     }
   }
 
@@ -901,9 +922,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       title: '현재 위치',
       position: location,
       image: const KakaoMapMarkerImage(
-        url: 'https://developers.kakao.com/docs/static/images/marker.png',
-        width: 24,
-        height: 35,
+        url: 'data:image/svg+xml;base64,$_userLocationMarkerBase64',
+        width: 28,
+        height: 28,
+        offset: Offset(14, 14),
       ),
     );
   }
@@ -956,6 +978,16 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   ) async {
     final markerId = 'CENTER-$index';
     final position = KakaoMapLatLng(center.lat, center.lng);
+    setState(() {
+      _latestCenter = position;
+      _latestZoom = _locationZoomLevel;
+    });
+    await _moveMapToLocation(
+      position,
+      level: _locationZoomLevel,
+      updateMyPosition: false,
+      updateCircle: false,
+    );
     await _highlightCenterMarker(markerId, position);
     _showCenterDetailSheet(
       name: center.name,
