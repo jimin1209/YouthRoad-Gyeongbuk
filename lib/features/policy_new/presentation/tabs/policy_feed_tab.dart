@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/filters/policy_filter_ui_state.dart';
+import '../../application/filters/policy_search_keyword_provider.dart';
+import '../../application/controllers/global_filter_controller.dart';
 import '../../application/providers.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_category.dart';
 import '../compare/widgets/compare_entry_bar.dart';
 import '../widgets/policy_feed_list_view.dart';
 import '../compare/policy_compare_screen.dart';
+import '../widgets/policy_query_summary.dart';
 import '../../../../ui/layout/app_screen_container.dart';
 import '../../../../ui/layout/app_floating_bar.dart';
 import '../../../../ui/components/app_card.dart';
@@ -36,7 +39,7 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
   @override
   void initState() {
     super.initState();
-    ref.listen<PolicyFilterUiState>(policyFilterUiStateProvider,
+    ref.listen<PolicyFilterUiState>(globalFilterProvider,
         (prev, next) async {
       if (!mounted) return;
       if (prev == null || prev == next) return;
@@ -50,7 +53,8 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
 
   @override
   Widget build(BuildContext context) {
-    final filter = ref.watch(policyFilterUiStateProvider);
+    final filter = ref.watch(globalFilterProvider);
+    final keyword = ref.watch(policySearchKeywordProvider(widget.feedType));
     final queryState = ref.watch(policyQueryProvider(widget.feedType));
     final compareCount = ref.watch(compareRepositoryProvider).ids.length;
     final showCompareBar =
@@ -67,22 +71,24 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
             const SizedBox(height: AppSpacing.lg),
             Text('정책 탐색', style: AppText.textTheme.headlineSmall),
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              summaryText,
-              style: AppText.textTheme.bodyMedium,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            PolicyQuerySummary(
+              summary: summaryText,
+              conditionSummary: queryState.conditionSummary,
+              onReset: () =>
+                  ref.read(globalFilterControllerProvider).resetAll(),
             ),
             const SizedBox(height: AppSpacing.md),
             _SelectedFilterBadges(
               filter: filter,
-              onClearKeyword: () =>
-                  ref.read(policyFilterUiStateProvider.notifier).setKeyword(''),
+              keyword: keyword,
+              onClearKeyword: () => ref
+                  .read(globalFilterControllerProvider)
+                  .setKeyword(widget.feedType, ''),
               onClearCategory: () => ref
-                  .read(policyFilterUiStateProvider.notifier)
+                  .read(globalFilterProvider.notifier)
                   .setCategory(null),
               onToggleOngoing: () => ref
-                  .read(policyFilterUiStateProvider.notifier)
+                  .read(globalFilterProvider.notifier)
                   .toggleOngoingOnly(),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -127,12 +133,14 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
 class _SelectedFilterBadges extends StatelessWidget {
   const _SelectedFilterBadges({
     required this.filter,
+    required this.keyword,
     required this.onClearKeyword,
     required this.onClearCategory,
     required this.onToggleOngoing,
   });
 
   final PolicyFilterUiState filter;
+  final String keyword;
   final VoidCallback onClearKeyword;
   final VoidCallback onClearCategory;
   final VoidCallback onToggleOngoing;
@@ -150,13 +158,13 @@ class _SelectedFilterBadges extends StatelessWidget {
       onRemove: null,
     ));
 
-    if (filter.keyword.isNotEmpty) {
+    if (keyword.isNotEmpty) {
       badges.add(_Badge(
-        label: '검색어 "${filter.keyword}"',
+        label: '검색어 "$keyword"',
         color: color,
         textStyle: textStyle,
         onRemove: onClearKeyword,
-    )); 
+      ));
     }
 
     if (filter.category != null) {

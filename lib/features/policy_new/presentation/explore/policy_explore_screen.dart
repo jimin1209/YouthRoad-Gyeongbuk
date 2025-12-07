@@ -6,13 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/explore/explore_providers.dart';
 import '../../application/explore/explore_state.dart';
 import '../../application/filters/policy_filter_ui_state.dart';
+import '../../application/filters/policy_search_keyword_provider.dart';
 import '../../application/providers.dart';
 import '../../domain/values/policy_feed_type.dart';
+import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_sort.dart';
 import '../filters/policy_filter_bar.dart';
 import '../widgets/policy_feed_list_view.dart';
-import '../../../../application/notifiers/region_notifier.dart';
-import '../../../../ui/screens/region/region_select_screen.dart';
+import '../widgets/policy_query_summary.dart';
 
 class PolicyExploreScreen extends ConsumerStatefulWidget {
   const PolicyExploreScreen({super.key});
@@ -50,21 +51,24 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(exploreStateProvider);
     final controller = ref.read(exploreStateProvider.notifier);
-    final filterUi = ref.watch(policyFilterUiStateProvider);
-    final regionNotifier = ref.read(regionProvider.notifier);
-    final regionName = state.selectedRegionName ?? regionNotifier.summary;
+    final filterUi = ref.watch(globalFilterProvider);
+
+    final keyword = ref.watch(policySearchKeywordProvider(PolicyFeedType.search));
 
     // 검색어 동기화
-    if (_searchController.text != state.keyword) {
-      _searchController.text = state.keyword;
+    if (_searchController.text != keyword) {
+      _searchController.text = keyword;
       _searchController.selection = TextSelection.fromPosition(
         TextPosition(offset: _searchController.text.length),
       );
     }
 
-    final feedType = _feedTypeFor(state);
+    final feedType = _feedTypeFor(state, keyword: keyword);
     final queryState = ref.watch(policyQueryProvider(feedType));
     final summary = queryState.summary;
+    final statusFilter =
+        filterUi.showOnlyOngoing ? PolicyStatusFilter.inProgressOnly : PolicyStatusFilter.includeClosed;
+    final sortKind = _mapSortKind(filterUi.sort);
 
     return Scaffold(
       appBar: AppBar(
@@ -81,8 +85,8 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _SearchBarRow(
-                    keyword: state.keyword,
-                    sortKind: state.sortKind,
+                    keyword: keyword,
+                    sortKind: sortKind,
                     onKeywordChanged: controller.setKeyword,
                     onSubmit: controller.setKeyword,
                     onSortChanged: controller.setSortKind,
@@ -92,8 +96,10 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                   ),
                   const SizedBox(height: 8),
                   _QuickFilterChips(
-                    state: state,
-                    regionName: regionName,
+                    isOngoingOnly:
+                        statusFilter == PolicyStatusFilter.inProgressOnly,
+                    regionName: filterUi.regionSummary,
+                    isRegionMode: state.mode == ExploreSubMode.region,
                     onToggleStatus: (value) =>
                         controller.setStatusFilter(value),
                     onToggleRegion: () {
@@ -106,7 +112,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                     },
                   ),
                   const SizedBox(height: 8),
-                  _SummaryRow(
+                  PolicyQuerySummary(
                     summary: summary,
                     conditionSummary: queryState.conditionSummary,
                     onReset: controller.clearFilters,
@@ -162,14 +168,73 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
     return PolicyFeedListView(feedType: feedType);
   }
 
-  PolicyFeedType _feedTypeFor(ExploreState state) {
-    if (state.mode == ExploreSubMode.search && state.keyword.isNotEmpty) {
+  PolicyFeedType _feedTypeFor(ExploreState state, {String keyword = ''}) {
+    if (state.mode == ExploreSubMode.search && keyword.isNotEmpty) {
       return PolicyFeedType.search;
     }
     if (state.mode == ExploreSubMode.region) {
       return PolicyFeedType.region;
     }
     return PolicyFeedType.all;
+  }
+
+  String? _categoryId(PolicyCategory? category) {
+    switch (category) {
+      case PolicyCategory.employment:
+        return 'employment';
+      case PolicyCategory.startup:
+        return 'startup';
+      case PolicyCategory.housing:
+        return 'housing';
+      case PolicyCategory.education:
+        return 'education';
+      case PolicyCategory.life:
+        return 'life';
+      case PolicyCategory.welfare:
+        return 'welfare';
+      case PolicyCategory.culture:
+        return 'culture';
+      case PolicyCategory.other:
+        return 'other';
+      case null:
+        return null;
+    }
+  }
+
+  PolicySortKind _mapSortKind(PolicySortOption option) {
+    switch (option) {
+      case PolicySortOption.recommendation:
+        return PolicySortKind.recommended;
+      case PolicySortOption.latest:
+        return PolicySortKind.newest;
+      case PolicySortOption.deadline:
+        return PolicySortKind.deadline;
+      case PolicySortOption.popularity:
+        return PolicySortKind.amount;
+    }
+  }
+
+  PolicyCategory? _mapCategory(String id) {
+    switch (id) {
+      case 'employment':
+        return PolicyCategory.employment;
+      case 'startup':
+        return PolicyCategory.startup;
+      case 'housing':
+        return PolicyCategory.housing;
+      case 'education':
+        return PolicyCategory.education;
+      case 'life':
+        return PolicyCategory.life;
+      case 'welfare':
+        return PolicyCategory.welfare;
+      case 'culture':
+        return PolicyCategory.culture;
+      case 'other':
+        return PolicyCategory.other;
+      default:
+        return null;
+    }
   }
 
   void _openFilterBottomSheet(
@@ -181,8 +246,14 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
-        final tempCategories = {...state.selectedCategories};
-        var tempStatus = state.statusFilter;
+        final filter = ref.read(globalFilterProvider);
+        final initialCategory = _categoryId(filter.category);
+        final tempCategories = {
+          if (initialCategory != null) initialCategory,
+        };
+        var tempStatus = filter.showOnlyOngoing
+            ? PolicyStatusFilter.inProgressOnly
+            : PolicyStatusFilter.includeClosed;
         return StatefulBuilder(
           builder: (context, setState) {
             return SafeArea(
@@ -291,11 +362,14 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
-                              controller.clearFilters();
                               controller.setStatusFilter(tempStatus);
-                              for (final id in tempCategories) {
-                                controller.toggleCategory(id);
-                              }
+                              final selectedCategory =
+                                  tempCategories.isNotEmpty ? tempCategories.first : null;
+                              final categoryEnum =
+                                  selectedCategory != null ? _mapCategory(selectedCategory) : null;
+                              ref
+                                  .read(globalFilterProvider.notifier)
+                                  .setCategory(selectedCategory == null ? null : categoryEnum);
                               Navigator.of(context).pop();
                             },
                             child: const Text('적용'),
@@ -439,14 +513,16 @@ class _SearchBarRow extends StatelessWidget {
 
 class _QuickFilterChips extends StatelessWidget {
   const _QuickFilterChips({
-    required this.state,
+    required this.isOngoingOnly,
     required this.regionName,
+    required this.isRegionMode,
     required this.onToggleStatus,
     required this.onToggleRegion,
   });
 
-  final ExploreState state;
+  final bool isOngoingOnly;
   final String regionName;
+  final bool isRegionMode;
   final void Function(PolicyStatusFilter) onToggleStatus;
   final VoidCallback onToggleRegion;
 
@@ -455,12 +531,12 @@ class _QuickFilterChips extends StatelessWidget {
     final chips = <Widget>[
       ChoiceChip(
         label: const Text('진행중만'),
-        selected: state.statusFilter == PolicyStatusFilter.inProgressOnly,
+        selected: isOngoingOnly,
         onSelected: (_) => onToggleStatus(PolicyStatusFilter.inProgressOnly),
       ),
       ChoiceChip(
         label: Text('내 지역 ($regionName)'),
-        selected: state.mode == ExploreSubMode.region,
+        selected: isRegionMode,
         onSelected: (_) => onToggleRegion(),
       ),
     ];
@@ -483,57 +559,3 @@ class _QuickFilterChips extends StatelessWidget {
   }
 }
 
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
-    required this.summary,
-    required this.conditionSummary,
-    required this.onReset,
-    required this.onTap,
-  });
-
-  final String summary;
-  final String conditionSummary;
-  final VoidCallback onReset;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  summary,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  conditionSummary,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Colors.black54),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: onReset,
-            child: const Text('초기화'),
-          ),
-        ],
-      ),
-    );
-  }
-}

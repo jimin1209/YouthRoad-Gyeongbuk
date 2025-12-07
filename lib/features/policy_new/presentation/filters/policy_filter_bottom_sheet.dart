@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/filters/policy_filter_ui_state.dart';
+import '../../application/controllers/global_filter_controller.dart';
 import '../../application/providers.dart';
 import '../../application/controllers/ui_reaction_controller.dart';
 import '../../domain/entities/department.dart';
@@ -40,7 +41,7 @@ class _PolicyFilterBottomSheetState
   @override
   void initState() {
     super.initState();
-    final ui = ref.read(policyFilterUiStateProvider);
+    final ui = ref.read(globalFilterProvider);
     _region = ui.region;
     _category = ui.category;
     _showOnlyOnline = ui.showOnlyOnline;
@@ -381,7 +382,7 @@ class _PolicyFilterBottomSheetState
   }
 
   void _resetFilters() {
-    ref.read(policyFilterUiStateProvider.notifier).resetAll();
+    ref.read(globalFilterControllerProvider).resetAll();
     setState(() {
       _region = PolicyRegion.all;
       _category = null;
@@ -396,8 +397,8 @@ class _PolicyFilterBottomSheetState
   }
 
   void _applyFilters() {
-    final notifier = ref.read(policyFilterUiStateProvider.notifier);
-    final current = ref.read(policyFilterUiStateProvider);
+    final notifier = ref.read(globalFilterProvider.notifier);
+    final current = ref.read(globalFilterProvider);
     var hasChanged = false;
 
     if (current.region != _region) {

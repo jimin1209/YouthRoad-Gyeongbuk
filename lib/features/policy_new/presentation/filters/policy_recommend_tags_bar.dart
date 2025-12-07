@@ -9,8 +9,8 @@ class PolicyRecommendTagsBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ui = ref.watch(policyFilterUiStateProvider);
-    final notifier = ref.read(policyFilterUiStateProvider.notifier);
+    final ui = ref.watch(globalFilterProvider);
+    final notifier = ref.read(globalFilterProvider.notifier);
     final profileTags = ref.watch(userProfileProvider).recommendTags;
     final tags = ui.tags.isNotEmpty
         ? ui.tags

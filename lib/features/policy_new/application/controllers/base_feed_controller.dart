@@ -5,6 +5,7 @@ import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../filters/policy_filter_ui_state.dart';
+import '../filters/policy_search_keyword_provider.dart';
 import '../../../../application/notifiers/region_notifier.dart';
 import 'policy_event_bus.dart';
 import 'policy_feed_memory_cache.dart';
@@ -23,7 +24,12 @@ abstract class BasePolicyFeedController
   })  : _memoryCache = memoryCache,
         super(const PolicyPagingState.initial()) {
     ref.listen<PolicyFilterUiState>(
-      policyFilterUiStateProvider,
+      globalFilterProvider,
+      (_, __) => _onQueryChanged(),
+    );
+
+    ref.listen<String>(
+      policySearchKeywordProvider(feedType),
       (_, __) => _onQueryChanged(),
     );
 

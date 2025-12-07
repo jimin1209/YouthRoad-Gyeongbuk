@@ -16,7 +16,7 @@ class PolicySortBottomSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ui = ref.watch(policyFilterUiStateProvider);
+    final ui = ref.watch(globalFilterProvider);
 
     return SafeArea(
       child: Padding(
@@ -36,7 +36,7 @@ class PolicySortBottomSheet extends ConsumerWidget {
                 groupValue: ui.sort,
                 onChanged: (value) {
                   if (value == null) return;
-                  ref.read(policyFilterUiStateProvider.notifier).setSort(value);
+                  ref.read(globalFilterProvider.notifier).setSort(value);
                   ref
                       .read(uiReactionControllerProvider(feedType).notifier)
                       .markFilterConfirmed('${_label(value)} 정렬을 적용했어요.');

@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../application/notifiers/region_notifier.dart';
 import '../filters/policy_filter_ui_state.dart';
+import '../controllers/global_filter_controller.dart';
 import 'explore_state.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_sort.dart';
+import '../../domain/values/policy_feed_type.dart';
 import '../reexplore/policy_reexplore.dart';
 
 final exploreStateProvider =
@@ -23,9 +24,6 @@ class ExploreController extends StateNotifier<ExploreState> {
     if (mode != ExploreSubMode.search && state.keyword.isNotEmpty) {
       _syncKeyword('');
       state = state.copyWith(keyword: '');
-    }
-    if (mode == ExploreSubMode.region && state.selectedRegionCode == null) {
-      setMyRegion();
     }
     state = state.copyWith(mode: mode);
   }
@@ -52,47 +50,16 @@ class ExploreController extends StateNotifier<ExploreState> {
 
   void clearKeyword() => setKeyword('');
 
-  Future<void> setMyRegion() async {
-    debugPrint('[Explore] setMyRegion');
-    final notifier = ref.read(regionProvider.notifier);
-    final city = notifier.selectedCity;
-    final summary = notifier.summary;
-    if (city != null && city.isNotEmpty) {
-      state = state.copyWith(
-        selectedRegionName: summary,
-        selectedRegionCode: city,
-        useMyRegionAsDefault: true,
-        mode: ExploreSubMode.region,
-      );
-    } else {
-      state = state.copyWith(
-        selectedRegionName: '경북 전체',
-        selectedRegionCode: null,
-        useMyRegionAsDefault: true,
-        mode: ExploreSubMode.region,
-      );
-    }
-  }
-
-  void setCustomRegion({required String name, required String code}) {
-    debugPrint('[Explore] setCustomRegion: $name ($code)');
-    state = state.copyWith(
-      selectedRegionName: name,
-      selectedRegionCode: code,
-      useMyRegionAsDefault: false,
-      mode: ExploreSubMode.region,
-    );
-  }
-
   void _syncKeyword(String keyword) {
-    ref.read(policyFilterUiStateProvider.notifier).setKeyword(keyword);
+    ref
+        .read(globalFilterControllerProvider)
+        .setKeyword(PolicyFeedType.search, keyword);
   }
 
   void setStatusFilter(PolicyStatusFilter filter) {
     debugPrint('[Explore] setStatus: $filter');
-    state = state.copyWith(statusFilter: filter);
-    final filterNotifier = ref.read(policyFilterUiStateProvider.notifier);
-    final current = ref.read(policyFilterUiStateProvider).showOnlyOngoing;
+    final filterNotifier = ref.read(globalFilterProvider.notifier);
+    final current = ref.read(globalFilterProvider).showOnlyOngoing;
     final shouldBeOngoingOnly = filter == PolicyStatusFilter.inProgressOnly;
     if (shouldBeOngoingOnly != current) {
       filterNotifier.toggleOngoingOnly();
@@ -101,8 +68,7 @@ class ExploreController extends StateNotifier<ExploreState> {
 
   void setSortKind(PolicySortKind sortKind) {
     debugPrint('[Explore] setSort: $sortKind');
-    state = state.copyWith(sortKind: sortKind);
-    final notifier = ref.read(policyFilterUiStateProvider.notifier);
+    final notifier = ref.read(globalFilterProvider.notifier);
     PolicySortOption option;
     switch (sortKind) {
       case PolicySortKind.recommended:
@@ -123,47 +89,26 @@ class ExploreController extends StateNotifier<ExploreState> {
 
   void toggleCategory(String categoryId) {
     debugPrint('[Explore] toggleCategory: $categoryId');
-    final current = [...state.selectedCategories];
-    if (current.contains(categoryId)) {
-      current.remove(categoryId);
-    } else {
-      current.add(categoryId);
-    }
-    state = state.copyWith(selectedCategories: current);
-
     final catEnum = _mapCategory(categoryId);
-    ref.read(policyFilterUiStateProvider.notifier).setCategory(catEnum);
+    final current = ref.read(globalFilterProvider).category;
+    ref
+        .read(globalFilterProvider.notifier)
+        .setCategory(current == catEnum ? null : catEnum);
   }
 
   void clearFilters() {
     debugPrint('[Explore] clearFilters');
-    state = state.copyWith(
-      statusFilter: PolicyStatusFilter.inProgressOnly,
-      sortKind: PolicySortKind.recommended,
-      selectedCategories: const [],
-      selectedSupportTypes: const [],
-    );
-    final notifier = ref.read(policyFilterUiStateProvider.notifier);
-    notifier.resetAll();
+    ref.read(globalFilterControllerProvider).resetAll();
+    state = state.copyWith(mode: ExploreSubMode.all, keyword: '');
   }
 
   void applyFromDetail({
     required PolicyFilterUiState filter,
     required PolicyReExploreMode _mode,
   }) {
-    final categoryId = _categoryId(filter.category);
-    final status = filter.showOnlyOngoing
-        ? PolicyStatusFilter.inProgressOnly
-        : PolicyStatusFilter.includeClosed;
-    final sortKind = _mapSortKind(filter.sort);
-
     state = state.copyWith(
       mode: ExploreSubMode.all,
       keyword: '',
-      statusFilter: status,
-      sortKind: sortKind,
-      selectedCategories:
-          categoryId != null ? List.unmodifiable([categoryId]) : const [],
     );
   }
 
@@ -184,39 +129,4 @@ class ExploreController extends StateNotifier<ExploreState> {
     }
   }
 
-  String? _categoryId(PolicyCategory? category) {
-    switch (category) {
-      case PolicyCategory.employment:
-        return 'employment';
-      case PolicyCategory.startup:
-        return 'startup';
-      case PolicyCategory.housing:
-        return 'housing';
-      case PolicyCategory.education:
-        return 'education';
-      case PolicyCategory.life:
-        return 'life';
-      case PolicyCategory.welfare:
-        return 'welfare';
-      case PolicyCategory.culture:
-        return 'culture';
-      case PolicyCategory.other:
-        return 'other';
-      case null:
-        return null;
-    }
-  }
-
-  PolicySortKind _mapSortKind(PolicySortOption option) {
-    switch (option) {
-      case PolicySortOption.recommendation:
-        return PolicySortKind.recommended;
-      case PolicySortOption.latest:
-        return PolicySortKind.newest;
-      case PolicySortOption.deadline:
-        return PolicySortKind.deadline;
-      case PolicySortOption.popularity:
-        return PolicySortKind.amount;
-    }
-  }
 }

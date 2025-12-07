@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/controllers/ui_reaction_controller.dart';
 import '../../application/filters/policy_filter_ui_state.dart';
+import '../../application/filters/policy_search_keyword_provider.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_sort.dart';
 import 'policy_filter_bottom_sheet.dart';
@@ -19,7 +20,8 @@ class PolicyFilterBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ui = ref.watch(policyFilterUiStateProvider);
+    final ui = ref.watch(globalFilterProvider);
+    final keyword = ref.watch(policySearchKeywordProvider(feedType));
 
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
@@ -42,12 +44,12 @@ class PolicyFilterBar extends ConsumerWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        ui.keyword.isEmpty ? '검색어를 입력하세요' : ui.keyword,
+                        keyword.isEmpty ? '검색어를 입력하세요' : keyword,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color:
-                              ui.keyword.isEmpty ? Colors.grey : Colors.black,
+                              keyword.isEmpty ? Colors.grey : Colors.black,
                         ),
                       ),
                     ),
@@ -121,7 +123,7 @@ class PolicyFilterBar extends ConsumerWidget {
     );
     ref
         .read(uiReactionControllerProvider(feedType).notifier)
-        .markSearchConfirmed(ref.read(policyFilterUiStateProvider).keyword);
+        .markSearchConfirmed(ref.read(policySearchKeywordProvider(feedType)));
   }
 
   void _openSortSheet(BuildContext context, WidgetRef ref) {

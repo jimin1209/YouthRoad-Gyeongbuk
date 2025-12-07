@@ -2,12 +2,15 @@ import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_sort.dart';
 import 'policy_filter_ui_state.dart';
 
-String buildPolicyFilterSummary(PolicyFilterUiState filter) {
+String buildPolicyFilterSummary(
+  PolicyFilterUiState filter, {
+  String keyword = '',
+}) {
   final buffer = StringBuffer(filter.regionSummary);
 
-  final keyword = filter.keyword.trim();
-  if (keyword.isNotEmpty) {
-    buffer.write(' · 검색어 "$keyword"');
+  final trimmedKeyword = keyword.trim();
+  if (trimmedKeyword.isNotEmpty) {
+    buffer.write(' · 검색어 "$trimmedKeyword"');
   }
 
   if (filter.tags.isNotEmpty) {
@@ -37,14 +40,17 @@ String buildPolicyFilterSummary(PolicyFilterUiState filter) {
   return buffer.toString();
 }
 
-String buildPolicyFilterConditionSummary(PolicyFilterUiState filter) {
+String buildPolicyFilterConditionSummary(
+  PolicyFilterUiState filter, {
+  String keyword = '',
+}) {
   final parts = <String>[
     filter.regionSummary,
   ];
 
-  final keyword = filter.keyword.trim();
-  if (keyword.isNotEmpty) {
-    parts.add('검색어 "$keyword"');
+  final trimmedKeyword = keyword.trim();
+  if (trimmedKeyword.isNotEmpty) {
+    parts.add('검색어 "$trimmedKeyword"');
   }
 
   if (filter.tags.isNotEmpty) {

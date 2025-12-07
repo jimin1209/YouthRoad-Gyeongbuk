@@ -15,7 +15,7 @@ class PolicyQueryOrchestrator {
 
   final Ref ref;
 
-  PolicyFilterUiState get _ui => ref.read(policyFilterUiStateProvider);
+  PolicyFilterUiState get _ui => ref.read(globalFilterProvider);
   UserProfile get _profile => ref.read(userProfileProvider);
   PolicyBehaviorState get _behavior =>
       ref.read(policyBehaviorTrackerProvider);
@@ -24,16 +24,19 @@ class PolicyQueryOrchestrator {
 
   List<String> get _compareIds => ref.read(compareRepositoryProvider).ids;
 
-  PolicyQuery buildQuery(PolicyFeedType feedType) {
+  PolicyQuery buildQuery(
+    PolicyFeedType feedType, {
+    String keyword = '',
+  }) {
     switch (feedType) {
       case PolicyFeedType.recommend:
         return _buildRecommendQuery();
       case PolicyFeedType.all:
-        return _buildAllQuery();
+        return _buildAllQuery(keyword);
       case PolicyFeedType.region:
         return _buildRegionQuery();
       case PolicyFeedType.search:
-        return _buildSearchQuery();
+        return _buildSearchQuery(keyword);
       case PolicyFeedType.favorite:
         return _buildFavoriteQuery();
       case PolicyFeedType.compare:
@@ -74,7 +77,7 @@ class PolicyQueryOrchestrator {
     ).normalize();
   }
 
-  PolicyQuery _buildAllQuery() {
+  PolicyQuery _buildAllQuery(String keyword) {
     final filter = PolicyFilter(
       region: _ui.region,
       province: _ui.province,
@@ -90,7 +93,7 @@ class PolicyQueryOrchestrator {
 
     return PolicyQuery(
       feedType: PolicyFeedType.all,
-      keyword: _ui.keyword.isEmpty ? null : _ui.keyword,
+      keyword: keyword.isEmpty ? null : keyword,
       filter: filter,
       sort: _ui.sort,
     ).normalize();
@@ -119,7 +122,7 @@ class PolicyQueryOrchestrator {
     ).normalize();
   }
 
-  PolicyQuery _buildSearchQuery() {
+  PolicyQuery _buildSearchQuery(String keyword) {
     final filter = PolicyFilter(
       region: _ui.region,
       province: _ui.province,
@@ -134,7 +137,7 @@ class PolicyQueryOrchestrator {
 
     return PolicyQuery(
       feedType: PolicyFeedType.search,
-      keyword: _ui.keyword.isEmpty ? null : _ui.keyword,
+      keyword: keyword.isEmpty ? null : keyword,
       filter: filter,
       tags: _ui.tags,
       sort: _ui.sort,
