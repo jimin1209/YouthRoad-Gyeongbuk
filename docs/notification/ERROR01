@@ -1,0 +1,34 @@
+lib/features/policy_new/presentation/detail/widgets/policy_action_bar.dart:290:41: Error: The getter 'label' isn't defined for theclass 'ReminderTimeKind'.
+ - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
+      return '알림 설정됨 · ${first.timeKind.label}';
+                                        ^^^^^
+lib/features/policy_new/presentation/detail/widgets/policy_action_bar.dart:292:39: Error: The getter 'label' isn't defined for theclass 'ReminderTimeKind'.
+ - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
+    return '알림 설정됨 · ${first.timeKind.label} 외 ${reminders.length - 1}';
+                                      ^^^^^
+lib/features/policy_new/presentation/detail/widgets/policy_action_bar.dart:303:31: Error: The getter 'label' isn't defined for theclass 'ReminderTimeKind'.
+ - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
+      return '${next.timeKind.label} · $dateText';
+                              ^^^^^
+lib/features/policy_new/presentation/detail/widgets/policy_action_bar.dart:305:29: Error: The getter 'label' isn't defined for theclass 'ReminderTimeKind'.
+ - 'ReminderTimeKind' is from 'package:youth_road_app/features/policy_new/domain/values/reminder_time_kind.dart' ('lib/features/policy_new/domain/values/reminder_time_kind.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'label'.
+    return '${next.timeKind.label} 외 ${reminders.length - 1} · $dateText';
+                            ^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
