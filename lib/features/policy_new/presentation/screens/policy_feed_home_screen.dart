@@ -10,6 +10,7 @@ import '../widgets/policy_feed_list_view.dart';
 import '../explore/policy_explore_screen.dart';
 import '../compare/widgets/compare_entry_bar.dart';
 import '../compare/policy_compare_screen.dart';
+import '../../../../ui/components/horizontal_overflow_container.dart';
 
 class PolicyFeedHomeScreen extends ConsumerStatefulWidget {
   const PolicyFeedHomeScreen({super.key});
@@ -81,18 +82,25 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
             },
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          onTap: (index) {
-            if (index != _currentIndex) {
-              _tabController.animateTo(
-                index,
-                curve: Curves.easeOutCubic,
-              );
-            }
-          },
-          tabs: _tabs.map((e) => Tab(text: e.label)).toList(),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: HorizontalOverflowContainer(
+            minWidthPerChild: 120,
+            showBoundaries: false,
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              onTap: (index) {
+                if (index != _currentIndex) {
+                  _tabController.animateTo(
+                    index,
+                    curve: Curves.easeOutCubic,
+                  );
+                }
+              },
+              tabs: _tabs.map((e) => Tab(text: e.label)).toList(),
+            ),
+          ),
         ),
       ),
       body: Column(

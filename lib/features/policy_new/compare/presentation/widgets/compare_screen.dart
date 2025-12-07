@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 
 import '../../controllers/compare_diff_service.dart';
@@ -7,6 +5,7 @@ import '../../models/compare_state.dart';
 import 'compare_diff_table_widget.dart';
 import 'compare_header_row_widget.dart';
 import 'compare_summary_highlight.dart';
+import '../../../../../ui/components/horizontal_overflow_container.dart';
 
 class CompareScreen extends StatefulWidget {
   const CompareScreen({
@@ -31,24 +30,15 @@ class CompareScreen extends StatefulWidget {
 }
 
 class _CompareScreenState extends State<CompareScreen> {
-  final ScrollController _horizontalController = ScrollController();
+  final HorizontalOverflowController _overflowController =
+      HorizontalOverflowController();
   bool _showDiffOnly = false;
-
-  @override
-  void dispose() {
-    _horizontalController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
     final service = CompareDiffService();
     final labelWidth = service.labelWidth;
-    final totalWidth = max(
-      MediaQuery.of(context).size.width,
-      labelWidth + (CompareScreen._columnWidth + 12) * state.policies.length,
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -75,23 +65,16 @@ class _CompareScreenState extends State<CompareScreen> {
             ],
           ),
         ),
-        // Sticky header cards with shared horizontal scroll
-        SingleChildScrollView(
-          controller: _horizontalController,
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: totalWidth,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: CompareHeaderRowWidget(
-                policies: state.policies,
-                insights: state.insights,
-                onRemove: widget.onRemove,
-                onOpenDetail: widget.onOpenDetail,
-                labelWidth: labelWidth,
-                columnWidth: CompareScreen._columnWidth,
-              ),
-            ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: CompareHeaderRowWidget(
+            policies: state.policies,
+            insights: state.insights,
+            onRemove: widget.onRemove,
+            onOpenDetail: widget.onOpenDetail,
+            labelWidth: labelWidth,
+            columnWidth: CompareScreen._columnWidth,
+            overflowController: _overflowController,
           ),
         ),
         const Divider(height: 1),
@@ -102,7 +85,7 @@ class _CompareScreenState extends State<CompareScreen> {
             runSpacing: 8,
             children: [
               FilterChip(
-                label: const Text('핵심 차이만 보기'),
+                label: const Text('차이만 보기'),
                 selected: _showDiffOnly,
                 onSelected: (v) => setState(() => _showDiffOnly = v),
               ),
@@ -112,34 +95,28 @@ class _CompareScreenState extends State<CompareScreen> {
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: SingleChildScrollView(
-              controller: _horizontalController,
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: totalWidth,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CompareSummaryHighlight(
-                      insights: state.insights,
-                    ),
-                    const SizedBox(height: 12),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: CompareDiffTableWidget(
-                        key: ValueKey(_showDiffOnly),
-                        policies: state.policies,
-                        diffs: state.diffs,
-                        insights: state.insights,
-                        fields: service.fields,
-                        labelWidth: labelWidth,
-                        columnWidth: CompareScreen._columnWidth,
-                        showOnlyDiffs: _showDiffOnly,
-                      ),
-                    ),
-                  ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CompareSummaryHighlight(
+                  insights: state.insights,
                 ),
-              ),
+                const SizedBox(height: 12),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: CompareDiffTableWidget(
+                    key: ValueKey(_showDiffOnly),
+                    policies: state.policies,
+                    diffs: state.diffs,
+                    insights: state.insights,
+                    fields: service.fields,
+                    labelWidth: labelWidth,
+                    columnWidth: CompareScreen._columnWidth,
+                    showOnlyDiffs: _showDiffOnly,
+                    overflowController: _overflowController,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

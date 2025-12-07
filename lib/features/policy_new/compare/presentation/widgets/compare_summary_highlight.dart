@@ -9,7 +9,9 @@ class CompareSummaryHighlight extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!insights.hasRecommendation && !insights.hasNearestDeadline) {
+    if (!insights.hasRecommendation &&
+        !insights.hasNearestDeadline &&
+        !insights.hasEligibilityHighlight) {
       return const SizedBox.shrink();
     }
 
@@ -20,7 +22,7 @@ class CompareSummaryHighlight extends StatelessWidget {
       final title = insights.recommendedTitle ?? '추천 정책';
       chips.add(_infoChip(
         context,
-        label: '추천 정책',
+        label: '추천 베스트',
         icon: Icons.local_fire_department_outlined,
         description: '$title · ${insights.recommendedScore}점',
         color: theme.colorScheme.primary,
@@ -33,13 +35,13 @@ class CompareSummaryHighlight extends StatelessWidget {
       final label = days == null
           ? '마감 임박'
           : days <= 0
-              ? '오늘 마감'
+              ? '신청 마감'
               : 'D-$days 남음';
       chips.add(_infoChip(
         context,
         label: label,
         icon: Icons.timer_outlined,
-        description: '$title이(가) 가장 먼저 마감돼요',
+        description: title,
         color: theme.colorScheme.error,
       ));
     }
@@ -47,10 +49,9 @@ class CompareSummaryHighlight extends StatelessWidget {
     if (insights.hasEligibilityHighlight) {
       chips.add(_infoChip(
         context,
-        label: '참여 조건 완화',
+        label: '지원 대상 범위 넓음',
         icon: Icons.public_outlined,
-        description:
-            '${insights.broadEligibilityTitle ?? '참여 제약이 적은 정책'}',
+        description: insights.broadEligibilityTitle ?? '지원 대상이 넓은 정책',
         color: theme.colorScheme.tertiary,
       ));
     }
@@ -65,7 +66,7 @@ class CompareSummaryHighlight extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '하이라이트 분석',
+              '비교 하이라이트',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
@@ -88,27 +89,41 @@ class CompareSummaryHighlight extends StatelessWidget {
     required Color color,
   }) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(label,
-                  style: theme.textTheme.labelLarge?.copyWith(color: color)),
-              Text(description, style: theme.textTheme.bodySmall),
-            ],
-          ),
-        ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 320),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: theme.textTheme.labelLarge?.copyWith(color: color),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    softWrap: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

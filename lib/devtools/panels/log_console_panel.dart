@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/logging/app_log_level.dart';
 import '../devtools_provider.dart';
 import '../widgets/devtools_split_pane.dart';
+import '../../ui/components/horizontal_overflow_container.dart';
 
 class LogConsolePanel extends ConsumerStatefulWidget {
   const LogConsolePanel({super.key});
@@ -56,107 +57,113 @@ class _LogConsolePanelState extends ConsumerState<LogConsolePanel> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Source:', style: TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 8),
-                      DropdownButton<DevLogSource?>(
-                        value: _sourceFilter,
-                        items: const [
-                          DropdownMenuItem(value: null, child: Text('All')),
-                          DropdownMenuItem(
-                            value: DevLogSource.app,
-                            child: Text('App'),
-                          ),
-                          DropdownMenuItem(
-                            value: DevLogSource.provider,
-                            child: Text('Provider'),
-                          ),
-                          DropdownMenuItem(
-                            value: DevLogSource.network,
-                            child: Text('Network'),
-                          ),
-                          DropdownMenuItem(
-                            value: DevLogSource.webView,
-                            child: Text('WebView'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _sourceFilter = value);
-                          if (value != null &&
-                              selected != null &&
-                              selected.source != value) {
-                            notifier.selectLog(null);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Level:', style: TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 8),
-                      DropdownButton<AppLogLevel?>(
-                        value: _levelFilter,
-                        items: const [
-                          DropdownMenuItem(value: null, child: Text('All')),
-                          DropdownMenuItem(value: AppLogLevel.debug, child: Text('Debug')),
-                          DropdownMenuItem(value: AppLogLevel.info, child: Text('Info')),
-                          DropdownMenuItem(value: AppLogLevel.warning, child: Text('Warn')),
-                          DropdownMenuItem(value: AppLogLevel.error, child: Text('Error')),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _levelFilter = value);
-                          if (value != null && selected != null && selected.level != value) {
-                            notifier.selectLog(null);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Auto-scroll'),
-                      Switch(
-                        value: _autoScroll,
-                        onChanged: (value) => setState(() => _autoScroll = value),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Collect logs'),
-                      Switch(
-                        value: state.isCollectionEnabled,
-                        onChanged: (_) => notifier.toggleLogCollection(),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Search message',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                  isDense: true,
+          child: HorizontalOverflowContainer(
+            minWidthPerChild: 220,
+            showBoundaries: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Source:', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 8),
+                        DropdownButton<DevLogSource?>(
+                          value: _sourceFilter,
+                          items: const [
+                            DropdownMenuItem(value: null, child: Text('All')),
+                            DropdownMenuItem(
+                              value: DevLogSource.app,
+                              child: Text('App'),
+                            ),
+                            DropdownMenuItem(
+                              value: DevLogSource.provider,
+                              child: Text('Provider'),
+                            ),
+                            DropdownMenuItem(
+                              value: DevLogSource.network,
+                              child: Text('Network'),
+                            ),
+                            DropdownMenuItem(
+                              value: DevLogSource.webView,
+                              child: Text('WebView'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() => _sourceFilter = value);
+                            if (value != null &&
+                                selected != null &&
+                                selected.source != value) {
+                              notifier.selectLog(null);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Level:', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 8),
+                        DropdownButton<AppLogLevel?>(
+                          value: _levelFilter,
+                          items: const [
+                            DropdownMenuItem(value: null, child: Text('All')),
+                            DropdownMenuItem(value: AppLogLevel.debug, child: Text('Debug')),
+                            DropdownMenuItem(value: AppLogLevel.info, child: Text('Info')),
+                            DropdownMenuItem(value: AppLogLevel.warning, child: Text('Warn')),
+                            DropdownMenuItem(value: AppLogLevel.error, child: Text('Error')),
+                          ],
+                          onChanged: (value) {
+                            setState(() => _levelFilter = value);
+                            if (value != null &&
+                                selected != null &&
+                                selected.level != value) {
+                              notifier.selectLog(null);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Auto-scroll'),
+                        Switch(
+                          value: _autoScroll,
+                          onChanged: (value) => setState(() => _autoScroll = value),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Collect logs'),
+                        Switch(
+                          value: state.isCollectionEnabled,
+                          onChanged: (_) => notifier.toggleLogCollection(),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                onChanged: (value) => setState(() => _query = value),
-              ),
-            ],
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Search message',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (value) => setState(() => _query = value),
+                ),
+              ],
+            ),
           ),
         ),
         const Divider(height: 1),

@@ -6,6 +6,7 @@ import '../../application/filters/policy_filter_ui_state.dart';
 import '../../application/filters/policy_search_keyword_provider.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_sort.dart';
+import '../../../../ui/components/horizontal_overflow_container.dart';
 import 'policy_filter_bottom_sheet.dart';
 import 'policy_keyword_sheet.dart';
 import 'policy_sort_bottom_sheet.dart';
@@ -26,9 +27,11 @@ class PolicyFilterBar extends ConsumerWidget {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
+      child: HorizontalOverflowContainer(
+        minWidthPerChild: 180,
         children: [
-          Expanded(
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 220, maxWidth: 360),
             child: GestureDetector(
               onTap: () => _openKeywordSheet(context, ref),
               child: Container(
@@ -48,8 +51,7 @@ class PolicyFilterBar extends ConsumerWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color:
-                              keyword.isEmpty ? Colors.grey : Colors.black,
+                          color: keyword.isEmpty ? Colors.grey : Colors.black,
                         ),
                       ),
                     ),
@@ -133,7 +135,7 @@ class PolicyFilterBar extends ConsumerWidget {
     );
     ref
         .read(uiReactionControllerProvider(feedType).notifier)
-        .markFilterConfirmed('정렬 옵션을 선택해보세요.');
+        .markFilterConfirmed('정렬 순서를 적용했어요.');
   }
 
   void _openFilterSheet(BuildContext context, WidgetRef ref) {
@@ -143,6 +145,6 @@ class PolicyFilterBar extends ConsumerWidget {
     );
     ref
         .read(uiReactionControllerProvider(feedType).notifier)
-        .markFilterConfirmed('필터 조건을 업데이트했어요.');
+        .markFilterConfirmed('필터를 적용했어요.');
   }
 }

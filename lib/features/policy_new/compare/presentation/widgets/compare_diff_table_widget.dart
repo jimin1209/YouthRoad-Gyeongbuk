@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/compare_diff_service.dart';
 import '../../../domain/entities/policy.dart';
 import '../../models/compare_state.dart';
+import '../../../../../ui/components/horizontal_overflow_container.dart';
 
 class CompareDiffTableWidget extends StatelessWidget {
   const CompareDiffTableWidget({
@@ -14,6 +15,7 @@ class CompareDiffTableWidget extends StatelessWidget {
     required this.labelWidth,
     required this.columnWidth,
     this.showOnlyDiffs = false,
+    this.overflowController,
   });
 
   final List<Policy> policies;
@@ -23,6 +25,7 @@ class CompareDiffTableWidget extends StatelessWidget {
   final double labelWidth;
   final double columnWidth;
   final bool showOnlyDiffs;
+  final HorizontalOverflowController? overflowController;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +39,7 @@ class CompareDiffTableWidget extends StatelessWidget {
             width: totalWidth,
             padding: const EdgeInsets.all(12),
             alignment: Alignment.center,
-            child: const Text('紐⑤뱺 ??ぉ???숈씪?⑸땲??'),
+            child: const Text('모든 항목이 동일합니다'),
           )
         : Column(
             children: visibleFields
@@ -86,12 +89,10 @@ class CompareDiffTableWidget extends StatelessWidget {
                 .toList(),
           );
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minWidth: totalWidth),
-        child: content,
-      ),
+    return HorizontalOverflowContainer(
+      controller: overflowController,
+      minWidth: totalWidth,
+      child: content,
     );
   }
 

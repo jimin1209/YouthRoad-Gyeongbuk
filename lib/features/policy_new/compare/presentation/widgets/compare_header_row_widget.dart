@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../domain/entities/policy.dart';
 import '../../models/compare_state.dart';
 import 'compare_policy_column_widget.dart';
+import '../../../../../ui/components/horizontal_overflow_container.dart';
 
 class CompareHeaderRowWidget extends StatelessWidget {
   const CompareHeaderRowWidget({
@@ -13,6 +14,7 @@ class CompareHeaderRowWidget extends StatelessWidget {
     required this.onOpenDetail,
     required this.labelWidth,
     required this.columnWidth,
+    this.overflowController,
   });
 
   final List<Policy> policies;
@@ -21,68 +23,64 @@ class CompareHeaderRowWidget extends StatelessWidget {
   final void Function(String) onOpenDetail;
   final double labelWidth;
   final double columnWidth;
+  final HorizontalOverflowController? overflowController;
 
   @override
   Widget build(BuildContext context) {
     final totalWidth = labelWidth + (columnWidth + 12) * policies.length;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minWidth: totalWidth),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: labelWidth,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    '?曥眳',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '旃措摐毳???晿氅??侅劯毳??搓碃\n脳 氩勴娂?茧 牍勱祼?愳劀 ?滉卑?????堨柎??',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            ...policies.map((policy) {
-              final recommendedLabel = insights.recommendedPolicyId == policy.id
-                  ? '於旍矞 ${insights.recommendedScore}??'
-                  : null;
-              final nearestDeadlineLabel =
-                  insights.nearestDeadlinePolicyId == policy.id
-                      ? _deadlineLabel(insights.nearestDeadlineDays)
-                      : null;
-
-              return Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: ComparePolicyColumnWidget(
-                  policy: policy,
-                  onRemove: () => onRemove(policy.id),
-                  onTap: () => onOpenDetail(policy.id),
-                  width: columnWidth,
-                  recommendedLabel: recommendedLabel,
-                  nearestDeadlineLabel: nearestDeadlineLabel,
+    return HorizontalOverflowContainer(
+      controller: overflowController,
+      minWidth: totalWidth,
+      children: [
+        SizedBox(
+          width: labelWidth,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                '비교 요약',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
                 ),
-              );
-            }),
-          ],
+              ),
+              SizedBox(height: 4),
+              Text(
+                '가로 스크롤로 정책을 비교하세요.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
         ),
-      ),
+        ...policies.map((policy) {
+          final recommendedLabel = insights.recommendedPolicyId == policy.id
+              ? '추천 ${insights.recommendedScore}점'
+              : null;
+          final nearestDeadlineLabel =
+              insights.nearestDeadlinePolicyId == policy.id
+                  ? _deadlineLabel(insights.nearestDeadlineDays)
+                  : null;
+
+          return Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: ComparePolicyColumnWidget(
+              policy: policy,
+              onRemove: () => onRemove(policy.id),
+              onTap: () => onOpenDetail(policy.id),
+              width: columnWidth,
+              recommendedLabel: recommendedLabel,
+              nearestDeadlineLabel: nearestDeadlineLabel,
+            ),
+          );
+        }),
+      ],
     );
   }
 
   String? _deadlineLabel(int? days) {
-    if (days == null) return '毵堦皭 ?勲皶';
-    if (days <= 0) return '?る姌 毵堦皭';
+    if (days == null) return '마감 정보 없음';
+    if (days <= 0) return '신청 마감';
     return 'D-$days';
   }
 }
