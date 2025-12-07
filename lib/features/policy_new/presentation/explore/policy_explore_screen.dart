@@ -11,7 +11,6 @@ import '../../application/providers.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_sort.dart';
-import '../filters/policy_filter_bar.dart';
 import '../widgets/policy_feed_list_view.dart';
 import '../widgets/policy_query_summary.dart';
 
@@ -80,7 +79,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
           children: [
             // 🔹 상단 컨트롤 영역 (검색 / 퀵 필터 / 요약)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -94,7 +93,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                         _openFilterBottomSheet(context, controller, state),
                     textController: _searchController,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   _QuickFilterChips(
                     isOngoingOnly:
                         statusFilter == PolicyStatusFilter.inProgressOnly,
@@ -111,20 +110,18 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                       }
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   PolicyQuerySummary(
                     summary: summary,
                     conditionSummary: queryState.conditionSummary,
                     onReset: controller.clearFilters,
                     onTap: () =>
                         _openFilterBottomSheet(context, controller, state),
+                    showConditionSummary: false,
                   ),
                 ],
               ),
             ),
-
-            // 🔹 탐색 상단 공통 필터 바
-            PolicyFilterBar(feedType: feedType),
 
             // 🔹 본문: 정책 리스트 (단일 스크롤)
             Expanded(
@@ -436,7 +433,10 @@ class _SearchBarRow extends StatelessWidget {
           child: TextField(
             controller: textController,
             decoration: const InputDecoration(
+              labelText: '정책 제목/키워드 검색',
               hintText: '검색어를 입력하세요',
+              prefixIcon: Icon(Icons.search),
+              isDense: true,
             ),
             textInputAction: TextInputAction.search,
             onChanged: onKeywordChanged,

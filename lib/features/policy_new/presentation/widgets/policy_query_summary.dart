@@ -7,12 +7,14 @@ class PolicyQuerySummary extends StatelessWidget {
     required this.conditionSummary,
     required this.onReset,
     this.onTap,
+    this.showConditionSummary = true,
   });
 
   final String summary;
   final String conditionSummary;
   final VoidCallback onReset;
   final VoidCallback? onTap;
+  final bool showConditionSummary;
 
   @override
   Widget build(BuildContext context) {
@@ -33,16 +35,18 @@ class PolicyQuerySummary extends StatelessWidget {
                       .bodyMedium
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  conditionSummary,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Colors.black54),
-                ),
+                if (showConditionSummary && conditionSummary.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    conditionSummary,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.black54),
+                  ),
+                ],
               ],
             ),
           ),
