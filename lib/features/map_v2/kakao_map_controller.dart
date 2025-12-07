@@ -15,6 +15,7 @@ import 'kakao_map_html_builder.dart';
 enum KakaoMapEventType {
   ready,
   markerTap,
+  markerClicked,
   mapTap,
   clusterTap,
   mapMove,
@@ -110,6 +111,7 @@ class KakaoMapEvent {
   final KakaoMapMessage message;
 
   String? get markerId => message.markerId;
+  Map<String, dynamic>? get extra => message.payload['extra'] as Map<String, dynamic>?;
   KakaoMapLatLng? get position => message.position;
   int? get level => message.level;
   bool get loadingValue => message.loadingValue;
@@ -524,6 +526,8 @@ class KakaoMapController {
         return KakaoMapEventType.ready;
       case 'marker':
         return KakaoMapEventType.markerTap;
+      case 'onMarkerClicked':
+        return KakaoMapEventType.markerClicked;
       case 'map':
         return KakaoMapEventType.mapTap;
       case 'cluster':

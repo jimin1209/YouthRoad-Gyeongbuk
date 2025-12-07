@@ -212,6 +212,16 @@ class KakaoMapHtmlBuilder {
     catch(e) { console.log('[KakaoMap][bridge error]', e); }
   }
 
+  window.flutter_inappwebview = window.flutter_inappwebview || {};
+  if (!window.flutter_inappwebview.callHandler) {
+    window.flutter_inappwebview.callHandler = function(handlerName, payload) {
+      _post({
+        type: handlerName,
+        payload: payload || {}
+      });
+    };
+  }
+
   window.kakaoBootstrap = function() {
     if (!window.kakao || !window.kakao.maps) {
       _post({type:'error',payload:{code:'sdkFail',detail:'kakao.maps not available'}});
@@ -390,9 +400,17 @@ class KakaoMapHtmlBuilder {
             payload: {
               id: m.id,
               lat: m.lat,
-              lng: m.lng
+              lng: m.lng,
+              extra: m.extra || null
             }
           });
+
+          if (m.id && m.id.indexOf('CENTER-') === 0 && window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+            window.flutter_inappwebview.callHandler('onMarkerClicked', {
+              id: m.id,
+              extra: m.extra || null
+            });
+          }
         });
 
         markers.push(mk);

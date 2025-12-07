@@ -150,10 +150,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                 ),
                 onMarkerTap: (id) {
                   debugPrint('[KakaoMap] markerTap(LOADING_CENTER) -> $id');
-                  if (!id.startsWith('CENTER-')) {
-                    context.push(RoutePaths.policyDetail(id));
+                  if (id.startsWith('CENTER-')) {
+                    debugPrint('[KakaoMap] CENTER marker tap routed to handler');
+                    return;
                   }
+                  context.push(RoutePaths.policyDetail(id));
                 },
+                onMarkerClicked: _handleCenterMarkerClicked,
                 onReady: () {
                   debugPrint('[KakaoMap] WebView Ready! (LOADING state)');
                   _setLoading(false);
@@ -232,10 +235,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                 ),
                 onMarkerTap: (id) {
                   debugPrint('[KakaoMap] markerTap(CENTER_ERROR) -> $id');
-                  if (!id.startsWith('CENTER-')) {
-                    context.push(RoutePaths.policyDetail(id));
+                  if (id.startsWith('CENTER-')) {
+                    debugPrint('[KakaoMap] CENTER marker tap routed to handler');
+                    return;
                   }
+                  context.push(RoutePaths.policyDetail(id));
                 },
+                onMarkerClicked: _handleCenterMarkerClicked,
                 onReady: () {
                   debugPrint('[KakaoMap] WebView Ready! (ERROR state)');
                   _setLoading(false);
@@ -324,12 +330,19 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         final centerMarkers = List.generate(sortedCenters.length, (index) {
           final entry = sortedCenters[index];
           final c = entry.point;
-          final markerId = 'CENTER-$index-${c.name}';
+          final markerId = 'CENTER-$index';
           return KakaoMapMarker(
             id: markerId,
             title: c.name,
             position: KakaoMapLatLng(c.lat, c.lng),
             image: centerMarkerImage,
+            extra: {
+              'name': c.name,
+              'fullAddress': c.fullAddress,
+              'phone': c.phone,
+              'url': c.url,
+              'regionLabel': c.regionLabel,
+            },
           );
         });
 
@@ -429,46 +442,14 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                 },
                 onMarkerTap: (id) {
                   if (id.startsWith('CENTER-')) {
-                    debugPrint('[YCMAP] CENTER marker tapped -> $id');
-                    final selectedName = id.replaceFirst('CENTER-', '');
-                    if (centerPoints.isEmpty) {
-                      debugPrint(
-                          '[YCMAP] CENTER marker tapped but centerPoints is empty');
-                      return;
-                    }
-                    final selected = centerPoints.firstWhere(
-                      (c) => c.name == selectedName,
-                      orElse: () {
-                        debugPrint(
-                            '[YCMAP] CENTER marker name mismatch, fallback to first center');
-                        return centerPoints.first;
-                      },
-                    );
-
-                    if (mounted) {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.white,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.vertical(top: Radius.circular(24)),
-                        ),
-                        builder: (_) => CenterDetailBottomSheet(
-                          name: selected.name,
-                          address: selected.fullAddress,
-                          phone: selected.phone,
-                          homepageUrl: selected.url,
-                          regionLabel: selected.regionLabel,
-                        ),
-                      );
-                    }
+                    debugPrint('[KakaoMap] CENTER marker tap routed to handler -> $id');
                     return;
                   }
 
                   debugPrint('[KakaoMap] POLICY marker tapped -> $id');
                   context.push(RoutePaths.policyDetail(id));
                 },
+                onMarkerClicked: _handleCenterMarkerClicked,
                 onReady: () {
                   debugPrint('[KakaoMap] WebView Ready! 지도 로딩 완료 (DATA)');
                   _setLoading(false);
@@ -830,6 +811,40 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       onPressed: _isRequestingLocation ? null : _loadInitialPosition,
       tooltip: '내 위치로 이동',
       child: const Icon(Icons.my_location),
+    );
+  }
+
+  void _handleCenterMarkerClicked(
+    String markerId,
+    Map<String, dynamic>? extra,
+  ) {
+    debugPrint('[KakaoMap] markerClicked event -> $markerId');
+    if (!mounted) return;
+    if (extra == null) {
+      debugPrint('[KakaoMap] center marker payload missing, ignoring');
+      return;
+    }
+
+    final name = extra['name']?.toString() ?? '청년센터';
+    final address = extra['fullAddress']?.toString() ?? '';
+    final phone = extra['phone']?.toString();
+    final url = extra['url']?.toString();
+    final regionLabel = extra['regionLabel']?.toString() ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => CenterDetailBottomSheet(
+        name: name,
+        address: address,
+        phone: phone,
+        homepageUrl: url,
+        regionLabel: regionLabel,
+      ),
     );
   }
 }
