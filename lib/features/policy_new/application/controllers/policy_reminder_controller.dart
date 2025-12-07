@@ -90,12 +90,7 @@ class PolicyReminderController
     final previous = state.value ?? PolicyReminderViewState.initial();
     state = AsyncData(previous.copyWith(isRefreshing: true));
 
-    final reminders =
-        await ref.read(policyReminderRepositoryProvider).getRemindersForPolicy(
-              policyId,
-            );
-
-    reminders.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    final reminders = await _fetchReminders();
 
     state = AsyncData(
       previous.copyWith(
@@ -113,37 +108,28 @@ class PolicyReminderController
     final previous = state.value ?? PolicyReminderViewState.initial();
     state = AsyncData(previous.copyWith(isMutating: true, messages: const []));
     try {
-      final currentKinds = previous.reminders
-          .where(
-              (reminder) => reminder.status == PolicyReminderStatus.scheduled)
-          .map((reminder) => reminder.timeKind)
-          .toSet();
       final nextKinds = kinds.toSet();
 
-      final toRemove = currentKinds.difference(nextKinds);
+      await _service.cancelAllByPolicy(policyId, deleteFromRepository: true);
 
-      for (final reminder in previous.reminders) {
-        if (toRemove.contains(reminder.timeKind)) {
-          await _service.cancelReminder(reminder.reminderId);
-        }
-      }
+      final result = nextKinds.isEmpty
+          ? const ReminderMutationResult(reminders: [], failures: [])
+          : await _service.createRemindersForPolicy(
+              policy,
+              nextKinds.toList(),
+            );
 
-      final result = await _service.createRemindersForPolicy(
-        policy,
-        nextKinds.toList(),
-      );
-
-      final current = [
-        ...result.reminders,
-      ]..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      final refreshed = await _fetchReminders();
 
       state = AsyncData(
-        previous.copyWith(
-          reminders: current,
+        PolicyReminderViewState(
+          reminders: refreshed,
+          isRefreshing: false,
           isMutating: false,
           messages: _messagesForResult(result),
         ),
       );
+
       return result;
     } catch (e, st) {
       await load();
@@ -163,11 +149,8 @@ class PolicyReminderController
     final previous = state.value ?? PolicyReminderViewState.initial();
     state = AsyncData(previous.copyWith(isMutating: true));
     try {
-      await _service.cancelReminder(reminderId);
-      final current = [
-        for (final reminder in previous.reminders)
-          if (reminder.reminderId != reminderId) reminder,
-      ]..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      await _service.cancelReminder(reminderId, deleteFromRepository: true);
+      final current = await _fetchReminders();
       state = AsyncData(
         previous.copyWith(
           reminders: current,
@@ -190,7 +173,10 @@ class PolicyReminderController
     final previous = state.value ?? PolicyReminderViewState.initial();
     state = AsyncData(previous.copyWith(isMutating: true));
     try {
-      await _service.cancelAllByPolicy(policyId);
+      await _service.cancelAllByPolicy(
+        policyId,
+        deleteFromRepository: true,
+      );
       state = AsyncData(
         previous.copyWith(
           reminders: const [],
@@ -285,10 +271,15 @@ class PolicyReminderController
     final failureMessages = _messagesForFailures(result.failures);
     if (failureMessages.isNotEmpty) return failureMessages;
 
-    if (result.reminders.isEmpty) {
-      return const ['알림을 예약하지 못했어요. 잠시 후 다시 시도해주세요.'];
-    }
-
     return const [];
+  }
+
+  Future<List<PolicyReminder>> _fetchReminders() async {
+    final reminders =
+        await ref.read(policyReminderRepositoryProvider).getRemindersForPolicy(
+              policyId,
+            );
+    reminders.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    return reminders;
   }
 }

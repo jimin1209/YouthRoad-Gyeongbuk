@@ -296,7 +296,10 @@ class PolicyReminderService {
     return ReminderMutationResult(reminders: reminders, failures: failures);
   }
 
-  Future<void> cancelReminder(String reminderId) async {
+  Future<void> cancelReminder(
+    String reminderId, {
+    bool deleteFromRepository = false,
+  }) async {
     final reminder = await repository.getReminder(reminderId);
     if (reminder == null || reminder.status == PolicyReminderStatus.canceled) {
       return;
@@ -310,7 +313,11 @@ class PolicyReminderService {
       updatedAt: now,
     );
 
-    await repository.upsertReminder(canceledReminder);
+    if (deleteFromRepository) {
+      await repository.deleteReminderById(reminder.reminderId);
+    } else {
+      await repository.upsertReminder(canceledReminder);
+    }
     try {
       final result = await notificationGateway.cancelReminder(reminder.reminderId);
       if (!result.success) {
@@ -327,7 +334,10 @@ class PolicyReminderService {
     ));
   }
 
-  Future<void> cancelAllByPolicy(String policyId) async {
+  Future<void> cancelAllByPolicy(
+    String policyId, {
+    bool deleteFromRepository = false,
+  }) async {
     final reminders = await repository.getRemindersForPolicy(policyId);
     try {
       final bulkResult = await notificationGateway.cancelAllForPolicy(policyId);
@@ -353,13 +363,19 @@ class PolicyReminderService {
         logger.warn('Cancel reminder threw for ${reminder.reminderId}: $e\n$st');
       }
 
-      final canceledReminder = reminder.copyWith(
-        status: PolicyReminderStatus.canceled,
-        isActive: false,
-        canceledAt: now,
-        updatedAt: now,
-      );
-      await repository.upsertReminder(canceledReminder);
+      if (!deleteFromRepository) {
+        final canceledReminder = reminder.copyWith(
+          status: PolicyReminderStatus.canceled,
+          isActive: false,
+          canceledAt: now,
+          updatedAt: now,
+        );
+        await repository.upsertReminder(canceledReminder);
+      }
+    }
+
+    if (deleteFromRepository) {
+      await repository.deleteRemindersByPolicy(policyId);
     }
     if (reminders.isNotEmpty) {
       eventBus.emit(PolicyEvent(
