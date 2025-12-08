@@ -500,17 +500,11 @@ class KakaoMapHtmlBuilder {
 
         kakao.maps.event.addListener(mk, 'click', function() {
           var isCenter = (m.id && m.id.indexOf('CENTER-') === 0);
-          var centerPayload = {
-            id: m.id,
-            lat: m.lat,
-            lng: m.lng,
-            label: m.title || ''
-          };
 
           _post({
             type: isCenter ? 'centerMarkerClick' : 'marker',
             payload: isCenter
-              ? centerPayload.id
+              ? m.id
               : {
                   id: m.id,
                   lat: m.lat,
@@ -540,11 +534,6 @@ class KakaoMapHtmlBuilder {
             }, 2000);
           }
 
-          if (m.id && m.id.indexOf('CENTER-') === 0 &&
-              window.flutter_inappwebview &&
-              window.flutter_inappwebview.callHandler) {
-            window.flutter_inappwebview.callHandler('onMarkerClicked', centerPayload);
-          }
         });
 
         kakao.maps.event.addListener(mk, 'mouseover', function() {

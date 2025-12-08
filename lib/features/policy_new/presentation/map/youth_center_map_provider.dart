@@ -122,7 +122,7 @@ final youthCenterMapProvider = FutureProvider.autoDispose
       continue;
     }
 
-    if (lat == 0 || lng == 0) {
+    if (lat == 0 || lng == 0 || lat.isNaN || lng.isNaN) {
       debugPrint('[YCMAP] ❌ Skip: 좌표가 0,0 입니다');
       continue;
     }
