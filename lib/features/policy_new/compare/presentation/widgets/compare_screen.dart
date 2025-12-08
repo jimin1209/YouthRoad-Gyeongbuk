@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../controllers/compare_diff_service.dart';
@@ -48,6 +50,8 @@ class _CompareScreenState extends State<CompareScreen> {
     final state = widget.state;
     final service = CompareDiffService();
     final labelWidth = service.labelWidth;
+    const headerMinHeight = 180.0;
+    const zoomableMinHeight = 320.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -75,20 +79,29 @@ class _CompareScreenState extends State<CompareScreen> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: CompareHeaderRowWidget(
-            policies: state.policies,
-            insights: state.insights,
-            onRemove: widget.onRemove,
-            onOpenDetail: widget.onOpenDetail,
-            labelWidth: labelWidth,
-            columnWidth: CompareScreen._columnWidth,
-            overflowController: _overflowController,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: headerMinHeight),
+            child: CompareHeaderRowWidget(
+              policies: state.policies,
+              insights: state.insights,
+              onRemove: widget.onRemove,
+              onOpenDetail: widget.onOpenDetail,
+              labelWidth: labelWidth,
+              columnWidth: CompareScreen._columnWidth,
+              overflowController: _overflowController,
+            ),
           ),
         ),
         const Divider(height: 1),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -104,51 +117,33 @@ class _CompareScreenState extends State<CompareScreen> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final scrollPhysics = _isZoomed
-                  ? const NeverScrollableScrollPhysics()
-                  : const ClampingScrollPhysics();
-              return ClipRect(
-                child: InteractiveViewer(
-                  transformationController: _transformationController,
-                  boundaryMargin: const EdgeInsets.all(48),
-                  minScale: 1.0,
-                  maxScale: 2.5,
-                  panEnabled: _isZoomed,
-                  onInteractionStart: (_) => _setZoomed(true),
-                  onInteractionUpdate: (_) => _updateZoomState(),
-                  onInteractionEnd: (_) => _updateZoomState(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                    child: SingleChildScrollView(
-                      physics: scrollPhysics,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CompareSummaryHighlight(
-                            insights: state.insights,
-                          ),
-                          const SizedBox(height: 12),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 180),
-                            child: CompareDiffTableWidget(
-                              key: ValueKey(_showDiffOnly),
-                              policies: state.policies,
-                              diffs: state.diffs,
-                              insights: state.insights,
-                              fields: service.fields,
-                              labelWidth: labelWidth,
-                              columnWidth: CompareScreen._columnWidth,
-                              showOnlyDiffs: _showDiffOnly,
-                              overflowController: _overflowController,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+              final double viewportHeight = constraints.maxHeight;
+              final double minZoomHeight =
+                  math.max(zoomableMinHeight, viewportHeight * 0.6);
+
+              return _ZoomableCompareContent(
+                summary: CompareSummaryHighlight(
+                  insights: state.insights,
+                ),
+                table: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: CompareDiffTableWidget(
+                    key: ValueKey(_showDiffOnly),
+                    policies: state.policies,
+                    diffs: state.diffs,
+                    insights: state.insights,
+                    fields: service.fields,
+                    labelWidth: labelWidth,
+                    columnWidth: CompareScreen._columnWidth,
+                    showOnlyDiffs: _showDiffOnly,
+                    overflowController: _overflowController,
                   ),
                 ),
+                isZoomed: _isZoomed,
+                minHeight: minZoomHeight,
+                onZoomStateChanged: _setZoomed,
+                onUpdateZoom: _updateZoomState,
+                transformationController: _transformationController,
               );
             },
           ),
@@ -169,5 +164,60 @@ class _CompareScreenState extends State<CompareScreen> {
     final scale = _transformationController.value.getMaxScaleOnAxis();
     final shouldEnablePan = scale > 1.01;
     _setZoomed(shouldEnablePan);
+  }
+}
+
+class _ZoomableCompareContent extends StatelessWidget {
+  const _ZoomableCompareContent({
+    required this.summary,
+    required this.table,
+    required this.isZoomed,
+    required this.minHeight,
+    required this.onZoomStateChanged,
+    required this.onUpdateZoom,
+    required this.transformationController,
+  });
+
+  final Widget summary;
+  final Widget table;
+  final bool isZoomed;
+  final double minHeight;
+  final void Function(bool) onZoomStateChanged;
+  final VoidCallback onUpdateZoom;
+  final TransformationController transformationController;
+
+  @override
+  Widget build(BuildContext context) {
+    final scrollPhysics = isZoomed
+        ? const NeverScrollableScrollPhysics()
+        : const ClampingScrollPhysics();
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minHeight),
+      child: ClipRect(
+        child: InteractiveViewer(
+          transformationController: transformationController,
+          boundaryMargin: const EdgeInsets.all(48),
+          minScale: 1.0,
+          maxScale: 2.5,
+          panEnabled: isZoomed,
+          onInteractionStart: (_) => onZoomStateChanged(true),
+          onInteractionUpdate: (_) => onUpdateZoom(),
+          onInteractionEnd: (_) => onUpdateZoom(),
+          child: SingleChildScrollView(
+            physics: scrollPhysics,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                summary,
+                const SizedBox(height: 12),
+                table,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
