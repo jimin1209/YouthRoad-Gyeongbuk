@@ -74,6 +74,12 @@ _$CenterYouthcenterItemDtoImpl _$$CenterYouthcenterItemDtoImplFromJson(
       stdgCtpvCdNm: json['stdgCtpvCdNm'] as String?,
       stdgSggCd: json['stdgSggCd'] as String?,
       stdgSggCdNm: json['stdgSggCdNm'] as String?,
+      geocodedLat: json['geocoded_lat'] is String
+          ? double.tryParse(json['geocoded_lat'] as String)
+          : (json['geocoded_lat'] as num?)?.toDouble(),
+      geocodedLng: json['geocoded_lng'] is String
+          ? double.tryParse(json['geocoded_lng'] as String)
+          : (json['geocoded_lng'] as num?)?.toDouble(),
     );
 
 Map<String, dynamic> _$$CenterYouthcenterItemDtoImplToJson(
@@ -89,4 +95,6 @@ Map<String, dynamic> _$$CenterYouthcenterItemDtoImplToJson(
       'stdgCtpvCdNm': instance.stdgCtpvCdNm,
       'stdgSggCd': instance.stdgSggCd,
       'stdgSggCdNm': instance.stdgSggCdNm,
+      'geocoded_lat': instance.geocodedLat,
+      'geocoded_lng': instance.geocodedLng,
     };

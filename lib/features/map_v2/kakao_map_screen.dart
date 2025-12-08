@@ -73,6 +73,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   bool _mapReady = false;
   _PendingMove? _pendingMove;
   _PendingHighlight? _pendingHighlight;
+  String? _activeCenterSheetId;
 
   @override
   void initState() {
@@ -213,6 +214,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   right: 16,
                   child: _buildErrorBanner(),
                 ),
+              if (_isRequestingLocation)
+                Positioned(
+                  top: 72,
+                  left: 16,
+                  right: 16,
+                  child: _buildLocationLoadingBanner(),
+                ),
               if (_locationError != null) _buildLocationErrorBanner(),
               Positioned(
                 left: 0,
@@ -295,6 +303,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   right: 16,
                   child: _buildErrorBanner(),
                 ),
+              if (_isRequestingLocation)
+                Positioned(
+                  top: 72,
+                  left: 16,
+                  right: 16,
+                  child: _buildLocationLoadingBanner(),
+                ),
               if (_locationError != null) _buildLocationErrorBanner(),
               Positioned(
                 left: 0,
@@ -338,15 +353,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         final sortedCenterPoints =
             sortedCenters.map((entry) => entry.point).toList();
 
-        final hasNewCenters = sortedCenterPoints.isNotEmpty;
-        final visibleCenterPoints =
-            hasNewCenters ? sortedCenterPoints : _cachedCenterPoints;
-
-        if (hasNewCenters) {
-          _cachedCenterPoints = sortedCenterPoints;
-        } else if (_cachedCenterPoints.isNotEmpty) {
-          debugPrint('[YCMAP] 새 데이터 없음 → 캐시된 센터 마커 유지');
-        }
+        final visibleCenterPoints = sortedCenterPoints;
+        _cachedCenterPoints = sortedCenterPoints;
 
         final centerIconBase64 =
             _centerMarkerIconBase64 ?? _centerMarkerFallbackBase64;
@@ -1044,6 +1052,28 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     );
   }
 
+  Widget _buildLocationLoadingBanner() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black87,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Row(
+        children: [
+          CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '현재 위치 확인중...',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGpsButton() {
     return FloatingActionButton(
       heroTag: 'kakao_map_gps',
@@ -1115,60 +1145,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   void _handleMapMoved(KakaoMapLatLng center, int zoom) {
     debugPrint('[YCMAP] onMapMoved center=(${center.lat}, ${center.lng}) zoom=$zoom');
-    _latestCenter = center;
+    _latestCenter ??= center;
     _latestZoom = zoom;
 
-    unawaited(_updateSearchCircle(center));
-
-    final nextRequest = CenterFetchRequest(
-      lat: center.lat,
-      lng: center.lng,
-      radiusKm: kCenterRangeKm,
-    );
-
-    if (_currentRequest == nextRequest) {
-      debugPrint('[YCMAP] onMapMoved → 요청 변경 없음, provider refresh 생략');
-      return;
-    }
-
-    _moveDebounce?.cancel();
-    debugPrint(
-      '[YCMAP] onMapMoved → debounce ${_debounceMs}ms 후 CenterFetchRequest 갱신 예정',
-    );
-
-    _moveDebounce = Timer(
-      const Duration(milliseconds: _debounceMs),
-      () {
-        if (!mounted) return;
-        debugPrint(
-          '[YCMAP] debounce 완료 → provider 재요청 '
-          'CenterFetchRequest(lat=${nextRequest.lat}, lng=${nextRequest.lng}, radius=${nextRequest.radiusKm})',
-        );
-
-        setState(() {
-          _currentRequest = nextRequest;
-        });
-
-        ref.refresh(youthCenterMapProvider(nextRequest));
-        final req = CenterFetchRequest(
-          lat: center.lat,
-          lng: center.lng,
-          radiusKm: kCenterRangeKm,
-        );
-        debugPrint(
-          '[YCMAP] debounce 완료 → provider 재요청 '
-          'CenterFetchRequest(lat=${req.lat}, lng=${req.lng}, radius=${req.radiusKm})',
-        );
-
-        setState(() {
-          _currentRequest = req;
-        });
-
-        final circleCenter = _deviceLocation ?? center;
-        unawaited(_updateSearchCircle(circleCenter));
-        ref.refresh(youthCenterMapProvider(req));
-      },
-    );
+    debugPrint('[YCMAP] onMapMoved → 데이터 요청/반경 갱신 없이 지도만 이동');
   }
 
   void _onWebViewLoadingChanged(bool isLoading) {
@@ -1317,11 +1297,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       position,
       tooltipName: center.name,
     );
-    await _updateSearchCircle(position);
-    ref.refresh(youthCenterMapProvider(request));
-    await _highlightCenterMarker(markerId, position);
     _showMarkerTooltip(center.name);
     _showCenterDetailSheet(
+      markerId: markerId,
       name: center.name,
       address: center.fullAddress,
       phone: center.phone,
@@ -1357,6 +1335,7 @@ Future<void> _highlightCenterMarker(
 }
 
   void _showCenterDetailSheet({
+    required String markerId,
     required String name,
     required String address,
     String? phone,
@@ -1364,6 +1343,12 @@ Future<void> _highlightCenterMarker(
     required String regionLabel,
   }) {
     if (!mounted) return;
+    if (_activeCenterSheetId == markerId) {
+      debugPrint('[KakaoMap] 동일 마커 시트가 이미 열려 있어 무시');
+      return;
+    }
+
+    _activeCenterSheetId = markerId;
 
     showModalBottomSheet(
       context: context,
@@ -1379,7 +1364,12 @@ Future<void> _highlightCenterMarker(
         homepageUrl: homepageUrl,
         regionLabel: regionLabel,
       ),
-    );
+    ).whenComplete(() {
+      if (!mounted) return;
+      setState(() {
+        _activeCenterSheetId = null;
+      });
+    });
   }
 
   void _showMarkerTooltip(String name) {
@@ -1400,22 +1390,36 @@ Future<void> _highlightCenterMarker(
     Map<String, dynamic>? extra,
   ) {
     debugPrint('[KakaoMap] markerClicked event -> $markerId');
-    if (extra == null) {
+    final normalizedId = markerId.replaceFirst('CENTER-', '');
+    final candidate = _cachedCenterPoints.firstWhere(
+      (c) => c.id == normalizedId || 'CENTER-${c.id}' == markerId,
+      orElse: () => const CenterMarkerPoint(
+        id: '',
+        name: '',
+        rawAddress: '',
+        lat: 0,
+        lng: 0,
+        fullAddress: '',
+        phone: null,
+        url: null,
+        regionLabel: '',
+      ),
+    );
+
+    if (candidate.id.isEmpty) {
       debugPrint('[KakaoMap] center marker payload missing, ignoring');
       return;
     }
 
-    final tooltipName = extra['name']?.toString();
-    if (tooltipName != null && tooltipName.isNotEmpty) {
-      _showMarkerTooltip(tooltipName);
-    }
+    _showMarkerTooltip(candidate.name);
 
     _showCenterDetailSheet(
-      name: extra['name']?.toString() ?? '청년센터',
-      address: extra['fullAddress']?.toString() ?? '',
-      phone: extra['phone']?.toString(),
-      homepageUrl: extra['url']?.toString(),
-      regionLabel: extra['regionLabel']?.toString() ?? '',
+      markerId: markerId,
+      name: candidate.name,
+      address: candidate.fullAddress,
+      phone: candidate.phone,
+      homepageUrl: candidate.url,
+      regionLabel: candidate.regionLabel,
     );
   }
 

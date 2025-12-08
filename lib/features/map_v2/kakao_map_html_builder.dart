@@ -160,6 +160,19 @@ class KakaoMapHtmlBuilder {
     };
 
     final initJson = jsonEncode(payload);
+    final centerMarkerList = jsonEncode(
+      markers
+          .where((m) => m.id.startsWith('CENTER-'))
+          .map(
+            (m) => {
+              'id': m.id,
+              'lat': m.position.lat,
+              'lng': m.position.lng,
+              'label': m.title ?? '',
+            },
+          )
+          .toList(),
+    );
 
     return '''
 <!DOCTYPE html>
@@ -206,9 +219,10 @@ class KakaoMapHtmlBuilder {
 </style>
 
 <script>
-  const SEARCH_RADIUS_METERS = 40000;
+  const SEARCH_RADIUS_METERS = 20000;
   const USER_DOT_BASE64 = 'USER_DOT_BASE64_PLACEHOLDER';
   const CENTER_MARKER_BASE64 = 'CENTER_MARKER_BASE64_PLACEHOLDER';
+  const center_marker_list = $centerMarkerList;
 
   function _post(msg) {
     try {
@@ -485,25 +499,37 @@ class KakaoMapHtmlBuilder {
         mk.setMap(map);
 
         kakao.maps.event.addListener(mk, 'click', function() {
+          var isCenter = (m.id && m.id.indexOf('CENTER-') === 0);
+          var centerPayload = {
+            id: m.id,
+            lat: m.lat,
+            lng: m.lng,
+            label: m.title || ''
+          };
+
           _post({
-            type: 'marker',
-            payload: {
-              id: m.id,
-              lat: m.lat,
-              lng: m.lng,
-              extra: m.extra || null
-            }
+            type: isCenter ? 'centerMarkerClick' : 'marker',
+            payload: isCenter
+              ? centerPayload.id
+              : {
+                  id: m.id,
+                  lat: m.lat,
+                  lng: m.lng,
+                  extra: m.extra || null
+                }
           });
 
-          sendMessage({
-            type: 'marker_click',
-            payload: {
-              id: m.id,
-              name: m.title || '',
-              lat: m.lat,
-              lng: m.lng
-            }
-          });
+          if (!isCenter) {
+            sendMessage({
+              type: 'marker_click',
+              payload: {
+                id: m.id,
+                name: m.title || '',
+                lat: m.lat,
+                lng: m.lng
+              }
+            });
+          }
 
           if (window.app && window.app.showMarkerTooltip) {
             window.app.showMarkerTooltip(m.id, m.title, m.lat, m.lng);
@@ -517,10 +543,7 @@ class KakaoMapHtmlBuilder {
           if (m.id && m.id.indexOf('CENTER-') === 0 &&
               window.flutter_inappwebview &&
               window.flutter_inappwebview.callHandler) {
-            window.flutter_inappwebview.callHandler('onMarkerClicked', {
-              id: m.id,
-              extra: m.extra || null
-            });
+            window.flutter_inappwebview.callHandler('onMarkerClicked', centerPayload);
           }
         });
 

@@ -615,6 +615,8 @@ mixin _$CenterYouthcenterItemDto {
   String? get stdgCtpvCdNm => throw _privateConstructorUsedError;
   String? get stdgSggCd => throw _privateConstructorUsedError;
   String? get stdgSggCdNm => throw _privateConstructorUsedError;
+  double? get geocodedLat => throw _privateConstructorUsedError;
+  double? get geocodedLng => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -638,7 +640,9 @@ abstract class $CenterYouthcenterItemDtoCopyWith<$Res> {
       String? stdgCtpvCd,
       String? stdgCtpvCdNm,
       String? stdgSggCd,
-      String? stdgSggCdNm});
+      String? stdgSggCdNm,
+      double? geocodedLat,
+      double? geocodedLng});
 }
 
 /// @nodoc
@@ -665,6 +669,8 @@ class _$CenterYouthcenterItemDtoCopyWithImpl<$Res,
     Object? stdgCtpvCdNm = freezed,
     Object? stdgSggCd = freezed,
     Object? stdgSggCdNm = freezed,
+    Object? geocodedLat = freezed,
+    Object? geocodedLng = freezed,
   }) {
     return _then(_value.copyWith(
       cntrSn: freezed == cntrSn
@@ -707,6 +713,14 @@ class _$CenterYouthcenterItemDtoCopyWithImpl<$Res,
           ? _value.stdgSggCdNm
           : stdgSggCdNm // ignore: cast_nullable_to_non_nullable
               as String?,
+      geocodedLat: freezed == geocodedLat
+          ? _value.geocodedLat
+          : geocodedLat // ignore: cast_nullable_to_non_nullable
+              as double?,
+      geocodedLng: freezed == geocodedLng
+          ? _value.geocodedLng
+          : geocodedLng // ignore: cast_nullable_to_non_nullable
+              as double?,
     ) as $Val);
   }
 }
@@ -730,7 +744,9 @@ abstract class _$$CenterYouthcenterItemDtoImplCopyWith<$Res>
       String? stdgCtpvCd,
       String? stdgCtpvCdNm,
       String? stdgSggCd,
-      String? stdgSggCdNm});
+      String? stdgSggCdNm,
+      double? geocodedLat,
+      double? geocodedLng});
 }
 
 /// @nodoc
@@ -756,6 +772,8 @@ class __$$CenterYouthcenterItemDtoImplCopyWithImpl<$Res>
     Object? stdgCtpvCdNm = freezed,
     Object? stdgSggCd = freezed,
     Object? stdgSggCdNm = freezed,
+    Object? geocodedLat = freezed,
+    Object? geocodedLng = freezed,
   }) {
     return _then(_$CenterYouthcenterItemDtoImpl(
       cntrSn: freezed == cntrSn
@@ -798,6 +816,14 @@ class __$$CenterYouthcenterItemDtoImplCopyWithImpl<$Res>
           ? _value.stdgSggCdNm
           : stdgSggCdNm // ignore: cast_nullable_to_non_nullable
               as String?,
+      geocodedLat: freezed == geocodedLat
+          ? _value.geocodedLat
+          : geocodedLat // ignore: cast_nullable_to_non_nullable
+              as double?,
+      geocodedLng: freezed == geocodedLng
+          ? _value.geocodedLng
+          : geocodedLng // ignore: cast_nullable_to_non_nullable
+              as double?,
     ));
   }
 }
@@ -815,7 +841,9 @@ class _$CenterYouthcenterItemDtoImpl implements _CenterYouthcenterItemDto {
       this.stdgCtpvCd,
       this.stdgCtpvCdNm,
       this.stdgSggCd,
-      this.stdgSggCdNm});
+      this.stdgSggCdNm,
+      this.geocodedLat,
+      this.geocodedLng});
 
   factory _$CenterYouthcenterItemDtoImpl.fromJson(Map<String, dynamic> json) =>
       _$$CenterYouthcenterItemDtoImplFromJson(json);
@@ -840,10 +868,14 @@ class _$CenterYouthcenterItemDtoImpl implements _CenterYouthcenterItemDto {
   final String? stdgSggCd;
   @override
   final String? stdgSggCdNm;
+  @override
+  final double? geocodedLat;
+  @override
+  final double? geocodedLng;
 
   @override
   String toString() {
-    return 'CenterYouthcenterItemDto(cntrSn: $cntrSn, cntrNm: $cntrNm, cntrAddr: $cntrAddr, cntrDaddr: $cntrDaddr, cntrTelno: $cntrTelno, cntrUrlAddr: $cntrUrlAddr, stdgCtpvCd: $stdgCtpvCd, stdgCtpvCdNm: $stdgCtpvCdNm, stdgSggCd: $stdgSggCd, stdgSggCdNm: $stdgSggCdNm)';
+    return 'CenterYouthcenterItemDto(cntrSn: $cntrSn, cntrNm: $cntrNm, cntrAddr: $cntrAddr, cntrDaddr: $cntrDaddr, cntrTelno: $cntrTelno, cntrUrlAddr: $cntrUrlAddr, stdgCtpvCd: $stdgCtpvCd, stdgCtpvCdNm: $stdgCtpvCdNm, stdgSggCd: $stdgSggCd, stdgSggCdNm: $stdgSggCdNm, geocodedLat: $geocodedLat, geocodedLng: $geocodedLng)';
   }
 
   @override
@@ -868,7 +900,11 @@ class _$CenterYouthcenterItemDtoImpl implements _CenterYouthcenterItemDto {
             (identical(other.stdgSggCd, stdgSggCd) ||
                 other.stdgSggCd == stdgSggCd) &&
             (identical(other.stdgSggCdNm, stdgSggCdNm) ||
-                other.stdgSggCdNm == stdgSggCdNm));
+                other.stdgSggCdNm == stdgSggCdNm) &&
+            (identical(other.geocodedLat, geocodedLat) ||
+                other.geocodedLat == geocodedLat) &&
+            (identical(other.geocodedLng, geocodedLng) ||
+                other.geocodedLng == geocodedLng));
   }
 
   @JsonKey(ignore: true)
@@ -884,7 +920,9 @@ class _$CenterYouthcenterItemDtoImpl implements _CenterYouthcenterItemDto {
       stdgCtpvCd,
       stdgCtpvCdNm,
       stdgSggCd,
-      stdgSggCdNm);
+      stdgSggCdNm,
+      geocodedLat,
+      geocodedLng);
 
   @JsonKey(ignore: true)
   @override
@@ -912,7 +950,9 @@ abstract class _CenterYouthcenterItemDto implements CenterYouthcenterItemDto {
       final String? stdgCtpvCd,
       final String? stdgCtpvCdNm,
       final String? stdgSggCd,
-      final String? stdgSggCdNm}) = _$CenterYouthcenterItemDtoImpl;
+      final String? stdgSggCdNm,
+      final double? geocodedLat,
+      final double? geocodedLng}) = _$CenterYouthcenterItemDtoImpl;
 
   factory _CenterYouthcenterItemDto.fromJson(Map<String, dynamic> json) =
       _$CenterYouthcenterItemDtoImpl.fromJson;
@@ -937,6 +977,10 @@ abstract class _CenterYouthcenterItemDto implements CenterYouthcenterItemDto {
   String? get stdgSggCd;
   @override
   String? get stdgSggCdNm;
+  @override
+  double? get geocodedLat;
+  @override
+  double? get geocodedLng;
   @override
   @JsonKey(ignore: true)
   _$$CenterYouthcenterItemDtoImplCopyWith<_$CenterYouthcenterItemDtoImpl>
