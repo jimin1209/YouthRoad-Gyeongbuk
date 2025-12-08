@@ -17,6 +17,7 @@ import 'policy_list_error.dart';
 import 'policy_list_loading.dart';
 import 'policy_list_skeleton.dart';
 import 'policy_search_empty_view.dart';
+import '../../../../ui/common/empty_result_view.dart';
 
 class PolicyFeedListView extends ConsumerStatefulWidget {
   const PolicyFeedListView({
@@ -118,17 +119,18 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
         feedType: widget.feedType,
       );
     } else if (!state.isLoading && visibleItems.isEmpty) {
-      final emptyMessage = widget.feedType == PolicyFeedType.favorite
-          ? '즐겨찾기한 정책이 없습니다.\n마음에 드는 정책의 하트 버튼을 눌러 저장해보세요.'
-          : '조건에 맞는 정책이 없습니다.\n${queryState.conditionSummary} 조건을 조정해보세요.';
-
-      content = PolicyListEmpty(
-        key: const ValueKey('policy-list-empty'),
-        message: emptyMessage,
-        summary: widget.feedType == PolicyFeedType.favorite
-            ? null
-            : queryState.summary,
-      );
+      if (widget.feedType == PolicyFeedType.favorite) {
+        content = PolicyListEmpty(
+          key: const ValueKey('policy-list-empty-favorite'),
+          message:
+              '즐겨찾기한 정책이 없습니다.\n마음에 드는 정책의 하트 버튼을 눌러 저장해보세요.',
+          summary: null,
+        );
+      } else {
+        content = const EmptyResultView(
+          key: ValueKey('policy-list-empty-standard'),
+        );
+      }
     } else {
       content = RefreshIndicator(
         key: const ValueKey('policy-list-content'),
