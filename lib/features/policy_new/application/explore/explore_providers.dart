@@ -7,6 +7,7 @@ import 'explore_state.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_sort.dart';
 import '../../domain/values/policy_feed_type.dart';
+import '../../domain/values/policy_status_filter.dart';
 import '../reexplore/policy_reexplore.dart';
 
 final exploreStateProvider =
@@ -59,11 +60,7 @@ class ExploreController extends StateNotifier<ExploreState> {
   void setStatusFilter(PolicyStatusFilter filter) {
     debugPrint('[Explore] setStatus: $filter');
     final filterNotifier = ref.read(globalFilterProvider.notifier);
-    final current = ref.read(globalFilterProvider).showOnlyOngoing;
-    final shouldBeOngoingOnly = filter == PolicyStatusFilter.inProgressOnly;
-    if (shouldBeOngoingOnly != current) {
-      filterNotifier.toggleOngoingOnly();
-    }
+    filterNotifier.setStatus(filter);
   }
 
   void setSortKind(PolicySortKind sortKind) {

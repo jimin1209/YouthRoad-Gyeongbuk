@@ -10,6 +10,7 @@ import '../../domain/entities/institution.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_region.dart';
+import '../../domain/values/policy_status_filter.dart';
 import '../../../../application/notifiers/region_notifier.dart';
 import 'widgets/region_selector_section.dart';
 
@@ -31,7 +32,7 @@ class _PolicyFilterBottomSheetState
   late PolicyRegion _region;
   PolicyCategory? _category;
   bool _showOnlyOnline = false;
-  bool _showOnlyOngoing = false;
+  PolicyStatusFilter _status = PolicyStatusFilter.includeClosed;
   String? _institutionId;
   String? _institutionName;
   String? _departmentId;
@@ -45,7 +46,7 @@ class _PolicyFilterBottomSheetState
     _region = ui.region;
     _category = ui.category;
     _showOnlyOnline = ui.showOnlyOnline;
-    _showOnlyOngoing = ui.showOnlyOngoing;
+    _status = ui.status;
     _institutionId = ui.institutionId?.isEmpty == true ? null : ui.institutionId;
     _institutionName = ui.institutionName;
     _departmentId = ui.departmentId?.isEmpty == true ? null : ui.departmentId;
@@ -72,147 +73,160 @@ class _PolicyFilterBottomSheetState
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return SizedBox(
-      width: double.infinity,
-      child: SafeArea(
-        top: false,
-        child: Container(
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                child: Row(
-                  children: [
-                    Text(
-                      '필터',
-                      style: textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SafeArea(
+          top: false,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              const Divider(height: 1),
-              Flexible(
-                child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SelectedFiltersSummary(
-                        items: _buildSelectedItems(),
-                        onRemove: _removeSelectedFilter,
-                      ),
-                      const SizedBox(height: 20),
-                      Text('모집 상태',
-                          style: textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 10),
-                      _buildToggleGroup(context),
-                      const SizedBox(height: 20),
-                    Text('지역',
-                        style: textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 10),
-                    const RegionSelectorSection(),
-                    const SizedBox(height: 20),
-                      Text('카테고리',
-                          style: textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 10),
-                      _buildFilterChipGroup<PolicyCategory?>(
-                        values: [null, ...PolicyCategory.values],
-                        labelBuilder: _categoryLabel,
-                        isSelected: (category) => category == _category,
-                        onTap: (category) {
-                          setState(() => _category = category);
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      Text('주관 기관',
-                          style: textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 10),
-                      institutions.when(
-                        data: (list) => _buildInstitutionChips(list),
-                        loading: () => const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: LinearProgressIndicator(),
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    child: Row(
+                      children: [
+                        Text(
+                          '필터',
+                          style: textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
-                        error: (err, __) => Text('기관 목록 불러오기 실패: $err'),
-                      ),
-                      const SizedBox(height: 20),
-                      Text('담당 부서',
-                          style: textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 10),
-                      departments.when(
-                        data: (list) => _buildDepartmentChips(list),
-                        loading: () => const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: LinearProgressIndicator(),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close),
                         ),
-                        error: (err, __) => Text('부서 목록 불러오기 실패: $err'),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                decoration: BoxDecoration(
-                  color: scheme.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: scheme.shadow.withOpacity(0.06),
-                      blurRadius: 12,
-                      offset: const Offset(0, -4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _resetFilters,
-                        child: const Text('초기화'),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SelectedFiltersSummary(
+                            items: _buildSelectedItems(),
+                            onRemove: _removeSelectedFilter,
+                          ),
+                          const SizedBox(height: 20),
+                          Text('모집 상태',
+                              style: textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 10),
+                          _buildToggleGroup(context),
+                          const SizedBox(height: 20),
+                          Text('지역',
+                              style: textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 10),
+                          const RegionSelectorSection(),
+                          const SizedBox(height: 20),
+                          Text('카테고리',
+                              style: textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 10),
+                          _buildFilterChipGroup<PolicyCategory?>(
+                            values: [null, ...PolicyCategory.values],
+                            labelBuilder: _categoryLabel,
+                            isSelected: (category) => category == _category,
+                            onTap: (category) {
+                              setState(() => _category = category);
+                            },
+                          ),
+                          const SizedBox(height: 20),
+                          Text('주관 기관',
+                              style: textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 10),
+                          institutions.when(
+                            data: (list) => _buildInstitutionChips(list),
+                            loading: () => const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: LinearProgressIndicator(),
+                            ),
+                            error: (err, __) => Text('기관 목록 불러오기 실패: $err'),
+                          ),
+                          const SizedBox(height: 20),
+                          Text('담당 부서',
+                              style: textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 10),
+                          departments.when(
+                            data: (list) => _buildDepartmentChips(list),
+                            loading: () => const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: LinearProgressIndicator(),
+                            ),
+                            error: (err, __) =>
+                                Text('부서 목록 불러오기 실패: $err'),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _applyFilters,
-                        child: const Text('필터 적용'),
-                      ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      boxShadow: [
+                        BoxShadow(
+                          color: scheme.shadow.withOpacity(0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, -4),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _resetFilters,
+                            child: const Text('초기화'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _applyFilters,
+                            child: const Text('필터 적용'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   List<_SelectedFilterItem> _buildSelectedItems() {
     final items = <_SelectedFilterItem>[];
 
-    if (_showOnlyOngoing) {
+    if (_status == PolicyStatusFilter.inProgressOnly) {
       items.add(const _SelectedFilterItem(
         label: '모집 중',
-        type: _FilterType.ongoing,
+        type: _FilterType.status,
+      ));
+    } else if (_status == PolicyStatusFilter.closedOnly) {
+      items.add(const _SelectedFilterItem(
+        label: '마감된 정책',
+        type: _FilterType.status,
       ));
     }
 
@@ -256,8 +270,8 @@ class _PolicyFilterBottomSheetState
   void _removeSelectedFilter(_FilterType type) {
     setState(() {
       switch (type) {
-        case _FilterType.ongoing:
-          _showOnlyOngoing = false;
+        case _FilterType.status:
+          _status = PolicyStatusFilter.includeClosed;
           break;
         case _FilterType.online:
           _showOnlyOnline = false;
@@ -290,9 +304,24 @@ class _PolicyFilterBottomSheetState
       children: [
         _ToggleChip(
           label: '모집 중인 정책만',
-          value: _showOnlyOngoing,
+          value: _status == PolicyStatusFilter.inProgressOnly,
           onChanged: (value) {
-            setState(() => _showOnlyOngoing = value);
+            setState(() {
+              _status = value
+                  ? PolicyStatusFilter.inProgressOnly
+                  : PolicyStatusFilter.includeClosed;
+            });
+          },
+        ),
+        _ToggleChip(
+          label: '마감된 정책만',
+          value: _status == PolicyStatusFilter.closedOnly,
+          onChanged: (value) {
+            setState(() {
+              _status = value
+                  ? PolicyStatusFilter.closedOnly
+                  : PolicyStatusFilter.includeClosed;
+            });
           },
         ),
         _ToggleChip(
@@ -383,11 +412,12 @@ class _PolicyFilterBottomSheetState
 
   void _resetFilters() {
     ref.read(globalFilterControllerProvider).resetAll();
+    ref.read(regionProvider.notifier).resetCity();
     setState(() {
-      _region = PolicyRegion.all;
+      _region = PolicyRegion.gyeongbuk;
       _category = null;
       _showOnlyOnline = false;
-      _showOnlyOngoing = false;
+      _status = PolicyStatusFilter.includeClosed;
       _institutionId = null;
       _institutionName = null;
       _departmentId = null;
@@ -416,8 +446,8 @@ class _PolicyFilterBottomSheetState
       hasChanged = true;
     }
 
-    if (current.showOnlyOngoing != _showOnlyOngoing) {
-      notifier.toggleOngoingOnly();
+    if (current.status != _status) {
+      notifier.setStatus(_status);
       hasChanged = true;
     }
 
@@ -689,7 +719,7 @@ class _SelectedFilterItem {
 }
 
 enum _FilterType {
-  ongoing,
+  status,
   online,
   region,
   category,

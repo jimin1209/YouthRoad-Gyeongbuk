@@ -1,5 +1,6 @@
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_sort.dart';
+import '../../domain/values/policy_status_filter.dart';
 import 'policy_filter_ui_state.dart';
 
 String buildPolicyFilterSummary(
@@ -27,9 +28,8 @@ String buildPolicyFilterSummary(
     buffer.write(' · 기관 필터 적용');
   }
 
-  if (filter.showOnlyOngoing) {
-    buffer.write(' · 모집중만');
-  }
+  final statusLabel = _statusLabel(filter.status);
+  if (statusLabel != null) buffer.write(' · $statusLabel');
 
   if (filter.showOnlyOnline) {
     buffer.write(' · 온라인 참여');
@@ -67,9 +67,8 @@ String buildPolicyFilterConditionSummary(
     parts.add('기관 필터 적용');
   }
 
-  if (filter.showOnlyOngoing) {
-    parts.add('모집중만');
-  }
+  final statusCondition = _statusLabel(filter.status);
+  if (statusCondition != null) parts.add(statusCondition);
 
   if (filter.showOnlyOnline) {
     parts.add('온라인 참여');
@@ -111,5 +110,16 @@ String _sortLabel(PolicySortOption sort) {
       return '마감임박';
     case PolicySortOption.popularity:
       return '인기순';
+  }
+}
+
+String? _statusLabel(PolicyStatusFilter status) {
+  switch (status) {
+    case PolicyStatusFilter.inProgressOnly:
+      return '모집중만';
+    case PolicyStatusFilter.includeClosed:
+      return null;
+    case PolicyStatusFilter.closedOnly:
+      return '마감된 정책';
   }
 }

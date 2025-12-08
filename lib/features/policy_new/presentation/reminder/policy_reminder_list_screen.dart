@@ -38,7 +38,7 @@ class PolicyReminderListScreen extends ConsumerWidget {
               Expanded(
                 child: hasData
                     ? RefreshIndicator(
-                        onRefresh: controller.load,
+                        onRefresh: () => controller.load(preserveError: false),
                         child: ListView(
                           children: [
                             if (centerState.upcoming.isNotEmpty) ...[
@@ -84,7 +84,7 @@ class PolicyReminderListScreen extends ConsumerWidget {
                         ),
                       )
                     : RefreshIndicator(
-                        onRefresh: controller.load,
+                        onRefresh: () => controller.load(preserveError: false),
                         child: ListView(
                           children: const [
                             SizedBox(height: 120),

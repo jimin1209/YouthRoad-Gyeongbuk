@@ -148,7 +148,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         '[NotificationGateway] permission denied for ${reminder.reminderId} (${reminder.policyId})',
       );
       return ScheduleResult.failure(
-        const ScheduleFailure(
+        ScheduleFailure(
           type: ScheduleFailureType.permissionDenied,
           message: 'Notification permission denied',
           code: ScheduleFailureCode.permissionDenied,
@@ -163,7 +163,7 @@ class FlutterLocalNotificationGateway implements NotificationGateway {
         '[NotificationGateway] invalid past time for ${reminder.reminderId} (${reminder.policyId}) at $scheduledLocal',
       );
       return ScheduleResult.failure(
-        const ScheduleFailure(
+        ScheduleFailure(
           type: ScheduleFailureType.invalidDate,
           message: 'Scheduled time is already in the past',
           code: ScheduleFailureCode.pastTime,

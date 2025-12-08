@@ -14,6 +14,7 @@ import '../../domain/values/policy_sort.dart';
 import '../../domain/values/policy_result.dart';
 import '../../domain/values/policy_settings.dart';
 import '../../domain/values/policy_feed_type.dart';
+import '../../domain/values/policy_status_filter.dart';
 import '../cache/policy_cache.dart';
 import '../sources/policy_remote_source.dart';
 
@@ -335,17 +336,39 @@ class PolicyRepositoryImpl implements PolicyRepository {
       query.feedType == PolicyFeedType.compare;
 
   List<Policy> _applyStatusFilter(PolicyFilter filter, List<Policy> list) {
-    if (filter.isOngoing != true) return list;
+    if (filter.status == PolicyStatusFilter.includeClosed) return list;
 
-    final now = DateTime.now();
-    return list.where((policy) {
+    final nowKst = DateTime.now().toUtc().add(const Duration(hours: 9));
+    final today = DateTime(nowKst.year, nowKst.month, nowKst.day);
+
+    bool isOngoing(Policy policy) {
       final start = policy.applicationStartDate;
       final end = policy.applicationEndDate;
-      if (start == null || end == null) return false;
 
-      final hasStarted = !start.isAfter(now);
-      final notEnded = !end.isBefore(now);
+      final startDate = start == null
+          ? null
+          : DateTime(start.year, start.month, start.day);
+      final endDate = end == null
+          ? null
+          : DateTime(end.year, end.month, end.day);
+
+      final hasStarted = startDate == null || !startDate.isAfter(today);
+      final notEnded = endDate == null || !endDate.isBefore(today);
       return hasStarted && notEnded;
+    }
+
+    bool isClosed(Policy policy) {
+      final end = policy.applicationEndDate;
+      if (end == null) return false;
+      final endDate = DateTime(end.year, end.month, end.day);
+      return endDate.isBefore(today);
+    }
+
+    return list.where((policy) {
+      if (filter.status == PolicyStatusFilter.inProgressOnly) {
+        return isOngoing(policy);
+      }
+      return isClosed(policy);
     }).toList();
   }
 

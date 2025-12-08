@@ -48,35 +48,9 @@ class PolicyReminderButton extends ConsumerWidget {
 
         return _ReminderSheetButton(
           policy: policy,
-          viewState: viewState,
           activeOptions: activeOptions,
           activeReminders: activeReminders,
           hasActiveReminders: hasActiveReminders,
-          onToggleOption: (option, enabled) async {
-            final next = {...activeOptions};
-            if (enabled) {
-              next.add(option);
-            } else {
-              next.remove(option);
-            }
-            final result = await controller.setReminders(policy, next.toList());
-            if (result.hasFailure && context.mounted) {
-              final messages = controller.state.value?.messages ?? [];
-              final message =
-                  messages.isNotEmpty ? messages.first : '알림을 설정하지 못했어요.';
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(message)),
-              );
-            }
-          },
-          onRemove: (reminderId) => controller.removeReminder(reminderId),
-          onOpenOptions: () => _selectOptions(context, activeOptions).then(
-            (selected) async {
-              if (selected == null) return;
-              await controller.setReminders(policy, selected.toList());
-            },
-          ),
-          onCancelAll: () => controller.cancelAll(),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -85,93 +59,20 @@ class PolicyReminderButton extends ConsumerWidget {
     );
   }
 
-  Future<Set<ReminderTimeKind>?> _selectOptions(
-    BuildContext context,
-    Set<ReminderTimeKind> current,
-  ) async {
-    return showModalBottomSheet<Set<ReminderTimeKind>>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        final selected = {...current};
-        return SafeArea(
-          child: StatefulBuilder(
-            builder: (context, setState) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final option in ReminderTimeKind.values)
-                      CheckboxListTile(
-                        value: selected.contains(option),
-                        onChanged: (value) {
-                          setState(() {
-                            if (value ?? false) {
-                              selected.add(option);
-                            } else {
-                              selected.remove(option);
-                            }
-                          });
-                        },
-                        title: Text(option.label),
-                        subtitle: const Text('신청 마감 기준 알림을 예약해요'),
-                      ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('취소'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () =>
-                                  Navigator.of(context).pop(selected),
-                              child: const Text('선택 완료'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _ReminderSheetButton extends StatelessWidget {
   const _ReminderSheetButton({
     required this.policy,
-    required this.viewState,
     required this.activeOptions,
     required this.activeReminders,
     required this.hasActiveReminders,
-    required this.onToggleOption,
-    required this.onRemove,
-    required this.onOpenOptions,
-    required this.onCancelAll,
   });
 
   final Policy policy;
-  final PolicyReminderViewState viewState;
   final Set<ReminderTimeKind> activeOptions;
   final List<PolicyReminder> activeReminders;
   final bool hasActiveReminders;
-  final Future<void> Function(ReminderTimeKind option, bool enabled)
-      onToggleOption;
-  final Future<void> Function(String reminderId) onRemove;
-  final Future<void> Function() onOpenOptions;
-  final Future<void> Function() onCancelAll;
 
   @override
   Widget build(BuildContext context) {
@@ -188,13 +89,7 @@ class _ReminderSheetButton extends StatelessWidget {
           builder: (context) {
             return _ReminderSheet(
               policy: policy,
-              viewState: viewState,
-              activeOptions: activeOptions,
-              activeReminders: activeReminders,
-              onToggleOption: onToggleOption,
-              onRemove: onRemove,
-              onOpenOptions: onOpenOptions,
-              onCancelAll: onCancelAll,
+              initialOptions: activeOptions,
             );
           },
         );
@@ -203,15 +98,99 @@ class _ReminderSheetButton extends StatelessWidget {
   }
 }
 
-class _ReminderSheet extends StatelessWidget {
+class _ReminderSheet extends ConsumerWidget {
   const _ReminderSheet({
+    required this.policy,
+    required this.initialOptions,
+  });
+
+  final Policy policy;
+  final Set<ReminderTimeKind> initialOptions;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reminderState = ref.watch(policyReminderControllerProvider(policy.id));
+    final controller = ref.read(policyReminderControllerProvider(policy.id).notifier);
+
+    return reminderState.when(
+      data: (viewState) {
+        final activeReminders = viewState.reminders
+            .where((reminder) => reminder.status != PolicyReminderStatus.canceled)
+            .toList()
+          ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+        final activeOptions =
+            activeReminders.map((reminder) => reminder.timeKind).toSet();
+        final effectiveOptions = (activeOptions.isNotEmpty ||
+                !viewState.isRefreshing)
+            ? activeOptions
+            : initialOptions;
+
+        if (viewState.messages.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final messenger = ScaffoldMessenger.maybeOf(context);
+            if (messenger != null) {
+              messenger.showSnackBar(
+                SnackBar(content: Text(viewState.messages.first)),
+              );
+              controller.clearMessages();
+            }
+          });
+        }
+
+        return _ReminderSheetScaffold(
+          policy: policy,
+          viewState: viewState,
+          activeOptions: effectiveOptions,
+          activeReminders: activeReminders,
+          onToggleOption: (option, enabled) async {
+            final next = {...effectiveOptions};
+            if (enabled) {
+              next.add(option);
+            } else {
+              next.remove(option);
+            }
+            final result = await controller.setReminders(policy, next.toList());
+            if (result.hasFailure && context.mounted) {
+              final messages = controller.state.value?.messages ?? [];
+              final message =
+                  messages.isNotEmpty ? messages.first : '알림을 설정하지 못했어요.';
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(message)),
+              );
+            }
+          },
+          onRemove: (reminderId) => controller.removeReminder(reminderId),
+          onOpenOptions: () =>
+              _selectReminderOptions(context, effectiveOptions).then((selected) async {
+            if (selected == null) return;
+            await controller.setReminders(policy, selected.toList());
+          }),
+          onCancelAll: () => controller.cancelAll(),
+        );
+      },
+      loading: () => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.4,
+        child: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, __) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.4,
+        child: Center(
+          child: Text('알림 정보를 불러오지 못했어요: $err'),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReminderSheetScaffold extends StatelessWidget {
+  const _ReminderSheetScaffold({
     required this.policy,
     required this.viewState,
     required this.activeOptions,
     required this.activeReminders,
     required this.onToggleOption,
-    required this.onRemove,
     required this.onOpenOptions,
+    required this.onRemove,
     required this.onCancelAll,
   });
 
@@ -221,8 +200,8 @@ class _ReminderSheet extends StatelessWidget {
   final List<PolicyReminder> activeReminders;
   final Future<void> Function(ReminderTimeKind option, bool enabled)
       onToggleOption;
-  final Future<void> Function(String reminderId) onRemove;
   final Future<void> Function() onOpenOptions;
+  final Future<void> Function(String reminderId) onRemove;
   final Future<void> Function() onCancelAll;
 
   @override
@@ -370,38 +349,100 @@ class _ReminderSheet extends StatelessWidget {
       ),
     );
   }
+}
 
-  String _deadlineText(Policy policy) {
-    final end = policy.applicationEndDate;
-    if (end == null) return '신청 마감 정보가 없습니다.';
-    return PolicyDateFormatter.buildDeadlineText(end: end);
-  }
+String _deadlineText(Policy policy) {
+  final end = policy.applicationEndDate;
+  if (end == null) return '신청 마감 정보가 없습니다.';
+  return PolicyDateFormatter.buildDeadlineText(end: end);
+}
 
-  IconData _iconForStatus(PolicyReminderStatus status) {
-    switch (status) {
-      case PolicyReminderStatus.scheduled:
-        return Icons.alarm_on;
-      case PolicyReminderStatus.fired:
-        return Icons.notifications_active;
-      case PolicyReminderStatus.expired:
-        return Icons.history_toggle_off;
-      case PolicyReminderStatus.canceled:
-        return Icons.notifications_off_outlined;
-    }
+IconData _iconForStatus(PolicyReminderStatus status) {
+  switch (status) {
+    case PolicyReminderStatus.scheduled:
+      return Icons.alarm_on;
+    case PolicyReminderStatus.fired:
+      return Icons.notifications_active;
+    case PolicyReminderStatus.expired:
+      return Icons.history_toggle_off;
+    case PolicyReminderStatus.canceled:
+      return Icons.notifications_off_outlined;
   }
+}
 
-  Color _colorForStatus(ColorScheme scheme, PolicyReminderStatus status) {
-    switch (status) {
-      case PolicyReminderStatus.scheduled:
-        return scheme.primary;
-      case PolicyReminderStatus.fired:
-        return scheme.secondary;
-      case PolicyReminderStatus.expired:
-        return scheme.tertiary;
-      case PolicyReminderStatus.canceled:
-        return scheme.outline;
-    }
+Color _colorForStatus(ColorScheme scheme, PolicyReminderStatus status) {
+  switch (status) {
+    case PolicyReminderStatus.scheduled:
+      return scheme.primary;
+    case PolicyReminderStatus.fired:
+      return scheme.secondary;
+    case PolicyReminderStatus.expired:
+      return scheme.tertiary;
+    case PolicyReminderStatus.canceled:
+      return scheme.outline;
   }
+}
+
+Future<Set<ReminderTimeKind>?> _selectReminderOptions(
+  BuildContext context,
+  Set<ReminderTimeKind> current,
+) async {
+  return showModalBottomSheet<Set<ReminderTimeKind>>(
+    context: context,
+    isScrollControlled: true,
+    builder: (context) {
+      final selected = {...current};
+      return SafeArea(
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final option in ReminderTimeKind.values)
+                    CheckboxListTile(
+                      value: selected.contains(option),
+                      onChanged: (value) {
+                        setState(() {
+                          if (value ?? false) {
+                            selected.add(option);
+                          } else {
+                            selected.remove(option);
+                          }
+                        });
+                      },
+                      title: Text(option.label),
+                      subtitle: const Text('신청 마감 기준 알림을 예약해요'),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('취소'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.of(context).pop(selected),
+                            child: const Text('선택 완료'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+    },
+  );
 }
 
 class _UnavailableNotice extends StatelessWidget {

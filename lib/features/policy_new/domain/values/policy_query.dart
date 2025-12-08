@@ -74,7 +74,7 @@ class PolicyQuery {
       ..write('|')
       ..write(normalizedFilter.isOffline?.toString() ?? 'any')
       ..write('|')
-      ..write(normalizedFilter.isOngoing?.toString() ?? 'any')
+      ..write(normalizedFilter.status.name)
       ..write('|')
       ..write(normalized.sort.name)
       ..write('|')
