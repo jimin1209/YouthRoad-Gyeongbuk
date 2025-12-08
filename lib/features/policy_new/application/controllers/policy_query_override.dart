@@ -20,14 +20,18 @@ class PolicyQueryOverrideNotifier
 
   String? _hash;
 
-  PolicyFilterUiState applyFromDetail(Policy policy, PolicyReExploreMode mode) {
-    final filter = ref.read(globalFilterProvider.notifier).applyFromDetail(
-          policy,
-          mode,
-          PolicyReExploreBuilder.buildFilter,
-        );
-    final queryState =
-        PolicyReExploreBuilder.buildQueryState(policy, mode, filter);
+  PolicyFilterUiState applyFromDetail({
+    required Policy policy,
+    required PolicyReExploreMode mode,
+    required PolicyFeedType feedType,
+    required PolicyFilterUiState filter,
+  }) {
+    final queryState = PolicyReExploreBuilder.buildQueryState(
+      policy,
+      mode,
+      filter,
+      feedType: feedType,
+    );
     _hash = queryState.hash;
     state = PolicyQueryOverride(queryState: queryState);
     return filter;

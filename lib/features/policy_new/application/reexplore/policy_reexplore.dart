@@ -50,12 +50,13 @@ class PolicyReExploreBuilder {
   static PolicyQueryState buildQueryState(
     Policy policy,
     PolicyReExploreMode mode,
-    PolicyFilterUiState filter,
-  ) {
+    PolicyFilterUiState filter, {
+    PolicyFeedType feedType = PolicyFeedType.all,
+  }) {
     final tags = mode == PolicyReExploreMode.similar ? _primaryTags(policy) : const <String>[];
 
     final query = PolicyQuery(
-      feedType: PolicyFeedType.all,
+      feedType: feedType,
       filter: PolicyFilter(
         region: filter.region,
         province: filter.province,

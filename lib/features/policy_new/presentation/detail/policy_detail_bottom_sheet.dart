@@ -5,6 +5,7 @@ import '../../application/controllers/policy_detail_controller.dart';
 import '../../application/controllers/policy_query_override.dart';
 import '../../application/providers.dart';
 import '../../application/explore/explore_providers.dart';
+import '../../application/filters/policy_filter_ui_state.dart';
 import '../../application/reexplore/policy_reexplore.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_failure.dart';
@@ -20,6 +21,7 @@ import '../../../../ui/components/app_divider.dart';
 import '../../../../ui/components/app_card.dart';
 import '../../../../ui/theme/app_text.dart';
 import '../../../../ui/theme/app_spacing.dart';
+import '../../../../application/notifiers/region_notifier.dart';
 
 class PolicyDetailBottomSheet extends ConsumerStatefulWidget {
   const PolicyDetailBottomSheet({
@@ -49,9 +51,21 @@ class _PolicyDetailBottomSheetState
     Policy policy,
     PolicyReExploreMode mode,
   ) {
-    final overrideNotifier =
-        ref.read(policyQueryOverrideProvider(PolicyFeedType.all).notifier);
-    final filter = overrideNotifier.applyFromDetail(policy, mode);
+    var filter = ref
+        .read(globalFilterProvider.notifier)
+        .applyFromDetail(policy, mode, PolicyReExploreBuilder.buildFilter);
+
+    filter = _normalizeRegionSelection(filter);
+
+    final feedType = _feedTypeFor(filter);
+    ref
+        .read(policyQueryOverrideProvider(feedType).notifier)
+        .applyFromDetail(
+          policy: policy,
+          mode: mode,
+          feedType: feedType,
+          filter: filter,
+        );
 
     ref
         .read(exploreStateProvider.notifier)
@@ -63,6 +77,61 @@ class _PolicyDetailBottomSheetState
         builder: (_) => const PolicyExploreScreen(),
       ),
     );
+  }
+
+  PolicyFilterUiState _normalizeRegionSelection(PolicyFilterUiState filter) {
+    final regionNotifier = ref.read(regionProvider.notifier);
+    final filterNotifier = ref.read(globalFilterProvider.notifier);
+    final availableCities = regionNotifier.availableCities;
+    final selectedProvince = regionNotifier.selectedProvince;
+
+    final province = filter.province.trim();
+    final city = filter.city?.trim() ?? '';
+    final district = filter.district?.trim() ?? '';
+
+    if (province != selectedProvince) {
+      if (regionNotifier.selectedCity != null || regionNotifier.selectedDistrict != null) {
+        regionNotifier.resetCity();
+      }
+
+      filterNotifier.setRegion(filter.region);
+      return ref.read(globalFilterProvider);
+    }
+
+    if (city.isEmpty) {
+      if (regionNotifier.selectedCity != null || regionNotifier.selectedDistrict != null) {
+        regionNotifier.resetCity();
+      }
+      return ref.read(globalFilterProvider);
+    }
+
+    if (!availableCities.contains(city)) {
+      regionNotifier.resetCity();
+      return ref.read(globalFilterProvider);
+    }
+
+    if (regionNotifier.selectedCity != city) {
+      regionNotifier.selectCity(city);
+    }
+
+    if (district.isNotEmpty && regionNotifier.availableDistricts.contains(district)) {
+      if (regionNotifier.selectedDistrict != district) {
+        regionNotifier.selectDistrict(district);
+      }
+    } else if (regionNotifier.selectedDistrict != null) {
+      regionNotifier.selectDistrict(null);
+    }
+
+    return ref.read(globalFilterProvider);
+  }
+
+  PolicyFeedType _feedTypeFor(PolicyFilterUiState filter) {
+    final regionNotifier = ref.read(regionProvider.notifier);
+    final selectedProvince = regionNotifier.selectedProvince;
+    final hasRegionSelection =
+        filter.province.trim() == selectedProvince &&
+        ((filter.city?.isNotEmpty ?? false) || (filter.district?.isNotEmpty ?? false));
+    return hasRegionSelection ? PolicyFeedType.region : PolicyFeedType.all;
   }
 
   @override
@@ -313,7 +382,10 @@ class _InfoSection extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               content,
-              style: AppText.textTheme.bodyMedium,
+              style: AppText.textTheme.bodyLarge?.copyWith(
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
               softWrap: true,
               overflow: TextOverflow.visible,
             ),
