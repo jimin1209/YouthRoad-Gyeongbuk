@@ -1330,29 +1330,31 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     );
   }
 
-  Future<void> _highlightCenterMarker(
-    String markerId,
-    KakaoMapLatLng position, // 위치 매개변수 뒤 쉼표 누락 시 구문 오류 발생
-    {String? tooltipName},
-  ) async {
-    if (!_mapReady) {
-      _pendingHighlight = _PendingHighlight(
-        markerId: markerId,
-        position: position,
-        tooltipName: tooltipName,
-      );
-      debugPrint('[KakaoMapScreen] map not ready → highlight queued: $_pendingHighlight');
-      return;
-    }
-
-    try {
-      final controller = ref.read(kakaoMapControllerProvider);
-      await controller.highlightMarker(markerId, position);
-    } catch (error, stackTrace) {
-      debugPrint('[KakaoMapScreen] highlightCenterMarker failed: $error');
-      debugPrint(stackTrace.toString());
-    }
+Future<void> _highlightCenterMarker(
+  String markerId,
+  KakaoMapLatLng position, { // 위치 매개변수 뒤 쉼표 누락 시 구문 오류 발생
+    String? tooltipName,
+  }) async {
+  if (!_mapReady) {
+    _pendingHighlight = _PendingHighlight(
+      markerId: markerId,
+      position: position,
+      tooltipName: tooltipName,
+    );
+    debugPrint(
+      '[KakaoMapScreen] map not ready → highlight queued: $_pendingHighlight',
+    );
+    return;
   }
+
+  try {
+    final controller = ref.read(kakaoMapControllerProvider);
+    await controller.highlightMarker(markerId, position);
+  } catch (error, stackTrace) {
+    debugPrint('[KakaoMapScreen] highlightCenterMarker failed: $error');
+    debugPrint(stackTrace.toString());
+  }
+}
 
   void _showCenterDetailSheet({
     required String name,
