@@ -1344,12 +1344,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       debugPrint('[KakaoMapScreen] map not ready → highlight queued: $_pendingHighlight');
       return;
     }
+
     try {
       final controller = ref.read(kakaoMapControllerProvider);
       await controller.highlightMarker(markerId, position);
-    } catch (error, stack) {
+    } catch (error, stackTrace) {
       debugPrint('[KakaoMapScreen] highlightCenterMarker failed: $error');
-      if (stack != null) debugPrint(stack.toString());
+      debugPrint(stackTrace.toString());
     }
   }
 
@@ -1361,6 +1362,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     required String regionLabel,
   }) {
     if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
