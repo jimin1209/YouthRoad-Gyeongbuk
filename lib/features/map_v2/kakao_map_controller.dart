@@ -78,7 +78,16 @@ class KakaoMapMessage {
   final String? logLevel;
   final String? raw;
 
-  String? get markerId => payload['id'] as String?;
+  String? get markerId {
+    final id = payload['id'] as String?;
+    if (id != null) return id;
+    final rawPayload = payload['payload'];
+    if (rawPayload is String) return rawPayload;
+    if (rawPayload is Map<String, dynamic>) {
+      return rawPayload['id'] as String?;
+    }
+    return null;
+  }
 
   KakaoMapLatLng? get position {
     final lat = payload['lat'];
@@ -550,6 +559,8 @@ class KakaoMapController {
         return KakaoMapEventType.clusterTap;
       case 'map_move':
         return KakaoMapEventType.mapMove;
+      case 'centerMarkerClick':
+        return KakaoMapEventType.markerClicked;
       case 'loading':
         return KakaoMapEventType.loading;
       case 'error':

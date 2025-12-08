@@ -4,14 +4,17 @@ import '../dto/center_youthcenter_dto.dart';
 
 extension YouthCenterDtoMapper on CenterYouthcenterItemDto {
   YouthCenterEntity toDomain() {
+    final lat = geocodedLat;
+    final lng = geocodedLng;
+
     return YouthCenterEntity(
       centerName:
           cntrNm?.trim().isNotEmpty == true ? cntrNm!.trim() : 'Unknown Center',
       address: cntrAddr?.trim().isNotEmpty == true
           ? cntrAddr!.trim()
           : 'Unknown Address',
-      lat: null,
-      lng: null,
+      lat: lat,
+      lng: lng,
       detailAddress: cntrDaddr?.trim(),
       sidoName: stdgCtpvCdNm?.trim(),
       sigunguName: stdgSggCdNm?.trim(),

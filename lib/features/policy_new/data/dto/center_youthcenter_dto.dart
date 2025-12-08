@@ -56,6 +56,8 @@ class CenterYouthcenterItemDto with _$CenterYouthcenterItemDto {
     final String? stdgCtpvCdNm,
     final String? stdgSggCd,
     final String? stdgSggCdNm,
+    @JsonKey(name: 'geocoded_lat') final double? geocodedLat,
+    @JsonKey(name: 'geocoded_lng') final double? geocodedLng,
   }) = _CenterYouthcenterItemDto;
 
   factory CenterYouthcenterItemDto.fromJson(Map<String, dynamic> json) =>

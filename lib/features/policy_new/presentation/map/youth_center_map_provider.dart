@@ -10,10 +10,9 @@ import '../../../../application/di.dart' as app_di;
 import '../../../../env/app_env.dart';
 import '../../application/youthcenter_providers.dart';
 import '../../data/mappers/youth_center_mapper.dart';
-import '../../data/remote/youth_center_geocode_remote.dart';
 import '../../domain/youthcenter/youth_center_entity.dart';
 
-const double kCenterRangeKm = 40.0;
+const double kCenterRangeKm = 20.0;
 
 class CenterFetchRequest {
   const CenterFetchRequest({
@@ -39,11 +38,6 @@ class CenterFetchRequest {
   int get hashCode => Object.hash(lat, lng, radiusKm);
 }
 
-final youthCenterGeocodeRemoteProvider =
-    Provider<YouthCenterGeocodeRemote>((ref) {
-  return YouthCenterGeocodeRemote();
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Youth Center Map Provider
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,12 +49,10 @@ final youthCenterMapProvider = FutureProvider.autoDispose
   debugPrint('[YCMAP] radius=${request.radiusKm}km');
 
   final repo = ref.read(youthCenterRepositoryProvider);
-  final geocoder = ref.read(youthCenterGeocodeRemoteProvider);
   final prefs = ref.read(app_di.sharedPreferencesProvider);
 
   // 앱 시작할 때 API 키가 잘 들어왔는지 체크
-  debugPrint('[YCMAP] Kakao REST API KEY = ${geocoder.runtimeType} '
-      '| env key: ${AppEnv.kakaoRestApiKey}');
+  debugPrint('[YCMAP] Kakao REST API KEY length=${AppEnv.kakaoRestApiKey.length}');
 
   // ───────────────────────────────────────
   // 캐시 로드
@@ -105,7 +97,6 @@ final youthCenterMapProvider = FutureProvider.autoDispose
   debugPrint('[YCMAP] API success, item count=${items.length}');
 
   final result = <CenterMarkerPoint>[];
-  final candidates = <({CenterMarkerPoint point, double distance})>[];
 
   for (final center in items) {
     final addr = center.address.trim();
@@ -122,41 +113,8 @@ final youthCenterMapProvider = FutureProvider.autoDispose
     debugPrint('[YCMAP] FullAddress = "$fullAddress"');
 
     final cacheKey = '${center.centerName}|$fullAddress';
-    double? lat;
-    double? lng;
-
-    // ─────────────────────────────
-    // 캐시 Hit
-    // ─────────────────────────────
-    if (cache.containsKey(cacheKey)) {
-      final entry = cache[cacheKey];
-      lat = entry?['lat']?.toDouble();
-      lng = entry?['lng']?.toDouble();
-      debugPrint('[YCMAP] Cache HIT -> ($lat, $lng)');
-    } else {
-      debugPrint('[YCMAP] Cache MISS → Geocode required');
-    }
-
-    // ─────────────────────────────
-    // Geocode 호출
-    // ─────────────────────────────
-    if (lat == null || lng == null) {
-      debugPrint('[YCMAP][Geocode] Calling geocode for "$fullAddress"...');
-
-      final pos = await geocoder.geocodeAddress(fullAddress);
-
-      if (pos == null) {
-        debugPrint('[YCMAP][Geocode] ❌ FAIL geocoding "$fullAddress"');
-        continue;
-      }
-
-      lat = pos.lat;
-      lng = pos.lng;
-
-      debugPrint('[YCMAP][Geocode] ✔ OK → ($lat, $lng)');
-
-      cache[cacheKey] = {'lat': lat, 'lng': lng};
-    }
+    final lat = center.lat;
+    final lng = center.lng;
 
     // 좌표 없으면 skip
     if (lat == null || lng == null) {
@@ -164,39 +122,28 @@ final youthCenterMapProvider = FutureProvider.autoDispose
       continue;
     }
 
+    if (lat == 0 || lng == 0) {
+      debugPrint('[YCMAP] ❌ Skip: 좌표가 0,0 입니다');
+      continue;
+    }
+
     // 거리 계산
     final dist = _distanceKm(request.lat, request.lng, lat, lng);
     debugPrint('[YCMAP] Distance = ${dist.toStringAsFixed(2)}km');
 
-    final markerPoint = center.toMarkerPoint(lat: lat, lng: lng);
-
-    candidates.add((point: markerPoint, distance: dist));
-
-    if (dist <= request.radiusKm) {
-      result.add(markerPoint);
-      debugPrint('[YCMAP] ✔ Added to result');
-    } else {
+    if (dist > request.radiusKm) {
       debugPrint('[YCMAP] Skip: too far');
+      continue;
     }
-  }
 
-  if (result.isEmpty && candidates.isNotEmpty) {
-    debugPrint('[YCMAP] 🔍 반경 내 결과 없음 → 가장 가까운 센터 3곳 노출');
-
-    candidates.sort((a, b) => a.distance.compareTo(b.distance));
-    final fallbackCenters = candidates.take(3).map((c) => c.point).toList();
-
-    debugPrint('[YCMAP] fallback count=${fallbackCenters.length}');
-    return fallbackCenters;
-  }
-
-  if (result.isEmpty && cachedMarkers.isNotEmpty) {
-    debugPrint('[YCMAP] 새 결과 없음 → 캐시된 마커 사용 (${cachedMarkers.length}개)');
-    return cachedMarkers;
+    final markerPoint = center.toMarkerPoint(lat: lat, lng: lng);
+    result.add(markerPoint);
+    cache[cacheKey] = {'lat': lat, 'lng': lng};
+    debugPrint('[YCMAP] ✔ Added to result (within radius)');
   }
 
   // ─────────────────────────────────────────────
-  // 캐시 저장
+  // 캐시 저장 (마커 + 지오코드)
   // ─────────────────────────────────────────────
   try {
     await prefs.setString('yc_center_geocode_cache_v1', jsonEncode(cache));
