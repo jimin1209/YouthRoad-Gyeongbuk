@@ -13,7 +13,7 @@ class LatLng {
 
 class YouthCenterGeocodingRemoteSource {
   Future<LatLng?> geocodeAddress(String address) async {
-    if (AppEnv.kakaoRestKey.isEmpty) {
+    if (AppEnv.kakaoRestApiKey.isEmpty) {
       return null;
     }
 
@@ -22,7 +22,7 @@ class YouthCenterGeocodingRemoteSource {
     );
 
     final resp = await http.get(url, headers: {
-      'Authorization': 'KakaoAK ${AppEnv.kakaoRestKey}',
+      'Authorization': 'KakaoAK ${AppEnv.kakaoRestApiKey}',
     });
 
     if (resp.statusCode != 200) return null;
