@@ -8,4 +8,6 @@ class GpsService {
   Future<Position> getCurrentPosition() => Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
       );
+
+  Future<Position?> getLastKnownPosition() => Geolocator.getLastKnownPosition();
 }

@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../application/providers.dart';
+import '../../application/di.dart' as app_di;
 import '../../debug/debug_settings_provider.dart';
 import '../../navigation/route_paths.dart';
 import '../../ui/widgets/app_appbar.dart';
@@ -47,7 +48,6 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   static final _defaultCenter = KakaoMapLatLng(36.4919, 128.8889);
   static const _debounceMs = 400;
   static const _centerListHeight = 210.0;
-  static const _floatingActionButtonBottomSpacing = 140.0;
   static const _gpsService = GpsService();
   static const _permissionService = LocationPermissionService();
   static const _locationZoomLevel = 6;
@@ -69,6 +69,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   Timer? _moveDebounce;
   Timer? _tooltipTimer;
   String? _activeTooltipName;
+  List<CenterMarkerPoint> _cachedCenterPoints = const [];
+  bool _mapReady = false;
+  _PendingMove? _pendingMove;
+  _PendingHighlight? _pendingHighlight;
 
   @override
   void initState() {
@@ -81,7 +85,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       'len=${AppEnv.kakaoRestApiKey.length}',
     );
 
+    _initRequestWithRegion();
     _prepareCenterMarkerIcon();
+    _preloadCachedCenterMarkers();
     _loadInitialPosition();
   }
 
@@ -108,7 +114,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             if (_locationError != null) _buildLocationErrorBanner(),
           ],
         ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        floatingActionButtonLocation: FloatingActionButtonLocation.startTop,
         floatingActionButton: _buildPositionedGpsButton(),
       );
     }
@@ -150,8 +156,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         final policies = _policyMarkers(fallbackCenter, policyState);
         final polylines = _polylinesFromMarkers(policies);
         final locationMarker = _currentLocationMarker;
+        final cachedCenters = _buildCenterMarkers(_cachedCenterPoints);
         final fallbackMarkers = <KakaoMapMarker>[
           if (locationMarker != null) locationMarker,
+          ...cachedCenters,
           ...policies,
         ];
 
@@ -181,17 +189,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   context.push(RoutePaths.policyDetail(id));
                 },
                 onMarkerClicked: _handleCenterMarkerClicked,
-                onReady: () {
-                  debugPrint('[KakaoMap] WebView Ready! (LOADING state)');
-                  _setLoading(false);
-                  _showMyPositionOnMap();
-                },
-                onLoadingChanged: (isLoading) {
-                  debugPrint(
-                    '[KakaoMap] WebView LoadingChanged(LOADING) → $isLoading',
-                  );
-                  _setLoading(isLoading);
-                },
+                onReady: _onWebViewReady,
+                onLoadingChanged: _onWebViewLoadingChanged,
                 onError: (code) {
                   debugPrint(
                     '[KakaoMap:ERROR][LOADING] WebView error code=$code',
@@ -223,7 +222,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
               ),
             ],
           ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          floatingActionButtonLocation: FloatingActionButtonLocation.startTop,
           floatingActionButton: _buildPositionedGpsButton(),
         );
       },
@@ -239,8 +238,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         final policies = _policyMarkers(fallbackCenter, policyState);
         final polylines = _polylinesFromMarkers(policies);
         final locationMarker = _currentLocationMarker;
+        final cachedCenters = _buildCenterMarkers(_cachedCenterPoints);
         final fallbackMarkers = <KakaoMapMarker>[
           if (locationMarker != null) locationMarker,
+          ...cachedCenters,
           ...policies,
         ];
 
@@ -270,17 +271,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   context.push(RoutePaths.policyDetail(id));
                 },
                 onMarkerClicked: _handleCenterMarkerClicked,
-                onReady: () {
-                  debugPrint('[KakaoMap] WebView Ready! (ERROR state)');
-                  _setLoading(false);
-                  _showMyPositionOnMap();
-                },
-                onLoadingChanged: (isLoading) {
-                  debugPrint(
-                    '[KakaoMap] WebView LoadingChanged(ERROR) → $isLoading',
-                  );
-                  _setLoading(isLoading);
-                },
+                onReady: _onWebViewReady,
+                onLoadingChanged: _onWebViewLoadingChanged,
                 onError: (code) {
                   debugPrint(
                     '[KakaoMap:ERROR][ERROR_STATE] WebView error code=$code',
@@ -312,7 +304,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
               ),
             ],
           ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          floatingActionButtonLocation: FloatingActionButtonLocation.startTop,
           floatingActionButton: _buildPositionedGpsButton(),
         );
       },
@@ -323,15 +315,12 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           '[YCMAP] centerMarkersAsync: DATA, rawCount=${centerPoints.length}',
         );
 
-        final validCenters =
-            centerPoints.where((c) => c.lat != null && c.lng != null).toList();
-
         final currentCenter = _latestCenter ?? defaultCenter;
         debugPrint(
           '[YCMAP] DATA currentCenter=(${currentCenter.lat}, ${currentCenter.lng})',
         );
 
-        final sortedCenters = validCenters
+        final sortedCenters = centerPoints
             .map(
               (c) => (
                 point: c,
@@ -349,6 +338,16 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         final sortedCenterPoints =
             sortedCenters.map((entry) => entry.point).toList();
 
+        final hasNewCenters = sortedCenterPoints.isNotEmpty;
+        final visibleCenterPoints =
+            hasNewCenters ? sortedCenterPoints : _cachedCenterPoints;
+
+        if (hasNewCenters) {
+          _cachedCenterPoints = sortedCenterPoints;
+        } else if (_cachedCenterPoints.isNotEmpty) {
+          debugPrint('[YCMAP] 새 데이터 없음 → 캐시된 센터 마커 유지');
+        }
+
         final centerIconBase64 =
             _centerMarkerIconBase64 ?? _centerMarkerFallbackBase64;
         final centerMarkerImage = KakaoMapMarkerImage(
@@ -358,27 +357,12 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           offset: const Offset(18, 36),
         );
 
-        final centerMarkers = List.generate(sortedCenterPoints.length, (index) {
-          final c = sortedCenterPoints[index];
-          final markerId = 'CENTER-$index';
-          return KakaoMapMarker(
-            id: markerId,
-            title: c.name,
-            position: KakaoMapLatLng(c.lat, c.lng),
-            image: centerMarkerImage,
-            extra: {
-              'name': c.name,
-              'fullAddress': c.fullAddress,
-              'phone': c.phone,
-              'url': c.url,
-              'regionLabel': c.regionLabel,
-            },
-          );
-        });
+        final centerMarkers =
+            _buildCenterMarkers(visibleCenterPoints, image: centerMarkerImage);
 
         debugPrint(
           '[YCMAP] centerPoints=${centerPoints.length} '
-          'validCenters=${validCenters.length}',
+          'validCenters=${centerPoints.length}',
         );
         debugPrint(
           '[YCMAP] centerMarkers=${centerMarkers.length} (지도에 찍을 센터 마커 수)',
@@ -408,18 +392,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         KakaoMapLatLng mapCenter = currentCenter;
         int mapLevel = _latestZoom ?? 6;
 
-        if (_latestCenter == null && validCenters.isNotEmpty) {
-          final avgLat = validCenters
-                  .map((c) => c.lat)
-                  .fold<double>(0, (prev, lat) => prev + lat) /
-              validCenters.length;
-          final avgLng = validCenters
-                  .map((c) => c.lng)
-                  .fold<double>(0, (prev, lng) => prev + lng) /
-              validCenters.length;
-
-          mapCenter = KakaoMapLatLng(avgLat, avgLng);
-          mapLevel = _latestZoom ?? 12;
+        if (_latestCenter == null && visibleCenterPoints.isNotEmpty) {
+          final nearest = visibleCenterPoints.first;
+          mapCenter = KakaoMapLatLng(nearest.lat, nearest.lng);
+          mapLevel = _locationZoomLevel;
 
           debugPrint(
             '[YCMAP] mapInitialCenter(centersBased)=(${mapCenter.lat}, ${mapCenter.lng}) zoom=$mapLevel',
@@ -445,41 +421,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   showZoomControl: true,
                   showMapTypeControl: true,
                 ),
-                onMapMoved: (center, zoom) {
-                  debugPrint(
-                    '[YCMAP] onMapMoved center=(${center.lat}, ${center.lng}) zoom=$zoom',
-                  );
-                  _latestCenter = center;
-                  _latestZoom = zoom;
-
-                  _moveDebounce?.cancel();
-                  debugPrint(
-                    '[YCMAP] onMapMoved → debounce ${_debounceMs}ms 후 CenterFetchRequest 갱신 예정',
-                  );
-
-                  _moveDebounce = Timer(
-                    const Duration(milliseconds: _debounceMs),
-                    () {
-                      final req = CenterFetchRequest(
-                        lat: center.lat,
-                        lng: center.lng,
-                        radiusKm: kCenterRangeKm,
-                      );
-                      debugPrint(
-                        '[YCMAP] debounce 완료 → provider 재요청 '
-                        'CenterFetchRequest(lat=${req.lat}, lng=${req.lng}, radius=${req.radiusKm})',
-                      );
-
-                      setState(() {
-                        _currentRequest = req;
-                      });
-
-                      final circleCenter = _deviceLocation ?? center;
-                      unawaited(_updateSearchCircle(circleCenter));
-                      ref.refresh(youthCenterMapProvider(req));
-                    },
-                  );
-                },
+                onMapMoved: _handleMapMoved,
                 onMarkerTap: (id) {
                   if (id.startsWith('CENTER-')) {
                     debugPrint(
@@ -491,19 +433,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   context.push(RoutePaths.policyDetail(id));
                 },
                 onMarkerClicked: _handleCenterMarkerClicked,
-                onReady: () {
-                  debugPrint(
-                    '[KakaoMap] WebView Ready! 지도 로딩 완료 (DATA)',
-                  );
-                  _setLoading(false);
-                  _showMyPositionOnMap();
-                },
-                onLoadingChanged: (isLoading) {
-                  debugPrint(
-                    '[KakaoMap] WebView LoadingChanged(DATA) → $isLoading',
-                  );
-                  _setLoading(isLoading);
-                },
+                onReady: _onWebViewReady,
+                onLoadingChanged: _onWebViewLoadingChanged,
                 onError: (code) {
                   debugPrint('[KakaoMap:ERROR][DATA] SDK Fail code=$code');
                   setState(() => _errorCode = code);
@@ -556,13 +487,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
               Align(
                 alignment: Alignment.bottomCenter,
                 child: _buildCenterList(
-                  sortedCenterPoints,
+                  visibleCenterPoints,
                   radiusKm: _currentRequest?.radiusKm ?? kCenterRangeKm,
                 ),
               ),
             ],
           ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          floatingActionButtonLocation: FloatingActionButtonLocation.startTop,
           floatingActionButton: _buildPositionedGpsButton(),
         );
       },
@@ -577,6 +508,19 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     });
   }
 
+  void _initRequestWithRegion() {
+    final regionName = ref.read(regionProvider);
+    final regionCenter = _centerForRegion(regionName);
+
+    _latestCenter ??= regionCenter;
+    _latestZoom ??= _locationZoomLevel;
+    _currentRequest ??= CenterFetchRequest(
+      lat: regionCenter.lat,
+      lng: regionCenter.lng,
+      radiusKm: kCenterRangeKm,
+    );
+  }
+
   List<KakaoMapMarker> _policyMarkers(
     KakaoMapLatLng center,
     PolicyListState asyncPolicies,
@@ -584,6 +528,39 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     debugPrint(
         '[KakaoMap] Policy markers disabled (replacement logic removed)');
     return const [];
+  }
+
+  List<KakaoMapMarker> _buildCenterMarkers(
+    List<CenterMarkerPoint> points, {
+    KakaoMapMarkerImage? image,
+  }) {
+    final markerImage = image ??
+        KakaoMapMarkerImage(
+          url:
+              'data:image/png;base64,${_centerMarkerIconBase64 ?? _centerMarkerFallbackBase64}',
+          width: 36,
+          height: 36,
+          offset: const Offset(18, 36),
+        );
+
+    return List.generate(points.length, (index) {
+      final center = points[index];
+      final markerId = 'CENTER-${center.id}';
+      return KakaoMapMarker(
+        id: markerId,
+        title: center.name,
+        position: KakaoMapLatLng(center.lat, center.lng),
+        image: markerImage,
+        extra: {
+          'id': center.id,
+          'name': center.name,
+          'fullAddress': center.fullAddress,
+          'phone': center.phone,
+          'url': center.url,
+          'regionLabel': center.regionLabel,
+        },
+      );
+    });
   }
 
   List<KakaoMapPolyline> _polylinesFromMarkers(List<KakaoMapMarker> markers) {
@@ -803,7 +780,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         _currentRequest = request;
       });
 
-      await _moveMapToLocation(location, level: _locationZoomLevel);
+      await _moveMapToLocation(
+        location,
+        level: _locationZoomLevel,
+        animate: true,
+      );
       await _updateSearchCircle(location);
       ref.refresh(youthCenterMapProvider(request));
       debugPrint(
@@ -836,6 +817,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   Future<void> _showMyPositionOnMap() async {
     final location = _deviceLocation;
     if (location == null) return;
+    if (!_mapReady) {
+      debugPrint('[KakaoMapScreen] map not ready → skip showMyPosition');
+      return;
+    }
     try {
       final controller = ref.read(kakaoMapControllerProvider);
       await controller.showMyPosition(location);
@@ -850,6 +835,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   Future<void> _updateSearchCircle(KakaoMapLatLng center) async {
     if (!mounted) return;
+    if (!_mapReady) {
+      debugPrint('[KakaoMapScreen] map not ready → circle update skipped');
+      return;
+    }
     try {
       final controller = ref.read(kakaoMapControllerProvider);
       await controller.updateCircle(center);
@@ -873,7 +862,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   Future<void> _applyFallbackCenter() async {
     if (!mounted) return;
-    final fallback = _defaultCenter;
+    final fallback = _centerForRegion(ref.read(regionProvider));
     final request = CenterFetchRequest(
       lat: fallback.lat,
       lng: fallback.lng,
@@ -885,7 +874,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       _latestCenter = fallback;
       _latestZoom = _locationZoomLevel;
       _currentRequest = request;
-      _locationError ??= '기본 위치(대구)를 기준으로 지도를 표시합니다.';
+      _locationError ??= '기본 위치(경북 중심)를 기준으로 지도를 표시합니다.';
     });
 
     await _moveMapToLocation(fallback, level: _locationZoomLevel);
@@ -898,12 +887,31 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     int? level,
     bool updateMyPosition = true,
     bool updateCircle = true,
+    bool animate = false,
   }) async {
+    _latestCenter = location;
+    if (level != null) {
+      _latestZoom = level;
+    }
+
+    if (!_mapReady) {
+      _pendingMove = _PendingMove(
+        target: location,
+        level: level,
+        updateMyPosition: updateMyPosition,
+        updateCircle: updateCircle,
+        animate: animate,
+      );
+      debugPrint('[KakaoMapScreen] map not ready → move queued $_pendingMove');
+      return;
+    }
+
     try {
       final controller = ref.read(kakaoMapControllerProvider);
-      await controller.moveMapTo(location, level: level);
-      if (level != null) {
-        _latestZoom = level;
+      if (animate) {
+        await controller.animateTo(location, level: level);
+      } else {
+        await controller.moveMapTo(location, level: level);
       }
       if (updateMyPosition) {
         await controller.showMyPosition(location);
@@ -937,6 +945,53 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           _centerMarkerIconBase64 ??= _centerMarkerFallbackBase64;
         });
       }
+    }
+  }
+
+  Future<void> _preloadCachedCenterMarkers() async {
+    try {
+      final prefs = ref.read(app_di.sharedPreferencesProvider);
+      final cached = prefs.getString('yc_center_marker_cache_v1');
+      if (cached == null || cached.isEmpty) return;
+
+      final decoded = jsonDecode(cached) as List<dynamic>;
+      final markers = decoded
+          .map((e) => _decodeCachedMarker(e as Map<String, dynamic>))
+          .whereType<CenterMarkerPoint>()
+          .toList();
+
+      if (markers.isEmpty || !mounted) return;
+
+      setState(() {
+        _cachedCenterPoints = markers;
+      });
+      debugPrint('[KakaoMapScreen] preload marker cache -> ${markers.length} entries');
+    } catch (error, stack) {
+      debugPrint('[KakaoMapScreen] preload marker cache failed: $error');
+      if (stack != null) {
+        debugPrint(stack.toString());
+      }
+    }
+  }
+
+  Future<KakaoMapLatLng?> _loadLastKnownPosition() async {
+    try {
+      final position = await _gpsService.getLastKnownPosition();
+      if (position == null) return null;
+
+      final location = KakaoMapLatLng(position.latitude, position.longitude);
+      if (mounted) {
+        setState(() {
+          _deviceLocation ??= location;
+        });
+      }
+      return location;
+    } catch (error, stack) {
+      debugPrint('[KakaoMapScreen] last known location unavailable: $error');
+      if (stack != null) {
+        debugPrint(stack.toString());
+      }
+      return null;
     }
   }
 
@@ -992,9 +1047,18 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   Widget _buildGpsButton() {
     return FloatingActionButton(
       heroTag: 'kakao_map_gps',
-      onPressed: _isRequestingLocation ? null : _loadInitialPosition,
+      onPressed: _handleGpsButtonPressed,
       tooltip: '내 위치로 이동',
-      child: const Icon(Icons.my_location),
+      child: _isRequestingLocation
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          : const Icon(Icons.my_location),
     );
   }
 
@@ -1002,12 +1066,174 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.only(
-          bottom: _floatingActionButtonBottomSpacing,
-          right: 4,
+          top: 8,
+          left: 8,
         ),
         child: _buildGpsButton(),
       ),
     );
+  }
+
+  Future<void> _handleGpsButtonPressed() async {
+    final cached = _deviceLocation ?? await _loadLastKnownPosition();
+    final anchor = cached ?? _latestCenter ?? _centerForRegion(ref.read(regionProvider));
+    final request = CenterFetchRequest(
+      lat: anchor.lat,
+      lng: anchor.lng,
+      radiusKm: kCenterRangeKm,
+    );
+
+    setState(() {
+      _latestCenter = anchor;
+      _latestZoom = _locationZoomLevel;
+      _currentRequest = request;
+    });
+
+    await _moveMapToLocation(
+      anchor,
+      level: _locationZoomLevel,
+      updateMyPosition: cached != null,
+      updateCircle: true,
+      animate: true,
+    );
+
+    unawaited(_updateSearchCircle(anchor));
+    ref.refresh(youthCenterMapProvider(request));
+
+    if (_isRequestingLocation) return;
+    await _loadInitialPosition();
+  }
+
+  void _handleMapMoved(KakaoMapLatLng center, int zoom) {
+    debugPrint('[YCMAP] onMapMoved center=(${center.lat}, ${center.lng}) zoom=$zoom');
+    _latestCenter = center;
+    _latestZoom = zoom;
+
+    unawaited(_updateSearchCircle(center));
+
+    final nextRequest = CenterFetchRequest(
+      lat: center.lat,
+      lng: center.lng,
+      radiusKm: kCenterRangeKm,
+    );
+
+    if (_currentRequest == nextRequest) {
+      debugPrint('[YCMAP] onMapMoved → 요청 변경 없음, provider refresh 생략');
+      return;
+    }
+
+    _moveDebounce?.cancel();
+    debugPrint(
+      '[YCMAP] onMapMoved → debounce ${_debounceMs}ms 후 CenterFetchRequest 갱신 예정',
+    );
+
+    _moveDebounce = Timer(
+      const Duration(milliseconds: _debounceMs),
+      () {
+        if (!mounted) return;
+        debugPrint(
+          '[YCMAP] debounce 완료 → provider 재요청 '
+          'CenterFetchRequest(lat=${nextRequest.lat}, lng=${nextRequest.lng}, radius=${nextRequest.radiusKm})',
+        );
+
+        setState(() {
+          _currentRequest = nextRequest;
+        });
+
+        ref.refresh(youthCenterMapProvider(nextRequest));
+      },
+    );
+  }
+
+  void _onWebViewLoadingChanged(bool isLoading) {
+    unawaited(() async {
+      debugPrint('[KakaoMap] WebView LoadingChanged → $isLoading');
+      _setLoading(isLoading);
+      if (isLoading) {
+        _mapReady = false;
+        final anchor = _latestCenter ??
+            (_currentRequest != null
+                ? KakaoMapLatLng(
+                    _currentRequest!.lat,
+                    _currentRequest!.lng,
+                  )
+                : _deviceLocation ?? _centerForRegion(ref.read(regionProvider)));
+
+        if (_pendingMove == null && anchor != null) {
+          _pendingMove = _PendingMove(
+            target: anchor,
+            level: _latestZoom,
+            updateMyPosition: _deviceLocation != null,
+            updateCircle: true,
+            animate: false,
+          );
+          debugPrint('[KakaoMap] 로딩 시작 → 현재 지도 상태를 큐에 보관: $_pendingMove');
+        }
+      } else {
+        final controller = ref.read(kakaoMapControllerProvider);
+        if (controller.isReady) {
+          debugPrint('[KakaoMap] 로딩 종료 → 준비 상태 복구 및 대기 작업 반영');
+          _mapReady = true;
+          await _flushPendingMove();
+          await _flushPendingHighlight();
+          final request = _currentRequest;
+          final circleCenter = _latestCenter ??
+              (request != null
+                  ? KakaoMapLatLng(request.lat, request.lng)
+                  : _deviceLocation);
+          if (circleCenter != null) {
+            await _showMyPositionOnMap();
+            await _updateSearchCircle(circleCenter);
+          }
+        }
+      }
+    }());
+  }
+
+  Future<void> _onWebViewReady() async {
+    debugPrint('[KakaoMap] WebView Ready!');
+    _mapReady = true;
+    _setLoading(false);
+    await _flushPendingMove();
+    await _flushPendingHighlight();
+    await _showMyPositionOnMap();
+    final request = _currentRequest;
+    final circleCenter = _latestCenter ??
+        (request != null
+            ? KakaoMapLatLng(request.lat, request.lng)
+            : _deviceLocation);
+    if (circleCenter != null) {
+      await _updateSearchCircle(circleCenter);
+    }
+  }
+
+  Future<void> _flushPendingMove() async {
+    final pending = _pendingMove;
+    if (!_mapReady || pending == null) return;
+
+    debugPrint('[KakaoMapScreen] applying queued move: $pending');
+    _pendingMove = null;
+    await _moveMapToLocation(
+      pending.target,
+      level: pending.level,
+      updateMyPosition: pending.updateMyPosition,
+      updateCircle: pending.updateCircle,
+      animate: pending.animate,
+    );
+  }
+
+  Future<void> _flushPendingHighlight() async {
+    final pending = _pendingHighlight;
+    if (!_mapReady || pending == null) return;
+
+    debugPrint('[KakaoMapScreen] applying queued highlight: $pending');
+    _pendingHighlight = null;
+    await _highlightCenterMarker(
+      pending.markerId,
+      pending.position,
+      tooltipName: pending.tooltipName,
+    );
+    if (pending.tooltipName != null) _showMarkerTooltip(pending.tooltipName!);
   }
 
   Widget _buildRadiusPill(double radiusKm) {
@@ -1034,19 +1260,33 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     CenterMarkerPoint center,
     int index,
   ) async {
-    final markerId = 'CENTER-$index';
+    final markerId = 'CENTER-${center.id}';
     final position = KakaoMapLatLng(center.lat, center.lng);
+    final radius = _currentRequest?.radiusKm ?? kCenterRangeKm;
+    final request = CenterFetchRequest(
+      lat: position.lat,
+      lng: position.lng,
+      radiusKm: radius,
+    );
     setState(() {
       _latestCenter = position;
       _latestZoom = _locationZoomLevel;
+      _currentRequest = request;
     });
     await _moveMapToLocation(
       position,
       level: _locationZoomLevel,
       updateMyPosition: false,
-      updateCircle: false,
+      updateCircle: true,
+      animate: true,
     );
-    await _highlightCenterMarker(markerId, position);
+    ref.refresh(youthCenterMapProvider(request));
+    await _highlightCenterMarker(
+      markerId,
+      position,
+      tooltipName: center.name,
+    );
+    _showMarkerTooltip(center.name);
     _showCenterDetailSheet(
       name: center.name,
       address: center.fullAddress,
@@ -1059,7 +1299,17 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   Future<void> _highlightCenterMarker(
     String markerId,
     KakaoMapLatLng position,
+    {String? tooltipName},
   ) async {
+    if (!_mapReady) {
+      _pendingHighlight = _PendingHighlight(
+        markerId: markerId,
+        position: position,
+        tooltipName: tooltipName,
+      );
+      debugPrint('[KakaoMapScreen] map not ready → highlight queued: $_pendingHighlight');
+      return;
+    }
     try {
       final controller = ref.read(kakaoMapControllerProvider);
       await controller.highlightMarker(markerId, position);
@@ -1129,5 +1379,67 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       homepageUrl: extra['url']?.toString(),
       regionLabel: extra['regionLabel']?.toString() ?? '',
     );
+  }
+
+  CenterMarkerPoint? _decodeCachedMarker(Map<String, dynamic> json) {
+    try {
+      return CenterMarkerPoint(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        rawAddress: json['rawAddress'] as String,
+        lat: (json['lat'] as num).toDouble(),
+        lng: (json['lng'] as num).toDouble(),
+        fullAddress: json['fullAddress'] as String,
+        phone: json['phone'] as String?,
+        url: json['url'] as String?,
+        regionLabel: json['regionLabel'] as String,
+      );
+    } catch (error, stack) {
+      debugPrint('[KakaoMapScreen] marker cache decode failed: $error');
+      if (stack != null) {
+        debugPrint(stack.toString());
+      }
+      return null;
+    }
+  }
+}
+
+class _PendingMove {
+  const _PendingMove({
+    required this.target,
+    this.level,
+    this.updateMyPosition = true,
+    this.updateCircle = true,
+    this.animate = false,
+  });
+
+  final KakaoMapLatLng target;
+  final int? level;
+  final bool updateMyPosition;
+  final bool updateCircle;
+  final bool animate;
+
+  @override
+  String toString() {
+    return 'target=(${target.lat}, ${target.lng}), level=$level, '
+        'updateMyPosition=$updateMyPosition, updateCircle=$updateCircle, animate=$animate';
+  }
+}
+
+class _PendingHighlight {
+  const _PendingHighlight({
+    required this.markerId,
+    required this.position,
+    this.tooltipName,
+  });
+
+  final String markerId;
+  final KakaoMapLatLng position;
+  final String? tooltipName;
+
+  @override
+  String toString() {
+    return 'markerId=$markerId, position=(${position.lat}, ${position.lng}), '
+        'tooltip=${tooltipName ?? 'none'}';
   }
 }
