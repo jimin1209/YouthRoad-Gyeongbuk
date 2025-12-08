@@ -26,7 +26,7 @@ class PolicyExploreScreen extends ConsumerStatefulWidget {
 
 class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
   late final TextEditingController _searchController;
-  ProviderSubscription<String?>? _regionSubscription;
+  late final ProviderSubscription<String?> _regionSubscription;
 
   static const _categories = [
     (id: 'employment', label: '취업'),
@@ -46,7 +46,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
     final initialRegion = ref.read(regionProvider);
     controller.ensureRegionMode(hasSelection: initialRegion?.isNotEmpty ?? false);
 
-    _regionSubscription = ref.listen<String?>(
+    _regionSubscription = ref.listenManual<String?>(
       regionProvider,
       (previous, next) {
         final hasSelection = next?.isNotEmpty ?? false;
@@ -57,7 +57,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
 
   @override
   void dispose() {
-    _regionSubscription?.close();
+    _regionSubscription.close();
     _searchController.dispose();
     super.dispose();
   }
