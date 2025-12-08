@@ -1332,7 +1332,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   Future<void> _highlightCenterMarker(
     String markerId,
-    KakaoMapLatLng position,
+    KakaoMapLatLng position, // 위치 매개변수 뒤 쉼표 누락 시 구문 오류 발생
     {String? tooltipName},
   ) async {
     if (!_mapReady) {
