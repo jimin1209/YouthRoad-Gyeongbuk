@@ -72,6 +72,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   List<CenterMarkerPoint> _cachedCenterPoints = const [];
   bool _mapReady = false;
   _PendingMove? _pendingMove;
+  _PendingHighlight? _pendingHighlight;
 
   @override
   void initState() {
@@ -816,6 +817,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   Future<void> _showMyPositionOnMap() async {
     final location = _deviceLocation;
     if (location == null) return;
+    if (!_mapReady) {
+      debugPrint('[KakaoMapScreen] map not ready → skip showMyPosition');
+      return;
+    }
     try {
       final controller = ref.read(kakaoMapControllerProvider);
       await controller.showMyPosition(location);
@@ -830,6 +835,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   Future<void> _updateSearchCircle(KakaoMapLatLng center) async {
     if (!mounted) return;
+    if (!_mapReady) {
+      debugPrint('[KakaoMapScreen] map not ready → circle update skipped');
+      return;
+    }
     try {
       final controller = ref.read(kakaoMapControllerProvider);
       await controller.updateCircle(center);
@@ -1068,6 +1077,17 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   Future<void> _handleGpsButtonPressed() async {
     final cached = _deviceLocation ?? await _loadLastKnownPosition();
     final anchor = cached ?? _latestCenter ?? _centerForRegion(ref.read(regionProvider));
+    final request = CenterFetchRequest(
+      lat: anchor.lat,
+      lng: anchor.lng,
+      radiusKm: kCenterRangeKm,
+    );
+
+    setState(() {
+      _latestCenter = anchor;
+      _latestZoom = _locationZoomLevel;
+      _currentRequest = request;
+    });
 
     await _moveMapToLocation(
       anchor,
@@ -1077,6 +1097,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       animate: true,
     );
 
+    unawaited(_updateSearchCircle(anchor));
+    ref.refresh(youthCenterMapProvider(request));
     if (cached == null && _currentRequest == null) {
       setState(() {
         _currentRequest = CenterFetchRequest(
@@ -1096,6 +1118,19 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     _latestCenter = center;
     _latestZoom = zoom;
 
+    unawaited(_updateSearchCircle(center));
+
+    final nextRequest = CenterFetchRequest(
+      lat: center.lat,
+      lng: center.lng,
+      radiusKm: kCenterRangeKm,
+    );
+
+    if (_currentRequest == nextRequest) {
+      debugPrint('[YCMAP] onMapMoved → 요청 변경 없음, provider refresh 생략');
+      return;
+    }
+
     _moveDebounce?.cancel();
     debugPrint(
       '[YCMAP] onMapMoved → debounce ${_debounceMs}ms 후 CenterFetchRequest 갱신 예정',
@@ -1104,6 +1139,17 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     _moveDebounce = Timer(
       const Duration(milliseconds: _debounceMs),
       () {
+        if (!mounted) return;
+        debugPrint(
+          '[YCMAP] debounce 완료 → provider 재요청 '
+          'CenterFetchRequest(lat=${nextRequest.lat}, lng=${nextRequest.lng}, radius=${nextRequest.radiusKm})',
+        );
+
+        setState(() {
+          _currentRequest = nextRequest;
+        });
+
+        ref.refresh(youthCenterMapProvider(nextRequest));
         final req = CenterFetchRequest(
           lat: center.lat,
           lng: center.lng,
@@ -1126,6 +1172,48 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   }
 
   void _onWebViewLoadingChanged(bool isLoading) {
+    unawaited(() async {
+      debugPrint('[KakaoMap] WebView LoadingChanged → $isLoading');
+      _setLoading(isLoading);
+      if (isLoading) {
+        _mapReady = false;
+        final anchor = _latestCenter ??
+            (_currentRequest != null
+                ? KakaoMapLatLng(
+                    _currentRequest!.lat,
+                    _currentRequest!.lng,
+                  )
+                : _deviceLocation ?? _centerForRegion(ref.read(regionProvider)));
+
+        if (_pendingMove == null && anchor != null) {
+          _pendingMove = _PendingMove(
+            target: anchor,
+            level: _latestZoom,
+            updateMyPosition: _deviceLocation != null,
+            updateCircle: true,
+            animate: false,
+          );
+          debugPrint('[KakaoMap] 로딩 시작 → 현재 지도 상태를 큐에 보관: $_pendingMove');
+        }
+      } else {
+        final controller = ref.read(kakaoMapControllerProvider);
+        if (controller.isReady) {
+          debugPrint('[KakaoMap] 로딩 종료 → 준비 상태 복구 및 대기 작업 반영');
+          _mapReady = true;
+          await _flushPendingMove();
+          await _flushPendingHighlight();
+          final request = _currentRequest;
+          final circleCenter = _latestCenter ??
+              (request != null
+                  ? KakaoMapLatLng(request.lat, request.lng)
+                  : _deviceLocation);
+          if (circleCenter != null) {
+            await _showMyPositionOnMap();
+            await _updateSearchCircle(circleCenter);
+          }
+        }
+      }
+    }());
     debugPrint('[KakaoMap] WebView LoadingChanged → $isLoading');
     if (isLoading) {
       _mapReady = false;
@@ -1138,7 +1226,16 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     _mapReady = true;
     _setLoading(false);
     await _flushPendingMove();
+    await _flushPendingHighlight();
     await _showMyPositionOnMap();
+    final request = _currentRequest;
+    final circleCenter = _latestCenter ??
+        (request != null
+            ? KakaoMapLatLng(request.lat, request.lng)
+            : _deviceLocation);
+    if (circleCenter != null) {
+      await _updateSearchCircle(circleCenter);
+    }
   }
 
   Future<void> _flushPendingMove() async {
@@ -1154,6 +1251,20 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       updateCircle: pending.updateCircle,
       animate: pending.animate,
     );
+  }
+
+  Future<void> _flushPendingHighlight() async {
+    final pending = _pendingHighlight;
+    if (!_mapReady || pending == null) return;
+
+    debugPrint('[KakaoMapScreen] applying queued highlight: $pending');
+    _pendingHighlight = null;
+    await _highlightCenterMarker(
+      pending.markerId,
+      pending.position,
+      tooltipName: pending.tooltipName,
+    );
+    if (pending.tooltipName != null) _showMarkerTooltip(pending.tooltipName!);
   }
 
   Widget _buildRadiusPill(double radiusKm) {
@@ -1197,6 +1308,14 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       position,
       level: _locationZoomLevel,
       updateMyPosition: false,
+      updateCircle: true,
+      animate: true,
+    );
+    ref.refresh(youthCenterMapProvider(request));
+    await _highlightCenterMarker(
+      markerId,
+      position,
+      tooltipName: center.name,
       updateCircle: false,
       animate: true,
     );
@@ -1216,7 +1335,17 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   Future<void> _highlightCenterMarker(
     String markerId,
     KakaoMapLatLng position,
+    {String? tooltipName},
   ) async {
+    if (!_mapReady) {
+      _pendingHighlight = _PendingHighlight(
+        markerId: markerId,
+        position: position,
+        tooltipName: tooltipName,
+      );
+      debugPrint('[KakaoMapScreen] map not ready → highlight queued: $_pendingHighlight');
+      return;
+    }
     try {
       final controller = ref.read(kakaoMapControllerProvider);
       await controller.highlightMarker(markerId, position);
@@ -1330,5 +1459,23 @@ class _PendingMove {
   String toString() {
     return 'target=(${target.lat}, ${target.lng}), level=$level, '
         'updateMyPosition=$updateMyPosition, updateCircle=$updateCircle, animate=$animate';
+  }
+}
+
+class _PendingHighlight {
+  const _PendingHighlight({
+    required this.markerId,
+    required this.position,
+    this.tooltipName,
+  });
+
+  final String markerId;
+  final KakaoMapLatLng position;
+  final String? tooltipName;
+
+  @override
+  String toString() {
+    return 'markerId=$markerId, position=(${position.lat}, ${position.lng}), '
+        'tooltip=${tooltipName ?? 'none'}';
   }
 }
