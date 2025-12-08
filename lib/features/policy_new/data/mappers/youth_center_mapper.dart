@@ -40,6 +40,7 @@ extension YouthCenterDetailMapper on YouthCenterEntity {
 }
 
 class CenterMarkerPoint {
+  final String id;
   final String name;
   final String rawAddress;
   final double lat;
@@ -50,6 +51,7 @@ class CenterMarkerPoint {
   final String regionLabel;
 
   const CenterMarkerPoint({
+    required this.id,
     required this.name,
     required this.rawAddress,
     required this.lat,
@@ -66,14 +68,22 @@ extension YouthCenterMarkerMapper on YouthCenterEntity {
     required double lat,
     required double lng,
   }) {
+    final detail = detailAddress?.trim().isNotEmpty == true
+        ? ' ${detailAddress!.trim()}'
+        : '';
+    final fullAddress = '${address.trim()}$detail'.trim();
+    final normalizedName = centerName.trim().replaceAll(' ', '_');
+    final normalizedAddr = fullAddress.replaceAll(' ', '_');
+    final id =
+        '${normalizedName}_${normalizedAddr}_${lat.toStringAsFixed(5)}_${lng.toStringAsFixed(5)}';
+
     return CenterMarkerPoint(
+      id: id,
       name: centerName,
       rawAddress: address.trim(),
       lat: lat,
       lng: lng,
-      fullAddress: detailAddress?.trim().isNotEmpty == true
-          ? '$address ${detailAddress!.trim()}'
-          : address.trim(),
+      fullAddress: fullAddress,
       phone: phoneNumber,
       url: websiteUrl,
       regionLabel: '${sidoName ?? ''} ${sigunguName ?? ''}'.trim(),
