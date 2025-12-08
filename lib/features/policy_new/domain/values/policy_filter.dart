@@ -1,3 +1,4 @@
+import 'policy_status_filter.dart';
 import 'policy_category.dart';
 import 'policy_region.dart';
 
@@ -8,12 +9,12 @@ class PolicyFilter {
   final String? district;
   final PolicyCategory? category;
   final bool? isOnline;
-  final bool? isOngoing;
   final bool? isOffline;
   final int? age;
   final List<String> tags;
   final String? institutionId;
   final String? departmentId;
+  final PolicyStatusFilter status;
 
   const PolicyFilter({
     this.region = PolicyRegion.all,
@@ -22,13 +23,24 @@ class PolicyFilter {
     this.district,
     this.category,
     this.isOnline,
-    this.isOngoing,
     this.isOffline,
     this.age,
     this.tags = const [],
     this.institutionId,
     this.departmentId,
+    this.status = PolicyStatusFilter.includeClosed,
   });
+
+  bool? get isOngoing {
+    switch (status) {
+      case PolicyStatusFilter.inProgressOnly:
+        return true;
+      case PolicyStatusFilter.closedOnly:
+        return false;
+      case PolicyStatusFilter.includeClosed:
+        return null;
+    }
+  }
 
   PolicyFilter normalize() {
     return PolicyFilter(
@@ -38,12 +50,12 @@ class PolicyFilter {
       district: district,
       category: category,
       isOnline: isOnline,
-      isOngoing: isOngoing,
       isOffline: isOffline,
       age: age != null && age! > 0 ? age : null,
       tags: _normalizeTags(tags),
       institutionId: _normalizeId(institutionId),
       departmentId: _normalizeId(departmentId),
+      status: status,
     );
   }
 
@@ -54,12 +66,12 @@ class PolicyFilter {
     String? district,
     PolicyCategory? category,
     bool? isOnline,
-    bool? isOngoing,
     bool? isOffline,
     int? age,
     List<String>? tags,
     String? institutionId,
     String? departmentId,
+    PolicyStatusFilter? status,
   }) {
     return PolicyFilter(
       region: region ?? this.region,
@@ -68,12 +80,12 @@ class PolicyFilter {
       district: district ?? this.district,
       category: category ?? this.category,
       isOnline: isOnline ?? this.isOnline,
-      isOngoing: isOngoing ?? this.isOngoing,
       isOffline: isOffline ?? this.isOffline,
       age: age ?? this.age,
       tags: tags ?? this.tags,
       institutionId: institutionId ?? this.institutionId,
       departmentId: departmentId ?? this.departmentId,
+      status: status ?? this.status,
     );
   }
 

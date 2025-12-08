@@ -8,7 +8,7 @@ import '../../domain/values/policy_query.dart';
 import '../filters/policy_filter_ui_state.dart';
 import '../filters/policy_search_keyword_provider.dart';
 import '../../../../application/notifiers/region_notifier.dart';
-import 'policy_event_bus.dart';
+import 'policy_event_bus.dart' as policy_events;
 import 'policy_feed_memory_cache.dart';
 import 'policy_paging_state.dart';
 import 'policy_query_engine.dart';
@@ -44,7 +44,7 @@ abstract class BasePolicyFeedController
     );
 
     ref.listen<PolicyEvent?>(
-      policyEventBusProvider,
+      policy_events.policyEventBusProvider,
       (previous, next) {
         if (next == null) return;
         switch (next.type) {

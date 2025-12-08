@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/policy_reminder.dart';
+import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_reminder_status.dart';
 import '../providers.dart';
 import '../services/policy_reminder_service.dart';
@@ -69,6 +70,7 @@ class NotificationCenterController
     extends StateNotifier<AsyncValue<NotificationCenterState>> {
   NotificationCenterController({required this.ref})
       : super(const AsyncData(NotificationCenterState.initial)) {
+    _listenToEvents();
     load();
   }
 
@@ -78,16 +80,21 @@ class NotificationCenterController
   bool _isProcessing = false;
   final List<_OptimisticAction> _optimisticActions = [];
   int _actionCounter = 0;
+  bool _ignoreEvents = false;
+  bool _pendingEventReload = false;
 
   PolicyReminderService get _service => ref.read(policyReminderServiceProvider);
 
-  Future<void> load() async {
+  Future<void> load({bool preserveError = true}) async {
+    _pendingEventReload = false;
+    _ignoreEvents = true;
     final previous = state.value ?? NotificationCenterState.initial;
     state = AsyncData(
       previous.copyWith(
         status: NotificationCenterStatus.loading,
         lastAction: NotificationCenterActionType.reload,
-        clearError: true,
+        clearError: !preserveError,
+        errorMessage: preserveError ? previous.errorMessage : null,
         pendingActions: _actionQueue.length,
       ),
     );
@@ -119,6 +126,7 @@ class NotificationCenterController
             past: past,
             status: NotificationCenterStatus.success,
             lastAction: NotificationCenterActionType.reload,
+            errorMessage: preserveError ? previous.errorMessage : null,
             pendingActions: _actionQueue.length,
           ),
         );
@@ -131,7 +139,27 @@ class NotificationCenterController
             pendingActions: _actionQueue.length,
           ),
         );
+      } finally {
+        _ignoreEvents = false;
       }
+    });
+  }
+
+  void _listenToEvents() {
+    ref.listen<PolicyEvent?>(policyEventBusProvider, (previous, next) {
+      if (_ignoreEvents) return;
+      if (next == null) return;
+      if (next.type != PolicyEventType.reminderChanged &&
+          next.type != PolicyEventType.reminderBulkUpdated) {
+        return;
+      }
+
+      if (_isProcessing || _actionQueue.isNotEmpty) {
+        _pendingEventReload = true;
+        return;
+      }
+
+      load();
     });
   }
 
@@ -342,6 +370,11 @@ class NotificationCenterController
       final current = state.value;
       if (current != null) {
         state = AsyncData(current.copyWith(pendingActions: 0));
+      }
+
+      if (_pendingEventReload) {
+        _pendingEventReload = false;
+        load(preserveError: true);
       }
     }
   }

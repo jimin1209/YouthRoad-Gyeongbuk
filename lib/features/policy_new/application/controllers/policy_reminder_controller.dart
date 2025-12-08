@@ -1,9 +1,12 @@
 ﻿// lib/features/policy_new/application/controllers/policy_reminder_controller.dart
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/policy.dart';
 import '../../domain/entities/policy_reminder.dart';
+import '../../domain/values/policy_event.dart';
 import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
 import '../../domain/values/schedule_result.dart';
@@ -47,7 +50,10 @@ class PolicyReminderController
   PolicyReminderController({
     required this.ref,
     required this.policyId,
-  }) : super(const AsyncData(PolicyReminderViewState(reminders: [])));
+  }) : super(const AsyncLoading()) {
+    _ensureInitialized();
+    _listenPolicyEvents();
+  }
 
   final Ref ref;
   final String policyId;
@@ -55,6 +61,13 @@ class PolicyReminderController
   PolicyReminderService get _service => ref.read(policyReminderServiceProvider);
 
   bool _initialized = false;
+  bool _ignoreEvents = false;
+  int _activeSilentOps = 0;
+  bool _pendingEventReload = false;
+
+  void _ensureInitialized() {
+    Future.microtask(onInit);
+  }
 
   Future<void> onInit() async {
     if (_initialized) return;
@@ -63,142 +76,264 @@ class PolicyReminderController
   }
 
   Future<void> initialize() async {
-    final previous = state.value ?? PolicyReminderViewState.initial();
-    try {
-      final syncReport = await _service.syncScheduledReminders();
-      await load();
+    await _silenceEventsWhile(() async {
+      final previous = state.value ?? PolicyReminderViewState.initial();
+      try {
+        final syncReport = await _service.syncScheduledReminders();
+        await load();
 
-      final syncMessages = _messagesForSyncReport(syncReport);
-      if (syncMessages.isNotEmpty) {
-        state = state.whenData(
-          (viewState) => viewState.copyWith(messages: syncMessages),
+        final syncMessages = _messagesForSyncReport(syncReport);
+        if (syncMessages.isNotEmpty) {
+          state = state.whenData(
+            (viewState) => viewState.copyWith(messages: syncMessages),
+          );
+        }
+      } catch (e, st) {
+        state = AsyncData(
+          previous.copyWith(
+            isRefreshing: false,
+            isMutating: false,
+            messages: ['알림 정보를 불러오지 못했습니다: $e'],
+          ),
         );
+        print('PolicyReminderController.initialize failed: $e\n$st');
       }
-    } catch (e, st) {
-      state = AsyncData(
-        previous.copyWith(
-          isRefreshing: false,
-          isMutating: false,
-          messages: ['알림 정보를 불러오지 못했습니다: $e'],
-        ),
-      );
-      print('PolicyReminderController.initialize failed: $e\n$st');
-    }
+    });
   }
 
-  Future<void> load() async {
-    final previous = state.value ?? PolicyReminderViewState.initial();
-    state = AsyncData(previous.copyWith(isRefreshing: true));
+  Future<void> load({bool preserveMessages = true}) async {
+    await _silenceEventsWhile(() async {
+      final previous = state.value;
+      final base = previous ?? PolicyReminderViewState.initial();
 
-    final reminders = await _fetchReminders();
+      if (!state.hasValue) {
+        state = const AsyncLoading();
+      } else {
+        state = AsyncData(base.copyWith(isRefreshing: true));
+      }
 
-    state = AsyncData(
-      previous.copyWith(
-        reminders: reminders,
-        isRefreshing: false,
-        messages: const [],
-      ),
-    );
+      try {
+        final reminders = await _fetchReminders();
+
+        state = AsyncData(
+          base.copyWith(
+            reminders: reminders,
+            isRefreshing: false,
+            isMutating: false,
+            messages: preserveMessages ? base.messages : const [],
+          ),
+        );
+      } catch (e, st) {
+        state = AsyncData(
+          base.copyWith(
+            isRefreshing: false,
+            isMutating: false,
+            messages: ['알림 정보를 불러오지 못했습니다: $e'],
+          ),
+        );
+        print('PolicyReminderController.load failed: $e\n$st');
+      }
+    });
   }
 
   Future<ReminderMutationResult> setReminders(
     Policy policy,
     List<ReminderTimeKind> kinds,
   ) async {
-    final previous = state.value ?? PolicyReminderViewState.initial();
-    state = AsyncData(previous.copyWith(isMutating: true, messages: const []));
-    try {
-      final nextKinds = kinds.toSet();
+    return _silenceEventsWhile(() async {
+      final previous = state.value ?? PolicyReminderViewState.initial();
+      final previousReminders = await _fetchReminders();
+      state = AsyncData(previous.copyWith(isMutating: true, messages: const []));
+      try {
+        final nextKinds = kinds.toSet();
+        if (nextKinds.isEmpty) {
+          await _service.cancelAllByPolicy(policyId, deleteFromRepository: true);
+          final refreshed = await _fetchReminders();
 
-      await _service.cancelAllByPolicy(policyId, deleteFromRepository: true);
+          state = AsyncData(
+            PolicyReminderViewState(
+              reminders: refreshed,
+              isRefreshing: false,
+              isMutating: false,
+              messages: const [],
+            ),
+          );
 
-      final result = nextKinds.isEmpty
-          ? const ReminderMutationResult(reminders: [], failures: [])
-          : await _service.createRemindersForPolicy(
-              policy,
-              nextKinds.toList(),
-            );
+          return const ReminderMutationResult(reminders: [], failures: []);
+        }
 
-      final refreshed = await _fetchReminders();
+        final result = await _service.createRemindersForPolicy(
+          policy,
+          nextKinds.toList(),
+        );
 
-      state = AsyncData(
-        PolicyReminderViewState(
-          reminders: refreshed,
-          isRefreshing: false,
-          isMutating: false,
-          messages: _messagesForResult(result),
-        ),
-      );
+        final refreshed = await _fetchReminders();
 
-      return result;
-    } catch (e, st) {
-      await load();
-      final reloaded = state.value ?? previous;
-      state = AsyncData(
-        reloaded.copyWith(
-          isMutating: false,
-          messages: ['알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.'],
-        ),
-      );
-      print('PolicyReminderController.setReminders failed: $e\n$st');
-      return const ReminderMutationResult(reminders: [], failures: []);
-    }
+        if (result.failures.isNotEmpty) {
+          await _restorePreviousReminders(previousReminders, refreshed);
+
+          _pendingEventReload = false;
+          state = AsyncData(
+            PolicyReminderViewState(
+              reminders: previousReminders,
+              isRefreshing: false,
+              isMutating: false,
+              messages: _messagesForResult(result),
+            ),
+          );
+
+          return ReminderMutationResult(
+            reminders: previousReminders,
+            failures: result.failures,
+          );
+        }
+
+        var latestReminders = refreshed;
+
+        if (result.failures.isEmpty && result.reminders.isNotEmpty) {
+          for (final reminder in refreshed) {
+            if (!nextKinds.contains(reminder.timeKind)) {
+              await _service.cancelReminder(
+                reminder.reminderId,
+                deleteFromRepository: true,
+              );
+            }
+          }
+          latestReminders = await _fetchReminders();
+        }
+
+        state = AsyncData(
+          PolicyReminderViewState(
+            reminders: latestReminders,
+            isRefreshing: false,
+            isMutating: false,
+            messages: _messagesForResult(result),
+          ),
+        );
+
+        return result;
+      } catch (e, st) {
+        List<PolicyReminder> current;
+        try {
+          current = await _fetchReminders();
+        } catch (fetchError, fetchSt) {
+          print(
+              'PolicyReminderController.setReminders fetch restore failed: $fetchError\n$fetchSt');
+          current = previousReminders;
+        }
+
+        await _restorePreviousReminders(previousReminders, current);
+
+        _pendingEventReload = false;
+
+        final failures = kinds
+            .map(
+              (kind) => ReminderMutationFailure(
+                timeKind: kind,
+                failure: const ScheduleFailure(
+                  type: ScheduleFailureType.unknown,
+                  message: '알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.',
+                  code: ScheduleFailureCode.internalException,
+                ),
+              ),
+            )
+            .toList();
+        state = AsyncData(
+          PolicyReminderViewState(
+            reminders: previousReminders,
+            isRefreshing: false,
+            isMutating: false,
+            messages: const ['알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.'],
+          ),
+        );
+        print('PolicyReminderController.setReminders failed: $e\n$st');
+        return ReminderMutationResult(
+          reminders: previousReminders,
+          failures: failures,
+        );
+      }
+    });
   }
 
   Future<void> removeReminder(String reminderId) async {
-    final previous = state.value ?? PolicyReminderViewState.initial();
-    state = AsyncData(previous.copyWith(isMutating: true));
-    try {
-      await _service.cancelReminder(reminderId, deleteFromRepository: true);
-      final current = await _fetchReminders();
-      state = AsyncData(
-        previous.copyWith(
-          reminders: current,
-          isMutating: false,
-          messages: const [],
-        ),
-      );
-    } catch (e, st) {
-      state = AsyncData(
-        previous.copyWith(
-          isMutating: false,
-          messages: ['알림을 취소하지 못했어요. 잠시 후 다시 시도해 주세요.'],
-        ),
-      );
-      print('PolicyReminderController.removeReminder failed: $e\n$st');
-    }
+    await _silenceEventsWhile(() async {
+      final previous = state.value ?? PolicyReminderViewState.initial();
+      state = AsyncData(previous.copyWith(isMutating: true));
+      try {
+        await _service.cancelReminder(reminderId, deleteFromRepository: true);
+        final current = await _fetchReminders();
+        state = AsyncData(
+          previous.copyWith(
+            reminders: current,
+            isMutating: false,
+            messages: const [],
+          ),
+        );
+      } catch (e, st) {
+        state = AsyncData(
+          previous.copyWith(
+            isMutating: false,
+            messages: ['알림을 취소하지 못했어요. 잠시 후 다시 시도해 주세요.'],
+          ),
+        );
+        print('PolicyReminderController.removeReminder failed: $e\n$st');
+      }
+    });
   }
 
   Future<void> cancelAll() async {
-    final previous = state.value ?? PolicyReminderViewState.initial();
-    state = AsyncData(previous.copyWith(isMutating: true));
-    try {
-      await _service.cancelAllByPolicy(
-        policyId,
-        deleteFromRepository: true,
-      );
-      state = AsyncData(
-        previous.copyWith(
-          reminders: const [],
-          isMutating: false,
-          messages: const [],
-        ),
-      );
-    } catch (e, st) {
-      state = AsyncData(
-        previous.copyWith(
-          isMutating: false,
-          messages: ['모든 알림을 취소하지 못했어요. 잠시 후 다시 시도해 주세요.'],
-        ),
-      );
-      print('PolicyReminderController.cancelAll failed: $e\n$st');
-    }
+    await _silenceEventsWhile(() async {
+      final previous = state.value ?? PolicyReminderViewState.initial();
+      state = AsyncData(previous.copyWith(isMutating: true));
+      try {
+        await _service.cancelAllByPolicy(
+          policyId,
+          deleteFromRepository: true,
+        );
+        state = AsyncData(
+          previous.copyWith(
+            reminders: const [],
+            isMutating: false,
+            messages: const [],
+          ),
+        );
+      } catch (e, st) {
+        state = AsyncData(
+          previous.copyWith(
+            isMutating: false,
+            messages: ['모든 알림을 취소하지 못했어요. 잠시 후 다시 시도해 주세요.'],
+          ),
+        );
+        print('PolicyReminderController.cancelAll failed: $e\n$st');
+      }
+    });
   }
 
   void clearMessages() {
     state = state.whenData(
       (viewState) => viewState.copyWith(messages: const []),
     );
+  }
+
+  void _listenPolicyEvents() {
+    ref.listen<PolicyEvent?>(policyEventBusProvider, (previous, next) {
+      if (_ignoreEvents) {
+        _pendingEventReload = true;
+        return;
+      }
+      if (next == null) return;
+      if (next.type == PolicyEventType.reminderBulkUpdated ||
+          (next.type == PolicyEventType.reminderChanged &&
+              (next.policyId == null || next.policyId == policyId))) {
+        load();
+      }
+    });
+  }
+
+  @override
+  void onAddListener() {
+    super.onAddListener();
+    _ensureInitialized();
   }
 
   PolicyReminderStatus? currentStatus() {
@@ -272,6 +407,57 @@ class PolicyReminderController
     if (failureMessages.isNotEmpty) return failureMessages;
 
     return const [];
+  }
+
+  Future<void> _restorePreviousReminders(
+    List<PolicyReminder> previousReminders,
+    List<PolicyReminder> currentReminders,
+  ) async {
+    final hadAnyReminders =
+        previousReminders.isNotEmpty || currentReminders.isNotEmpty;
+    final repository = ref.read(policyReminderRepositoryProvider);
+
+    try {
+      await _service.cancelAllByPolicy(policyId, deleteFromRepository: true);
+    } catch (e, st) {
+      print('PolicyReminderController.restorePreviousReminders cancelAll failed: $e\n$st');
+    }
+
+    for (final reminder in previousReminders) {
+      await repository.upsertReminder(reminder);
+    }
+
+    try {
+      await _service.syncScheduledReminders();
+    } catch (e, st) {
+      print('PolicyReminderController.restorePreviousReminders failed: $e\n$st');
+    }
+
+    if (hadAnyReminders) {
+      ref.read(policyEventBusProvider).emit(
+        PolicyEvent(
+          PolicyEventType.reminderBulkUpdated,
+          policyId: policyId,
+        ),
+      );
+    }
+  }
+
+  Future<T> _silenceEventsWhile<T>(Future<T> Function() action) async {
+    _activeSilentOps += 1;
+    _ignoreEvents = true;
+    try {
+      return await action();
+    } finally {
+      _activeSilentOps -= 1;
+      if (_activeSilentOps <= 0) {
+        _ignoreEvents = false;
+        if (_pendingEventReload) {
+          _pendingEventReload = false;
+          Future.microtask(load);
+        }
+      }
+    }
   }
 
   Future<List<PolicyReminder>> _fetchReminders() async {

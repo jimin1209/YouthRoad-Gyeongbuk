@@ -5,6 +5,7 @@ import '../../domain/entities/policy.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_region.dart';
 import '../../domain/values/policy_sort.dart';
+import '../../domain/values/policy_status_filter.dart';
 import '../reexplore/policy_reexplore.dart';
 
 @immutable
@@ -16,8 +17,8 @@ class PolicyFilterUiState {
   final PolicyCategory? category;
   final PolicySortOption sort;
   final List<String> tags;
+  final PolicyStatusFilter status;
   final bool showOnlyOnline;
-  final bool showOnlyOngoing;
   final String? institutionId;
   final String? institutionName;
   final String? departmentId;
@@ -31,8 +32,8 @@ class PolicyFilterUiState {
     this.category,
     this.sort = PolicySortOption.latest,
     this.tags = const [],
+    this.status = PolicyStatusFilter.includeClosed,
     this.showOnlyOnline = false,
-    this.showOnlyOngoing = false,
     this.institutionId,
     this.institutionName,
     this.departmentId,
@@ -47,8 +48,8 @@ class PolicyFilterUiState {
     PolicyCategory? category,
     PolicySortOption? sort,
     List<String>? tags,
+    PolicyStatusFilter? status,
     bool? showOnlyOnline,
-    bool? showOnlyOngoing,
     String? institutionId,
     String? institutionName,
     String? departmentId,
@@ -66,8 +67,8 @@ class PolicyFilterUiState {
       category: category ?? this.category,
       sort: sort ?? this.sort,
       tags: nextTags,
+      status: status ?? this.status,
       showOnlyOnline: showOnlyOnline ?? this.showOnlyOnline,
-      showOnlyOngoing: showOnlyOngoing ?? this.showOnlyOngoing,
       institutionId: institutionId ?? this.institutionId,
       institutionName: institutionName ?? this.institutionName,
       departmentId: departmentId ?? this.departmentId,
@@ -76,19 +77,35 @@ class PolicyFilterUiState {
   }
 
   String get regionSummary {
-    final cityName = city;
-    final districtName = district;
-    if (cityName == null || cityName.isEmpty) return '경북 전체';
-    if (districtName == null || districtName.isEmpty) return '경북 $cityName';
-    return '경북 $cityName $districtName';
+    if (region == PolicyRegion.all) return '전체';
+
+    final provinceLabel = _provinceLabel(region, province);
+
+    if (region != PolicyRegion.gyeongbuk) {
+      return provinceLabel;
+    }
+
+    final cityName = city?.trim();
+    final districtName = district?.trim();
+
+    if (cityName == null || cityName.isEmpty) return '$provinceLabel 전체';
+    if (districtName == null || districtName.isEmpty) {
+      return '$provinceLabel $cityName';
+    }
+    return '$provinceLabel $cityName $districtName';
   }
+
 }
 
 class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
   PolicyFilterUiStateNotifier() : super(const PolicyFilterUiState());
 
-  void setRegion(PolicyRegion region) =>
-      state = state.copyWith(region: region);
+  void setRegion(PolicyRegion region) => state = state.copyWith(
+        region: region,
+        province: _provinceName(region),
+        city: region == PolicyRegion.gyeongbuk ? state.city : null,
+        district: region == PolicyRegion.gyeongbuk ? state.district : null,
+      );
 
   void setRegionStrings({
     required String province,
@@ -113,8 +130,9 @@ class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
   void toggleOnlineOnly() =>
       state = state.copyWith(showOnlyOnline: !state.showOnlyOnline);
 
-  void toggleOngoingOnly() =>
-      state = state.copyWith(showOnlyOngoing: !state.showOnlyOngoing);
+  void setStatus(PolicyStatusFilter status) => state = state.copyWith(
+        status: status,
+      );
 
   void setInstitution({String? id, String? name}) => state = state.copyWith(
         institutionId: id,
@@ -149,3 +167,51 @@ final globalFilterProvider =
 
 @Deprecated('Use globalFilterProvider instead')
 final policyFilterUiStateProvider = globalFilterProvider;
+
+String _provinceLabel(PolicyRegion region, String fallback) {
+  switch (region) {
+    case PolicyRegion.all:
+      return '전국';
+    case PolicyRegion.seoul:
+      return '서울';
+    case PolicyRegion.busan:
+      return '부산';
+    case PolicyRegion.daegu:
+      return '대구';
+    case PolicyRegion.incheon:
+      return '인천';
+    case PolicyRegion.gwangju:
+      return '광주';
+    case PolicyRegion.daejeon:
+      return '대전';
+    case PolicyRegion.ulsan:
+      return '울산';
+    case PolicyRegion.gyeongbuk:
+      return '경북';
+  }
+  // ignore: dead_code
+  return fallback.isEmpty ? '전체' : fallback;
+}
+
+String _provinceName(PolicyRegion region) {
+  switch (region) {
+    case PolicyRegion.all:
+      return '전국';
+    case PolicyRegion.seoul:
+      return '서울';
+    case PolicyRegion.busan:
+      return '부산';
+    case PolicyRegion.daegu:
+      return '대구';
+    case PolicyRegion.incheon:
+      return '인천';
+    case PolicyRegion.gwangju:
+      return '광주';
+    case PolicyRegion.daejeon:
+      return '대전';
+    case PolicyRegion.ulsan:
+      return '울산';
+    case PolicyRegion.gyeongbuk:
+      return '경상북도';
+  }
+}
