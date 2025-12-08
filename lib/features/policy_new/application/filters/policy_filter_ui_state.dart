@@ -176,7 +176,7 @@ final globalFilterProvider =
       ),
     );
 
-    final regionSubscription = ref.listenManual<String?>(
+    final regionSubscription = ref.listen<String?>(
       regionProvider,
       (previous, next) {
         notifier.setRegionStrings(
