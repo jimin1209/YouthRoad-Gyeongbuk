@@ -527,6 +527,25 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       lng: regionCenter.lng,
       radiusKm: kCenterRangeKm,
     );
+
+    // 마지막으로 확인된 GPS 좌표가 있다면 초기 반경 계산과 지도 중심도 동일 좌표로 맞춰준다.
+    _bootstrapLastKnownLocation();
+  }
+
+  Future<void> _bootstrapLastKnownLocation() async {
+    final cached = await _loadLastKnownPosition();
+    if (!mounted || cached == null) return;
+
+    setState(() {
+      _deviceLocation ??= cached;
+      _latestCenter = cached;
+      _latestZoom = _locationZoomLevel;
+      _currentRequest = CenterFetchRequest(
+        lat: cached.lat,
+        lng: cached.lng,
+        radiusKm: kCenterRangeKm,
+      );
+    });
   }
 
   List<KakaoMapMarker> _policyMarkers(
@@ -562,6 +581,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         extra: {
           'id': center.id,
           'name': center.name,
+          'lat': center.lat,
+          'lng': center.lng,
+          'rawAddress': center.rawAddress,
           'fullAddress': center.fullAddress,
           'phone': center.phone,
           'url': center.url,
@@ -1387,26 +1409,19 @@ Future<void> _highlightCenterMarker(
 
   void _handleCenterMarkerClicked(
     String markerId,
-    Map<String, dynamic>? extra,
+    Map<String, dynamic>? _,
   ) {
     debugPrint('[KakaoMap] markerClicked event -> $markerId');
     final normalizedId = markerId.replaceFirst('CENTER-', '');
-    final candidate = _cachedCenterPoints.firstWhere(
-      (c) => c.id == normalizedId || 'CENTER-${c.id}' == markerId,
-      orElse: () => const CenterMarkerPoint(
-        id: '',
-        name: '',
-        rawAddress: '',
-        lat: 0,
-        lng: 0,
-        fullAddress: '',
-        phone: null,
-        url: null,
-        regionLabel: '',
-      ),
-    );
+    CenterMarkerPoint? candidate;
+    for (final center in _cachedCenterPoints) {
+      if (center.id == normalizedId || 'CENTER-${center.id}' == markerId) {
+        candidate = center;
+        break;
+      }
+    }
 
-    if (candidate.id.isEmpty) {
+    if (candidate == null) {
       debugPrint('[KakaoMap] center marker payload missing, ignoring');
       return;
     }
