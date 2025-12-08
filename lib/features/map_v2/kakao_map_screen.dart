@@ -205,6 +205,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   setState(() => _lastLog = event.logMessage);
                 },
                 showDebugPanel: kDebugMode && debugPanelEnabled,
+                radiusKm: _currentRequest?.radiusKm ?? kCenterRangeKm,
               ),
               if (_loading) const Center(child: CircularProgressIndicator()),
               if (_errorCode != null)
@@ -294,6 +295,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   setState(() => _lastLog = event.logMessage);
                 },
                 showDebugPanel: kDebugMode && debugPanelEnabled,
+                radiusKm: _currentRequest?.radiusKm ?? kCenterRangeKm,
               ),
               if (_loading) const Center(child: CircularProgressIndicator()),
               if (_errorCode != null)
@@ -454,6 +456,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   setState(() => _lastLog = event.logMessage);
                 },
                 showDebugPanel: kDebugMode && debugPanelEnabled,
+                radiusKm: _currentRequest?.radiusKm ?? kCenterRangeKm,
               ),
               if (_activeTooltipName != null)
                 Positioned(
@@ -854,7 +857,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     try {
       final controller = ref.read(kakaoMapControllerProvider);
       await controller.showMyPosition(location);
-      await controller.updateCircle(location);
+      final radiusKm = _currentRequest?.radiusKm ?? kCenterRangeKm;
+      await controller.updateCircle(
+        location,
+        radiusMeters: radiusKm * 1000,
+      );
     } catch (error, stack) {
       debugPrint('[KakaoMapScreen] showMyPosition failed: $error');
       if (stack != null) {
@@ -863,7 +870,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     }
   }
 
-  Future<void> _updateSearchCircle(KakaoMapLatLng center) async {
+  Future<void> _updateSearchCircle(
+    KakaoMapLatLng center, {
+    double? radiusKm,
+  }) async {
     if (!mounted) return;
     if (!_mapReady) {
       debugPrint('[KakaoMapScreen] map not ready → circle update skipped');
@@ -871,7 +881,12 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     }
     try {
       final controller = ref.read(kakaoMapControllerProvider);
-      await controller.updateCircle(center);
+      final effectiveRadiusKm =
+          radiusKm ?? _currentRequest?.radiusKm ?? kCenterRangeKm;
+      await controller.updateCircle(
+        center,
+        radiusMeters: effectiveRadiusKm * 1000,
+      );
     } catch (error, stack) {
       debugPrint('[KakaoMapScreen] updateCircle failed: $error');
       if (stack != null) {
@@ -907,8 +922,15 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       _locationError ??= '기본 위치(경북 중심)를 기준으로 지도를 표시합니다.';
     });
 
-    await _moveMapToLocation(fallback, level: _locationZoomLevel);
-    await _updateSearchCircle(fallback);
+    await _moveMapToLocation(
+      fallback,
+      level: _locationZoomLevel,
+      radiusKm: request.radiusKm,
+    );
+    await _updateSearchCircle(
+      fallback,
+      radiusKm: request.radiusKm,
+    );
     ref.refresh(youthCenterMapProvider(request));
   }
 
@@ -918,11 +940,14 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     bool updateMyPosition = true,
     bool updateCircle = true,
     bool animate = false,
+    double? radiusKm,
   }) async {
     _latestCenter = location;
     if (level != null) {
       _latestZoom = level;
     }
+    final effectiveRadiusKm =
+        radiusKm ?? _currentRequest?.radiusKm ?? kCenterRangeKm;
 
     if (!_mapReady) {
       _pendingMove = _PendingMove(
@@ -947,7 +972,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         await controller.showMyPosition(location);
       }
       if (updateCircle) {
-        await controller.updateCircle(location);
+        await controller.updateCircle(
+          location,
+          radiusMeters: effectiveRadiusKm * 1000,
+        );
       }
     } catch (error, stack) {
       debugPrint('[KakaoMapScreen] moveMapTo failed: $error');
@@ -1147,9 +1175,15 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       updateMyPosition: cached != null,
       updateCircle: true,
       animate: true,
+      radiusKm: request.radiusKm,
     );
 
-    unawaited(_updateSearchCircle(anchor));
+    unawaited(
+      _updateSearchCircle(
+        anchor,
+        radiusKm: request.radiusKm,
+      ),
+    );
     ref.refresh(youthCenterMapProvider(request));
     if (cached == null && _currentRequest == null) {
       setState(() {
@@ -1167,6 +1201,43 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   void _handleMapMoved(KakaoMapLatLng center, int zoom) {
     debugPrint('[YCMAP] onMapMoved center=(${center.lat}, ${center.lng}) zoom=$zoom');
+    debugPrint('[KakaoMapScreen] onMapCenterChanged: (${center.lat}, ${center.lng}) zoom=$zoom');
+    final radiusKm = _currentRequest?.radiusKm ?? kCenterRangeKm;
+    final newRequest = CenterFetchRequest(
+      lat: center.lat,
+      lng: center.lng,
+      radiusKm: radiusKm,
+    );
+
+    if (_currentRequest == newRequest) {
+      _latestCenter = center;
+      _latestZoom = zoom;
+      debugPrint(
+        '[KakaoMapScreen] effectiveRequestCenter=(${center.lat}, ${center.lng}) (from drag - unchanged)',
+      );
+      unawaited(_updateSearchCircle(
+        center,
+        radiusKm: radiusKm,
+      ));
+      return;
+    }
+
+    setState(() {
+      _latestCenter = center;
+      _latestZoom = zoom;
+      _currentRequest = newRequest;
+    });
+
+    debugPrint(
+      '[KakaoMapScreen] effectiveRequestCenter=(${center.lat}, ${center.lng}) (from drag)',
+    );
+    unawaited(_updateSearchCircle(
+      center,
+      radiusKm: radiusKm,
+    ));
+    ref.refresh(youthCenterMapProvider(newRequest));
+    return;
+
     _latestCenter ??= center;
     _latestZoom = zoom;
 
@@ -1194,6 +1265,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             updateMyPosition: _deviceLocation != null,
             updateCircle: true,
             animate: false,
+            radiusKm: _currentRequest?.radiusKm ?? kCenterRangeKm,
           );
           debugPrint('[KakaoMap] 로딩 시작 → 현재 지도 상태를 큐에 보관: $_pendingMove');
         }
@@ -1211,7 +1283,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                   : _deviceLocation);
           if (circleCenter != null) {
             await _showMyPositionOnMap();
-            await _updateSearchCircle(circleCenter);
+            await _updateSearchCircle(
+              circleCenter,
+              radiusKm: request?.radiusKm ?? kCenterRangeKm,
+            );
           }
         }
       }
@@ -1236,7 +1311,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             ? KakaoMapLatLng(request.lat, request.lng)
             : _deviceLocation);
     if (circleCenter != null) {
-      await _updateSearchCircle(circleCenter);
+      await _updateSearchCircle(
+        circleCenter,
+        radiusKm: request?.radiusKm ?? kCenterRangeKm,
+      );
     }
   }
 
@@ -1252,6 +1330,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       updateMyPosition: pending.updateMyPosition,
       updateCircle: pending.updateCircle,
       animate: pending.animate,
+      radiusKm: pending.radiusKm,
     );
   }
 
@@ -1312,6 +1391,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       updateMyPosition: false,
       updateCircle: true,
       animate: true,
+      radiusKm: radius,
     );
     ref.refresh(youthCenterMapProvider(request));
     await _highlightCenterMarker(
@@ -1468,6 +1548,7 @@ class _PendingMove {
     this.updateMyPosition = true,
     this.updateCircle = true,
     this.animate = false,
+    this.radiusKm,
   });
 
   final KakaoMapLatLng target;
@@ -1475,11 +1556,13 @@ class _PendingMove {
   final bool updateMyPosition;
   final bool updateCircle;
   final bool animate;
+  final double? radiusKm;
 
   @override
   String toString() {
-    return 'target=(${target.lat}, ${target.lng}), level=$level, '
-        'updateMyPosition=$updateMyPosition, updateCircle=$updateCircle, animate=$animate';
+    return 'target=(${target.lat}, ${target.lng}), radiusKm=${radiusKm ?? 'n/a'}, '
+        'level=$level, updateMyPosition=$updateMyPosition, '
+        'updateCircle=$updateCircle, animate=$animate';
   }
 }
 

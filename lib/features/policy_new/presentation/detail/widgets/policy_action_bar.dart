@@ -357,7 +357,7 @@ class PolicyActionButton extends StatelessWidget {
     final foreground = resolveForeground();
 
     return SizedBox(
-      height: 64,
+      height: 56,
       child: Material(
         color: background,
         shape: RoundedRectangleBorder(
@@ -377,9 +377,10 @@ class PolicyActionButton extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: description == null
                         ? MainAxisAlignment.center
-                        : MainAxisAlignment.spaceEvenly,
+                        : MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -391,15 +392,17 @@ class PolicyActionButton extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      if (description != null)
+                      if (description != null) ...[
+                        const SizedBox(height: 2),
                         Text(
                           description!,
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.textTheme.bodySmall?.copyWith(
                             color: foreground.withOpacity(0.82),
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ),

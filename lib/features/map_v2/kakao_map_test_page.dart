@@ -102,6 +102,7 @@ class _KakaoMapTestPageState extends ConsumerState<KakaoMapTestPage> {
                     onError: (code) => setState(() => _lastError = code),
                     onLog: (event) => _appendLog(event.logMessage ?? event.message.type),
                     showDebugPanel: true,
+                    radiusKm: 20,
                   ),
                 ),
                 _buildLogPanel(),

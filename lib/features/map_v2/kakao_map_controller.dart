@@ -140,6 +140,7 @@ class _LoadRequest {
     required this.options,
     required this.enableClustering,
     this.additionalScripts,
+    required this.searchRadiusMeters,
   });
 
   final KakaoMapLatLng center;
@@ -148,6 +149,7 @@ class _LoadRequest {
   final KakaoMapOptions options;
   final bool enableClustering;
   final String? additionalScripts;
+  final double searchRadiusMeters;
 }
 
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -196,6 +198,7 @@ class KakaoMapController {
     required List<KakaoMapMarker> markers,
     List<KakaoMapPolyline> polylines = const [],
     KakaoMapOptions options = const KakaoMapOptions(),
+    double searchRadiusMeters = 20000,
     bool enableClustering = false,
     String? additionalScripts,
   }) async {
@@ -206,6 +209,7 @@ class KakaoMapController {
       options: options,
       enableClustering: enableClustering,
       additionalScripts: additionalScripts,
+      searchRadiusMeters: searchRadiusMeters,
     );
 
     final html = _builder.build(
@@ -215,6 +219,7 @@ class KakaoMapController {
       polylines: polylines,
       options: options,
       bridgeName: bridgeName,
+      searchRadiusMeters: searchRadiusMeters,
       enableClustering: enableClustering,
       additionalScripts: additionalScripts,
     );
@@ -377,10 +382,15 @@ class KakaoMapController {
     );
   }
 
-  Future<void> updateCircle(KakaoMapLatLng center) {
+  Future<void> updateCircle(
+    KakaoMapLatLng center, {
+    double? radiusMeters,
+  }) {
+    final radiusArg =
+        radiusMeters != null ? radiusMeters.toString() : 'undefined';
     final script = '''
       if (window.app && window.app.updateCircle) {
-        window.app.updateCircle(${center.lat}, ${center.lng});
+        window.app.updateCircle(${center.lat}, ${center.lng}, $radiusArg);
       }
     ''';
     return _runWhenReady(

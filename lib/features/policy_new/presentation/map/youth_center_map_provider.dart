@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -97,6 +98,7 @@ final youthCenterMapProvider = FutureProvider.autoDispose
   debugPrint('[YCMAP] API success, item count=${items.length}');
 
   final result = <CenterMarkerPoint>[];
+  final centersWithDistance = <_CenterDistance>[];
 
   for (final center in items) {
     final addr = center.address.trim();
@@ -113,33 +115,79 @@ final youthCenterMapProvider = FutureProvider.autoDispose
     debugPrint('[YCMAP] FullAddress = "$fullAddress"');
 
     final cacheKey = '${center.centerName}|$fullAddress';
-    final lat = center.lat;
-    final lng = center.lng;
+    double? lat = center.lat;
+    double? lng = center.lng;
+
+    if (lat == null || lng == null) {
+      final cached = cache[cacheKey];
+      if (cached is Map<String, dynamic>) {
+        final cachedLat = _toDouble(cached['lat']);
+        final cachedLng = _toDouble(cached['lng']);
+        if (cachedLat != null && cachedLng != null) {
+          lat = cachedLat;
+          lng = cachedLng;
+          debugPrint(
+            '[YCMAP] 📦 Cache hit: lat=$lat, lng=$lng (key=$cacheKey)',
+          );
+        }
+      }
+    }
+
+    if (lat == null || lng == null) {
+      final geocodeResult =
+          await _geocodeWithKakao(fullAddress, cacheKey, cache);
+      if (geocodeResult != null) {
+        lat = geocodeResult['lat'];
+        lng = geocodeResult['lng'];
+      }
+    }
 
     // 좌표 없으면 skip
     if (lat == null || lng == null) {
-      debugPrint('[YCMAP] ❌ Skip: null lat/lng');
+      debugPrint(
+        '[YCMAP] ❌ Skip: null lat/lng (no cache & no geocode)',
+      );
       continue;
     }
 
     if (lat == 0 || lng == 0 || lat.isNaN || lng.isNaN) {
-      debugPrint('[YCMAP] ❌ Skip: 좌표가 0,0 입니다');
+      debugPrint('[YCMAP] ❌ Skip: 좌표가 0,0 또는 NaN 입니다');
       continue;
     }
 
-    // 거리 계산
+    cache[cacheKey] = {'lat': lat, 'lng': lng};
+    final markerPoint = center.toMarkerPoint(lat: lat, lng: lng);
     final dist = _distanceKm(request.lat, request.lng, lat, lng);
     debugPrint('[YCMAP] Distance = ${dist.toStringAsFixed(2)}km');
+
+    centersWithDistance.add(
+      _CenterDistance(point: markerPoint, distanceKm: dist),
+    );
 
     if (dist > request.radiusKm) {
       debugPrint('[YCMAP] Skip: too far');
       continue;
     }
 
-    final markerPoint = center.toMarkerPoint(lat: lat, lng: lng);
     result.add(markerPoint);
-    cache[cacheKey] = {'lat': lat, 'lng': lng};
     debugPrint('[YCMAP] ✔ Added to result (within radius)');
+  }
+
+  if (result.isEmpty && centersWithDistance.isNotEmpty) {
+    final ordered = [...centersWithDistance]
+      ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+    final fallbackCandidates = ordered.take(3).toList();
+
+    debugPrint(
+      '[YCMAP] No center within ${request.radiusKm}km → fallback to nearest 3 centers',
+    );
+    for (final candidate in fallbackCandidates) {
+      final point = candidate.point;
+      debugPrint(
+        '[YCMAP] Fallback center: ${point.name} (dist=${candidate.distanceKm.toStringAsFixed(2)}km, lat=${point.lat}, lng=${point.lng})',
+      );
+      result.add(point);
+    }
   }
 
   // ─────────────────────────────────────────────
@@ -173,6 +221,69 @@ double _distanceKm(double lat1, double lon1, double lat2, double lon2) {
 }
 
 double _deg(double deg) => deg * (pi / 180.0);
+
+Future<Map<String, double>?> _geocodeWithKakao(
+  String fullAddress,
+  String cacheKey,
+  Map<String, dynamic> cache,
+) async {
+  final apiKey = AppEnv.kakaoRestApiKey;
+  if (apiKey.isEmpty) {
+    debugPrint('[YCMAP] ⚠ Geocode skipped: Kakao REST API KEY is empty');
+    return null;
+  }
+
+  final dio = Dio(BaseOptions(baseUrl: 'https://dapi.kakao.com'));
+  debugPrint('[YCMAP] 🔍 Geocode request: "$fullAddress" (key=$cacheKey)');
+
+  try {
+    final response = await dio.get(
+      '/v2/local/search/address.json',
+      queryParameters: {'query': fullAddress},
+      options: Options(
+        headers: {
+          'Authorization': 'KakaoAK $apiKey',
+        },
+      ),
+    );
+
+    final documents = response.data?['documents'];
+    if (documents is List && documents.isNotEmpty) {
+      final firstDocument = documents.first;
+      if (firstDocument is Map<String, dynamic>) {
+        final lat = _toDouble(firstDocument['y']);
+        final lng = _toDouble(firstDocument['x']);
+        if (lat != null && lng != null) {
+          cache[cacheKey] = {'lat': lat, 'lng': lng};
+          debugPrint(
+            '[YCMAP] ✅ Geocode success & cached: lat=$lat, lng=$lng',
+          );
+          return {'lat': lat, 'lng': lng};
+        }
+      }
+    }
+    debugPrint('[YCMAP] ⚠ Geocode no result for "$fullAddress"');
+  } catch (error) {
+    debugPrint('[YCMAP] ❌ Geocode error: $error');
+  }
+  return null;
+}
+
+double? _toDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString());
+}
+
+class _CenterDistance {
+  const _CenterDistance({
+    required this.point,
+    required this.distanceKm,
+  });
+
+  final CenterMarkerPoint point;
+  final double distanceKm;
+}
 
 CenterMarkerPoint? _markerFromJson(Map<String, dynamic> json) {
   try {

@@ -27,6 +27,7 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
     this.onError,
     this.onLog,
     this.showDebugPanel = false,
+    this.radiusKm = 20.0,
   });
 
   final KakaoMapLatLng center;
@@ -46,6 +47,7 @@ class KakaoMapWebView extends ConsumerStatefulWidget {
   final void Function(String code)? onError;
   final void Function(KakaoMapEvent logEvent)? onLog;
   final bool showDebugPanel;
+  final double radiusKm;
 
   @override
   ConsumerState<KakaoMapWebView> createState() => _KakaoMapWebViewState();
@@ -126,6 +128,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       options: widget.options,
       enableClustering: widget.enableClustering,
       additionalScripts: widget.additionalScripts,
+      searchRadiusMeters: widget.radiusKm * 1000,
     )
         .then((_) {
       if (!mounted) return;

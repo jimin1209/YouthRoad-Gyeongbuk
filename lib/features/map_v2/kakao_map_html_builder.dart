@@ -148,6 +148,7 @@ class KakaoMapHtmlBuilder {
     List<KakaoMapPolyline> polylines = const [],
     KakaoMapOptions options = const KakaoMapOptions(),
     required String bridgeName,
+    double searchRadiusMeters = 20000,
     bool enableClustering = false,
     String? additionalScripts,
   }) {
@@ -157,6 +158,7 @@ class KakaoMapHtmlBuilder {
       'polylines': polylines.map((e) => e.toJson()).toList(),
       'options': options.toJson(),
       'clustering': enableClustering,
+      'radiusMeters': searchRadiusMeters,
     };
 
     final initJson = jsonEncode(payload);
@@ -219,7 +221,6 @@ class KakaoMapHtmlBuilder {
 </style>
 
 <script>
-  const SEARCH_RADIUS_METERS = 20000;
   const USER_DOT_BASE64 = 'USER_DOT_BASE64_PLACEHOLDER';
   const CENTER_MARKER_BASE64 = 'CENTER_MARKER_BASE64_PLACEHOLDER';
   const center_marker_list = $centerMarkerList;
@@ -254,6 +255,8 @@ class KakaoMapHtmlBuilder {
 
     kakao.maps.load(function() {
       var p = $initJson;
+      var searchRadiusMeters =
+        typeof p.radiusMeters === 'number' ? p.radiusMeters : 20000;
       var container = document.getElementById('map');
       var center = new kakao.maps.LatLng(p.center.lat, p.center.lng);
 
@@ -264,14 +267,14 @@ class KakaoMapHtmlBuilder {
 
       var _searchCircle = null;
 
-      function _renderSearchCircle(lat, lng) {
+      function _renderSearchCircle(lat, lng, radius) {
         if (!map) return;
         if (_searchCircle) {
           _searchCircle.setMap(null);
         }
         _searchCircle = new kakao.maps.Circle({
           center: new kakao.maps.LatLng(lat, lng),
-          radius: SEARCH_RADIUS_METERS,
+          radius: typeof radius === 'number' ? radius : searchRadiusMeters,
           strokeColor: '#3478F6',
           strokeOpacity: 0.9,
           strokeWeight: 2,
@@ -315,8 +318,8 @@ class KakaoMapHtmlBuilder {
       window.app._markerTooltip = window.app._markerTooltip || null;
       window.app._tooltipTimeout = window.app._tooltipTimeout || null;
 
-      window.app.updateCircle = function(lat, lng) {
-        _renderSearchCircle(lat, lng);
+      window.app.updateCircle = function(lat, lng, radius) {
+        _renderSearchCircle(lat, lng, radius);
       };
 
       window.app.showMyPosition = function(lat, lng) {
@@ -352,7 +355,7 @@ class KakaoMapHtmlBuilder {
           map.setLevel(level);
         }
         if (window.app.updateCircle) {
-          window.app.updateCircle(lat, lng);
+          window.app.updateCircle(lat, lng, searchRadiusMeters);
         }
       };
 
@@ -426,7 +429,7 @@ class KakaoMapHtmlBuilder {
         }
       };
 
-      window.app.updateCircle(center.getLat(), center.getLng());
+      window.app.updateCircle(center.getLat(), center.getLng(), searchRadiusMeters);
       _post({type:'ready', payload:{}});
     });
   };
