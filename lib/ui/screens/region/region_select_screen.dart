@@ -21,7 +21,6 @@ class RegionSelectScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () {
-              notifier.applyToFilter();
               ref.invalidate(policyListNotifierProvider);
               context.go(RoutePaths.home);
             },
@@ -42,7 +41,6 @@ class RegionSelectScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                notifier.applyToFilter();
                 ref.invalidate(policyListNotifierProvider);
                 context.go(RoutePaths.home);
               },

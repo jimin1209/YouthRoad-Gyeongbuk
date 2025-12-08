@@ -7,6 +7,7 @@ import '../../domain/values/policy_region.dart';
 import '../../domain/values/policy_sort.dart';
 import '../../domain/values/policy_status_filter.dart';
 import '../reexplore/policy_reexplore.dart';
+import '../../../../application/notifiers/region_notifier.dart';
 
 @immutable
 class PolicyFilterUiState {
@@ -98,7 +99,9 @@ class PolicyFilterUiState {
 }
 
 class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
-  PolicyFilterUiStateNotifier() : super(const PolicyFilterUiState());
+  PolicyFilterUiStateNotifier({
+    PolicyFilterUiState initialState = const PolicyFilterUiState(),
+  }) : super(initialState);
 
   void setRegion(PolicyRegion region) => state = state.copyWith(
         region: region,
@@ -162,7 +165,33 @@ class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
 
 final globalFilterProvider =
     StateNotifierProvider<PolicyFilterUiStateNotifier, PolicyFilterUiState>(
-  (ref) => PolicyFilterUiStateNotifier(),
+  (ref) {
+    final regionNotifier = ref.read(regionProvider.notifier);
+    final notifier = PolicyFilterUiStateNotifier(
+      initialState: PolicyFilterUiState(
+        region: PolicyRegion.gyeongbuk,
+        province: regionNotifier.selectedProvince,
+        city: regionNotifier.selectedCity,
+        district: regionNotifier.selectedDistrict,
+      ),
+    );
+
+    final regionSubscription = ref.listenManual<String?>(
+      regionProvider,
+      (previous, next) {
+        notifier.setRegionStrings(
+          province: regionNotifier.selectedProvince,
+          city: regionNotifier.selectedCity,
+          district: regionNotifier.selectedDistrict,
+        );
+      },
+      fireImmediately: false,
+    );
+
+    ref.onDispose(regionSubscription.close);
+
+    return notifier;
+  },
 );
 
 @Deprecated('Use globalFilterProvider instead')
