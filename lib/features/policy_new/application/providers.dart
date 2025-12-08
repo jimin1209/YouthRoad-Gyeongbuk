@@ -52,6 +52,8 @@ import 'services/policy_reminder_service.dart';
 import 'filters/policy_filter_ui_state.dart';
 import 'filters/policy_search_keyword_provider.dart';
 import 'filters/policy_filter_summary.dart';
+import 'search/search_controller.dart';
+import 'search/search_label_builder.dart';
 import 'models/user_collections.dart';
 import 'controllers/policy_feed_memory_cache.dart';
 import '../data/cache/policy_cache.dart';
@@ -417,6 +419,9 @@ final notificationCenterControllerProvider = StateNotifierProvider<
   (ref) => NotificationCenterController(ref: ref),
 );
 
+final policySearchControllerProvider =
+    Provider<PolicySearchController>((ref) => const PolicySearchController());
+
 final policyQueryProvider = Provider.family<PolicyQueryState, PolicyFeedType>(
   (ref, feedType) {
     final filter = ref.watch(globalFilterProvider);
@@ -430,13 +435,32 @@ final policyQueryProvider = Provider.family<PolicyQueryState, PolicyFeedType>(
 
     final orchestrator = ref.read(policyQueryOrchestratorProvider);
     final query = orchestrator.buildQuery(feedType, keyword: keyword);
+    final searchController = ref.read(policySearchControllerProvider);
+
+    final summary = feedType == PolicyFeedType.search
+        ? SearchLabelBuildContext.makeLabel(
+            filter.regionSummary,
+            SearchLabelBuildContext.filterLabelFromStatus(filter.status),
+            SearchLabelBuildContext.sortLabel(filter.sort),
+          )
+        : buildPolicyFilterSummary(filter, keyword: keyword);
+
+    final conditionSummary = feedType == PolicyFeedType.search
+        ? summary
+        : buildPolicyFilterConditionSummary(filter, keyword: keyword);
+
+    final hash = feedType == PolicyFeedType.search
+        ? searchController.buildCacheKey(
+            filter: query.filter,
+            sort: query.sort,
+          )
+        : query.cacheScopeKey;
 
     final baseState = PolicyQueryState(
       query: query,
-      hash: query.cacheScopeKey,
-      summary: buildPolicyFilterSummary(filter, keyword: keyword),
-      conditionSummary:
-          buildPolicyFilterConditionSummary(filter, keyword: keyword),
+      hash: hash,
+      summary: summary,
+      conditionSummary: conditionSummary,
     );
 
     ref

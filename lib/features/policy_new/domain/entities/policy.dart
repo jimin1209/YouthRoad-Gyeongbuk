@@ -1,3 +1,4 @@
+import '../policy_state_utils.dart';
 import '../values/policy_category.dart';
 import '../values/policy_region.dart';
 
@@ -82,5 +83,12 @@ class Policy {
     final now = DateTime.now();
     if (applicationEndDate == null) return false;
     return applicationEndDate!.isBefore(now);
+  }
+
+  PolicyActiveState get activeState {
+    if (applicationEndDate == null) {
+      return PolicyActiveState.closed;
+    }
+    return resolvePolicyState(DateTime.now(), applicationEndDate!);
   }
 }
