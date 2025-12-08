@@ -78,6 +78,42 @@ class _CompareScreenState extends State<CompareScreen> {
             ],
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: headerMinHeight),
+            child: CompareHeaderRowWidget(
+              policies: state.policies,
+              insights: state.insights,
+              onRemove: widget.onRemove,
+              onOpenDetail: widget.onOpenDetail,
+              labelWidth: labelWidth,
+              columnWidth: CompareScreen._columnWidth,
+              overflowController: _overflowController,
+            ),
+          ),
+        ),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilterChip(
+                label: const Text('차이만 보기'),
+                selected: _showDiffOnly,
+                onSelected: (v) => setState(() => _showDiffOnly = v),
+              ),
+            ],
+          ),
+        ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -85,78 +121,29 @@ class _CompareScreenState extends State<CompareScreen> {
               final double minZoomHeight =
                   math.max(zoomableMinHeight, viewportHeight * 0.6);
 
-              return SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: viewportHeight),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            minHeight: headerMinHeight,
-                          ),
-                          child: CompareHeaderRowWidget(
-                            policies: state.policies,
-                            insights: state.insights,
-                            onRemove: widget.onRemove,
-                            onOpenDetail: widget.onOpenDetail,
-                            labelWidth: labelWidth,
-                            columnWidth: CompareScreen._columnWidth,
-                            overflowController: _overflowController,
-                          ),
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            FilterChip(
-                              label: const Text('차이만 보기'),
-                              selected: _showDiffOnly,
-                              onSelected: (v) => setState(() => _showDiffOnly = v),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _ZoomableCompareContent(
-                        summary: CompareSummaryHighlight(
-                          insights: state.insights,
-                        ),
-                        table: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          child: CompareDiffTableWidget(
-                            key: ValueKey(_showDiffOnly),
-                            policies: state.policies,
-                            diffs: state.diffs,
-                            insights: state.insights,
-                            fields: service.fields,
-                            labelWidth: labelWidth,
-                            columnWidth: CompareScreen._columnWidth,
-                            showOnlyDiffs: _showDiffOnly,
-                            overflowController: _overflowController,
-                          ),
-                        ),
-                        isZoomed: _isZoomed,
-                        minHeight: minZoomHeight,
-                        onZoomStateChanged: _setZoomed,
-                        onUpdateZoom: _updateZoomState,
-                        transformationController: _transformationController,
-                      ),
-                    ],
+              return _ZoomableCompareContent(
+                summary: CompareSummaryHighlight(
+                  insights: state.insights,
+                ),
+                table: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: CompareDiffTableWidget(
+                    key: ValueKey(_showDiffOnly),
+                    policies: state.policies,
+                    diffs: state.diffs,
+                    insights: state.insights,
+                    fields: service.fields,
+                    labelWidth: labelWidth,
+                    columnWidth: CompareScreen._columnWidth,
+                    showOnlyDiffs: _showDiffOnly,
+                    overflowController: _overflowController,
                   ),
                 ),
+                isZoomed: _isZoomed,
+                minHeight: minZoomHeight,
+                onZoomStateChanged: _setZoomed,
+                onUpdateZoom: _updateZoomState,
+                transformationController: _transformationController,
               );
             },
           ),
