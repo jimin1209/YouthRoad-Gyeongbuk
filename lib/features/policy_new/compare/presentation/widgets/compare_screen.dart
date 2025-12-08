@@ -104,6 +104,9 @@ class _CompareScreenState extends State<CompareScreen> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
+              final scrollPhysics = _isZoomed
+                  ? const NeverScrollableScrollPhysics()
+                  : const ClampingScrollPhysics();
               return ClipRect(
                 child: InteractiveViewer(
                   transformationController: _transformationController,
@@ -111,11 +114,13 @@ class _CompareScreenState extends State<CompareScreen> {
                   minScale: 1.0,
                   maxScale: 2.5,
                   panEnabled: _isZoomed,
+                  onInteractionStart: (_) => _setZoomed(true),
                   onInteractionUpdate: (_) => _updateZoomState(),
                   onInteractionEnd: (_) => _updateZoomState(),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(minHeight: constraints.maxHeight),
                     child: SingleChildScrollView(
+                      physics: scrollPhysics,
                       padding:
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Column(
@@ -152,13 +157,17 @@ class _CompareScreenState extends State<CompareScreen> {
     );
   }
 
+  void _setZoomed(bool value) {
+    if (_isZoomed != value) {
+      setState(() {
+        _isZoomed = value;
+      });
+    }
+  }
+
   void _updateZoomState() {
     final scale = _transformationController.value.getMaxScaleOnAxis();
     final shouldEnablePan = scale > 1.01;
-    if (_isZoomed != shouldEnablePan) {
-      setState(() {
-        _isZoomed = shouldEnablePan;
-      });
-    }
+    _setZoomed(shouldEnablePan);
   }
 }
