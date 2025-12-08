@@ -5,6 +5,7 @@ import '../../domain/values/policy_filter.dart';
 import '../../domain/values/policy_query.dart';
 import '../../domain/values/policy_region.dart';
 import '../../domain/values/policy_sort.dart';
+import '../../domain/values/policy_status_filter.dart';
 
 class PolicyQueryController extends StateNotifier<PolicyQuery> {
   PolicyQueryController({required PolicyQuery initialQuery})
@@ -47,9 +48,9 @@ class PolicyQueryController extends StateNotifier<PolicyQuery> {
     state = state.copyWith(filter: state.filter.copyWith(isOffline: isOffline));
   }
 
-  void setIsOngoing(bool? isOngoing) {
-    if (state.filter.isOngoing == isOngoing) return;
-    state = state.copyWith(filter: state.filter.copyWith(isOngoing: isOngoing));
+  void setStatus(PolicyStatusFilter status) {
+    if (state.filter.status == status) return;
+    state = state.copyWith(filter: state.filter.copyWith(status: status));
   }
 
   void setAge(int? age) {

@@ -11,6 +11,7 @@ import '../../application/providers.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_sort.dart';
+import '../../domain/values/policy_status_filter.dart';
 import '../widgets/policy_feed_list_view.dart';
 import '../widgets/policy_query_summary.dart';
 
@@ -65,8 +66,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
     final feedType = _feedTypeFor(state, keyword: keyword);
     final queryState = ref.watch(policyQueryProvider(feedType));
     final summary = queryState.summary;
-    final statusFilter =
-        filterUi.showOnlyOngoing ? PolicyStatusFilter.inProgressOnly : PolicyStatusFilter.includeClosed;
+    final statusFilter = filterUi.status;
     final sortKind = _mapSortKind(filterUi.sort);
 
     return Scaffold(
@@ -95,8 +95,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                   ),
                   const SizedBox(height: 12),
                   _QuickFilterChips(
-                    isOngoingOnly:
-                        statusFilter == PolicyStatusFilter.inProgressOnly,
+                    statusFilter: statusFilter,
                     regionName: filterUi.regionSummary,
                     isRegionMode: state.mode == ExploreSubMode.region,
                     onToggleStatus: (value) =>
@@ -248,9 +247,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
         final tempCategories = {
           if (initialCategory != null) initialCategory,
         };
-        var tempStatus = filter.showOnlyOngoing
-            ? PolicyStatusFilter.inProgressOnly
-            : PolicyStatusFilter.includeClosed;
+        var tempStatus = filter.status;
         return StatefulBuilder(
           builder: (context, setState) {
             return SafeArea(
@@ -274,7 +271,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                           onPressed: () {
                             setState(() {
                               tempCategories.clear();
-                              tempStatus = PolicyStatusFilter.inProgressOnly;
+                              tempStatus = PolicyStatusFilter.includeClosed;
                             });
                           },
                           child: const Text('초기화'),
@@ -513,14 +510,14 @@ class _SearchBarRow extends StatelessWidget {
 
 class _QuickFilterChips extends StatelessWidget {
   const _QuickFilterChips({
-    required this.isOngoingOnly,
+    required this.statusFilter,
     required this.regionName,
     required this.isRegionMode,
     required this.onToggleStatus,
     required this.onToggleRegion,
   });
 
-  final bool isOngoingOnly;
+  final PolicyStatusFilter statusFilter;
   final String regionName;
   final bool isRegionMode;
   final void Function(PolicyStatusFilter) onToggleStatus;
@@ -531,8 +528,18 @@ class _QuickFilterChips extends StatelessWidget {
     final chips = <Widget>[
       ChoiceChip(
         label: const Text('진행중만'),
-        selected: isOngoingOnly,
+        selected: statusFilter == PolicyStatusFilter.inProgressOnly,
         onSelected: (_) => onToggleStatus(PolicyStatusFilter.inProgressOnly),
+      ),
+      ChoiceChip(
+        label: const Text('마감 포함'),
+        selected: statusFilter == PolicyStatusFilter.includeClosed,
+        onSelected: (_) => onToggleStatus(PolicyStatusFilter.includeClosed),
+      ),
+      ChoiceChip(
+        label: const Text('마감만'),
+        selected: statusFilter == PolicyStatusFilter.closedOnly,
+        onSelected: (_) => onToggleStatus(PolicyStatusFilter.closedOnly),
       ),
       ChoiceChip(
         label: Text('내 지역 ($regionName)'),

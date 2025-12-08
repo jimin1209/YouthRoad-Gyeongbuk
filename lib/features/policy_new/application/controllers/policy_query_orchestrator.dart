@@ -5,6 +5,7 @@ import '../../domain/values/policy_filter.dart';
 import '../../domain/values/policy_query.dart';
 import '../../domain/values/policy_region.dart';
 import '../../domain/values/policy_sort.dart';
+import '../../domain/values/policy_status_filter.dart';
 import '../filters/policy_filter_ui_state.dart';
 import '../providers.dart';
 import '../behavior/policy_behavior_tracker.dart';
@@ -67,10 +68,10 @@ class PolicyQueryOrchestrator {
         category: _ui.category,
         age: _profile.age,
         isOnline: _ui.showOnlyOnline ? true : null,
-        isOngoing: _ui.showOnlyOngoing ? true : null,
         institutionId: _ui.institutionId,
         departmentId: _ui.departmentId,
         tags: baseTags,
+        status: _ui.status,
       ),
       tags: combinedTags,
       sort: PolicySortOption.recommendation,
@@ -85,10 +86,10 @@ class PolicyQueryOrchestrator {
       district: _ui.district,
       category: _ui.category,
       isOnline: _ui.showOnlyOnline ? true : null,
-      isOngoing: _ui.showOnlyOngoing ? true : null,
       institutionId: _ui.institutionId,
       departmentId: _ui.departmentId,
       tags: _ui.tags,
+      status: _ui.status,
     );
 
     return PolicyQuery(
@@ -110,9 +111,9 @@ class PolicyQueryOrchestrator {
       district: _ui.district,
       category: _ui.category,
       isOnline: _ui.showOnlyOnline ? true : null,
-      isOngoing: _ui.showOnlyOngoing ? true : null,
       institutionId: _ui.institutionId,
       departmentId: _ui.departmentId,
+      status: _ui.status,
     );
 
     return PolicyQuery(
@@ -130,9 +131,9 @@ class PolicyQueryOrchestrator {
       district: _ui.district,
       category: _ui.category,
       isOnline: _ui.showOnlyOnline ? true : null,
-      isOngoing: _ui.showOnlyOngoing ? true : null,
       institutionId: _ui.institutionId,
       departmentId: _ui.departmentId,
+      status: _ui.status,
     );
 
     return PolicyQuery(

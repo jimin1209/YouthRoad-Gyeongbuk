@@ -7,6 +7,7 @@ import '../../application/controllers/global_filter_controller.dart';
 import '../../application/providers.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_category.dart';
+import '../../domain/values/policy_status_filter.dart';
 import '../compare/widgets/compare_entry_bar.dart';
 import '../widgets/policy_feed_list_view.dart';
 import '../compare/policy_compare_screen.dart';
@@ -87,9 +88,9 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
               onClearCategory: () => ref
                   .read(globalFilterProvider.notifier)
                   .setCategory(null),
-              onToggleOngoing: () => ref
+              onChangeStatus: (status) => ref
                   .read(globalFilterProvider.notifier)
-                  .toggleOngoingOnly(),
+                  .setStatus(status),
             ),
             const SizedBox(height: AppSpacing.md),
             Expanded(
@@ -136,14 +137,14 @@ class _SelectedFilterBadges extends StatelessWidget {
     required this.keyword,
     required this.onClearKeyword,
     required this.onClearCategory,
-    required this.onToggleOngoing,
+    required this.onChangeStatus,
   });
 
   final PolicyFilterUiState filter;
   final String keyword;
   final VoidCallback onClearKeyword;
   final VoidCallback onClearCategory;
-  final VoidCallback onToggleOngoing;
+  final void Function(PolicyStatusFilter) onChangeStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -176,12 +177,19 @@ class _SelectedFilterBadges extends StatelessWidget {
       ));
     }
 
-    if (filter.showOnlyOngoing) {
+    if (filter.status == PolicyStatusFilter.inProgressOnly) {
       badges.add(_Badge(
         label: '모집중만',
         color: color,
         textStyle: textStyle,
-        onRemove: onToggleOngoing,
+        onRemove: () => onChangeStatus(PolicyStatusFilter.includeClosed),
+      ));
+    } else if (filter.status == PolicyStatusFilter.closedOnly) {
+      badges.add(_Badge(
+        label: '마감된 정책',
+        color: color,
+        textStyle: textStyle,
+        onRemove: () => onChangeStatus(PolicyStatusFilter.includeClosed),
       ));
     }
 

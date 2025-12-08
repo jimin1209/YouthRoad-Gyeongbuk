@@ -47,6 +47,7 @@ class RegionNotifier extends AutoDisposeNotifier<String?> {
     _selectedDistrict = storedDistrict != null && storedDistrict.isNotEmpty
         ? storedDistrict
         : null;
+    applyToFilter();
     // state는 기존 호환성을 위해 city만 저장
     return _selectedCity;
   }
@@ -70,6 +71,7 @@ class RegionNotifier extends AutoDisposeNotifier<String?> {
     _selectedCity = null;
     _selectedDistrict = null;
     state = null;
+    applyToFilter();
   }
 
   void selectDistrict(String? district) {

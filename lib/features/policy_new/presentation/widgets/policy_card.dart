@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/providers.dart';
 import '../../domain/entities/policy.dart';
 import '../reminder/policy_reminder_badge.dart';
+import '../utils/policy_date_formatter.dart';
 
 class PolicyCard extends ConsumerWidget {
   const PolicyCard({
@@ -137,18 +138,33 @@ class PolicyCard extends ConsumerWidget {
   static String _buildPeriodText(Policy policy) {
     final start = policy.applicationStartDate;
     final end = policy.applicationEndDate;
-    if (start == null && end == null) {
-      return '일정 미확정';
+    final range = PolicyDateFormatter.formatRange(start: start, end: end);
+
+    if (end == null) {
+      return range;
     }
-    if (start != null && end == null) {
-      return '신청 시작: ${start.toLocal().toString().split(" ").first}';
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final endDate = DateTime(end.year, end.month, end.day);
+    final dDay = endDate.difference(today).inDays;
+
+    final dDayLabel = dDay < 0
+        ? '마감됨'
+        : dDay == 0
+            ? '오늘 마감'
+            : 'D-$dDay';
+
+    final deadline = PolicyDateFormatter.buildDeadlineText(
+      end: end,
+      dDayLabel: dDayLabel,
+    );
+
+    if (start == null) {
+      return deadline;
     }
-    if (start == null && end != null) {
-      return '신청 마감: ${end.toLocal().toString().split(" ").first}';
-    }
-    return '신청 기간: '
-        '${start!.toLocal().toString().split(" ").first} ~ '
-        '${end!.toLocal().toString().split(" ").first}';
+
+    return '$range · $deadline';
   }
 }
 

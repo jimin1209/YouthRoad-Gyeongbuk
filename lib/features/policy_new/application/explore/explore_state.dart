@@ -1,11 +1,5 @@
 enum ExploreSubMode { all, region, search }
 
-enum PolicyStatusFilter {
-  inProgressOnly,
-  includeClosed,
-  closedOnly,
-}
-
 enum PolicySortKind {
   recommended,
   newest,
