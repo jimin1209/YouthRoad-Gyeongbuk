@@ -463,8 +463,6 @@ class _PolicyFilterBottomSheetState
       hasChanged = true;
     }
 
-    ref.read(regionProvider.notifier).applyToFilter();
-
     Navigator.of(context).pop();
     _notifyReaction(hasChanged
         ? '필터가 적용됐어요. 결과를 새로 불러옵니다.'

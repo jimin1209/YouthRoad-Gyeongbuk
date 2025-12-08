@@ -3,8 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/regions_gyeongbuk.dart';
 import '../di.dart';
-import '../../features/policy_new/application/filters/policy_filter_ui_state.dart'
-    as filter_ui;
 
 final regionProvider =
     NotifierProvider.autoDispose<RegionNotifier, String?>(RegionNotifier.new);
@@ -47,7 +45,6 @@ class RegionNotifier extends AutoDisposeNotifier<String?> {
     _selectedDistrict = storedDistrict != null && storedDistrict.isNotEmpty
         ? storedDistrict
         : null;
-    applyToFilter();
     // state는 기존 호환성을 위해 city만 저장
     return _selectedCity;
   }
@@ -60,7 +57,6 @@ class RegionNotifier extends AutoDisposeNotifier<String?> {
     _selectedCity = city;
     _selectedDistrict = null;
     state = city;
-    applyToFilter();
   }
 
   void resetCity() {
@@ -71,7 +67,6 @@ class RegionNotifier extends AutoDisposeNotifier<String?> {
     _selectedCity = null;
     _selectedDistrict = null;
     state = null;
-    applyToFilter();
   }
 
   void selectDistrict(String? district) {
@@ -86,21 +81,9 @@ class RegionNotifier extends AutoDisposeNotifier<String?> {
       _selectedDistrict = district;
       state = '${_selectedCity ?? ''}|$district';
     }
-    applyToFilter();
   }
 
   void clear() {
     resetCity();
-  }
-
-  /// 현재 지역을 필터 상태에 반영
-  void applyToFilter() {
-    final notifier =
-        ref.read(filter_ui.policyFilterUiStateProvider.notifier);
-    notifier.setRegionStrings(
-      province: selectedProvince,
-      city: _selectedCity,
-      district: _selectedDistrict,
-    );
   }
 }
