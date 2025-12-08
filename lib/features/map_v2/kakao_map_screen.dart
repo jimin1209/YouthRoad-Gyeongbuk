@@ -1099,6 +1099,15 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
     unawaited(_updateSearchCircle(anchor));
     ref.refresh(youthCenterMapProvider(request));
+    if (cached == null && _currentRequest == null) {
+      setState(() {
+        _currentRequest = CenterFetchRequest(
+          lat: anchor.lat,
+          lng: anchor.lng,
+          radiusKm: kCenterRangeKm,
+        );
+      });
+    }
 
     if (_isRequestingLocation) return;
     await _loadInitialPosition();
@@ -1141,6 +1150,23 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         });
 
         ref.refresh(youthCenterMapProvider(nextRequest));
+        final req = CenterFetchRequest(
+          lat: center.lat,
+          lng: center.lng,
+          radiusKm: kCenterRangeKm,
+        );
+        debugPrint(
+          '[YCMAP] debounce 완료 → provider 재요청 '
+          'CenterFetchRequest(lat=${req.lat}, lng=${req.lng}, radius=${req.radiusKm})',
+        );
+
+        setState(() {
+          _currentRequest = req;
+        });
+
+        final circleCenter = _deviceLocation ?? center;
+        unawaited(_updateSearchCircle(circleCenter));
+        ref.refresh(youthCenterMapProvider(req));
       },
     );
   }
@@ -1188,6 +1214,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         }
       }
     }());
+    debugPrint('[KakaoMap] WebView LoadingChanged → $isLoading');
+    if (isLoading) {
+      _mapReady = false;
+    }
+    _setLoading(isLoading);
   }
 
   Future<void> _onWebViewReady() async {
@@ -1285,7 +1316,12 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       markerId,
       position,
       tooltipName: center.name,
+      updateCircle: false,
+      animate: true,
     );
+    await _updateSearchCircle(position);
+    ref.refresh(youthCenterMapProvider(request));
+    await _highlightCenterMarker(markerId, position);
     _showMarkerTooltip(center.name);
     _showCenterDetailSheet(
       name: center.name,

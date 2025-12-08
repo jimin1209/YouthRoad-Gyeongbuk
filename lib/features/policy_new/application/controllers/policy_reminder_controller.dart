@@ -330,12 +330,6 @@ class PolicyReminderController
     });
   }
 
-  @override
-  void onAddListener() {
-    super.onAddListener();
-    _ensureInitialized();
-  }
-
   PolicyReminderStatus? currentStatus() {
     return state.maybeWhen(
       data: (viewState) {
@@ -434,7 +428,7 @@ class PolicyReminderController
     }
 
     if (hadAnyReminders) {
-      ref.read(policyEventBusProvider).emit(
+      ref.read(policyEventBusProvider.notifier).emit(
         PolicyEvent(
           PolicyEventType.reminderBulkUpdated,
           policyId: policyId,

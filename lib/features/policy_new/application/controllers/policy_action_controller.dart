@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../domain/entities/policy.dart';
+import '../../domain/values/policy_reminder_status.dart';
 import '../../domain/values/reminder_time_kind.dart';
 import '../providers.dart';
 import 'policy_reminder_controller.dart';
@@ -185,6 +186,30 @@ class PolicyActionController extends StateNotifier<PolicyActionState> {
     } finally {
       _setProcessing(false);
     }
+  }
+
+  Future<void> toggleReminder(
+    Policy policy, {
+    ReminderTimeKind defaultOption = ReminderTimeKind.day1,
+  }) async {
+    if (state.isProcessing) return;
+
+    final viewState = state.reminderState.maybeWhen(
+      data: (value) => value,
+      orElse: () => null,
+    );
+
+    final hasScheduledReminder = viewState?.reminders.any(
+          (reminder) => reminder.status == PolicyReminderStatus.scheduled,
+        ) ??
+        false;
+
+    if (hasScheduledReminder) {
+      await cancelReminder();
+      return;
+    }
+
+    await setReminder(policy, defaultOption);
   }
 
   /// 정책 상세/신청 링크 열기 (외부 브라우저 → 실패 시 앱 내 WebView fallback)

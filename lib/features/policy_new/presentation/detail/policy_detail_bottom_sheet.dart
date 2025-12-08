@@ -313,7 +313,10 @@ class _InfoSection extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               content,
-              style: AppText.textTheme.bodyMedium,
+              style: AppText.textTheme.bodyLarge?.copyWith(
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
               softWrap: true,
               overflow: TextOverflow.visible,
             ),

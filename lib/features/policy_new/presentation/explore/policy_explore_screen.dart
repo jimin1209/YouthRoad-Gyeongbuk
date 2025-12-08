@@ -8,6 +8,7 @@ import '../../application/explore/explore_state.dart';
 import '../../application/filters/policy_filter_ui_state.dart';
 import '../../application/filters/policy_search_keyword_provider.dart';
 import '../../application/providers.dart';
+import '../../../../application/notifiers/region_notifier.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_sort.dart';
@@ -25,6 +26,7 @@ class PolicyExploreScreen extends ConsumerStatefulWidget {
 
 class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
   late final TextEditingController _searchController;
+  late final ProviderSubscription<String?> _regionSubscription;
 
   static const _categories = [
     (id: 'employment', label: '취업'),
@@ -39,10 +41,23 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
     super.initState();
     final state = ref.read(exploreStateProvider);
     _searchController = TextEditingController(text: state.keyword);
+
+    final controller = ref.read(exploreStateProvider.notifier);
+    final initialRegion = ref.read(regionProvider);
+    controller.ensureRegionMode(hasSelection: initialRegion?.isNotEmpty ?? false);
+
+    _regionSubscription = ref.listenManual<String?>(
+      regionProvider,
+      (previous, next) {
+        final hasSelection = next?.isNotEmpty ?? false;
+        controller.ensureRegionMode(hasSelection: hasSelection);
+      },
+    );
   }
 
   @override
   void dispose() {
+    _regionSubscription.close();
     _searchController.dispose();
     super.dispose();
   }
@@ -52,6 +67,8 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
     final state = ref.watch(exploreStateProvider);
     final controller = ref.read(exploreStateProvider.notifier);
     final filterUi = ref.watch(globalFilterProvider);
+    ref.watch(regionProvider);
+    final regionNotifier = ref.read(regionProvider.notifier);
 
     final keyword = ref.watch(policySearchKeywordProvider(PolicyFeedType.search));
 
@@ -63,7 +80,10 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
       );
     }
 
-    final feedType = _feedTypeFor(state, keyword: keyword);
+    final feedType = _feedTypeFor(
+      state,
+      keyword: keyword,
+    );
     final queryState = ref.watch(policyQueryProvider(feedType));
     final summary = queryState.summary;
     final statusFilter = filterUi.status;
@@ -96,17 +116,20 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                   const SizedBox(height: 12),
                   _QuickFilterChips(
                     statusFilter: statusFilter,
-                    regionName: filterUi.regionSummary,
-                    isRegionMode: state.mode == ExploreSubMode.region,
                     onToggleStatus: (value) =>
                         controller.setStatusFilter(value),
-                    onToggleRegion: () {
-                      final isRegion = state.mode == ExploreSubMode.region;
-                      if (isRegion) {
-                        controller.setMode(ExploreSubMode.all);
-                      } else {
-                        controller.setMode(ExploreSubMode.region);
+                  ),
+                  const SizedBox(height: 12),
+                  _RegionDropdown(
+                    summary: filterUi.regionSummary,
+                    selectedCity: regionNotifier.selectedCity,
+                    availableCities: regionNotifier.availableCities,
+                    onRegionChanged: (city) {
+                      if (city == null || city.isEmpty) {
+                        regionNotifier.resetCity();
+                        return;
                       }
+                      regionNotifier.selectCity(city);
                     },
                   ),
                   const SizedBox(height: 10),
@@ -164,7 +187,10 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
     return PolicyFeedListView(feedType: feedType);
   }
 
-  PolicyFeedType _feedTypeFor(ExploreState state, {String keyword = ''}) {
+  PolicyFeedType _feedTypeFor(
+    ExploreState state, {
+    String keyword = '',
+  }) {
     if (state.mode == ExploreSubMode.search && keyword.isNotEmpty) {
       return PolicyFeedType.search;
     }
@@ -511,17 +537,11 @@ class _SearchBarRow extends StatelessWidget {
 class _QuickFilterChips extends StatelessWidget {
   const _QuickFilterChips({
     required this.statusFilter,
-    required this.regionName,
-    required this.isRegionMode,
     required this.onToggleStatus,
-    required this.onToggleRegion,
   });
 
   final PolicyStatusFilter statusFilter;
-  final String regionName;
-  final bool isRegionMode;
   final void Function(PolicyStatusFilter) onToggleStatus;
-  final VoidCallback onToggleRegion;
 
   @override
   Widget build(BuildContext context) {
@@ -541,11 +561,6 @@ class _QuickFilterChips extends StatelessWidget {
         selected: statusFilter == PolicyStatusFilter.closedOnly,
         onSelected: (_) => onToggleStatus(PolicyStatusFilter.closedOnly),
       ),
-      ChoiceChip(
-        label: Text('내 지역 ($regionName)'),
-        selected: isRegionMode,
-        onSelected: (_) => onToggleRegion(),
-      ),
     ];
 
     return SingleChildScrollView(
@@ -562,6 +577,86 @@ class _QuickFilterChips extends StatelessWidget {
           const SizedBox(width: 4),
         ],
       ),
+    );
+  }
+}
+
+class _RegionDropdown extends ConsumerWidget {
+  const _RegionDropdown({
+    required this.summary,
+    required this.selectedCity,
+    required this.availableCities,
+    required this.onRegionChanged,
+  });
+
+  final String summary;
+  final String? selectedCity;
+  final List<String> availableCities;
+  final void Function(String? city) onRegionChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(regionProvider);
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final items = <DropdownMenuItem<String>>[
+      const DropdownMenuItem(
+        value: '',
+        child: Text('경북 전체'),
+      ),
+      ...availableCities.map(
+        (city) => DropdownMenuItem(
+          value: city,
+          child: Text(city),
+        ),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '지역',
+              style:
+                  textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                summary,
+                style: textTheme.bodySmall,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: selectedCity ?? '',
+          items: items,
+          onChanged: onRegionChanged,
+          isExpanded: true,
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: scheme.outlineVariant,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

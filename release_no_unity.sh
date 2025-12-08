@@ -87,14 +87,7 @@ echo ""
 echo "🔍 APK 경로 자동 탐색..."
 
 CANDIDATES=(
-  "android/app/build/outputs/flutter-apk/app-debug.apk"
-  "android/app/build/outputs/apk/debug/app-debug.apk"
   "build/app/outputs/flutter-apk/app-debug.apk"
-  "build/app/outputs/apk/debug/app-debug.apk"
-  "android/build/app/outputs/flutter-apk/app-debug.apk"
-  "android/build/app/outputs/apk/debug/app-debug.apk"
-  "android/build/app-debug.apk"
-  "android/app/build/outputs/flutter-apk/app-debug.apk"
 )
 
 FOUND_APK=""
