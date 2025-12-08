@@ -120,9 +120,14 @@ class ExploreController extends StateNotifier<ExploreState> {
     required PolicyFilterUiState filter,
     required PolicyReExploreMode mode,
   }) {
+    final regionNotifier = ref.read(regionProvider.notifier);
+    final selectedProvince = regionNotifier.selectedProvince;
     final hasRegionSelection =
-        (filter.city?.isNotEmpty ?? false) || (filter.district?.isNotEmpty ?? false);
+        filter.province.trim() == selectedProvince &&
+            ((filter.city?.isNotEmpty ?? false) || (filter.district?.isNotEmpty ?? false));
     final nextMode = hasRegionSelection ? ExploreSubMode.region : ExploreSubMode.all;
+
+    _syncRegionSelection(filter);
 
     if (state.keyword.isNotEmpty) {
       _syncKeyword('');
@@ -131,6 +136,49 @@ class ExploreController extends StateNotifier<ExploreState> {
       mode: nextMode,
       keyword: '',
     );
+  }
+
+  void _syncRegionSelection(PolicyFilterUiState filter) {
+    final regionNotifier = ref.read(regionProvider.notifier);
+    final selectedProvince = regionNotifier.selectedProvince;
+    final filterProvince = filter.province.trim();
+    final filterRegion = filter.region;
+    final filterNotifier = ref.read(globalFilterProvider.notifier);
+    final city = filter.city?.trim();
+    final district = filter.district?.trim();
+
+    if (filterProvince != selectedProvince) {
+      if (regionNotifier.selectedCity != null || regionNotifier.selectedDistrict != null) {
+        regionNotifier.resetCity();
+        filterNotifier.setRegion(filterRegion);
+      }
+      return;
+    }
+
+    if (city == null || city.isEmpty) {
+      if (regionNotifier.selectedCity != null || regionNotifier.selectedDistrict != null) {
+        regionNotifier.resetCity();
+      }
+      return;
+    }
+
+    if (!regionNotifier.availableCities.contains(city)) {
+      regionNotifier.resetCity();
+      return;
+    }
+
+    if (regionNotifier.selectedCity != city) {
+      regionNotifier.selectCity(city);
+    }
+
+    final hasDistrict = district != null && district.isNotEmpty;
+    if (hasDistrict) {
+      if (regionNotifier.selectedDistrict != district) {
+        regionNotifier.selectDistrict(district);
+      }
+    } else if (regionNotifier.selectedDistrict != null) {
+      regionNotifier.selectDistrict(null);
+    }
   }
 
   PolicyCategory? _mapCategory(String id) {

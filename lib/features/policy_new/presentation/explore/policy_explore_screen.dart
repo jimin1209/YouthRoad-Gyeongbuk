@@ -57,7 +57,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
 
   @override
   void dispose() {
-    _regionSubscription.close();
+    _regionSubscription?.close();
     _searchController.dispose();
     super.dispose();
   }
