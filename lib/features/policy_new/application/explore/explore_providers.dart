@@ -9,6 +9,7 @@ import '../../domain/values/policy_sort.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_status_filter.dart';
 import '../reexplore/policy_reexplore.dart';
+import '../../../../application/notifiers/region_notifier.dart';
 
 final exploreStateProvider =
     StateNotifierProvider<ExploreController, ExploreState>(
@@ -32,12 +33,13 @@ class ExploreController extends StateNotifier<ExploreState> {
   void setKeyword(String value) {
     final trimmed = value.trim();
     debugPrint('[Explore] setKeyword: "$trimmed"');
+    final hasRegionSelection = ref.read(regionProvider)?.isNotEmpty ?? false;
     if (trimmed.isEmpty) {
       _syncKeyword('');
       state = state.copyWith(
         keyword: '',
         mode: state.mode == ExploreSubMode.search
-            ? ExploreSubMode.all
+            ? (hasRegionSelection ? ExploreSubMode.region : ExploreSubMode.all)
             : state.mode,
       );
       return;
@@ -95,16 +97,38 @@ class ExploreController extends StateNotifier<ExploreState> {
 
   void clearFilters() {
     debugPrint('[Explore] clearFilters');
+    final hasRegionSelection = ref.read(regionProvider)?.isNotEmpty ?? false;
     ref.read(globalFilterControllerProvider).resetAll();
-    state = state.copyWith(mode: ExploreSubMode.all, keyword: '');
+    state = state.copyWith(
+      mode: hasRegionSelection ? ExploreSubMode.region : ExploreSubMode.all,
+      keyword: '',
+    );
+  }
+
+  void ensureRegionMode({required bool hasSelection}) {
+    if (state.mode == ExploreSubMode.search && state.keyword.isNotEmpty) {
+      return;
+    }
+
+    final nextMode = hasSelection ? ExploreSubMode.region : ExploreSubMode.all;
+    if (state.mode != nextMode) {
+      state = state.copyWith(mode: nextMode);
+    }
   }
 
   void applyFromDetail({
     required PolicyFilterUiState filter,
     required PolicyReExploreMode mode,
   }) {
+    final hasRegionSelection =
+        (filter.city?.isNotEmpty ?? false) || (filter.district?.isNotEmpty ?? false);
+    final nextMode = hasRegionSelection ? ExploreSubMode.region : ExploreSubMode.all;
+
+    if (state.keyword.isNotEmpty) {
+      _syncKeyword('');
+    }
     state = state.copyWith(
-      mode: ExploreSubMode.all,
+      mode: nextMode,
       keyword: '',
     );
   }
