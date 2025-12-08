@@ -1,0 +1,269 @@
+ssm-user@ip-172-31-21-99:~/YouthRoad-Gyeongbuk$ flutter analyze
+Analyzing YouthRoad-Gyeongbuk...
+
+  error • Target of URI doesn't exist: 'package:baseflow_plugin_template/baseflow_plugin_template.dart' •
+         android/plugins/geolocator_android/example/lib/main.dart:4:8 • uri_does_not_exist
+  error • Undefined name 'BaseflowPluginExample' • android/plugins/geolocator_android/example/lib/main.dart:11:5 •
+         undefined_identifier
+  error • Undefined class 'ExamplePage' • android/plugins/geolocator_android/example/lib/main.dart:25:10 • undefined_class
+  error • The method 'ExamplePage' isn't defined for the type 'GeolocatorWidget' •
+         android/plugins/geolocator_android/example/lib/main.dart:26:12 • undefined_method
+  error • The method 'BaseflowPluginExample' isn't defined for the type '_GeolocatorWidgetState' •
+         android/plugins/geolocator_android/example/lib/main.dart:103:12 • undefined_method
+  error • The method 'ExamplePage' isn't defined for the type '_GeolocatorWidgetState' •
+         android/plugins/geolocator_android/example/lib/main.dart:109:9 • undefined_method
+   info • 'policyFilterUiStateProvider' is deprecated and shouldn't be used. Use globalFilterProvider instead •
+          lib/application/notifiers/region_notifier.dart:99:28 • deprecated_member_use_from_same_package
+warning • Unused import: '../providers.dart' • lib/application/search/controllers/search_v2_controller.dart:9:8 • unused_import
+warning • Unused import: 'package:youth_road_app/data/local/isar/isar_service_stub.dart' •
+       lib/application/search/providers.dart:6:8 • unused_import
+warning • Unused import: '../../data/sources/remote/policy_remote_source.dart' • lib/application/search/providers.dart:14:8 •
+       unused_import
+   info • Convert 'userMessage', 'debugMessage', and 'stackTrace' to super parameters • lib/core/error/app_exception.dart:17:9 •
+          use_super_parameters
+   info • Convert 'userMessage', 'debugMessage', and 'stackTrace' to super parameters • lib/core/error/app_exception.dart:29:9 •
+          use_super_parameters
+   info • Convert 'userMessage', 'debugMessage', and 'stackTrace' to super parameters • lib/core/error/app_exception.dart:44:9 •
+          use_super_parameters
+   info • Convert 'userMessage', 'debugMessage', and 'stackTrace' to super parameters • lib/core/error/app_exception.dart:56:9 •
+          use_super_parameters
+warning • The left operand can't be null, so the right operand is never executed • lib/data/local/isar/isar_service.dart:62:36 •
+       dead_null_aware_expression
+warning • Unused import: '../models/policy_model.dart' • lib/data/repositories/swr_policy_repository.dart:6:8 • unused_import
+warning • The operand can't be null, so the condition is always 'false' • lib/debug/debug_overlay.dart:29:35 •
+       unnecessary_null_comparison
+warning • The receiver can't be null, so the null-aware operator '?.' is unnecessary • lib/devtools/debug_overlay.dart:114:47 •
+       invalid_null_aware_operator
+warning • Unused import: 'package:flutter/material.dart' • lib/devtools/devtools_provider.dart:5:8 • unused_import
+  error • The getter 'kakaoRestKey' isn't defined for the type 'AppEnv' •
+         lib/features/center/data/youth_center_remote_source.dart:16:16 • undefined_getter
+  error • The getter 'kakaoRestKey' isn't defined for the type 'AppEnv' •
+         lib/features/center/data/youth_center_remote_source.dart:25:42 • undefined_getter
+   info • The imported package 'webview_flutter_android' isn't a dependency of the importing package •
+          lib/features/map_v2/kakao_map_controller.dart:7:8 • depend_on_referenced_packages
+   info • The imported package 'webview_flutter_wkwebview' isn't a dependency of the importing package •
+          lib/features/map_v2/kakao_map_controller.dart:8:8 • depend_on_referenced_packages
+warning • Unused import: 'package:flutter/foundation.dart' • lib/features/map_v2/kakao_map_html_builder.dart:5:8 • unused_import
+   info • The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of
+          'package:flutter/material.dart' • lib/features/map_v2/kakao_map_screen.dart:6:8 • unnecessary_import
+warning • Unused import: 'package:geolocator/geolocator.dart' • lib/features/map_v2/kakao_map_screen.dart:11:8 • unused_import
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:233:19 •
+       unnecessary_null_comparison
+warning • The value of 'refresh' should be used • lib/features/map_v2/kakao_map_screen.dart:789:11 • unused_result
+warning • The receiver can't be null, so the null-aware operator '?.' is unnecessary •
+       lib/features/map_v2/kakao_map_screen.dart:795:28 • invalid_null_aware_operator
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:797:17 •
+       unnecessary_null_comparison
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:830:17 •
+       unnecessary_null_comparison
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:847:17 •
+       unnecessary_null_comparison
+warning • The value of 'refresh' should be used • lib/features/map_v2/kakao_map_screen.dart:882:9 • unused_result
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:924:17 •
+       unnecessary_null_comparison
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:940:17 •
+       unnecessary_null_comparison
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:971:17 •
+       unnecessary_null_comparison
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:991:17 •
+       unnecessary_null_comparison
+warning • The value of 'refresh' should be used • lib/features/map_v2/kakao_map_screen.dart:1101:9 • unused_result
+warning • The value of 'refresh' should be used • lib/features/map_v2/kakao_map_screen.dart:1152:13 • unused_result
+warning • The value of 'refresh' should be used • lib/features/map_v2/kakao_map_screen.dart:1169:13 • unused_result
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:1188:44 •
+       unnecessary_null_comparison
+warning • The value of 'refresh' should be used • lib/features/map_v2/kakao_map_screen.dart:1314:9 • unused_result
+warning • The value of 'refresh' should be used • lib/features/map_v2/kakao_map_screen.dart:1321:9 • unused_result
+  error • Expected to find ')' • lib/features/map_v2/kakao_map_screen.dart:1336:26 • expected_token
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:1352:17 •
+       unnecessary_null_comparison
+warning • The operand can't be null, so the condition is always 'true' • lib/features/map_v2/kakao_map_screen.dart:1433:17 •
+       unnecessary_null_comparison
+   info • The imported package 'webview_flutter_android' isn't a dependency of the importing package •
+          lib/features/map_v2/map_with_list_screen.dart:8:8 • depend_on_referenced_packages
+   info • The imported package 'webview_flutter_wkwebview' isn't a dependency of the importing package •
+          lib/features/map_v2/map_with_list_screen.dart:9:8 • depend_on_referenced_packages
+   info • Unnecessary 'const' keyword • lib/features/policy_new/application/controllers/notification_center_controller.dart:63:15 •
+          unnecessary_const
+   info • Unnecessary 'const' keyword • lib/features/policy_new/application/controllers/notification_center_controller.dart:64:11 •
+          unnecessary_const
+   info • The import of 'package:flutter/material.dart' is unnecessary because all of the used elements are also provided by the
+          import of 'package:flutter/foundation.dart' •
+          lib/features/policy_new/application/controllers/policy_action_controller.dart:2:8 • unnecessary_import
+warning • Unused import: '../services/policy_reminder_service.dart' •
+       lib/features/policy_new/application/controllers/policy_detail_controller.dart:4:8 • unused_import
+   info • Use an initializing formal to assign a parameter to a field •
+          lib/features/policy_new/application/controllers/policy_paging_state.dart:32:9 • prefer_initializing_formals
+warning • Unused import: '../../domain/values/policy_filter.dart' •
+       lib/features/policy_new/application/controllers/policy_query_controller.dart:4:8 • unused_import
+warning • Unused import: '../../domain/values/policy_status_filter.dart' •
+       lib/features/policy_new/application/controllers/policy_query_orchestrator.dart:8:8 • unused_import
+   info • Don't invoke 'print' in production code •
+          lib/features/policy_new/application/controllers/policy_reminder_controller.dart:99:9 • avoid_print
+   info • Don't invoke 'print' in production code •
+          lib/features/policy_new/application/controllers/policy_reminder_controller.dart:134:9 • avoid_print
+   info • Don't invoke 'print' in production code •
+          lib/features/policy_new/application/controllers/policy_reminder_controller.dart:220:11 • avoid_print
+   info • Don't invoke 'print' in production code •
+          lib/features/policy_new/application/controllers/policy_reminder_controller.dart:249:9 • avoid_print
+   info • Don't invoke 'print' in production code •
+          lib/features/policy_new/application/controllers/policy_reminder_controller.dart:279:9 • avoid_print
+   info • Don't invoke 'print' in production code •
+          lib/features/policy_new/application/controllers/policy_reminder_controller.dart:307:9 • avoid_print
+   info • Don't invoke 'print' in production code •
+          lib/features/policy_new/application/controllers/policy_reminder_controller.dart:417:7 • avoid_print
+   info • Don't invoke 'print' in production code •
+          lib/features/policy_new/application/controllers/policy_reminder_controller.dart:427:7 • avoid_print
+   info • The import of 'policy_event_bus.dart' is unnecessary because all of the used elements are also provided by the import of
+          '../providers.dart' • lib/features/policy_new/application/controllers/policy_selection_controller.dart:8:8 •
+          unnecessary_import
+warning • Unused import: '../domain/entities/policy_reminder.dart' • lib/features/policy_new/application/providers.dart:10:8 •
+       unused_import
+warning • Unused import: '../domain/values/policy_failure.dart' • lib/features/policy_new/application/providers.dart:19:8 •
+       unused_import
+warning • Unused import: '../domain/values/policy_query.dart' • lib/features/policy_new/application/providers.dart:22:8 •
+       unused_import
+warning • Unused import: '../domain/values/policy_sort.dart' • lib/features/policy_new/application/providers.dart:27:8 •
+       unused_import
+warning • Unused import: 'controllers/base_feed_controller.dart' • lib/features/policy_new/application/providers.dart:33:8 •
+       unused_import
+warning • Unused import: 'controllers/global_filter_controller.dart' • lib/features/policy_new/application/providers.dart:42:8 •
+       unused_import
+warning • Unused import: 'controllers/ui_reaction_controller.dart' • lib/features/policy_new/application/providers.dart:46:8 •
+       unused_import
+   info • The import of '../../application/controllers/policy_event_bus.dart' is unnecessary because all of the used elements are
+          also provided by the import of '../../application/providers.dart' •
+          lib/features/policy_new/compare/controllers/compare_feed_controller.dart:6:8 • unnecessary_import
+warning • Unused import: 'dart:convert' • lib/features/policy_new/data/remote/youth_center_geocode_remote.dart:1:8 • unused_import
+   info • The declaration '_mapRegion' isn't referenced •
+          lib/features/policy_new/data/repositories/policy_repository_impl.dart:464:10 • unused_element
+warning • Unused import: '../../mappers/youth_policy_mapper.dart' •
+       lib/features/policy_new/data/repositories/youthcenter/content_repository_impl.dart:8:8 • unused_import
+warning • The '!' will have no effect because the receiver can't be null •
+       lib/features/policy_new/data/repositories/youthcenter/policy_repository_impl.dart:34:37 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null •
+       lib/features/policy_new/data/repositories/youthcenter/policy_repository_impl.dart:34:52 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null •
+       lib/features/policy_new/data/repositories/youthcenter/policy_repository_impl.dart:35:29 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null •
+       lib/features/policy_new/data/repositories/youthcenter/policy_repository_impl.dart:35:44 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null •
+       lib/features/policy_new/data/repositories/youthcenter/policy_repository_impl.dart:41:37 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null •
+       lib/features/policy_new/data/repositories/youthcenter/policy_repository_impl.dart:41:52 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null •
+       lib/features/policy_new/data/repositories/youthcenter/policy_repository_impl.dart:42:29 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null •
+       lib/features/policy_new/data/repositories/youthcenter/policy_repository_impl.dart:42:44 • unnecessary_non_null_assertion
+   info • 'DioError' is deprecated and shouldn't be used. Use DioException instead. This will be removed in 6.0.0 •
+          lib/features/policy_new/data/sources/department_remote_source.dart:53:10 • deprecated_member_use
+   info • 'DioError' is deprecated and shouldn't be used. Use DioException instead. This will be removed in 6.0.0 •
+          lib/features/policy_new/data/sources/institution_remote_source.dart:45:10 • deprecated_member_use
+   info • 'DioError' is deprecated and shouldn't be used. Use DioException instead. This will be removed in 6.0.0 •
+          lib/features/policy_new/data/sources/policy_remote_source.dart:40:10 • deprecated_member_use
+   info • Convert 'msg' to a super parameter • lib/features/policy_new/domain/values/policy_failure.dart:8:9 • use_super_parameters
+   info • Convert 'msg' to a super parameter • lib/features/policy_new/domain/values/policy_failure.dart:12:9 •
+          use_super_parameters
+   info • Convert 'msg' to a super parameter • lib/features/policy_new/domain/values/policy_failure.dart:16:9 •
+          use_super_parameters
+warning • Unused import: '../../application/controllers/policy_detail_controller.dart' •
+       lib/features/policy_new/presentation/detail/policy_detail_bottom_sheet.dart:4:8 • unused_import
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/features/policy_new/presentation/detail/widgets/policy_action_bar.dart:341:35 •
+          deprecated_member_use
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/features/policy_new/presentation/detail/widgets/policy_action_bar.dart:344:21 •
+          deprecated_member_use
+warning • The receiver can't be null, so the null-aware operator '?.' is unnecessary •
+       lib/features/policy_new/presentation/explore/policy_explore_screen.dart:60:24 • invalid_null_aware_operator
+   info • The declaration '_regionLabel' isn't referenced •
+          lib/features/policy_new/presentation/filters/policy_filter_bottom_sheet.dart:474:10 • unused_element
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/features/policy_new/presentation/filters/policy_filter_bottom_sheet.dart:590:55 •
+          deprecated_member_use
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/features/policy_new/presentation/filters/policy_filter_bottom_sheet.dart:644:58 •
+          deprecated_member_use
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/features/policy_new/presentation/filters/widgets/region_chip.dart:24:33 •
+          deprecated_member_use
+warning • The value of the local variable 'regionState' isn't used •
+       lib/features/policy_new/presentation/filters/widgets/region_selector_section.dart:12:11 • unused_local_variable
+warning • The operand can't be null, so the condition is always 'false' •
+       lib/features/policy_new/presentation/map/youth_center_map_provider.dart:162:13 • unnecessary_null_comparison
+warning • The operand can't be null, so the condition is always 'false' •
+       lib/features/policy_new/presentation/map/youth_center_map_provider.dart:162:28 • unnecessary_null_comparison
+warning • Unused import: '../../domain/entities/policy_reminder.dart' •
+       lib/features/policy_new/presentation/reminder/policy_reminder_badge.dart:5:8 • unused_import
+warning • The member 'state' can only be used within 'package:state_notifier/state_notifier.dart' or a test •
+       lib/features/policy_new/presentation/reminder/policy_reminder_button.dart:154:43 • invalid_use_of_visible_for_testing_member
+warning • The member 'state' can only be used within instance members of subclasses of 'package:state_notifier/state_notifier.dart'
+       • lib/features/policy_new/presentation/reminder/policy_reminder_button.dart:154:43 • invalid_use_of_protected_member
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/features/policy_new/presentation/reminder/policy_reminder_button.dart:458:44 •
+          deprecated_member_use
+warning • Unused import: '../../../../ui/components/app_card.dart' •
+       lib/features/policy_new/presentation/tabs/policy_feed_tab.dart:17:8 • unused_import
+warning • Unused import: '../../../../ui/components/app_divider.dart' •
+       lib/features/policy_new/presentation/tabs/policy_feed_tab.dart:18:8 • unused_import
+warning • Unused import: '../../../../ui/components/app_section_title.dart' •
+       lib/features/policy_new/presentation/tabs/policy_feed_tab.dart:19:8 • unused_import
+  error • The method 'copyWith' can't be unconditionally invoked because the receiver can be 'null' •
+         lib/features/policy_new/presentation/tabs/policy_feed_tab.dart:153:53 • unchecked_use_of_nullable_value
+   info • Unnecessary use of 'toList' in a spread • lib/features/policy_new/presentation/tabs/policy_feed_tab.dart:209:16 •
+          unnecessary_to_list_in_spreads
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/features/policy_new/presentation/widgets/policy_feed_reaction_banner.dart:23:48 •
+          deprecated_member_use
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/features/policy_new/presentation/widgets/policy_feed_reaction_banner.dart:24:24 •
+          deprecated_member_use
+warning • Unused import: '../ui/screens/compare/compare_screen.dart' • lib/navigation/app_router.dart:14:8 • unused_import
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/theme/app_theme.dart:309:28 • deprecated_member_use
+   info • 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre
+          • lib/theme/app_theme.dart:434:44 • deprecated_member_use
+   info • 'onBackground' is deprecated and shouldn't be used. Use onSurface instead. This feature was deprecated after
+          v3.18.0-0.1.pre • lib/theme/app_theme.dart:436:32 • deprecated_member_use
+   info • 'onBackground' is deprecated and shouldn't be used. Use onSurface instead. This feature was deprecated after
+          v3.18.0-0.1.pre • lib/theme/app_theme.dart:437:35 • deprecated_member_use
+warning • Unused import: '../theme/app_text.dart' • lib/ui/components/app_card.dart:4:8 • unused_import
+warning • Unused import: 'policy_tag.dart' • lib/ui/components/policy_filter_bottom_sheet.dart:4:8 • unused_import
+warning • The receiver can't be null, so the null-aware operator '?.' is unnecessary •
+       lib/ui/components/policy_filter_bottom_sheet.dart:307:49 • invalid_null_aware_operator
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/ui/components/policy_filter_bottom_sheet.dart:413:26 • deprecated_member_use
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/ui/components/policy_filter_bottom_sheet.dart:512:53 • deprecated_member_use
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/ui/components/policy_skeleton_card.dart:16:27 • deprecated_member_use
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/ui/screens/chatbot/chatbot_screen.dart:210:29 • deprecated_member_use
+   info • A value for optional parameter 'message' isn't ever given • lib/ui/screens/favorites/favorites_screen.dart:306:10 •
+          unused_element
+warning • Unused import: '../../../application/search/controllers/search_history_controller.dart' •
+       lib/ui/screens/policy/policy_search_screen.dart:7:8 • unused_import
+warning • Unused import: '../../../application/search/controllers/search_suggestion_controller.dart' •
+       lib/ui/screens/policy/policy_search_screen.dart:8:8 • unused_import
+   info • Don't use 'BuildContext's across async gaps • lib/ui/screens/setting/setting_screen.dart:47:36 •
+          use_build_context_synchronously
+   info • 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre
+          • lib/ui/theme/app_theme.dart:13:7 • deprecated_member_use
+   info • 'onBackground' is deprecated and shouldn't be used. Use onSurface instead. This feature was deprecated after
+          v3.18.0-0.1.pre • lib/ui/theme/app_theme.dart:17:7 • deprecated_member_use
+   info • 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated
+          after v3.18.0-0.1.pre • lib/ui/widgets/policy_card_v2.dart:26:34 • deprecated_member_use
+   info • A value for optional parameter 'key' isn't ever given • lib/ui/widgets/policy_detail_metadata.dart:140:31 •
+          unused_element
+  error • The named parameter 'keyword' isn't defined • test/features/policy_new/application/policy_filter_summary_test.dart:11:9 •
+         undefined_named_parameter
+  error • The named parameter 'showOnlyOngoing' isn't defined •
+         test/features/policy_new/application/policy_filter_summary_test.dart:14:9 • undefined_named_parameter
+  error • The named parameter 'keyword' isn't defined • test/features/policy_new/application/policy_filter_summary_test.dart:33:9 •
+         undefined_named_parameter
+   info • The imported package 'youthroad_gyeongbuk' isn't a dependency of the importing package • test/widget_test.dart:11:8 •
+          depend_on_referenced_packages
+  error • Target of URI doesn't exist: 'package:youthroad_gyeongbuk/main.dart' • test/widget_test.dart:11:8 • uri_does_not_exist
+  error • The name 'MyApp' isn't a class • test/widget_test.dart:16:35 • creation_with_non_type
+
+137 issues found. (ran in 20.6s)
