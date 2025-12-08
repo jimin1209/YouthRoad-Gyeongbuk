@@ -9,7 +9,7 @@ import '../../../application/controllers/policy_action_controller.dart';
 import '../../../application/controllers/policy_reminder_controller.dart';
 import '../../../application/providers.dart';
 import '../../utils/policy_date_formatter.dart';
-import '../../../../ui/theme/app_text.dart';
+import '../../../../../ui/theme/app_text.dart';
 
 class PolicyActionBar extends ConsumerWidget {
   const PolicyActionBar({super.key, required this.policy});

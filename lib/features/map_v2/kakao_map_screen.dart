@@ -1316,8 +1316,6 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       markerId,
       position,
       tooltipName: center.name,
-      updateCircle: false,
-      animate: true,
     );
     await _updateSearchCircle(position);
     ref.refresh(youthCenterMapProvider(request));
