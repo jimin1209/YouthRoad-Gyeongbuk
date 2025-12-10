@@ -12,6 +12,7 @@ class CenterListBottomSheet extends StatelessWidget {
     required this.onCenterTap,
     required this.status,
     this.errorMessage,
+    this.onRetry,
   });
 
   final List<CenterMarkerPoint> centers;
@@ -19,6 +20,7 @@ class CenterListBottomSheet extends StatelessWidget {
   final void Function(CenterMarkerPoint center, int index) onCenterTap;
   final YouthCenterMapStatus status;
   final String? errorMessage;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +80,18 @@ class CenterListBottomSheet extends StatelessWidget {
         );
       case YouthCenterMapStatus.error:
         return Center(
-          child: Text(errorMessage ?? '센터 정보를 불러오지 못했습니다.'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(errorMessage ?? '센터 정보를 불러오지 못했습니다.'),
+              const SizedBox(height: 8),
+              if (onRetry != null)
+                OutlinedButton(
+                  onPressed: onRetry,
+                  child: const Text('다시 시도'),
+                ),
+            ],
+          ),
         );
       case YouthCenterMapStatus.initial:
         return const Center(

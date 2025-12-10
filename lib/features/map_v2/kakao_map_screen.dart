@@ -147,7 +147,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             _buildLocatingOverlay(),
           if (_activeTooltipName != null)
             CenterMarkerTooltip(name: _activeTooltipName!),
-          _buildCenterStatusOverlay(centerState),
+          _buildCenterStatusOverlay(
+            centerState,
+            onRetry: _retryLoadCenters,
+          ),
           Positioned(
             left: 16,
             top: 16 + MediaQuery.of(context).padding.top,
@@ -161,6 +164,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
               onCenterTap: _onCenterCardTap,
               status: centerState.status,
               errorMessage: centerState.errorMessage,
+              onRetry: _retryLoadCenters,
             ),
           ),
         ],
@@ -226,11 +230,18 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     );
   }
 
-  Widget _buildCenterStatusOverlay(YouthCenterMapState centerState) {
+  Widget _buildCenterStatusOverlay(
+    YouthCenterMapState centerState, {
+    VoidCallback? onRetry,
+  }) {
     final status = centerState.status;
     final shouldShow = status == YouthCenterMapStatus.loading ||
         status == YouthCenterMapStatus.empty ||
         status == YouthCenterMapStatus.error;
+    final allowInteraction = status != YouthCenterMapStatus.loading;
+
+    final hasRetry =
+        status == YouthCenterMapStatus.error && onRetry != null;
 
     String? message;
     switch (status) {
@@ -249,7 +260,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     }
 
     return IgnorePointer(
-      ignoring: true,
+      ignoring: !allowInteraction,
       child: AnimatedOpacity(
         opacity: shouldShow ? 1 : 0,
         duration: const Duration(milliseconds: 200),
@@ -269,9 +280,29 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
                       color: Colors.black.withOpacity(0.75),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      message,
-                      style: const TextStyle(color: Colors.white),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          message,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        if (hasRetry) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton(
+                            onPressed: onRetry,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white70),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            child: const Text('다시 시도'),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
@@ -375,6 +406,26 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
     await _moveMap(center, level: _locationZoomLevel, animate: animate);
     await _updateSearchCircle(center);
+  }
+
+  Future<void> _retryLoadCenters() async {
+    if (!mounted) return;
+    setState(() {
+      _showLoadingOverlay = true;
+    });
+
+    final notifier = ref.read(youthCenterMapStateProvider.notifier);
+    await notifier.loadCenters(center: _mapCenter, radiusKm: _currentRadius);
+
+    if (!mounted) return;
+    await _updateSearchCircle(_mapCenter);
+
+    setState(() {
+      _showLoadingOverlay = false;
+      _viewStatus = _mapReady
+          ? KakaoMapViewStatus.markersReady
+          : KakaoMapViewStatus.mapReady;
+    });
   }
 
   Future<void> _applyFallbackCenter({String? locationError}) async {

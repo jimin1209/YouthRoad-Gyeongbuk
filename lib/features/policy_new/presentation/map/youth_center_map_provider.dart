@@ -12,6 +12,7 @@ import '../../../../env/app_env.dart';
 import '../../../map_v2/kakao_map_html_builder.dart';
 import '../../application/youthcenter_providers.dart';
 import '../../data/mappers/youth_center_mapper.dart';
+import '../../data/sources/youthcenter/youth_center_remote_source.dart';
 import '../../domain/youthcenter/youth_center_entity.dart';
 
 const double kCenterRangeKm = 20.0;
@@ -90,6 +91,8 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     );
 
     try {
+      debugPrint('[YCMAP] 요청 시작 → center=(${center.lat}, ${center.lng}), '
+          'radiusKm=$radiusKm');
       final markers = await _fetchAllCenterMarkers(center);
       final filtered = filterCentersWithinRadius(markers, center, radiusKm);
       final status = filtered.isEmpty
@@ -106,15 +109,21 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
       );
     } catch (error, stack) {
       debugPrint('[YCMAP] loadCenters failed: $error');
-      if (stack != null) {
+      if (kDebugMode) {
         debugPrint(stack.toString());
       }
       state = state.copyWith(
         isLoading: false,
-        errorMessage: '$error',
+        errorMessage: _buildUserMessage(error),
         status: YouthCenterMapStatus.error,
       );
     }
+  }
+
+  Future<void> retryLast() async {
+    final center = state.center;
+    if (center == null) return;
+    await loadCenters(center: center, radiusKm: state.radiusKm);
   }
 
   void updateCenter(KakaoMapLatLng center, {double? radiusKm}) {
@@ -260,6 +269,27 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
 
     return result;
   }
+
+  String _buildUserMessage(Object error) {
+    const fallback = '센터 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.';
+
+    if (error is YouthCenterApiException) {
+      if (error.statusCode == 403) {
+        return '센터 인증 정보가 올바르지 않습니다. 잠시 후 다시 시도해주세요.';
+      }
+      if (!kDebugMode) return error.userMessage;
+      final code = error.statusCode != null ? ' (status: ${error.statusCode})' : '';
+      return '${error.userMessage}$code';
+    }
+
+    if (error is DioException) {
+      final status = error.response?.statusCode;
+      if (!kDebugMode) return fallback;
+      return '요청 실패 (status: $status, message: ${error.message})';
+    }
+
+    return fallback;
+  }
 }
 
 List<CenterMarkerPoint> filterCentersWithinRadius(
@@ -316,10 +346,13 @@ Future<Map<String, double>?> _geocodeWithKakao(
 
   final dio = Dio(BaseOptions(baseUrl: 'https://dapi.kakao.com'));
   debugPrint('[YCMAP] 🔍 Geocode request: "$fullAddress" (key=$cacheKey)');
+  debugPrint('[YCMAP][HTTP] GET /v2/local/search/address.json');
+  debugPrint('[YCMAP][HTTP] headers={Authorization: KakaoAK $apiKey}');
+  debugPrint('[YCMAP][HTTP] query={query: $fullAddress}');
 
   try {
     final response = await dio.get(
-      '/v2/local/search/address',
+      '/v2/local/search/address.json',
       queryParameters: {'query': fullAddress},
       options: Options(headers: {'Authorization': 'KakaoAK $apiKey'}),
     );
@@ -340,11 +373,16 @@ Future<Map<String, double>?> _geocodeWithKakao(
     cache[cacheKey] = {'lat': lat, 'lng': lng};
 
     return {'lat': lat, 'lng': lng};
-  } on DioError catch (e) {
-    debugPrint('[YCMAP] ❌ Geocode DioError: ${e.message}');
-    if (e.response != null) {
-      debugPrint('[YCMAP] ❌ Geocode response: ${e.response?.data}');
-    }
+  } on DioException catch (e, stack) {
+    debugPrint('[YCMAP] ❌ Geocode DioException: ${e.message}');
+    final request = e.requestOptions;
+    debugPrint('[YCMAP][ERR] url=${request.uri}');
+    debugPrint('[YCMAP][ERR] method=${request.method}');
+    debugPrint('[YCMAP][ERR] headers=${request.headers}');
+    debugPrint('[YCMAP][ERR] query=${request.queryParameters}');
+    debugPrint('[YCMAP][ERR] status=${e.response?.statusCode}');
+    debugPrint('[YCMAP][ERR] body=${e.response?.data}');
+    if (kDebugMode) debugPrint(stack.toString());
     return null;
   } catch (e) {
     debugPrint('[YCMAP] ❌ Geocode error: $e');
