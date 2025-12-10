@@ -82,6 +82,7 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     required KakaoMapLatLng center,
     double radiusKm = kCenterRangeKm,
   }) async {
+    debugPrint('[Location][INFO] loadCenters() 호출 center=(${center.lat}, ${center.lng}), radiusKm=$radiusKm');
     state = state.copyWith(
       isLoading: true,
       center: center,
@@ -91,14 +92,13 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     );
 
     try {
-      debugPrint('[YCMAP] 요청 시작 → center=(${center.lat}, ${center.lng}), '
-          'radiusKm=$radiusKm');
-      debugPrint('[Center][Auth] 센터 목록 API 요청 시작');
+      debugPrint('[Center][INFO] 센터 목록 API 요청 시작');
       final markers = await _fetchAllCenterMarkers(center);
       final filtered = filterCentersWithinRadius(markers, center, radiusKm);
       final status = filtered.isEmpty
           ? YouthCenterMapStatus.empty
           : YouthCenterMapStatus.loaded;
+      debugPrint('[Center][INFO] 필터링 결과=${filtered.length}개, status=$status');
       state = state.copyWith(
         allCenters: markers,
         filteredCenters: filtered,
@@ -109,10 +109,14 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
         status: status,
       );
     } catch (error, stack) {
-      debugPrint('[YCMAP] loadCenters failed: $error');
-      if (kDebugMode) {
-        debugPrint(stack.toString());
+      debugPrint('[Center][ERROR] 센터 불러오기 실패: $error');
+      if (error is YouthCenterApiException) {
+        debugPrint('[Center][ERROR] status=${error.statusCode}, reason=${error.reason}');
       }
+      if (error is DioException) {
+        debugPrint('[Center][ERROR] dio status=${error.response?.statusCode}, message=${error.message}');
+      }
+      if (kDebugMode) debugPrint(stack.toString());
       state = state.copyWith(
         isLoading: false,
         errorMessage: _buildUserMessage(error),
@@ -149,6 +153,7 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     debugPrint('[YCMAP] Provider START');
     debugPrint('[YCMAP] center=(${center.lat}, ${center.lng})');
     debugPrint('[YCMAP] radius=${state.radiusKm}km');
+    debugPrint('[Center][INFO] 요청 좌표=(${center.lat}, ${center.lng}), radiusKm=${state.radiusKm}');
 
     final repo = _ref.read(youthCenterRepositoryProvider);
     final prefs = _ref.read(app_di.sharedPreferencesProvider);
@@ -184,6 +189,14 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     try {
       items = await repo.getCentersV2(pageSize: 300);
       debugPrint('[Center][Auth] 센터 목록 API 응답 성공 count=${items.length}');
+    } on StateError catch (error, stack) {
+      debugPrint('[YCMAP] ⚠️ 빈 응답 → 캐시/빈 리스트 처리: $error');
+      if (kDebugMode) debugPrint(stack.toString());
+      if (cachedMarkers.isNotEmpty) {
+        debugPrint('[YCMAP] 캐시된 마커 반환 (${cachedMarkers.length}개)');
+        return cachedMarkers;
+      }
+      return const [];
     } catch (error) {
       debugPrint('[YCMAP] ❌ API 실패 → 마커 캐시 사용 시도: $error');
       debugPrint('[Center][Auth] 센터 목록 API 실패: $error');
@@ -196,6 +209,7 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     debugPrint('[YCMAP] API success, item count=${items.length}');
 
     final result = <CenterMarkerPoint>[];
+    var firstLogged = false;
 
     for (final centerEntity in items) {
       final addr = centerEntity.address.trim();
@@ -252,6 +266,12 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
       final markerPoint = centerEntity.toMarkerPoint(lat: lat, lng: lng);
       result.add(markerPoint);
       debugPrint('[YCMAP] ✔ Marker prepared');
+      if (!firstLogged) {
+        debugPrint(
+          '[Center][INFO] 첫 센터 좌표 lat=$lat, lng=$lng, name=${centerEntity.centerName}',
+        );
+        firstLogged = true;
+      }
     }
 
     try {

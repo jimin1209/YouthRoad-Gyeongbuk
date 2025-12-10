@@ -152,6 +152,12 @@ class KakaoMapHtmlBuilder {
     bool enableClustering = false,
     String? additionalScripts,
   }) {
+    final centerCount = markers.where((m) => m.id.startsWith('CENTER-')).length;
+    if (kDebugMode) {
+      debugPrint(
+        '[MapBridge][INFO] HTML build: center=(${center.lat}, ${center.lng}), radiusKm=${(searchRadiusMeters / 1000).toStringAsFixed(1)}, markers=${markers.length}, centerMarkers=$centerCount',
+      );
+    }
     final payload = {
       'center': center.toJson(),
       'markers': markers.map((e) => e.toJson()).toList(),
@@ -488,6 +494,23 @@ class KakaoMapHtmlBuilder {
       markers.forEach(function(m) { m.setMap(null); });
       markers = [];
       markerLookup = {};
+
+      if (!list || !list.length) {
+        console.log('[KakaoMap][INFO] 센터 0개 마커 렌더 요청: skip');
+        if (clusterer) {
+          try {
+            clusterer.clear();
+          } catch (e) {
+            console.log('[KakaoMap][ERROR] clusterer clear 실패', e);
+          }
+        }
+        return;
+      }
+
+      var centerMarkerCount = list.filter(function(m) {
+        return m.id && m.id.indexOf('CENTER-') === 0;
+      }).length;
+      console.log('[KakaoMap][INFO] 센터 ' + centerMarkerCount + '개 마커 렌더 시작 (total ' + list.length + ')');
 
       list.forEach(function(m) {
         var pos = new kakao.maps.LatLng(m.lat, m.lng);

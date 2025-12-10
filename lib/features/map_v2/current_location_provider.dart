@@ -55,7 +55,10 @@ class CurrentLocationNotifier extends StateNotifier<CurrentLocationState> {
   final _permissionService = const LocationPermissionService();
 
   Future<void> fetch() async {
-    if (state.isLoading) return;
+    if (state.isLoading) {
+      debugPrint('[Location][INFO] 위치 요청이 이미 진행 중입니다. 중복 호출 무시');
+      return;
+    }
 
     state = state.copyWith(
       isLoading: true,
@@ -64,9 +67,12 @@ class CurrentLocationNotifier extends StateNotifier<CurrentLocationState> {
       serviceDisabled: false,
     );
 
+    debugPrint('[Location][INFO] 위치 요청 시작');
+
     try {
       final serviceEnabled = await _gpsService.isLocationServiceEnabled();
       if (!serviceEnabled) {
+        debugPrint('[Location][ERROR] 위치 서비스 비활성화 감지');
         state = state.copyWith(
           isLoading: false,
           serviceDisabled: true,
@@ -77,6 +83,7 @@ class CurrentLocationNotifier extends StateNotifier<CurrentLocationState> {
 
       final permissionResult = await _permissionService.ensurePermission();
       if (permissionResult != LocationPermissionIssue.granted) {
+        debugPrint('[Location][ERROR] 위치 권한 문제: $permissionResult');
         state = state.copyWith(
           isLoading: false,
           permissionIssue: permissionResult,
@@ -86,13 +93,14 @@ class CurrentLocationNotifier extends StateNotifier<CurrentLocationState> {
       }
 
       final position = await _gpsService.getCurrentPosition();
+      debugPrint('[Location][INFO] 위치 획득 성공 lat=${position.latitude}, lng=${position.longitude}');
       state = state.copyWith(
         isLoading: false,
         location: KakaoMapLatLng(position.latitude, position.longitude),
         error: null,
       );
     } catch (error, stack) {
-      debugPrint('[CurrentLocation] 위치 로드 실패: $error');
+      debugPrint('[Location][ERROR] 위치 로드 실패: $error');
       if (stack != null) debugPrint(stack.toString());
       state = state.copyWith(
         isLoading: false,

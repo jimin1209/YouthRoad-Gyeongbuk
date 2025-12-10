@@ -290,7 +290,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       (previous, next) {
         if (next.location != null && !_locationResolved) {
           debugPrint(
-            '[Map][Location] 위치 획득 성공 lat=${next.location!.lat}, lng=${next.location!.lng}',
+            '[Location][INFO] 위치 획득 성공 lat=${next.location!.lat}, lng=${next.location!.lng}',
           );
           _locationResolved = true;
           _locationTimer?.cancel();
@@ -300,7 +300,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         }
 
         if (!next.isLoading && !_locationResolved) {
-          debugPrint('[Map][Location] 위치 요청 실패: ${next.error ?? 'unknown'}');
+          debugPrint('[Location][ERROR] 위치 요청 실패: ${next.error ?? 'unknown'}');
           _handleLocationIssues(next);
           if (next.error != null) {
             _locationResolved = true;
@@ -330,7 +330,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   void _handleLocationIssues(CurrentLocationState state) {
     if (!mounted) return;
     if (state.serviceDisabled && !_serviceGuideShown) {
-      debugPrint('[Map][Location] 위치 서비스 비활성화 감지, 안내 표시');
+      debugPrint('[Location][ERROR] 위치 서비스 비활성화 감지, 안내 표시');
       _serviceGuideShown = true;
       _showLocationPermissionGuide(LocationBottomSheetIssue.serviceDisabled);
       return;
@@ -341,10 +341,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     _lastPermissionIssue = state.permissionIssue;
 
     if (state.permissionIssue == LocationPermissionIssue.denied) {
-      debugPrint('[Map][Location] 권한 거부 감지, 안내 표시');
+      debugPrint('[Location][ERROR] 권한 거부 감지, 안내 표시');
       _showLocationPermissionGuide(LocationBottomSheetIssue.permissionDenied);
     } else if (state.permissionIssue == LocationPermissionIssue.deniedForever) {
-      debugPrint('[Map][Location] 권한 영구 거부 감지, 안내 표시');
+      debugPrint('[Location][ERROR] 권한 영구 거부 감지, 안내 표시');
       _showLocationPermissionGuide(
         LocationBottomSheetIssue.permissionPermanentlyDenied,
       );
@@ -366,12 +366,12 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   }
 
   void _startLocationRequest() {
-    debugPrint('[Map][Location] 위치 요청 시작 (timeout=${_locationTimeout.inSeconds}s)');
+    debugPrint('[Location][INFO] 위치 요청 시작 (timeout=${_locationTimeout.inSeconds}s)');
     _locationTimer?.cancel();
     _locationTimer = Timer(_locationTimeout, () {
       if (!mounted) return;
       if (_locationResolved) return;
-      debugPrint('[Map][Location] 위치 요청 타임아웃 발생, 기본 위치로 이동');
+      debugPrint('[Location][ERROR] 위치 요청 타임아웃 발생, 기본 위치로 이동');
       _locationResolved = true;
       _applyFallbackCenter(locationError: '위치 확인 시간이 초과되었습니다.');
     });
@@ -391,6 +391,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     bool animate = false,
     bool fromLocation = false,
   }) async {
+    debugPrint('[Location][INFO] 지도 중심 적용 lat=${center.lat}, lng=${center.lng}, fromLocation=$fromLocation');
     _mapCenter = center;
     _latestZoom = _locationZoomLevel;
     _deviceLocation = fromLocation ? center : _deviceLocation;
@@ -434,6 +435,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     if (!mounted) return;
     _locationTimer?.cancel();
     final fallback = _defaultCenter;
+    debugPrint('[Location][INFO] 위치 실패로 기본 좌표 사용: $fallback, error=$locationError');
 
     await _applyNewCenter(fallback, animate: false);
 
@@ -564,7 +566,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
 
   void _showLocationFallbackNotice(String? locationError) {
     final detail = locationError != null ? ' ($locationError)' : '';
-    debugPrint('[Map][Location] 기본 위치로 대체 표시$detail');
+    debugPrint('[Location][INFO] 기본 위치로 대체 표시$detail');
     _showSnackOnce(
       key: 'location-fallback',
       message: '현재 위치를 확인할 수 없어 기본 위치(경북 중심)로 표시합니다.',

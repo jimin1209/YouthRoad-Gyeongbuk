@@ -4,7 +4,10 @@
     <!-- 인터넷 접근 권한 -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- 위치 권한 (GPS) -->
+    <!-- 위치 권한 (GPS)
+         - ACCESS_FINE_LOCATION: 현재 위치 기반 서비스용 (Android 12 이하 maxSdkVersion 30 지정)
+         - ACCESS_COARSE_LOCATION: 저정확도 위치 허용 시 사용
+         - ACCESS_BACKGROUND_LOCATION: 백그라운드 위치 필요 시(센터 반경 계산 시 포그라운드 위주 사용) 선언 -->
     <uses-permission
         android:name="android.permission.ACCESS_FINE_LOCATION"
         android:maxSdkVersion="30" />
