@@ -67,8 +67,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['searchPolicyType'] = _mapCategory(filter.category!);
     }
 
-    if (filter.isOngoing != null) {
-      params['aplyPsbltyYn'] = filter.isOngoing! ? 'Y' : 'N';
+    if (filter.status == PolicyStatusFilter.inProgressOnly) {
+      params['aplyPsbltyYn'] = 'Y';
     }
 
     if (filter.isOnline != null) {
@@ -213,13 +213,16 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int pageSize,
     required String scopeKey,
   }) async {
+    final normalizedQuery = query.normalize();
+    final filter = normalizedQuery.filter;
+
     try {
       logger.info(
-        'fetchPoliciesByQuery(scope: $scopeKey, page: $page, size: $pageSize)',
+        '[Explore][INFO] fetchPoliciesByQuery(scope: $scopeKey, region: ${filter.region.name}/${filter.province}/${filter.city ?? '-'} (${filter.district ?? '-'}), status: ${filter.status.queryValue}, sort: ${normalizedQuery.sort.name}, keyword: ${normalizedQuery.keyword ?? '-'}, feed: ${normalizedQuery.feedType.name}, page: $page, size: $pageSize)',
       );
 
       final result = await _fetchFromRemote(
-        query: query,
+        query: normalizedQuery,
         page: page,
         pageSize: pageSize,
       );
@@ -462,7 +465,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
     return params.entries.map((e) => '${e.key}=${e.value}').join(', ');
   }
 
-  String _mapRegion(PolicyRegion region) {
+  String? _mapRegion(PolicyRegion region) {
     switch (region) {
       case PolicyRegion.seoul:
         return '서울';
@@ -479,17 +482,28 @@ class PolicyRepositoryImpl implements PolicyRepository {
       case PolicyRegion.ulsan:
         return '울산';
       case PolicyRegion.gyeongbuk:
-        return '경북 전체';
+        return '경상북도';
       case PolicyRegion.all:
-        return '전체';
+        return null;
     }
   }
 
   String? _regionParam(PolicyFilter filter) {
-    // 우선순위: city만 전달. (도 단위는 기본 전체 의미로 생략)
-    if (filter.city != null && filter.city!.isNotEmpty) {
-      return filter.city;
+    final city = filter.city?.trim();
+    if (city != null && city.isNotEmpty) {
+      return city;
     }
+
+    final province = filter.province.trim();
+    if (filter.region == PolicyRegion.gyeongbuk && province.isNotEmpty) {
+      return province;
+    }
+
+    final mappedRegion = _mapRegion(filter.region);
+    if (mappedRegion != null && mappedRegion.isNotEmpty) {
+      return mappedRegion;
+    }
+
     return null;
   }
 

@@ -10,6 +10,7 @@ import '../filters/policy_filter_ui_state.dart';
 import '../providers.dart';
 import '../behavior/policy_behavior_tracker.dart';
 import '../../domain/recommendation/user_profile.dart';
+import '../../../../application/notifiers/region_notifier.dart';
 
 class PolicyQueryOrchestrator {
   PolicyQueryOrchestrator(this.ref);
@@ -65,15 +66,10 @@ class PolicyQueryOrchestrator {
 
     return PolicyQuery(
       feedType: PolicyFeedType.recommend,
-      filter: PolicyFilter(
+      filter: _buildFilterFromUi(
         region: _ui.region == PolicyRegion.all ? _profile.region : _ui.region,
-        category: _ui.category,
-        age: _profile.age,
-        isOnline: _ui.showOnlyOnline ? true : null,
-        institutionId: _ui.institutionId,
-        departmentId: _ui.departmentId,
         tags: baseTags,
-        status: _ui.status,
+        age: _profile.age,
       ),
       tags: combinedTags,
       sort: PolicySortOption.recommendation,
@@ -81,18 +77,7 @@ class PolicyQueryOrchestrator {
   }
 
   PolicyQuery _buildAllQuery(String keyword) {
-    final filter = PolicyFilter(
-      region: _ui.region,
-      province: _ui.province,
-      city: _ui.city,
-      district: _ui.district,
-      category: _ui.category,
-      isOnline: _ui.showOnlyOnline ? true : null,
-      institutionId: _ui.institutionId,
-      departmentId: _ui.departmentId,
-      tags: _ui.tags,
-      status: _ui.status,
-    );
+    final filter = _buildFilterFromUi();
 
     return PolicyQuery(
       feedType: PolicyFeedType.all,
@@ -103,20 +88,8 @@ class PolicyQueryOrchestrator {
   }
 
   PolicyQuery _buildRegionQuery() {
-    final region =
-        _ui.region == PolicyRegion.all ? _profile.region : _ui.region;
-
-    final filter = PolicyFilter(
-      region: region,
-      province: _ui.province,
-      city: _ui.city,
-      district: _ui.district,
-      category: _ui.category,
-      isOnline: _ui.showOnlyOnline ? true : null,
-      institutionId: _ui.institutionId,
-      departmentId: _ui.departmentId,
-      status: _ui.status,
-    );
+    final region = _ui.region == PolicyRegion.all ? _profile.region : _ui.region;
+    final filter = _buildFilterFromUi(region: region);
 
     return PolicyQuery(
       feedType: PolicyFeedType.region,
@@ -126,17 +99,7 @@ class PolicyQueryOrchestrator {
   }
 
   PolicyQuery _buildSearchQuery(String keyword) {
-    final filter = PolicyFilter(
-      region: _ui.region,
-      province: _ui.province,
-      city: _ui.city,
-      district: _ui.district,
-      category: _ui.category,
-      isOnline: _ui.showOnlyOnline ? true : null,
-      institutionId: _ui.institutionId,
-      departmentId: _ui.departmentId,
-      status: _ui.status,
-    );
+    final filter = _buildFilterFromUi();
 
     return PolicyQuery(
       feedType: PolicyFeedType.search,
@@ -172,5 +135,60 @@ class PolicyQueryOrchestrator {
       tags: _compareIds,
       sort: _ui.sort,
     ).normalize(clearRecommendKeyword: false);
+  }
+
+  PolicyFilter _buildFilterFromUi({
+    PolicyRegion? region,
+    List<String>? tags,
+    int? age,
+  }) {
+    final resolvedRegion = region ?? _ui.region;
+    final regionNotifier = ref.read(regionProvider.notifier);
+
+    final resolvedProvince = resolvedRegion == PolicyRegion.gyeongbuk
+        ? regionNotifier.selectedProvince
+        : _provinceName(resolvedRegion, fallback: _ui.province);
+    final resolvedCity =
+        resolvedRegion == PolicyRegion.gyeongbuk ? regionNotifier.selectedCity : null;
+    final resolvedDistrict = resolvedRegion == PolicyRegion.gyeongbuk
+        ? regionNotifier.selectedDistrict
+        : null;
+
+    return PolicyFilter(
+      region: resolvedRegion,
+      province: resolvedProvince,
+      city: resolvedCity,
+      district: resolvedDistrict,
+      category: _ui.category,
+      isOnline: _ui.showOnlyOnline ? true : null,
+      institutionId: _ui.institutionId,
+      departmentId: _ui.departmentId,
+      tags: tags ?? _ui.tags,
+      status: _ui.status,
+      age: age,
+    );
+  }
+
+  String _provinceName(PolicyRegion region, {required String fallback}) {
+    switch (region) {
+      case PolicyRegion.all:
+        return '전국';
+      case PolicyRegion.seoul:
+        return '서울';
+      case PolicyRegion.busan:
+        return '부산';
+      case PolicyRegion.daegu:
+        return '대구';
+      case PolicyRegion.incheon:
+        return '인천';
+      case PolicyRegion.gwangju:
+        return '광주';
+      case PolicyRegion.daejeon:
+        return '대전';
+      case PolicyRegion.ulsan:
+        return '울산';
+      case PolicyRegion.gyeongbuk:
+        return fallback.isEmpty ? '경상북도' : fallback;
+    }
   }
 }
