@@ -68,6 +68,28 @@ class DebugLogCollector {
       }
       _errorEntries.value = List<DebugLogEntry>.unmodifiable(_errorEntriesQueue);
     }
+    _entries.value = List<DebugLogEntry>.unmodifiable(_entriesQueue);
+
+    if (_isErrorEntry(entry)) {
+      _errorCount.value = _errorCount.value + 1;
+      _errorEntriesQueue.add(entry);
+      while (_errorEntriesQueue.length > _maxErrorEntries) {
+        _errorEntriesQueue.removeFirst();
+      }
+      _errorEntries.value = List<DebugLogEntry>.unmodifiable(_errorEntriesQueue);
+    }
+  }
+
+  bool _isErrorEntry(DebugLogEntry entry) {
+    if (entry.level == AppLogLevel.error) return true;
+
+    final lower = entry.message.toLowerCase();
+    return lower.contains('error') ||
+        lower.contains('[app][error]') ||
+        lower.contains('exception') ||
+        lower.contains('unhandled') ||
+        lower.contains('fatal') ||
+        lower.contains('unexpected');
   }
 
   bool _isErrorEntry(DebugLogEntry entry) {
@@ -168,49 +190,6 @@ class DebugLogPanel extends StatelessWidget {
     );
   }
 
-  void _showLogDetail(BuildContext context, DebugLogEntry log) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      builder: (context) {
-        return SafeArea(
-          child: DraggableScrollableSheet(
-            expand: false,
-            initialChildSize: 0.7,
-            minChildSize: 0.4,
-            maxChildSize: 0.95,
-            builder: (context, scrollController) {
-              return Scaffold(
-                appBar: AppBar(
-                  title: const Text('Log Detail'),
-                ),
-                body: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        log.timestamp.toLocal().toString(),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      SelectableText(
-                        log.message,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
   String _maskApiKey(String key) {
     if (key.isEmpty) {
       return '<empty>';
@@ -222,6 +201,204 @@ class DebugLogPanel extends StatelessWidget {
     final suffix = key.substring(key.length - 4);
     return '$prefix***$suffix (len:${key.length})';
   }
+}
+
+class DebugErrorLogPanel extends StatelessWidget {
+  const DebugErrorLogPanel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<int>(
+      valueListenable: DebugLogCollector.instance.errorCount,
+      builder: (context, errorCount, _) {
+        return ValueListenableBuilder<List<DebugLogEntry>>(
+          valueListenable: DebugLogCollector.instance.errorEntries,
+          builder: (context, entries, __) {
+            if (entries.isEmpty) {
+              return const Center(
+                child: Text(
+                  '현재 수집된 에러 로그가 없습니다.',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              );
+            }
+
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.redAccent,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '총 에러 로그 $errorCount개 / 표시 ${entries.length}개',
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: entries.length,
+                    itemBuilder: (context, index) {
+                      final entry = entries[entries.length - 1 - index];
+                      final preview = entry.message.split('\n').first;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => _showLogDetail(context, entry),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0x33FF6B6B)),
+                              ),
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFF6B6B),
+                                        borderRadius: BorderRadius.circular(7),
+                                      ),
+                                      child: Text(
+                                        entry.tag ?? '[ERROR]',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _formatLogTimestamp(entry.timestamp),
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            preview,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontFamily: 'monospace',
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+String _formatLogTimestamp(DateTime time) {
+  final h = time.hour.toString().padLeft(2, '0');
+  final m = time.minute.toString().padLeft(2, '0');
+  final s = time.second.toString().padLeft(2, '0');
+  return '$h:$m:$s';
+}
+
+void _showLogDetail(BuildContext context, DebugLogEntry log) {
+  showModalBottomSheet(
+    context: context,
+    useRootNavigator: true,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    builder: (context) {
+      return SafeArea(
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('로그 상세'),
+              ),
+              body: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Chip(
+                          label: Text(log.level.name.toUpperCase()),
+                          backgroundColor: Colors.blue.shade100,
+                        ),
+                        const SizedBox(width: 8),
+                        Chip(
+                          label: Text(log.tag ?? 'NO TAG'),
+                          backgroundColor: Colors.grey.shade200,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      log.timestamp.toLocal().toString(),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '메시지',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    SelectableText(
+                      log.message,
+                      style: const TextStyle(fontSize: 14, fontFamily: 'monospace'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    },
+  );
 }
 
 class DebugErrorLogPanel extends StatelessWidget {
