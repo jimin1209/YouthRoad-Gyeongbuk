@@ -286,7 +286,10 @@ class PolicyRepositoryImpl implements PolicyRepository {
           : _applyTagFilter(query, filteredByStatus);
       final sorted = _applySorting(query.sort, filtered);
 
-      logger.info('원격 데이터 수신 (scope: $scopeKey, page: $page)');
+      logger.info(
+        '원격 데이터 수신 (scope: $scopeKey, page: $page, '
+        'fetched=${models.length}, filtered=${sorted.length})',
+      );
 
       return PolicyResult.success(sorted);
     } catch (e, st) {

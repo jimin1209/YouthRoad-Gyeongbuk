@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/policy_state_utils.dart';
 import '../../domain/values/policy_feed_type.dart';
+import '../../domain/values/policy_logger.dart';
 import '../../domain/values/policy_result.dart';
 import '../../domain/values/policy_status_filter.dart';
 import '../providers.dart';
@@ -14,6 +15,7 @@ class PolicyQueryEngine {
   PolicyQueryEngine(this.ref);
 
   final Ref ref;
+  PolicyLogger get _logger => ref.read(policyLoggerProvider);
 
   int get pageSize => ref.read(policySettingsProvider).pageSize;
 
@@ -57,10 +59,24 @@ class PolicyQueryEngine {
 
     return result.fold(
       onSuccess: (policies) {
+        _logger.info(
+          '[Policy][Explore][RESULT] feed=${feedType.name}, page=$page, '
+          'rawLength=${policies.length}',
+        );
+
         final filtered = _filterByStatus(policies, query.filter.status);
+        _logger.info(
+          '[Policy][Explore][FILTERED] feed=${feedType.name}, page=$page, '
+          'status=${query.filter.status.queryValue}, length=${filtered.length}',
+        );
         return PolicyResult.success(filtered);
       },
-      onFailure: PolicyResult.failure,
+      onFailure: (failure) {
+        _logger.error(
+          '[Policy][Explore][ERROR] feed=${feedType.name}, page=$page, ${failure.message}',
+        );
+        return PolicyResult.failure(failure);
+      },
     );
   }
 
