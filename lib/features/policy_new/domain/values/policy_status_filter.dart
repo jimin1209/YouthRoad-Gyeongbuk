@@ -16,6 +16,8 @@ extension PolicyStatusFilterX on PolicyStatusFilter {
     final normalized = value?.trim().toLowerCase();
     switch (normalized) {
       case 'active':
+      case 'inprogress':
+      case 'in_progress':
         return PolicyStatusFilter.inProgressOnly;
       case 'closed':
         return PolicyStatusFilter.closedOnly;
@@ -33,7 +35,7 @@ extension PolicyStatusFilterX on PolicyStatusFilter {
       case PolicyStatusFilter.includeClosed:
         return 'all';
       case PolicyStatusFilter.inProgressOnly:
-        return 'active';
+        return 'inProgress';
       case PolicyStatusFilter.closedOnly:
         return 'closed';
     }
