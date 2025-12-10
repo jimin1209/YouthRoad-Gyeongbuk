@@ -15,7 +15,6 @@ import '../reminder/policy_reminder_button.dart';
 import 'widgets/policy_action_bar.dart';
 import '../explore/policy_explore_screen.dart';
 import '../utils/policy_date_formatter.dart';
-import '../../../../ui/layout/app_screen_container.dart';
 import '../../../../ui/components/app_section_title.dart';
 import '../../../../ui/components/app_divider.dart';
 import '../../../../ui/components/app_card.dart';
@@ -150,16 +149,20 @@ class _PolicyDetailBottomSheetState
           color: Theme.of(context).colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           clipBehavior: Clip.antiAlias,
-          child: asyncPolicy.when(
-            data: (policy) => _Content(
-              policy: policy,
-              controller: scrollController,
-              onReExplore: (mode) => _onReExplore(context, policy, mode),
-            ),
-            loading: () => const PolicyListLoading(),
-            error: (err, __) => _ErrorView(
-              error: err,
-              onRetry: detailController.refresh,
+          child: SafeArea(
+            top: true,
+            bottom: true,
+            child: asyncPolicy.when(
+              data: (policy) => _Content(
+                policy: policy,
+                controller: scrollController,
+                onReExplore: (mode) => _onReExplore(context, policy, mode),
+              ),
+              loading: () => const PolicyListLoading(),
+              error: (err, __) => _ErrorView(
+                error: err,
+                onRetry: detailController.refresh,
+              ),
             ),
           ),
         );
@@ -189,106 +192,107 @@ class _Content extends StatelessWidget {
     return Column(
       children: [
         Expanded(
-          child: AppScreenContainer(
-            child: SingleChildScrollView(
-              controller: controller,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    policy.title,
-                    style: AppText.textTheme.headlineSmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    '${policy.institution} · ${policy.department}',
-                    style: AppText.textTheme.bodyMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  PolicyActionBar(policy: policy),
-                  const SizedBox(height: AppSpacing.lg),
-                  const AppDivider(),
-                  const SizedBox(height: AppSpacing.lg),
-                  _InfoSection(
-                    title: '지원 대상',
-                    content: _buildTargetText(policy),
-                  ),
-                  _InfoSection(
-                    title: '신청 기간',
-                    content: _buildPeriodText(policy, dDay: dDay),
-                    badge: dDay != null
-                        ? _DDayBadge(label: '신청 마감 $dDay', color: theme.colorScheme)
-                        : null,
-                  ),
-                  _InfoSection(
-                    title: '신청 방법',
-                    content: policy.applyUrl.isNotEmpty
-                        ? '온라인 신청 · ${policy.applyUrl}'
-                        : '신청 방법 정보를 찾을 수 없습니다.',
-                  ),
-                  _InfoSection(
-                    title: '문의처',
-                    content: (policy.contact ?? '').isNotEmpty
-                        ? policy.contact!
-                        : '문의처 정보가 없습니다.',
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _ReExploreSection(
-                    policy: policy,
-                    onSelect: onReExplore,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                ],
-              ),
+          child: SingleChildScrollView(
+            controller: controller,
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  policy.title,
+                  style: AppText.textTheme.headlineSmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  '${policy.institution} · ${policy.department}',
+                  style: AppText.textTheme.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                PolicyActionBar(policy: policy),
+                const SizedBox(height: AppSpacing.lg),
+                const AppDivider(),
+                const SizedBox(height: AppSpacing.lg),
+                _InfoSection(
+                  title: '지원 대상',
+                  content: _buildTargetText(policy),
+                ),
+                _InfoSection(
+                  title: '신청 기간',
+                  content: _buildPeriodText(policy, dDay: dDay),
+                  badge: dDay != null
+                      ? _DDayBadge(
+                          label: '신청 마감 $dDay',
+                          color: theme.colorScheme,
+                        )
+                      : null,
+                ),
+                _InfoSection(
+                  title: '신청 방법',
+                  content: policy.applyUrl.isNotEmpty
+                      ? '온라인 신청 · ${policy.applyUrl}'
+                      : '신청 방법 정보를 찾을 수 없습니다.',
+                ),
+                _InfoSection(
+                  title: '문의처',
+                  content: (policy.contact ?? '').isNotEmpty
+                      ? policy.contact!
+                      : '문의처 정보가 없습니다.',
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _ReExploreSection(
+                  policy: policy,
+                  onSelect: onReExplore,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+              ],
             ),
           ),
         ),
         const AppDivider(),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
-            ),
-            child: hasSchedule
-                ? Row(
-                    children: [
-                      Expanded(
-                        child: PolicyReminderButton(policy: policy),
-                      ),
-                    ],
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ElevatedButton(
-                        onPressed: null,
-                        style: ElevatedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text('알림 설정'),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        '일정 업데이트 되면 알려드릴게요',
-                        style: AppText.textTheme.bodyMedium!
-                            .copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                      ),
-                    ],
-                  ),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
           ),
+          child: hasSchedule
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: PolicyReminderButton(policy: policy),
+                    ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ElevatedButton(
+                      onPressed: null,
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('알림 설정'),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      '일정 업데이트 되면 알려드릴게요',
+                      style: AppText.textTheme.bodyMedium!.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ],
     );
