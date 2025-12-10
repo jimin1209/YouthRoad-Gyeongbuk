@@ -268,24 +268,7 @@ class KakaoMapController {
     KakaoMapLatLng basePosition, {
     double? radiusMeters,
   }) {
-    _basePosition = basePosition;
-    _lastCircleRadius = radiusMeters ?? _lastCircleRadius;
-
-    final radiusArg = (_lastCircleRadius ?? _lastLoadRequest?.searchRadiusMeters)
-            ?.toString() ??
-        'undefined';
-
-    final script = '''
-      window.__kakaoBasePosition = { lat: ${basePosition.lat}, lng: ${basePosition.lng} };
-      if (typeof $radiusArg === 'number') {
-        window.__kakaoRadiusMeters = $radiusArg;
-      }
-      if (window.app && window.app.setBasePosition) {
-        window.app.setBasePosition(${basePosition.lat}, ${basePosition.lng}, $radiusArg);
-      }
-    ''';
-
-    return webViewController.runJavaScript(script);
+    return sendCenterUpdate(basePosition, radiusMeters: radiusMeters);
   }
 
   /// ---------------------------------------------------------------------------
@@ -446,16 +429,23 @@ class KakaoMapController {
     );
   }
 
-  Future<void> sendCenterUpdate(KakaoMapLatLng center) {
+  Future<void> sendCenterUpdate(
+    KakaoMapLatLng center, {
+    double? radiusMeters,
+  }) {
+    final effectiveRadius = radiusMeters ??
+        _lastCircleRadius ??
+        _lastLoadRequest?.searchRadiusMeters ??
+        20000;
     _basePosition = center;
+    _lastCircleRadius = effectiveRadius;
+    final script = '''
+      if (window.app && window.app.setBasePosition) {
+        window.app.setBasePosition(${center.lat}, ${center.lng}, $effectiveRadius);
+      }
+    ''';
     return _runWhenReady(
-      () => webViewController.runJavaScript(
-        '''
-          if (window.app && window.app.setBasePosition) {
-            window.app.setBasePosition(${center.lat}, ${center.lng}, ${_lastCircleRadius ?? _lastLoadRequest?.searchRadiusMeters ?? 20000});
-          }
-        '''.trim(),
-      ),
+      () => webViewController.runJavaScript(script),
     );
   }
 
@@ -478,21 +468,12 @@ class KakaoMapController {
         _lastLoadRequest?.searchRadiusMeters ??
         20000;
 
-    final shouldSkipUpdate = _ready &&
-        _basePosition != null &&
-        _lastCircleRadius != null &&
-        _positionsEqual(effectiveCenter, _basePosition!) &&
-        effectiveRadius == _lastCircleRadius;
-    if (shouldSkipUpdate) {
-      return Future.value();
-    }
-
     _basePosition = effectiveCenter;
     _lastCircleRadius = effectiveRadius;
 
     final script = '''
       if (window.app && window.app.updateCircle) {
-        window.app.updateCircle(${effectiveCenter.lat}, ${effectiveCenter.lng}, ${effectiveRadius.toString()});
+        window.app.updateCircle(${effectiveCenter.lat}, ${effectiveCenter.lng}, $effectiveRadius);
       }
     ''';
 
