@@ -472,10 +472,6 @@ final policyQueryProvider = Provider.family<PolicyQueryState, PolicyFeedType>(
       conditionSummary: conditionSummary,
     );
 
-    ref
-        .read(policyQueryOverrideProvider(feedType).notifier)
-        .ensureActiveForHash(baseState.hash);
-
     final overrideState = ref.watch(policyQueryOverrideProvider(feedType));
     if (overrideState != null &&
         overrideState.queryState.hash == baseState.hash) {

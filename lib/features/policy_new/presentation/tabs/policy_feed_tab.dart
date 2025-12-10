@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/filters/policy_filter_ui_state.dart';
 import '../../application/filters/policy_search_keyword_provider.dart';
 import '../../application/controllers/global_filter_controller.dart';
+import '../../application/controllers/policy_query_state.dart';
 import '../../application/providers.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_status_filter.dart';
+import '../../application/controllers/policy_query_override.dart';
 import '../compare/widgets/compare_entry_bar.dart';
 import '../widgets/policy_feed_list_view.dart';
 import '../compare/policy_compare_screen.dart';
@@ -50,6 +52,21 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
         curve: Curves.easeOut,
       );
     });
+
+    ref.listen<PolicyQueryState>(
+      policyQueryProvider(widget.feedType),
+      (_, next) {
+        final override =
+            ref.read(policyQueryOverrideProvider(widget.feedType));
+        if (override == null) return;
+        if (override.queryState.hash == next.hash) return;
+
+        Future.microtask(() {
+          ref.read(policyQueryOverrideProvider(widget.feedType).notifier)
+              .clear();
+        });
+      },
+    );
   }
 
   @override
