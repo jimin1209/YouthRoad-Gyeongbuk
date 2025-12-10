@@ -147,6 +147,7 @@ class KakaoMapEvent {
 class _LoadRequest {
   const _LoadRequest({
     required this.center,
+    required this.basePosition,
     required this.markers,
     required this.polylines,
     required this.options,
@@ -156,6 +157,7 @@ class _LoadRequest {
   });
 
   final KakaoMapLatLng center;
+  final KakaoMapLatLng basePosition;
   final List<KakaoMapMarker> markers;
   final List<KakaoMapPolyline> polylines;
   final KakaoMapOptions options;
@@ -197,6 +199,10 @@ class KakaoMapController {
   bool _ready = false;
   int _reloadAttempts = 0;
   _LoadRequest? _lastLoadRequest;
+  KakaoMapLatLng? _basePosition;
+  double? _lastCircleRadius;
+
+  KakaoMapLatLng? get basePosition => _basePosition;
 
   bool get hasApiKey => _apiKey.isNotEmpty;
   String get apiKeyPreview => _maskApiKey(_apiKey);
@@ -210,6 +216,7 @@ class KakaoMapController {
   /// ---------------------------------------------------------------------------
   Future<void> load({
     required KakaoMapLatLng center,
+    KakaoMapLatLng? basePosition,
     required List<KakaoMapMarker> markers,
     List<KakaoMapPolyline> polylines = const [],
     KakaoMapOptions options = const KakaoMapOptions(),
@@ -217,8 +224,12 @@ class KakaoMapController {
     bool enableClustering = false,
     String? additionalScripts,
   }) async {
+    final resolvedBasePosition = _basePosition ?? basePosition ?? center;
+    _basePosition = resolvedBasePosition;
+    _lastCircleRadius = searchRadiusMeters;
     _lastLoadRequest = _LoadRequest(
       center: center,
+      basePosition: resolvedBasePosition,
       markers: markers,
       polylines: polylines,
       options: options,
@@ -235,6 +246,7 @@ class KakaoMapController {
       options: options,
       bridgeName: bridgeName,
       searchRadiusMeters: searchRadiusMeters,
+      basePosition: resolvedBasePosition,
       enableClustering: enableClustering,
       additionalScripts: additionalScripts,
     );
@@ -312,11 +324,13 @@ class KakaoMapController {
       _reloadAttempts += 1;
       return load(
         center: _lastLoadRequest!.center,
+        basePosition: _lastLoadRequest!.basePosition,
         markers: _lastLoadRequest!.markers,
         polylines: _lastLoadRequest!.polylines,
         options: _lastLoadRequest!.options,
         enableClustering: _lastLoadRequest!.enableClustering,
         additionalScripts: _lastLoadRequest!.additionalScripts,
+        searchRadiusMeters: _lastLoadRequest!.searchRadiusMeters,
       );
     }
     _reloadAttempts += 1;
@@ -407,11 +421,22 @@ class KakaoMapController {
     KakaoMapLatLng center, {
     double? radiusMeters,
   }) {
-    final radiusArg =
-        radiusMeters != null ? radiusMeters.toString() : 'undefined';
+    final effectiveCenter = _basePosition ?? center;
+    final effectiveRadius =
+        radiusMeters ?? _lastLoadRequest?.searchRadiusMeters ?? 20000;
+    final shouldSkipUpdate = _ready &&
+        _basePosition != null &&
+        _lastCircleRadius != null &&
+        _positionsEqual(effectiveCenter, _basePosition!) &&
+        effectiveRadius == _lastCircleRadius;
+    if (shouldSkipUpdate) {
+      return Future.value();
+    }
+    _lastCircleRadius = effectiveRadius;
+    final radiusArg = effectiveRadius.toString();
     final script = '''
       if (window.app && window.app.updateCircle) {
-        window.app.updateCircle(${center.lat}, ${center.lng}, $radiusArg);
+        window.app.updateCircle(${effectiveCenter.lat}, ${effectiveCenter.lng}, $radiusArg);
       }
     ''';
     return _runWhenReady(
@@ -444,6 +469,10 @@ class KakaoMapController {
     final prefix = key.substring(0, 3);
     final suffix = key.substring(key.length - 4);
     return '$prefix***$suffix (len:${key.length})';
+  }
+
+  bool _positionsEqual(KakaoMapLatLng a, KakaoMapLatLng b) {
+    return a.lat == b.lat && a.lng == b.lng;
   }
 
   /// ---------------------------------------------------------------------------
@@ -588,11 +617,13 @@ class KakaoMapController {
         if (_lastLoadRequest != null) {
           load(
             center: _lastLoadRequest!.center,
+            basePosition: _lastLoadRequest!.basePosition,
             markers: _lastLoadRequest!.markers,
             polylines: _lastLoadRequest!.polylines,
             options: _lastLoadRequest!.options,
             enableClustering: _lastLoadRequest!.enableClustering,
             additionalScripts: _lastLoadRequest!.additionalScripts,
+            searchRadiusMeters: _lastLoadRequest!.searchRadiusMeters,
           );
         } else {
           webViewController.reload();
