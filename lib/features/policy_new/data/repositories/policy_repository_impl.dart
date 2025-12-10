@@ -614,22 +614,85 @@ class PolicyRepositoryImpl implements PolicyRepository {
       feedType == PolicyFeedType.region ||
       feedType == PolicyFeedType.search;
 
-  /// 🔥 regionParam도 Explore면 무조건 "경상북도"
-  String? _regionParam(
-    PolicyFilter filter, {
-    bool explore = false,
-  }) {
-    if (explore) {
-      final explicit = _normalizeRegionSegment(filter.searchRgnSe);
-      if (explicit != null && explicit.isNotEmpty) return explicit;
-
-      final city = _normalizeRegionSegment(filter.city);
-      final district = _normalizeRegionSegment(filter.district);
-      if (district != null && district.isNotEmpty) return district;
-      if (city != null && city.isNotEmpty) return city;
-
-      return '경상북도';
+String? _regionParam(
+  PolicyFilter filter, {
+  bool explore = false,
+}) {
+  if (explore) {
+    // searchRgnSe가 영어이면 무시
+    final explicit = _normalizeRegionSegment(filter.searchRgnSe);
+    if (explicit != null && explicit.isNotEmpty && !_isEnglish(explicit)) {
+      return explicit; // 한국어만 허용
     }
+
+    // city가 영어면 무시
+    final city = _normalizeRegionSegment(filter.city);
+    if (city != null && city.isNotEmpty && !_isEnglish(city)) {
+      return city;
+    }
+
+    // district가 영어면 무시
+    final district = _normalizeRegionSegment(filter.district);
+    if (district != null && district.isNotEmpty && !_isEnglish(district)) {
+      return district;
+    }
+
+    // explore는 기본값을 무조건 경상북도로 강제
+    return "경상북도";
+  }
+
+  // Explore 외 기존 로직 유지
+  final city = _normalizeRegionSegment(filter.city);
+  final district = _normalizeRegionSegment(filter.district);
+
+  if (city != null && city.isNotEmpty) {
+    if (district != null && district.isNotEmpty) {
+      return '$city|$district';
+    }
+    return city;
+  }
+
+  final effectiveRegion = filter.region == PolicyRegion.all
+      ? settings.defaultRegion
+      : filter.region;
+  final mappedRegion = _mapRegion(effectiveRegion);
+
+  if (mappedRegion != null && mappedRegion.isNotEmpty) {
+    return mappedRegion;
+  }
+
+  return null;
+}
+
+String? _mapRegion(PolicyRegion region) {
+  switch (region) {
+    case PolicyRegion.seoul:
+      return '서울특별시';
+    case PolicyRegion.busan:
+      return '부산광역시';
+    case PolicyRegion.daegu:
+      return '대구광역시';
+    case PolicyRegion.incheon:
+      return '인천광역시';
+    case PolicyRegion.gwangju:
+      return '광주광역시';
+    case PolicyRegion.daejeon:
+      return '대전광역시';
+    case PolicyRegion.ulsan:
+      return '울산광역시';
+    case PolicyRegion.gyeongbuk:
+      return '경상북도';
+    case PolicyRegion.all:
+      return null; // 전체는 null 처리 → explore에서는 override됨
+  }
+}
+
+// 영어 문자열 체크
+bool _isEnglish(String value) {
+  final reg = RegExp(r'^[a-zA-Z]+$');
+  return reg.hasMatch(value);
+}
+
 
     // Explore 외 (즐겨찾기 등)에서만 사용
     final city = _normalizeRegionSegment(filter.city);

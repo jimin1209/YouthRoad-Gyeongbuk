@@ -82,7 +82,8 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     required KakaoMapLatLng center,
     double radiusKm = kCenterRangeKm,
   }) async {
-    debugPrint('[Location][INFO] loadCenters() 호출 center=(${center.lat}, ${center.lng}), radiusKm=$radiusKm');
+    debugPrint(
+        '[Location][INFO] loadCenters() 호출 center=(${center.lat}, ${center.lng}), radiusKm=$radiusKm');
     state = state.copyWith(
       isLoading: true,
       center: center,
@@ -95,18 +96,29 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
       debugPrint('[Center][INFO] 센터 목록 API 요청 시작');
       final markers = await _fetchAllCenterMarkers(center);
       final filtered = filterCentersWithinRadius(markers, center, radiusKm);
-      final nearestFallback = filtered.isEmpty && markers.isNotEmpty
-          ? nearestCenters(markers, center, limit: 3)
-          : filtered;
-      final status = filtered.isEmpty
-          ? YouthCenterMapStatus.empty
-          : YouthCenterMapStatus.loaded;
-      debugPrint(
-        '[Center][INFO] 필터링 결과=${filtered.length}개, fallback=${nearestFallback.length}개, status=$status',
-      );
+
+// fallback: 반경 내 없으면 가장 가까운 3개
+      List<CenterMarkerPoint> centersToShow;
+      YouthCenterMapStatus status;
+
+      if (filtered.isEmpty && markers.isNotEmpty) {
+        centersToShow = nearestCenters(markers, center, limit: 3);
+
+        debugPrint('[Center][INFO] 반경 내 없음 → 가장 가까운 3개 fallback 사용: '
+            '${centersToShow.map((e) => e.name).join(', ')}');
+
+        // fallback 사용 시에도 loaded 상태여야 UI가 표시됨
+        status = YouthCenterMapStatus.loaded;
+      } else {
+        centersToShow = filtered;
+        status = filtered.isEmpty
+            ? YouthCenterMapStatus.empty
+            : YouthCenterMapStatus.loaded;
+      }
+
       state = state.copyWith(
         allCenters: markers,
-        filteredCenters: nearestFallback,
+        filteredCenters: centersToShow,
         isLoading: false,
         center: center,
         radiusKm: radiusKm,
@@ -116,10 +128,12 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     } catch (error, stack) {
       debugPrint('[Center][ERROR] 센터 불러오기 실패: $error');
       if (error is YouthCenterApiException) {
-        debugPrint('[Center][ERROR] status=${error.statusCode}, reason=${error.reason}');
+        debugPrint(
+            '[Center][ERROR] status=${error.statusCode}, reason=${error.reason}');
       }
       if (error is DioException) {
-        debugPrint('[Center][ERROR] dio status=${error.response?.statusCode}, message=${error.message}');
+        debugPrint(
+            '[Center][ERROR] dio status=${error.response?.statusCode}, message=${error.message}');
       }
       if (kDebugMode) debugPrint(stack.toString());
       state = state.copyWith(
@@ -164,7 +178,8 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     debugPrint('[YCMAP] Provider START');
     debugPrint('[YCMAP] center=(${center.lat}, ${center.lng})');
     debugPrint('[YCMAP] radius=${state.radiusKm}km');
-    debugPrint('[Center][INFO] 요청 좌표=(${center.lat}, ${center.lng}), radiusKm=${state.radiusKm}');
+    debugPrint(
+        '[Center][INFO] 요청 좌표=(${center.lat}, ${center.lng}), radiusKm=${state.radiusKm}');
 
     final repo = _ref.read(youthCenterRepositoryProvider);
     final prefs = _ref.read(app_di.sharedPreferencesProvider);
@@ -189,7 +204,8 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
             .map((e) => _markerFromJson(e as Map<String, dynamic>))
             .whereType<CenterMarkerPoint>()
             .toList();
-        debugPrint('[YCMAP] Marker cache loaded: ${cachedMarkers.length} entries');
+        debugPrint(
+            '[YCMAP] Marker cache loaded: ${cachedMarkers.length} entries');
       }
     } catch (e) {
       debugPrint('[YCMAP] ⚠ Cache decode error → reset cache: $e');
@@ -315,7 +331,8 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
         return '센터 인증 정보가 올바르지 않습니다. 잠시 후 다시 시도해주세요.';
       }
       if (!kDebugMode) return error.userMessage;
-      final code = error.statusCode != null ? ' (status: ${error.statusCode})' : '';
+      final code =
+          error.statusCode != null ? ' (status: ${error.statusCode})' : '';
       return '${error.userMessage}$code';
     }
 
@@ -359,8 +376,7 @@ List<CenterMarkerPoint> nearestCenters(
   int limit = 3,
 }) {
   if (all.isEmpty || limit <= 0) return const [];
-  final sorted = [...all]
-    ..sort(
+  final sorted = [...all]..sort(
       (a, b) => distanceInMeters(center, KakaoMapLatLng(a.lat, a.lng))
           .compareTo(distanceInMeters(center, KakaoMapLatLng(b.lat, b.lng))),
     );
