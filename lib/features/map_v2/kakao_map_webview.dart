@@ -122,6 +122,8 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       '[Map][INFO] map load start center=(${widget.center.lat}, ${widget.center.lng}), key=${_controller.apiKeyPreview}',
     );
 
+    final basePosition = _controller.basePosition ?? widget.center;
+
     if (!_controller.hasApiKey) {
       _safeLog('[Map][ERROR] KakaoMap API Key 가 없습니다. --dart-define 설정을 확인하세요.');
       _safeSetLoading(false);
@@ -133,6 +135,7 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     _controller
         .load(
       center: widget.center,
+      basePosition: basePosition,
       markers: widget.markers,
       polylines: widget.polylines,
       options: widget.options,
