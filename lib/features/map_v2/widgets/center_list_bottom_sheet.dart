@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../policy_new/data/mappers/youth_center_mapper.dart';
+import '../../policy_new/presentation/map/youth_center_map_provider.dart';
 import 'center_card_item.dart';
 
 class CenterListBottomSheet extends StatelessWidget {
@@ -9,11 +10,15 @@ class CenterListBottomSheet extends StatelessWidget {
     required this.centers,
     required this.radiusKm,
     required this.onCenterTap,
+    required this.status,
+    this.errorMessage,
   });
 
   final List<CenterMarkerPoint> centers;
   final double radiusKm;
   final void Function(CenterMarkerPoint center, int index) onCenterTap;
+  final YouthCenterMapStatus status;
+  final String? errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -51,23 +56,7 @@ class CenterListBottomSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Expanded(
-                  child: centers.isEmpty
-                      ? const Center(
-                          child: Text('주변 센터 정보를 불러오는 중입니다.'),
-                        )
-                      : ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                          itemCount: centers.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 12),
-                          itemBuilder: (_, index) {
-                            final center = centers[index];
-                            return CenterCardItem(
-                              center: center,
-                              onTap: () => onCenterTap(center, index),
-                            );
-                          },
-                        ),
+                  child: _buildContent(),
                 ),
               ],
             ),
@@ -75,6 +64,41 @@ class CenterListBottomSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildContent() {
+    switch (status) {
+      case YouthCenterMapStatus.loading:
+        return const Center(
+          child: Text('주변 센터 정보를 불러오는 중입니다.'),
+        );
+      case YouthCenterMapStatus.empty:
+        return const Center(
+          child: Text('반경 20km 내 센터가 없습니다.'),
+        );
+      case YouthCenterMapStatus.error:
+        return Center(
+          child: Text(errorMessage ?? '센터 정보를 불러오지 못했습니다.'),
+        );
+      case YouthCenterMapStatus.initial:
+        return const Center(
+          child: Text('주변 센터 정보를 불러오는 중입니다.'),
+        );
+      case YouthCenterMapStatus.loaded:
+        return ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          itemCount: centers.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (_, index) {
+            final center = centers[index];
+            return CenterCardItem(
+              center: center,
+              onTap: () => onCenterTap(center, index),
+            );
+          },
+        );
+    }
   }
 
   Widget _buildRadiusPill(BuildContext context, double radiusKm, Color color) {
