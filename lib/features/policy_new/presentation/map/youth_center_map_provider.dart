@@ -93,6 +93,7 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     try {
       debugPrint('[YCMAP] 요청 시작 → center=(${center.lat}, ${center.lng}), '
           'radiusKm=$radiusKm');
+      debugPrint('[Center][Auth] 센터 목록 API 요청 시작');
       final markers = await _fetchAllCenterMarkers(center);
       final filtered = filterCentersWithinRadius(markers, center, radiusKm);
       final status = filtered.isEmpty
@@ -182,8 +183,10 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     List<YouthCenterEntity> items;
     try {
       items = await repo.getCentersV2(pageSize: 300);
+      debugPrint('[Center][Auth] 센터 목록 API 응답 성공 count=${items.length}');
     } catch (error) {
       debugPrint('[YCMAP] ❌ API 실패 → 마커 캐시 사용 시도: $error');
+      debugPrint('[Center][Auth] 센터 목록 API 실패: $error');
       if (cachedMarkers.isNotEmpty) {
         debugPrint('[YCMAP] 캐시된 마커 반환 (${cachedMarkers.length}개)');
         return cachedMarkers;
@@ -275,6 +278,9 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
 
     if (error is YouthCenterApiException) {
       if (error.statusCode == 403 || error.statusCode == 401) {
+        debugPrint(
+          '[Center][Auth] 인증 오류 status=${error.statusCode}, message=${error.userMessage}',
+        );
         return '센터 인증 정보가 올바르지 않습니다. 잠시 후 다시 시도해주세요.';
       }
       if (!kDebugMode) return error.userMessage;
