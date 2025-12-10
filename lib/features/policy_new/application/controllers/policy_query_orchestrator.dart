@@ -44,7 +44,7 @@ class PolicyQueryOrchestrator {
   }
 
   PolicyQuery _buildAllQuery(String keyword) {
-    final filter = _buildFilterFromUi();
+    final filter = _buildFilterFromUi(applyExploreSanitizer: true);
 
     return PolicyQuery(
       feedType: PolicyFeedType.all,
@@ -56,7 +56,10 @@ class PolicyQueryOrchestrator {
 
   PolicyQuery _buildRegionQuery() {
     final region = _ui.region == PolicyRegion.all ? _profile.region : _ui.region;
-    final filter = _buildFilterFromUi(region: region);
+    final filter = _buildFilterFromUi(
+      region: region,
+      applyExploreSanitizer: true,
+    );
 
     return PolicyQuery(
       feedType: PolicyFeedType.region,
@@ -66,7 +69,7 @@ class PolicyQueryOrchestrator {
   }
 
   PolicyQuery _buildSearchQuery(String keyword) {
-    final filter = _buildFilterFromUi();
+    final filter = _buildFilterFromUi(applyExploreSanitizer: true);
 
     return PolicyQuery(
       feedType: PolicyFeedType.search,
@@ -106,12 +109,26 @@ class PolicyQueryOrchestrator {
 
   PolicyFilter _buildFilterFromUi({
     PolicyRegion? region,
+    PolicyCategory? category,
     List<String>? tags,
     int? age,
     PolicyStatusFilter? status,
+    bool applyExploreSanitizer = false,
   }) {
     final resolvedRegion = region ?? _ui.region;
     final regionNotifier = ref.read(regionProvider.notifier);
+
+    final selectedStatus = status ?? _ui.status;
+    final sanitizedStatus = applyExploreSanitizer
+        ? (selectedStatus == PolicyStatusFilter.includeClosed
+            ? PolicyStatusFilter.inProgressOnly
+            : selectedStatus)
+        : selectedStatus;
+
+    final selectedCategory = category ?? _ui.category;
+    final sanitizedCategory = applyExploreSanitizer
+        ? _sanitizeCategoryForExplore(selectedCategory)
+        : selectedCategory;
 
     final resolvedProvince = resolvedRegion == PolicyRegion.gyeongbuk
         ? regionNotifier.selectedProvince
@@ -127,14 +144,20 @@ class PolicyQueryOrchestrator {
       province: resolvedProvince,
       city: resolvedCity,
       district: resolvedDistrict,
-      category: _ui.category,
+      category: sanitizedCategory,
       isOnline: _ui.showOnlyOnline ? true : null,
       institutionId: _ui.institutionId,
       departmentId: _ui.departmentId,
       tags: tags ?? _ui.tags,
-      status: status ?? _ui.status,
+      status: sanitizedStatus,
       age: age,
     );
+  }
+
+  PolicyCategory? _sanitizeCategoryForExplore(PolicyCategory? category) {
+    final categoryName = category?.name.toLowerCase();
+    if (categoryName == 'all') return null;
+    return category;
   }
 
   String _provinceName(PolicyRegion region, {required String fallback}) {

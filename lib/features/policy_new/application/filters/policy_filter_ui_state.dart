@@ -25,6 +25,15 @@ class PolicyFilterUiState {
   final String? departmentId;
   final String? departmentName;
 
+  /// Explore 탭 전용 서버 쿼리 변환용 상태 값
+  PolicyStatusFilter get exploreStatus =>
+      status == PolicyStatusFilter.includeClosed
+          ? PolicyStatusFilter.inProgressOnly
+          : status;
+
+  PolicyCategory? get exploreCategory =>
+      category?.name.toLowerCase() == 'all' ? null : category;
+
   const PolicyFilterUiState({
     this.region = PolicyRegion.gyeongbuk,
     this.province = '경상북도',
