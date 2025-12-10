@@ -16,6 +16,8 @@ import '../../domain/youthcenter/youth_center_entity.dart';
 
 const double kCenterRangeKm = 20.0;
 
+enum YouthCenterMapStatus { initial, loading, loaded, empty, error }
+
 class YouthCenterMapState {
   const YouthCenterMapState({
     required this.allCenters,
@@ -24,6 +26,7 @@ class YouthCenterMapState {
     this.center,
     this.isLoading = false,
     this.errorMessage,
+    this.status = YouthCenterMapStatus.initial,
   });
 
   final List<CenterMarkerPoint> allCenters;
@@ -32,6 +35,7 @@ class YouthCenterMapState {
   final double radiusKm;
   final bool isLoading;
   final String? errorMessage;
+  final YouthCenterMapStatus status;
 
   YouthCenterMapState copyWith({
     List<CenterMarkerPoint>? allCenters,
@@ -40,6 +44,7 @@ class YouthCenterMapState {
     double? radiusKm,
     bool? isLoading,
     String? errorMessage,
+    YouthCenterMapStatus? status,
   }) {
     return YouthCenterMapState(
       allCenters: allCenters ?? this.allCenters,
@@ -48,6 +53,7 @@ class YouthCenterMapState {
       radiusKm: radiusKm ?? this.radiusKm,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
+      status: status ?? this.status,
     );
   }
 
@@ -57,6 +63,7 @@ class YouthCenterMapState {
         radiusKm: kCenterRangeKm,
         center: null,
         isLoading: false,
+        status: YouthCenterMapStatus.initial,
       );
 }
 
@@ -79,11 +86,15 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
       center: center,
       radiusKm: radiusKm,
       errorMessage: null,
+      status: YouthCenterMapStatus.loading,
     );
 
     try {
       final markers = await _fetchAllCenterMarkers(center);
       final filtered = filterCentersWithinRadius(markers, center, radiusKm);
+      final status = filtered.isEmpty
+          ? YouthCenterMapStatus.empty
+          : YouthCenterMapStatus.loaded;
       state = state.copyWith(
         allCenters: markers,
         filteredCenters: filtered,
@@ -91,6 +102,7 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
         center: center,
         radiusKm: radiusKm,
         errorMessage: null,
+        status: status,
       );
     } catch (error, stack) {
       debugPrint('[YCMAP] loadCenters failed: $error');
@@ -100,6 +112,7 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
       state = state.copyWith(
         isLoading: false,
         errorMessage: '$error',
+        status: YouthCenterMapStatus.error,
       );
     }
   }
@@ -113,6 +126,9 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
       radiusKm: effectiveRadius,
       filteredCenters: filtered,
       errorMessage: null,
+      status: filtered.isEmpty
+          ? YouthCenterMapStatus.empty
+          : YouthCenterMapStatus.loaded,
     );
   }
 
@@ -266,14 +282,7 @@ List<CenterMarkerPoint> filterCentersWithinRadius(
       .map((e) => e.point)
       .toList();
 
-  if (withinRadius.isNotEmpty) {
-    return withinRadius;
-  }
-
-  final ordered = [...centersWithDistance]
-    ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
-  final fallbackCandidates = ordered.take(3).map((e) => e.point).toList();
-  return fallbackCandidates;
+  return withinRadius;
 }
 
 class _CenterDistance {

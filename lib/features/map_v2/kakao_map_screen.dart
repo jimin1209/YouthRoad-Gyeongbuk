@@ -147,6 +147,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             _buildLocatingOverlay(),
           if (_activeTooltipName != null)
             CenterMarkerTooltip(name: _activeTooltipName!),
+          _buildCenterStatusOverlay(centerState),
           Positioned(
             left: 16,
             top: 16 + MediaQuery.of(context).padding.top,
@@ -158,6 +159,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
               centers: centerState.filteredCenters,
               radiusKm: _currentRadius,
               onCenterTap: _onCenterCardTap,
+              status: centerState.status,
+              errorMessage: centerState.errorMessage,
             ),
           ),
         ],
@@ -219,6 +222,60 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCenterStatusOverlay(YouthCenterMapState centerState) {
+    final status = centerState.status;
+    final shouldShow = status == YouthCenterMapStatus.loading ||
+        status == YouthCenterMapStatus.empty ||
+        status == YouthCenterMapStatus.error;
+
+    String? message;
+    switch (status) {
+      case YouthCenterMapStatus.loading:
+        message = '주변 센터 정보를 불러오는 중입니다.';
+        break;
+      case YouthCenterMapStatus.empty:
+        message = '반경 20km 내 센터가 없습니다.';
+        break;
+      case YouthCenterMapStatus.error:
+        message = centerState.errorMessage ?? '센터 정보를 불러오지 못했습니다.';
+        break;
+      case YouthCenterMapStatus.loaded:
+      case YouthCenterMapStatus.initial:
+        message = null;
+    }
+
+    return IgnorePointer(
+      ignoring: true,
+      child: AnimatedOpacity(
+        opacity: shouldShow ? 1 : 0,
+        duration: const Duration(milliseconds: 200),
+        child: message == null
+            ? const SizedBox.shrink()
+            : SafeArea(
+                minimum: const EdgeInsets.only(bottom: 8),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.75),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      message,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
       ),
     );
   }
