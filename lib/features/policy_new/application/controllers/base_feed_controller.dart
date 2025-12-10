@@ -172,6 +172,28 @@ abstract class BasePolicyFeedController
 
   Future<void> _onQueryChanged() async {
     final queryState = queryEngine.buildQueryState(feedType);
+    final filter = queryState.query.filter;
+    final previousStatus = _currentQuery?.query.filter.status;
+    final hasStatusChanged =
+        previousStatus != queryState.query.filter.status;
+
+    if (hasStatusChanged) {
+      _resetPaging();
+      _page = 1;
+      debugPrint(
+        '[Feed][STATUS-CHANGE] feed=${feedType.name}, '
+        'status=${filter.status.queryValue}, '
+        'region=${filter.region.name}/${filter.province}/${filter.city ?? '-'} '
+        '(${filter.district ?? '-'}), '
+        'sort=${queryState.query.sort.name}, '
+        'keyword=${queryState.query.keyword ?? '-'}, '
+        'page=$_page',
+      );
+      _currentQuery = queryState;
+      await _fetchFirstPage(queryState);
+      return;
+    }
+
     if (_currentQuery?.hash == queryState.hash) {
       _reaction.markRestored(queryState.hash);
       _restoreFromCache(queryState);
@@ -238,6 +260,16 @@ abstract class BasePolicyFeedController
       _reaction.markUnchanged(queryState.hash);
       return;
     }
+
+    debugPrint(
+      '[Feed][FETCH] feed=${feedType.name}, '
+      'status=${queryState.query.filter.status.queryValue}, '
+      'region=${queryState.query.filter.region.name}/${queryState.query.filter.province}/${queryState.query.filter.city ?? '-'} '
+      '(${queryState.query.filter.district ?? '-'}), '
+      'sort=${queryState.query.sort.name}, '
+      'keyword=${queryState.query.keyword ?? '-'}, '
+      'page=$page',
+    );
 
     _isLoading = true;
     if (!append) {

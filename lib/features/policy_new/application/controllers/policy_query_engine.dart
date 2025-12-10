@@ -64,16 +64,7 @@ class PolicyQueryEngine {
     );
   }
 
-  String _statusLabel(PolicyStatusFilter status) {
-    switch (status) {
-      case PolicyStatusFilter.inProgressOnly:
-        return 'ongoing-only';
-      case PolicyStatusFilter.closedOnly:
-        return 'closed-only';
-      case PolicyStatusFilter.includeClosed:
-        return 'all';
-    }
-  }
+  String _statusLabel(PolicyStatusFilter status) => status.queryValue;
 
   List<Policy> _filterByStatus(
     List<Policy> policies,

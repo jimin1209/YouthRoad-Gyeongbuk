@@ -315,30 +315,14 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                       spacing: 8,
                       runSpacing: 6,
                       children: [
-                        _statusChip(
-                          label: '진행중만',
-                          selected:
-                              tempStatus == PolicyStatusFilter.inProgressOnly,
-                          onTap: () => setState(
-                            () =>
-                                tempStatus = PolicyStatusFilter.inProgressOnly,
+                        for (final status in PolicyStatusFilter.uiOptions)
+                          _statusChip(
+                            label: status.uiLabel,
+                            selected: tempStatus == status,
+                            onTap: () => setState(() {
+                              tempStatus = status;
+                            }),
                           ),
-                        ),
-                        _statusChip(
-                          label: '마감 포함',
-                          selected:
-                              tempStatus == PolicyStatusFilter.includeClosed,
-                          onTap: () => setState(
-                            () => tempStatus = PolicyStatusFilter.includeClosed,
-                          ),
-                        ),
-                        _statusChip(
-                          label: '마감만',
-                          selected: tempStatus == PolicyStatusFilter.closedOnly,
-                          onTap: () => setState(
-                            () => tempStatus = PolicyStatusFilter.closedOnly,
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -545,23 +529,15 @@ class _QuickFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chips = <Widget>[
-      ChoiceChip(
-        label: const Text('진행중만'),
-        selected: statusFilter == PolicyStatusFilter.inProgressOnly,
-        onSelected: (_) => onToggleStatus(PolicyStatusFilter.inProgressOnly),
-      ),
-      ChoiceChip(
-        label: const Text('마감 포함'),
-        selected: statusFilter == PolicyStatusFilter.includeClosed,
-        onSelected: (_) => onToggleStatus(PolicyStatusFilter.includeClosed),
-      ),
-      ChoiceChip(
-        label: const Text('마감만'),
-        selected: statusFilter == PolicyStatusFilter.closedOnly,
-        onSelected: (_) => onToggleStatus(PolicyStatusFilter.closedOnly),
-      ),
-    ];
+    final chips = PolicyStatusFilter.uiOptions
+        .map(
+          (status) => ChoiceChip(
+            label: Text(status.uiLabel),
+            selected: statusFilter == status,
+            onSelected: (_) => onToggleStatus(status),
+          ),
+        )
+        .toList();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

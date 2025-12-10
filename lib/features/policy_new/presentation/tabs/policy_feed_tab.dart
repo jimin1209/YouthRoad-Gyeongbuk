@@ -179,14 +179,14 @@ class _SelectedFilterBadges extends StatelessWidget {
 
     if (filter.status == PolicyStatusFilter.inProgressOnly) {
       badges.add(_Badge(
-        label: '모집중만',
+        label: '진행중 정책만',
         color: color,
         textStyle: textStyle,
         onRemove: () => onChangeStatus(PolicyStatusFilter.includeClosed),
       ));
     } else if (filter.status == PolicyStatusFilter.closedOnly) {
       badges.add(_Badge(
-        label: '마감된 정책',
+        label: '마감된 정책만',
         color: color,
         textStyle: textStyle,
         onRemove: () => onChangeStatus(PolicyStatusFilter.includeClosed),

@@ -29,7 +29,7 @@ String buildPolicyFilterSummary(
   }
 
   final statusLabel = _statusLabel(filter.status);
-  if (statusLabel != null) buffer.write(' · $statusLabel');
+  buffer.write(' · $statusLabel');
 
   if (filter.showOnlyOnline) {
     buffer.write(' · 온라인 참여');
@@ -68,7 +68,7 @@ String buildPolicyFilterConditionSummary(
   }
 
   final statusCondition = _statusLabel(filter.status);
-  if (statusCondition != null) parts.add(statusCondition);
+  parts.add(statusCondition);
 
   if (filter.showOnlyOnline) {
     parts.add('온라인 참여');
@@ -113,13 +113,4 @@ String _sortLabel(PolicySortOption sort) {
   }
 }
 
-String? _statusLabel(PolicyStatusFilter status) {
-  switch (status) {
-    case PolicyStatusFilter.inProgressOnly:
-      return '모집중만';
-    case PolicyStatusFilter.includeClosed:
-      return null;
-    case PolicyStatusFilter.closedOnly:
-      return '마감된 정책';
-  }
-}
+String _statusLabel(PolicyStatusFilter status) => status.summaryLabel;
