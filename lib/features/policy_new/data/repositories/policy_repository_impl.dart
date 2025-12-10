@@ -61,7 +61,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
       normalizedFilter,
       explore: isExploreFeed,
     );
-    if (regionValue != null && regionValue.isNotEmpty) {
+    if (regionValue != null) {
       params['searchRgnSe'] = regionValue;
     }
 
@@ -104,6 +104,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
   void _sanitizeParams(Map<String, dynamic> params) {
     params.removeWhere((key, value) {
+      if (key == 'searchRgnSe') {
+        return value == null;
+      }
       if (value == null) return true;
       if (value is String) {
         final trimmed = value.trim();
@@ -520,11 +523,28 @@ class PolicyRepositoryImpl implements PolicyRepository {
         ? PolicyStatusFilter.inProgressOnly
         : filter.status;
     final sanitizedCategory = _sanitizeCategoryForExplore(filter.category);
+    final mappedSearchRgnSe = _mapSearchRgnSeForExplore(filter);
 
     return filter.copyWith(
       status: sanitizedStatus,
       category: sanitizedCategory,
+      searchRgnSe: mappedSearchRgnSe,
     );
+  }
+
+  String _mapSearchRgnSeForExplore(PolicyFilter filter) {
+    final city = _normalizeRegionSegment(filter.city);
+    final district = _normalizeRegionSegment(filter.district);
+
+    if (district != null && district.isNotEmpty) {
+      return district;
+    }
+
+    if (city != null && city.isNotEmpty) {
+      return city;
+    }
+
+    return '';
   }
 
   PolicyCategory? _sanitizeCategoryForExplore(PolicyCategory? category) {
@@ -563,13 +583,16 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
   String? _regionParam(PolicyFilter filter, {bool explore = false}) {
     if (explore) {
-      final explicit = _normalizeRegionSegment(filter.searchRgnSe);
+      final explicit = _normalizeRegionSegment(
+        filter.searchRgnSe,
+        allowEmpty: true,
+      );
       if (explicit != null) {
         return explicit;
       }
     }
-    final city = filter.city?.trim();
-    final district = filter.district?.trim();
+    final city = _normalizeRegionSegment(filter.city);
+    final district = _normalizeRegionSegment(filter.district);
 
     if (city != null && city.isNotEmpty) {
       if (district != null && district.isNotEmpty) {
@@ -589,10 +612,12 @@ class PolicyRepositoryImpl implements PolicyRepository {
     return null;
   }
 
-  String? _normalizeRegionSegment(String? value) {
+  String? _normalizeRegionSegment(String? value, {bool allowEmpty = false}) {
     if (value == null) return null;
     final trimmed = value.trim();
-    if (trimmed.isEmpty || trimmed == '전체') return null;
+    if (trimmed.isEmpty || trimmed == '전체') {
+      return allowEmpty && trimmed.isEmpty ? '' : null;
+    }
     return trimmed;
   }
 
