@@ -9,6 +9,33 @@ import '../../domain/values/policy_status_filter.dart';
 import '../reexplore/policy_reexplore.dart';
 import '../../../../application/notifiers/region_notifier.dart';
 
+String mapSearchRgnSe(
+  PolicyRegion region, {
+  String? city,
+  String? district,
+}) {
+  final normalizedCity = _normalizeSearchRegionSegment(city);
+  final normalizedDistrict = _normalizeSearchRegionSegment(district);
+
+  if (normalizedDistrict != null && normalizedDistrict.isNotEmpty) {
+    return normalizedDistrict;
+  }
+
+  if (normalizedCity != null && normalizedCity.isNotEmpty) {
+    return normalizedCity;
+  }
+
+  if (region == PolicyRegion.all) return '';
+  return '';
+}
+
+String? _normalizeSearchRegionSegment(String? value) {
+  if (value == null) return null;
+  final trimmed = value.trim();
+  if (trimmed.isEmpty || trimmed == '전체') return null;
+  return trimmed;
+}
+
 @immutable
 class PolicyFilterUiState {
   final PolicyRegion region;

@@ -170,33 +170,14 @@ class PolicyQueryOrchestrator {
     return category;
   }
 
-  String? _resolveExploreSearchRegion(PolicyRegion region) {
+  String _resolveExploreSearchRegion(PolicyRegion region) {
     final notifier = ref.read(regionProvider.notifier);
-    final city = _normalizeRegionSegment(notifier.selectedCity);
-    final district = _normalizeRegionSegment(notifier.selectedDistrict);
 
-    if (city != null && city.isNotEmpty) {
-      if (district != null && district.isNotEmpty) {
-        return '$city|$district';
-      }
-      return city;
-    }
-
-    if (region == PolicyRegion.all) return null;
-
-    if (region == PolicyRegion.gyeongbuk) {
-      final province = notifier.selectedProvince.trim();
-      if (province.isNotEmpty) return province;
-    }
-
-    return _displayRegionName(region);
-  }
-
-  String? _normalizeRegionSegment(String? value) {
-    if (value == null) return null;
-    final trimmed = value.trim();
-    if (trimmed.isEmpty || trimmed == '전체') return null;
-    return trimmed;
+    return mapSearchRgnSe(
+      region,
+      city: notifier.selectedCity,
+      district: notifier.selectedDistrict,
+    );
   }
 
   String _provinceName(PolicyRegion region, {required String fallback}) {
@@ -222,26 +203,4 @@ class PolicyQueryOrchestrator {
     }
   }
 
-  String _displayRegionName(PolicyRegion region) {
-    switch (region) {
-      case PolicyRegion.all:
-        return '전국';
-      case PolicyRegion.seoul:
-        return '서울';
-      case PolicyRegion.busan:
-        return '부산';
-      case PolicyRegion.daegu:
-        return '대구';
-      case PolicyRegion.incheon:
-        return '인천';
-      case PolicyRegion.gwangju:
-        return '광주';
-      case PolicyRegion.daejeon:
-        return '대전';
-      case PolicyRegion.ulsan:
-        return '울산';
-      case PolicyRegion.gyeongbuk:
-        return '경상북도';
-    }
-  }
 }
