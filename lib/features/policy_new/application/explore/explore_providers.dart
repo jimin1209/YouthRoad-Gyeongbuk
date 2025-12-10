@@ -18,9 +18,19 @@ final exploreStateProvider =
 );
 
 class ExploreController extends StateNotifier<ExploreState> {
-  ExploreController(this.ref) : super(const ExploreState());
+  ExploreController(this.ref) : super(_initialState(ref));
 
   final Ref ref;
+
+  static ExploreState _initialState(Ref ref) {
+    final initialRegion = ref.read(regionProvider);
+    final hasSelection = initialRegion?.isNotEmpty ?? false;
+    final filterRegion = ref.read(globalFilterProvider).region;
+    final isRegional = hasSelection || filterRegion != PolicyRegion.all;
+    return ExploreState(
+      mode: isRegional ? ExploreSubMode.region : ExploreSubMode.all,
+    );
+  }
 
   void setMode(ExploreSubMode mode) {
     debugPrint('[Explore] setMode: $mode');

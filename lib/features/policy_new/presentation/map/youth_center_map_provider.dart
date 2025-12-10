@@ -95,13 +95,18 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
       debugPrint('[Center][INFO] 센터 목록 API 요청 시작');
       final markers = await _fetchAllCenterMarkers(center);
       final filtered = filterCentersWithinRadius(markers, center, radiusKm);
+      final nearestFallback = filtered.isEmpty && markers.isNotEmpty
+          ? nearestCenters(markers, center, limit: 3)
+          : filtered;
       final status = filtered.isEmpty
           ? YouthCenterMapStatus.empty
           : YouthCenterMapStatus.loaded;
-      debugPrint('[Center][INFO] 필터링 결과=${filtered.length}개, status=$status');
+      debugPrint(
+        '[Center][INFO] 필터링 결과=${filtered.length}개, fallback=${nearestFallback.length}개, status=$status',
+      );
       state = state.copyWith(
         allCenters: markers,
-        filteredCenters: filtered,
+        filteredCenters: nearestFallback,
         isLoading: false,
         center: center,
         radiusKm: radiusKm,
@@ -135,10 +140,16 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     final effectiveRadius = radiusKm ?? state.radiusKm;
     final filtered =
         filterCentersWithinRadius(state.allCenters, center, effectiveRadius);
+    final nearestFallback = filtered.isEmpty && state.allCenters.isNotEmpty
+        ? nearestCenters(state.allCenters, center, limit: 3)
+        : filtered;
+    if (filtered.isEmpty) {
+      debugPrint('[Center][INFO] 반경 내 센터 없음 → 가장 가까운 3곳 반환');
+    }
     state = state.copyWith(
       center: center,
       radiusKm: effectiveRadius,
-      filteredCenters: filtered,
+      filteredCenters: nearestFallback,
       errorMessage: null,
       status: filtered.isEmpty
           ? YouthCenterMapStatus.empty
@@ -340,6 +351,22 @@ List<CenterMarkerPoint> filterCentersWithinRadius(
       'after: ${filtered.length})');
 
   return filtered;
+}
+
+List<CenterMarkerPoint> nearestCenters(
+  List<CenterMarkerPoint> all,
+  KakaoMapLatLng center, {
+  int limit = 3,
+}) {
+  if (all.isEmpty || limit <= 0) return const [];
+  final sorted = [...all]
+    ..sort(
+      (a, b) => distanceInMeters(center, KakaoMapLatLng(a.lat, a.lng))
+          .compareTo(distanceInMeters(center, KakaoMapLatLng(b.lat, b.lng))),
+    );
+  final candidates = sorted.take(limit).toList();
+  debugPrint('[Map][INFO] 가장 가까운 센터 ${candidates.length}개 반환');
+  return candidates;
 }
 
 double distanceInMeters(KakaoMapLatLng a, KakaoMapLatLng b) {
