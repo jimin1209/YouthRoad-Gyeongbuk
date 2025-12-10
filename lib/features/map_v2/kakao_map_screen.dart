@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,10 +17,10 @@ import '../../env/app_env.dart';
 import '../center/presentation/center_detail_bottom_sheet.dart';
 import '../policy_new/data/mappers/youth_center_mapper.dart';
 import '../policy_new/presentation/map/youth_center_map_provider.dart';
+import 'current_location_provider.dart';
 import 'kakao_map_html_builder.dart';
 import 'kakao_map_providers.dart';
 import 'kakao_map_webview.dart';
-import 'services/gps_service.dart';
 import 'services/location_permission_service.dart';
 import '../../ui/components/app_common_bottom_sheets.dart';
 import 'widgets/center_list_bottom_sheet.dart';
@@ -46,8 +45,6 @@ class KakaoMapScreen extends ConsumerStatefulWidget {
 class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   static final _defaultCenter = KakaoMapLatLng(36.4919, 128.8889);
   static const _locationZoomLevel = 6;
-  static const _gpsService = GpsService();
-  static const _permissionService = LocationPermissionService();
   static const _locationTimeout = Duration(seconds: 8);
   static const _debounceDuration = Duration(milliseconds: 400);
   static const _centerMarkerFallbackBase64 =
@@ -70,6 +67,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   List<CenterMarkerPoint> _cachedCenterPoints = const [];
   bool _showLoadingOverlay = false;
   bool _locationResolved = false;
+  bool _authErrorShown = false;
+  LocationPermissionIssue? _lastPermissionIssue;
+  bool _serviceGuideShown = false;
 
   Timer? _moveDebounce;
   Timer? _tooltipTimer;
@@ -84,6 +84,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       'len=${AppEnv.kakaoRestApiKey.length}',
     );
 
+    _setupLocationListener();
+    _setupCenterErrorListener();
     _prepareCenterMarkerIcon();
     _preloadCachedCenterMarkers();
     _startLocationRequest();
@@ -320,6 +322,80 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     );
   }
 
+  void _setupLocationListener() {
+    ref.listen<CurrentLocationState>(currentLocationProvider,
+        (previous, next) {
+      if (next.location != null && !_locationResolved) {
+        _locationResolved = true;
+        _locationTimer?.cancel();
+        _deviceLocation = next.location;
+        _applyNewCenter(next.location!, animate: true, fromLocation: true);
+        return;
+      }
+
+      if (!next.isLoading && !_locationResolved) {
+        _handleLocationIssues(next);
+        if (next.error != null) {
+          _locationResolved = true;
+          _locationTimer?.cancel();
+          _applyFallbackCenter(locationError: next.error);
+        }
+      }
+    });
+  }
+
+  void _setupCenterErrorListener() {
+    ref.listen<YouthCenterMapState>(youthCenterMapStateProvider,
+        (previous, next) {
+      final message = next.errorMessage;
+      final isAuthError =
+          message != null && message.contains('센터 인증 정보가 올바르지 않습니다');
+      if (next.status == YouthCenterMapStatus.error && isAuthError) {
+        _showAuthErrorOnce(message!);
+      }
+    });
+  }
+
+  void _handleLocationIssues(CurrentLocationState state) {
+    if (!mounted) return;
+    if (state.serviceDisabled && !_serviceGuideShown) {
+      _serviceGuideShown = true;
+      _showLocationPermissionGuide(LocationBottomSheetIssue.serviceDisabled);
+      return;
+    }
+
+    if (state.permissionIssue == null) return;
+    if (_lastPermissionIssue == state.permissionIssue) return;
+    _lastPermissionIssue = state.permissionIssue;
+
+    if (state.permissionIssue == LocationPermissionIssue.denied) {
+      _showLocationPermissionGuide(LocationBottomSheetIssue.permissionDenied);
+    } else if (state.permissionIssue == LocationPermissionIssue.deniedForever) {
+      _showLocationPermissionGuide(
+        LocationBottomSheetIssue.permissionPermanentlyDenied,
+      );
+    }
+  }
+
+  void _showAuthErrorOnce(String message) {
+    if (_authErrorShown) return;
+    _authErrorShown = true;
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('인증 오류'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _startLocationRequest() {
     _locationTimer?.cancel();
     _locationTimer = Timer(_locationTimeout, () {
@@ -329,60 +405,14 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       _applyFallbackCenter(locationError: '위치 확인 시간이 초과되었습니다.');
     });
 
+    _lastPermissionIssue = null;
+    _serviceGuideShown = false;
     setState(() {
       _viewStatus = KakaoMapViewStatus.locating;
       _showLoadingOverlay = true;
       _locationResolved = false;
     });
-    _loadInitialPosition();
-  }
-
-  Future<void> _loadInitialPosition() async {
-    if (!mounted) return;
-
-    try {
-      final serviceEnabled = await _gpsService.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        await _showLocationPermissionGuide(
-          LocationBottomSheetIssue.serviceDisabled,
-        );
-        throw '위치 서비스가 꺼져 있습니다.';
-      }
-
-      final permissionResult = await _permissionService.ensurePermission();
-      if (permissionResult == LocationPermissionIssue.denied) {
-        await _showLocationPermissionGuide(
-          LocationBottomSheetIssue.permissionDenied,
-        );
-        throw '위치 권한이 거부되었습니다.';
-      }
-
-      if (permissionResult == LocationPermissionIssue.deniedForever) {
-        await _showLocationPermissionGuide(
-          LocationBottomSheetIssue.permissionPermanentlyDenied,
-        );
-        throw '위치 권한이 영구히 거부되었습니다.';
-      }
-
-      final position = await _gpsService.getCurrentPosition();
-      if (!mounted) return;
-
-      if (_locationResolved) return;
-      _locationResolved = true;
-
-      final location = KakaoMapLatLng(position.latitude, position.longitude);
-      _locationTimer?.cancel();
-      await _applyNewCenter(location, animate: true, fromLocation: true);
-    } catch (error, stack) {
-      debugPrint('[KakaoMapScreen] 위치 로드 실패: $error');
-      if (stack != null) debugPrint(stack.toString());
-      if (!mounted) return;
-      if (_locationResolved) return;
-      _locationResolved = true;
-      await _applyFallbackCenter(
-        locationError: '현재 위치를 가져오지 못했습니다.',
-      );
-    }
+    ref.read(currentLocationProvider.notifier).fetch();
   }
 
   Future<void> _applyNewCenter(
@@ -405,7 +435,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     });
 
     await _moveMap(center, level: _locationZoomLevel, animate: animate);
-    await _updateSearchCircle(center);
+    await _updateSearchCircle(_effectiveCircleCenter);
   }
 
   Future<void> _retryLoadCenters() async {
@@ -415,10 +445,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     });
 
     final notifier = ref.read(youthCenterMapStateProvider.notifier);
-    await notifier.loadCenters(center: _mapCenter, radiusKm: _currentRadius);
+    final searchCenter = _deviceLocation ?? _mapCenter;
+    await notifier.loadCenters(center: searchCenter, radiusKm: _currentRadius);
 
     if (!mounted) return;
-    await _updateSearchCircle(_mapCenter);
+    await _updateSearchCircle(_effectiveCircleCenter);
 
     setState(() {
       _showLoadingOverlay = false;
@@ -500,16 +531,16 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   Future<void> _onMapIdle() async {
     final target = _latestCenterFromMove;
     if (target == null) return;
-    final notifier = ref.read(youthCenterMapStateProvider.notifier);
-    notifier.updateCenter(target, radiusKm: _currentRadius);
-    await _updateSearchCircle(target);
     setState(() {
       _mapCenter = target;
       _viewStatus = _mapReady
           ? KakaoMapViewStatus.markersReady
           : KakaoMapViewStatus.mapReady;
     });
+    _latestCenterFromMove = null;
   }
+
+  KakaoMapLatLng? get _effectiveCircleCenter => _deviceLocation ?? _mapCenter;
 
   Future<void> _moveMap(
     KakaoMapLatLng location, {
@@ -527,7 +558,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       } else {
         await controller.moveMapTo(location, level: level);
       }
-      await controller.showMyPosition(location);
+      final myLocation = _deviceLocation ?? location;
+      await controller.showMyPosition(myLocation);
     } catch (error, stack) {
       debugPrint('[KakaoMapScreen] moveMap error: $error');
       if (stack != null) debugPrint(stack.toString());
@@ -535,10 +567,14 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   }
 
   Future<void> _updateSearchCircle(
-    KakaoMapLatLng center,
+    KakaoMapLatLng? center,
   ) async {
-    if (!_mapReady) return;
+    if (!_mapReady || center == null) return;
     try {
+      debugPrint(
+        '[Map][INFO] drawMyLocationCircle(center: ${center.lat}, ${center.lng}, '
+        'radiusM: ${(_currentRadius * 1000).round()})',
+      );
       final controller = ref.read(kakaoMapControllerProvider);
       await controller.updateCircle(
         center,
@@ -562,7 +598,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         _viewStatus = nextStatus;
       }
     });
-    _updateSearchCircle(_mapCenter);
+    if (_locationResolved) {
+      _updateSearchCircle(_effectiveCircleCenter);
+    }
   }
 
   void _onWebViewLoadingChanged(bool isLoading) {

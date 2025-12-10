@@ -274,7 +274,7 @@ class YouthCenterMapNotifier extends StateNotifier<YouthCenterMapState> {
     const fallback = '센터 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.';
 
     if (error is YouthCenterApiException) {
-      if (error.statusCode == 403) {
+      if (error.statusCode == 403 || error.statusCode == 401) {
         return '센터 인증 정보가 올바르지 않습니다. 잠시 후 다시 시도해주세요.';
       }
       if (!kDebugMode) return error.userMessage;
@@ -298,37 +298,36 @@ List<CenterMarkerPoint> filterCentersWithinRadius(
   double radiusKm,
 ) {
   if (all.isEmpty) return const [];
-  final centersWithDistance = all
-      .map(
-        (point) => _CenterDistance(
-          point: point,
-          distanceKm: _distanceKm(center.lat, center.lng, point.lat, point.lng),
-        ),
+  final radiusMeters = radiusKm * 1000;
+  final filtered = all
+      .where(
+        (point) =>
+            distanceInMeters(
+              center,
+              KakaoMapLatLng(point.lat, point.lng),
+            ) <=
+            radiusMeters,
       )
       .toList();
 
-  final withinRadius = centersWithDistance
-      .where((item) => item.distanceKm <= radiusKm)
-      .map((e) => e.point)
-      .toList();
+  debugPrint('[Map][INFO] filterCentersWithinRadius(before: ${all.length}, '
+      'after: ${filtered.length})');
 
-  return withinRadius;
+  return filtered;
 }
 
-class _CenterDistance {
-  _CenterDistance({required this.point, required this.distanceKm});
+double distanceInMeters(KakaoMapLatLng a, KakaoMapLatLng b) {
+  const earthRadius = 6371000.0;
+  final dLat = _deg(b.lat - a.lat);
+  final dLon = _deg(b.lng - a.lng);
+  final lat1 = _deg(a.lat);
+  final lat2 = _deg(b.lat);
 
-  final CenterMarkerPoint point;
-  final double distanceKm;
-}
-
-double _distanceKm(double lat1, double lon1, double lat2, double lon2) {
-  const R = 6371.0;
-  final dLat = _deg(lat2 - lat1);
-  final dLon = _deg(lon2 - lon1);
-  final a = sin(dLat / 2) * sin(dLat / 2) +
-      cos(_deg(lat1)) * cos(_deg(lat2)) * sin(dLon / 2) * sin(dLon / 2);
-  return R * 2 * atan2(sqrt(a), sqrt(1 - a));
+  final sinLat = sin(dLat / 2);
+  final sinLon = sin(dLon / 2);
+  final aHarv = sinLat * sinLat + cos(lat1) * cos(lat2) * sinLon * sinLon;
+  final c = 2 * atan2(sqrt(aHarv), sqrt(1 - aHarv));
+  return earthRadius * c;
 }
 
 double _deg(double deg) => deg * (pi / 180.0);
