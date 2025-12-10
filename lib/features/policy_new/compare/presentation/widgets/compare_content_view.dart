@@ -16,7 +16,6 @@ class CompareContentView extends StatelessWidget {
     required this.onRemove,
     required this.onOpenDetail,
     required this.horizontalController,
-    this.showOnlyDiffs = false,
   });
 
   final CompareState state;
@@ -26,7 +25,6 @@ class CompareContentView extends StatelessWidget {
   final void Function(String) onRemove;
   final void Function(String) onOpenDetail;
   final ScrollController horizontalController;
-  final bool showOnlyDiffs;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +59,6 @@ class CompareContentView extends StatelessWidget {
               fields: service.fields,
               labelWidth: labelWidth,
               columnWidth: columnWidth,
-              showOnlyDiffs: showOnlyDiffs,
             ),
           ],
         ),
