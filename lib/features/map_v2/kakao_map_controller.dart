@@ -190,7 +190,7 @@ class KakaoMapController {
   final String baseUrl;
   final int maxAutoReloads;
 
-  final _eventController = StreamController<KakaoMapEvent>.broadcast();
+  late StreamController<KakaoMapEvent> _eventController;
   final List<Future<void> Function()> _pendingActions = [];
 
   late final WebViewController webViewController;
@@ -299,6 +299,12 @@ class KakaoMapController {
         "window.kakaoMap && window.kakaoMap.setMapType('${type.name}');",
       ),
     );
+  }
+
+  Future<void> reload() {
+    _ready = false;
+    _reloadAttempts = 0;
+    return webViewController.reload();
   }
 
   Future<void> reloadMap() async {
@@ -459,10 +465,18 @@ class KakaoMapController {
     return completer.future;
   }
 
+  void _emitEvent(KakaoMapEvent event) {
+    if (!_eventController.isClosed) {
+      _eventController.add(event);
+    }
+  }
+
   /// ---------------------------------------------------------------------------
   /// WebView 초기화
   /// ---------------------------------------------------------------------------
   void _initializeController() {
+    _eventController = StreamController<KakaoMapEvent>.broadcast();
+
     final PlatformWebViewControllerCreationParams params;
     if (WebViewPlatform.instance is WebKitWebViewPlatform) {
       params = WebKitWebViewControllerCreationParams(
@@ -506,7 +520,7 @@ class KakaoMapController {
             origin: 'kakao-map-js',
             timestamp: DateTime.now(),
           );
-          _eventController.add(KakaoMapEvent(KakaoMapEventType.log, log));
+          _emitEvent(KakaoMapEvent(KakaoMapEventType.log, log));
         },
       );
 
@@ -552,7 +566,7 @@ class KakaoMapController {
       );
     }
 
-    _eventController.add(event);
+    _emitEvent(event);
   }
 
   void _handleErrorCode(String? code, [String? detail]) {
@@ -646,11 +660,10 @@ class KakaoMapController {
       timestamp: DateTime.now(),
       origin: 'kakao-map-controller',
     );
-    _eventController.add(KakaoMapEvent(KakaoMapEventType.log, logMessage));
+    _emitEvent(KakaoMapEvent(KakaoMapEventType.log, logMessage));
   }
 
   void dispose() {
-    _eventController.close();
     _pendingActions.clear();
   }
 }

@@ -42,7 +42,8 @@ class KakaoMapScreen extends ConsumerStatefulWidget {
   ConsumerState<KakaoMapScreen> createState() => _KakaoMapScreenState();
 }
 
-class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
+class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen>
+    with WidgetsBindingObserver {
   static final _defaultCenter = KakaoMapLatLng(36.4919, 128.8889);
   static const _locationZoomLevel = 6;
   static const _locationTimeout = Duration(seconds: 8);
@@ -82,6 +83,22 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   @override
   void initState() {
     super.initState();
+    Future.microtask(() {
+      if (mounted) {
+        _startLocationRequest();
+      }
+    });
+  }
+
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
+
+    WidgetsBinding.instance.addObserver(this);
     debugPrint('[KakaoMapScreen] initState() 완료');
     debugPrint(
       '[KakaoMapScreen][ENV] kakaoRestApiKey isEmpty=${AppEnv.kakaoRestApiKey.isEmpty} '
@@ -92,17 +109,25 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     _setupCenterErrorListener();
     _prepareCenterMarkerIcon();
     _preloadCachedCenterMarkers();
-    _startLocationRequest();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _moveDebounce?.cancel();
     _tooltipTimer?.cancel();
     _locationTimer?.cancel();
     _locationSubscription?.close();
     _centerErrorSubscription?.close();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final controller = ref.read(kakaoMapControllerProvider);
+      controller.reload();
+    }
   }
 
   @override
