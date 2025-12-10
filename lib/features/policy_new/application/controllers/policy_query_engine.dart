@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/policy.dart';
 import '../../domain/policy_state_utils.dart';
 import '../../domain/values/policy_feed_type.dart';
+import '../../domain/values/policy_logger.dart';
 import '../../domain/values/policy_result.dart';
 import '../../domain/values/policy_status_filter.dart';
 import '../providers.dart';
@@ -14,6 +15,7 @@ class PolicyQueryEngine {
   PolicyQueryEngine(this.ref);
 
   final Ref ref;
+  PolicyLogger get _logger => ref.read(policyLoggerProvider);
 
   int get pageSize => ref.read(policySettingsProvider).pageSize;
 
@@ -57,34 +59,31 @@ class PolicyQueryEngine {
 
     return result.fold(
       onSuccess: (policies) {
-        final filtered = _filterByStatus(policies, query.filter.status);
-        return PolicyResult.success(filtered);
+        final length = policies.length;
+        _logger.info(
+          '[Policy][Explore][RESULT] feed=${feedType.name}, page=$page, '
+          'length=$length, status=${query.filter.status.queryValue}',
+        );
+        if (length == 0) {
+          _logger.warn(
+            '[Policy][Explore][EMPTY] feed=${feedType.name}, page=$page, '
+            'status=${query.filter.status.queryValue}, '
+            'keyword=${query.keyword ?? '-'}, region=${query.filter.region.name}',
+          );
+        }
+        return PolicyResult.success(policies);
       },
-      onFailure: PolicyResult.failure,
+      onFailure: (failure) {
+        _logger.error(
+          '[Policy][Explore][ERROR] feed=${feedType.name}, page=$page, ${failure.message}',
+        );
+        return PolicyResult.failure(failure);
+      },
     );
   }
 
   String _statusLabel(PolicyStatusFilter status) => status.queryValue;
 
-  List<Policy> _filterByStatus(
-    List<Policy> policies,
-    PolicyStatusFilter status,
-  ) {
-    switch (status) {
-      case PolicyStatusFilter.inProgressOnly:
-        return policies
-            .where((policy) =>
-                policy.activeState == PolicyActiveState.active ||
-                policy.activeState == PolicyActiveState.closingSoon)
-            .toList();
-      case PolicyStatusFilter.closedOnly:
-        return policies
-            .where((policy) => policy.activeState == PolicyActiveState.closed)
-            .toList();
-      case PolicyStatusFilter.includeClosed:
-        return policies;
-    }
-  }
 }
 
 final policyQueryEngineProvider = Provider<PolicyQueryEngine>(

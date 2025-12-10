@@ -321,6 +321,9 @@ abstract class BasePolicyFeedController
   }
 
   bool _areSameItems(List<Policy> prev, List<Policy> next) {
+    // 첫 로드에서 이전/현재 모두 비어있으면 갱신된 것으로 간주한다.
+    if (prev.isEmpty && next.isEmpty) return false;
+
     if (prev.length != next.length) return false;
     for (var i = 0; i < prev.length; i++) {
       if (prev[i].id != next[i].id) return false;
