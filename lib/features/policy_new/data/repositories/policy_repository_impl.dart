@@ -63,6 +63,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['searchRgnSe'] = regionValue;
     }
 
+    params['status'] = normalizedFilter.status.queryValue;
+
     if (filter.category != null) {
       params['searchPolicyType'] = _mapCategory(filter.category!);
     }
@@ -471,21 +473,21 @@ class PolicyRepositoryImpl implements PolicyRepository {
   String? _mapRegion(PolicyRegion region) {
     switch (region) {
       case PolicyRegion.seoul:
-        return '서울';
+        return 'seoul';
       case PolicyRegion.busan:
-        return '부산';
+        return 'busan';
       case PolicyRegion.daegu:
-        return '대구';
+        return 'daegu';
       case PolicyRegion.incheon:
-        return '인천';
+        return 'incheon';
       case PolicyRegion.gwangju:
-        return '광주';
+        return 'gwangju';
       case PolicyRegion.daejeon:
-        return '대전';
+        return 'daejeon';
       case PolicyRegion.ulsan:
-        return '울산';
+        return 'ulsan';
       case PolicyRegion.gyeongbuk:
-        return '경상북도';
+        return 'gyeongbuk';
       case PolicyRegion.all:
         return null;
     }
@@ -495,11 +497,6 @@ class PolicyRepositoryImpl implements PolicyRepository {
     final city = filter.city?.trim();
     if (city != null && city.isNotEmpty) {
       return city;
-    }
-
-    final province = filter.province.trim();
-    if (filter.region == PolicyRegion.gyeongbuk && province.isNotEmpty) {
-      return province;
     }
 
     final mappedRegion = _mapRegion(filter.region);

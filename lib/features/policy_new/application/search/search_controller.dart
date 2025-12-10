@@ -44,7 +44,7 @@ class PolicySearchController {
   String _filterCode(PolicyStatusFilter status) {
     switch (status) {
       case PolicyStatusFilter.inProgressOnly:
-        return 'active';
+        return 'inProgress';
       case PolicyStatusFilter.includeClosed:
         return 'all';
       case PolicyStatusFilter.closedOnly:
