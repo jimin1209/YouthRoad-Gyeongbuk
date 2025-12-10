@@ -40,6 +40,11 @@ Future<void> bootstrap({
       error: details.exception,
       stackTrace: details.stack,
     );
+    DebugLogCollector.instance.add(
+      '[FlutterError] ${details.exceptionAsString()}',
+      level: AppLogLevel.error,
+      tag: 'Flutter',
+    );
   };
 
   // SharedPreferences 초기화

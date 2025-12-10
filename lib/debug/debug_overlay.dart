@@ -22,7 +22,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
         color: const Color(0x8C000000),
         child: SafeArea(
           child: DefaultTabController(
-            length: 4,
+            length: 5,
             child: Builder(
               builder: (context) {
                 final tabController = DefaultTabController.of(context);
@@ -62,6 +62,11 @@ class _DebugOverlayState extends State<DebugOverlay> {
                             controller: tabController,
                             tabIndex: 3,
                             child: const DebugLogPanel(),
+                          ),
+                          _AnimatedTabContent(
+                            controller: tabController,
+                            tabIndex: 4,
+                            child: const DebugErrorLogPanel(),
                           ),
                         ],
                       ),
@@ -166,6 +171,7 @@ class _DebugTabBar extends StatelessWidget {
           Tab(text: 'Network'),
           Tab(text: 'Unity'),
           Tab(text: 'Log'),
+          Tab(text: 'Error'),
         ],
       ),
     );
