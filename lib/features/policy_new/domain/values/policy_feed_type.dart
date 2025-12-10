@@ -1,5 +1,4 @@
 enum PolicyFeedType {
-  recommend,
   all,
   bookmarked,
   region,

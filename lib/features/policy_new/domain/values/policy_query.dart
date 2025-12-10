@@ -34,16 +34,13 @@ class PolicyQuery {
     );
   }
 
-  PolicyQuery normalize({bool clearRecommendKeyword = true}) {
+  PolicyQuery normalize() {
     final normalizedKeyword = _normalizeKeyword(keyword);
     final normalizedTags = _normalizeTags(tags);
     final normalizedFilter = filter.normalize();
 
-    final shouldClearKeyword =
-        clearRecommendKeyword && feedType == PolicyFeedType.recommend;
-
     return PolicyQuery(
-      keyword: shouldClearKeyword ? null : normalizedKeyword,
+      keyword: normalizedKeyword,
       tags: normalizedTags,
       filter: normalizedFilter,
       sort: sort,

@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/values/policy_feed_type.dart';
 import '../../application/providers.dart' show compareRepositoryProvider;
-import '../filters/policy_filter_bar.dart';
-import '../filters/policy_recommend_tags_bar.dart';
 import '../reminder/policy_reminder_list_screen.dart';
 import '../widgets/policy_feed_list_view.dart';
 import '../explore/policy_explore_screen.dart';
@@ -25,10 +23,9 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
   late final TabController _tabController;
   int _currentIndex = 0;
 
-  /// 메인 탭: 추천 / 탐색(=전체) / 보관함(=즐겨찾기)
+  /// 메인 탭: 탐색(=전체) / 보관함(=즐겨찾기)
   /// TODO(TASK20): 탐색/보관함 전용 화면 리팩터링 시 이 매핑을 교체한다.
   final List<({String label, PolicyFeedType type})> _tabs = const [
-    (label: '추천', type: PolicyFeedType.recommend),
     (label: '탐색', type: PolicyFeedType.all),
     (label: '보관함', type: PolicyFeedType.bookmarked),
   ];
@@ -107,14 +104,6 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
       ),
       body: Column(
         children: [
-          // 🔵 추천 탭에서만 상단 필터 바 노출
-          if (currentFeedType == PolicyFeedType.recommend)
-            const PolicyFilterBar(feedType: PolicyFeedType.recommend),
-
-          // 🔵 추천 탭에서만 추천 태그 바 노출
-          if (_shouldShowTagsBar(currentFeedType))
-            const PolicyRecommendTagsBar(),
-
           // 🔵 실제 리스트 부분
           Expanded(
             child: TabBarView(
@@ -152,7 +141,4 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
     );
   }
 
-  bool _shouldShowTagsBar(PolicyFeedType feedType) {
-    return feedType == PolicyFeedType.recommend;
-  }
 }

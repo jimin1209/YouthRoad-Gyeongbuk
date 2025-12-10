@@ -163,7 +163,6 @@ class KakaoMapHtmlBuilder {
       'center': center.toJson(),
       'basePosition': (basePosition ?? center).toJson(),
       'markers': markers.map((e) => e.toJson()).toList(),
-      'polylines': polylines.map((e) => e.toJson()).toList(),
       'options': options.toJson(),
       'clustering': enableClustering,
       'radiusMeters': searchRadiusMeters,
@@ -582,25 +581,6 @@ class KakaoMapHtmlBuilder {
     function syncPolylines(list) {
       polylines.forEach(function(pl) { pl.setMap(null); });
       polylines = [];
-
-      list.forEach(function(l) {
-        var path = (l.points || []).map(function(pt) {
-          return new kakao.maps.LatLng(pt.lat, pt.lng);
-        });
-
-        if (!path.length) return;
-
-        var pl = new kakao.maps.Polyline({
-          path: path,
-          strokeWeight: l.strokeWeight || 3,
-          strokeColor: l.strokeColor || '#3399ff',
-          strokeOpacity: (typeof l.strokeOpacity === 'number') ? l.strokeOpacity : 1.0,
-          strokeStyle: 'solid'
-        });
-
-        pl.setMap(map);
-        polylines.push(pl);
-      });
     }
 
     syncMarkers(p.markers);

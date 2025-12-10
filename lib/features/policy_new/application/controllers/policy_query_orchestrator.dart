@@ -8,7 +8,6 @@ import '../../domain/values/policy_sort.dart';
 import '../../domain/values/policy_status_filter.dart';
 import '../filters/policy_filter_ui_state.dart';
 import '../providers.dart';
-import '../behavior/policy_behavior_tracker.dart';
 import '../../domain/recommendation/user_profile.dart';
 import '../../../../application/notifiers/region_notifier.dart';
 
@@ -19,8 +18,6 @@ class PolicyQueryOrchestrator {
 
   PolicyFilterUiState get _ui => ref.read(globalFilterProvider);
   UserProfile get _profile => ref.read(userProfileProvider);
-  PolicyBehaviorState get _behavior =>
-      ref.read(policyBehaviorTrackerProvider);
 
   List<String> get _favoriteIds => ref.read(favoriteIdsProvider).toList();
 
@@ -31,8 +28,6 @@ class PolicyQueryOrchestrator {
     String keyword = '',
   }) {
     switch (feedType) {
-      case PolicyFeedType.recommend:
-        return _buildRecommendQuery();
       case PolicyFeedType.all:
         return _buildAllQuery(keyword);
       case PolicyFeedType.region:
@@ -48,23 +43,6 @@ class PolicyQueryOrchestrator {
     }
   }
 
-  PolicyQuery _buildRecommendQuery() {
-    final manualTags = List<String>.unmodifiable(_ui.tags);
-    final regionForRecommend = _ui.regionForApi;
-
-    return PolicyQuery(
-      feedType: PolicyFeedType.recommend,
-      filter: _buildFilterFromUi(
-        region: regionForRecommend,
-        tags: manualTags,
-        age: _profile.age,
-        status: PolicyStatusFilter.inProgressOnly,
-      ),
-      tags: manualTags,
-      sort: PolicySortOption.recommendation,
-    ).normalize();
-  }
-
   PolicyQuery _buildAllQuery(String keyword) {
     final filter = _buildFilterFromUi();
 
@@ -78,17 +56,10 @@ class PolicyQueryOrchestrator {
 
   PolicyQuery _buildRegionQuery() {
     final region = _ui.region == PolicyRegion.all ? _profile.region : _ui.region;
-    final regionNotifier = ref.read(regionProvider.notifier);
-    final hasCitySelection =
-        regionNotifier.selectedCity != null || regionNotifier.selectedDistrict != null;
     final filter = _buildFilterFromUi(region: region);
 
-    // region 피드가 시/군 선택이 없는 상태에서도 빈 결과만 내려오는 것을 막기 위해
-    // 실제 쿼리는 기본(all) 스코프로 전송하되, 필터에는 지역 정보를 유지한다.
-    final queryFeedType = hasCitySelection ? PolicyFeedType.region : PolicyFeedType.all;
-
     return PolicyQuery(
-      feedType: queryFeedType,
+      feedType: PolicyFeedType.region,
       filter: filter,
       sort: _ui.sort,
     ).normalize();
@@ -112,7 +83,7 @@ class PolicyQueryOrchestrator {
       filter: const PolicyFilter(),
       tags: _favoriteIds,
       sort: _ui.sort,
-    ).normalize(clearRecommendKeyword: false);
+    ).normalize();
   }
 
   PolicyQuery _buildBookmarkedQuery() {
@@ -121,7 +92,7 @@ class PolicyQueryOrchestrator {
       filter: const PolicyFilter(),
       tags: _favoriteIds,
       sort: _ui.sort,
-    ).normalize(clearRecommendKeyword: false);
+    ).normalize();
   }
 
   PolicyQuery _buildCompareQuery() {
@@ -130,7 +101,7 @@ class PolicyQueryOrchestrator {
       filter: const PolicyFilter(),
       tags: _compareIds,
       sort: _ui.sort,
-    ).normalize(clearRecommendKeyword: false);
+    ).normalize();
   }
 
   PolicyFilter _buildFilterFromUi({

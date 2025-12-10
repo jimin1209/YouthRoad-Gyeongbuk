@@ -55,10 +55,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['searchPolicyNm'] = normalizedQuery.keyword;
     }
 
-    // Filter → API 파라미터 매핑
-    final filter = normalizedFilter;
-
-    final regionValue = _regionParam(filter, normalizedQuery.feedType);
+    final regionValue = _regionParam(normalizedFilter);
     if (regionValue != null && regionValue.isNotEmpty) {
       params['searchRgnSe'] = regionValue;
     }
@@ -70,36 +67,39 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['status'] = statusValue;
     }
 
-    if (filter.category != null) {
-      params['searchPolicyType'] = _mapCategory(filter.category!);
+    if (normalizedFilter.category != null) {
+      params['searchPolicyType'] = _mapCategory(normalizedFilter.category!);
     }
 
-    if (filter.status == PolicyStatusFilter.inProgressOnly) {
-      params['aplyPsbltyYn'] = 'Y';
+    if (normalizedFilter.isOnline != null) {
+      params['aplyYn'] = normalizedFilter.isOnline! ? 'Y' : 'N';
     }
 
-    if (filter.isOnline != null) {
-      params['aplyYn'] = filter.isOnline! ? 'Y' : 'N';
+    if (normalizedFilter.institutionId != null &&
+        normalizedFilter.institutionId!.isNotEmpty) {
+      params['instNo'] = normalizedFilter.institutionId;
     }
 
-    if (filter.institutionId != null && filter.institutionId!.isNotEmpty) {
-      params['instNo'] = filter.institutionId;
-    }
-
-    if (filter.departmentId != null && filter.departmentId!.isNotEmpty) {
-      params['deptNo'] = filter.departmentId;
+    if (normalizedFilter.departmentId != null &&
+        normalizedFilter.departmentId!.isNotEmpty) {
+      params['deptNo'] = normalizedFilter.departmentId;
     }
 
     if (normalizedQuery.tags.isNotEmpty) {
       params['tags'] = normalizedQuery.tags.join(',');
     }
 
-    if (filter.tags.isNotEmpty &&
-        normalizedQuery.feedType != PolicyFeedType.recommend) {
-      params['filterTags'] = filter.tags.join(',');
+    if (normalizedFilter.tags.isNotEmpty) {
+      params['filterTags'] = normalizedFilter.tags.join(',');
     }
 
+    _sanitizeParams(params);
     return params;
+  }
+
+  void _sanitizeParams(Map<String, dynamic> params) {
+    params.removeWhere((key, value) =>
+        value == null || (value is String && value.trim().isEmpty));
   }
 
   @override
@@ -279,8 +279,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
       page: page,
       pageSize: pageSize,
     );
-    final logTag = query.feedType == PolicyFeedType.recommend ? 'Recommend' : 'Explore';
-    debugPrint('[$logTag][Sanitized Params] $params');
+    debugPrint('[Explore][Sanitized Params] $params');
 
     try {
       logger.info(
@@ -501,20 +500,20 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
   }
 
-  String? _regionParam(PolicyFilter filter, PolicyFeedType feedType) {
+  String? _regionParam(PolicyFilter filter) {
     final city = filter.city?.trim();
     final district = filter.district?.trim();
 
-    if (feedType != PolicyFeedType.recommend && city != null && city.isNotEmpty) {
+    if (city != null && city.isNotEmpty) {
       if (district != null && district.isNotEmpty) {
         return '$city|$district';
       }
       return city;
     }
 
-    final effectiveRegion = feedType == PolicyFeedType.recommend
-        ? filter.region
-        : (filter.region == PolicyRegion.all ? settings.defaultRegion : filter.region);
+    final effectiveRegion = filter.region == PolicyRegion.all
+        ? settings.defaultRegion
+        : filter.region;
     final mappedRegion = _mapRegion(effectiveRegion);
     if (mappedRegion != null && mappedRegion.isNotEmpty) {
       return mappedRegion;

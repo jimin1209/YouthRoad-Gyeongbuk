@@ -318,15 +318,6 @@ final policyPagingControllerProvider =
   );
 });
 
-final recommendFeedControllerProvider =
-    StateNotifierProvider<RecommendFeedController, PolicyPagingState>(
-  (ref) => RecommendFeedController(
-    ref: ref,
-    queryEngine: ref.read(policyQueryEngineProvider),
-    memoryCache: ref.read(policyFeedMemoryCacheProvider),
-  ),
-);
-
 final allFeedControllerProvider =
     StateNotifierProvider<AllFeedController, PolicyPagingState>(
   (ref) => AllFeedController(

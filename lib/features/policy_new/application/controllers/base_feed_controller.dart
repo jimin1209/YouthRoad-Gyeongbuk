@@ -56,31 +56,27 @@ abstract class BasePolicyFeedController
           case PolicyEventType.refreshRequested:
             refresh();
             break;
-          case PolicyEventType.favoritesChanged:
-            if (feedType == PolicyFeedType.favorite ||
-                feedType == PolicyFeedType.bookmarked ||
-                feedType == PolicyFeedType.recommend) {
-              refresh();
-            }
-            break;
-          case PolicyEventType.profileUpdated:
-            if (feedType == PolicyFeedType.recommend ||
-                feedType == PolicyFeedType.region) {
-              refresh();
-            }
-            break;
+        case PolicyEventType.favoritesChanged:
+          if (feedType == PolicyFeedType.favorite ||
+              feedType == PolicyFeedType.bookmarked) {
+            refresh();
+          }
+          break;
+        case PolicyEventType.profileUpdated:
+          if (feedType == PolicyFeedType.region) {
+            refresh();
+          }
+          break;
           case PolicyEventType.compareListChanged:
             if (feedType == PolicyFeedType.compare) {
               refresh();
             }
             break;
-          case PolicyEventType.reminderChanged:
-          case PolicyEventType.reminderBulkUpdated:
-          case PolicyEventType.behaviorChanged:
-            if (feedType == PolicyFeedType.recommend) {
-              refresh();
-            }
-            break;
+        case PolicyEventType.reminderChanged:
+        case PolicyEventType.reminderBulkUpdated:
+          break;
+        case PolicyEventType.behaviorChanged:
+          break;
         }
       },
     );
@@ -99,7 +95,6 @@ abstract class BasePolicyFeedController
   bool _isLoading = false;
 
   bool get supportsFilterAutoApply =>
-      feedType == PolicyFeedType.recommend ||
       feedType == PolicyFeedType.all ||
       feedType == PolicyFeedType.region ||
       feedType == PolicyFeedType.search;

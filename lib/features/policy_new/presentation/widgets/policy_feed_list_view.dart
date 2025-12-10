@@ -218,11 +218,6 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
 
   (PolicyPagingState, BasePolicyFeedController) _useController() {
     switch (widget.feedType) {
-      case PolicyFeedType.recommend:
-        return (
-          ref.watch(recommendFeedControllerProvider),
-          ref.read(recommendFeedControllerProvider.notifier),
-        );
       case PolicyFeedType.all:
         return (
           ref.watch(allFeedControllerProvider),
@@ -255,8 +250,6 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
 
   BasePolicyFeedController _controllerFor(WidgetRef ref) {
     switch (widget.feedType) {
-      case PolicyFeedType.recommend:
-        return ref.read(recommendFeedControllerProvider.notifier);
       case PolicyFeedType.all:
         return ref.read(allFeedControllerProvider.notifier);
       case PolicyFeedType.region:
