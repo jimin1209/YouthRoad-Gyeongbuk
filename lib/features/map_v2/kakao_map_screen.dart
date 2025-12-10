@@ -516,13 +516,10 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen>
     if (candidate == null) return;
 
     _showMarkerTooltip(candidate.name);
-    _showCenterDetailSheet(
+    _openCenterDetailPanel(
+      candidate,
+      'markerTap',
       markerId: markerId,
-      name: candidate.name,
-      address: candidate.fullAddress,
-      phone: candidate.phone,
-      homepageUrl: candidate.url,
-      regionLabel: candidate.regionLabel,
     );
   }
 
@@ -533,14 +530,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen>
     final target = KakaoMapLatLng(center.lat, center.lng);
     await _moveMap(target, animate: true);
     _showMarkerTooltip(center.name);
-    _showCenterDetailSheet(
-      markerId: 'CENTER-${center.id}',
-      name: center.name,
-      address: center.fullAddress,
-      phone: center.phone,
-      homepageUrl: center.url,
-      regionLabel: center.regionLabel,
-    );
+    _openCenterDetailPanel(center, 'cardTap');
     setState(() => _mapCenter = target);
   }
 
@@ -663,6 +653,23 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen>
     });
   }
 
+  void _openCenterDetailPanel(
+    CenterMarkerPoint center,
+    String source, {
+    String? markerId,
+  }) {
+    final resolvedMarkerId = markerId ?? 'CENTER-${center.id}';
+    debugPrint('[Center][Tap] source=$source centerId=$resolvedMarkerId');
+    _showCenterDetailSheet(
+      markerId: resolvedMarkerId,
+      name: center.name,
+      address: center.fullAddress,
+      phone: center.phone,
+      homepageUrl: center.url,
+      regionLabel: center.regionLabel,
+    );
+  }
+
   void _showSnackOnce({
     required String key,
     required String message,
@@ -697,7 +704,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen>
     required String regionLabel,
   }) {
     if (!mounted) return;
-    if (_activeCenterSheetId == markerId) return;
+    if (_activeCenterSheetId == markerId) {
+      debugPrint('[Center][Panel] already open centerId=$markerId');
+      return;
+    }
+    debugPrint('[Center][Panel] open centerId=$markerId');
     _activeCenterSheetId = markerId;
 
     showModalBottomSheet(

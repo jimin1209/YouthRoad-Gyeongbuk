@@ -180,7 +180,8 @@ class KakaoMapController {
     this.baseUrl = 'https://gbyouth.co.kr',
     this.maxAutoReloads = 3,
   })  : _apiKey = apiKey,
-        _builder = builder {
+        _builder = builder,
+        _eventController = StreamController<KakaoMapEvent>.broadcast() {
     _initializeController();
     _logApiKey();
     _logBaseUrl();
@@ -192,7 +193,7 @@ class KakaoMapController {
   final String baseUrl;
   final int maxAutoReloads;
 
-  late StreamController<KakaoMapEvent> _eventController;
+  final StreamController<KakaoMapEvent> _eventController;
   final List<Future<void> Function()> _pendingActions = [];
 
   late final WebViewController webViewController;
@@ -201,6 +202,7 @@ class KakaoMapController {
   _LoadRequest? _lastLoadRequest;
   KakaoMapLatLng? _basePosition;
   double? _lastCircleRadius;
+  bool _disposed = false;
 
   KakaoMapLatLng? get basePosition => _basePosition;
 
@@ -494,17 +496,19 @@ class KakaoMapController {
     return completer.future;
   }
 
-  void _emitEvent(KakaoMapEvent event) {
-    if (!_eventController.isClosed) {
-      _eventController.add(event);
+    void _emitEvent(KakaoMapEvent event) {
+      if (_disposed || _eventController.isClosed) return;
+      try {
+        _eventController.add(event);
+      } on StateError {
+        // Controller was closed concurrently; ignore
+      }
     }
-  }
 
   /// ---------------------------------------------------------------------------
   /// WebView 초기화
   /// ---------------------------------------------------------------------------
-  void _initializeController() {
-    _eventController = StreamController<KakaoMapEvent>.broadcast();
+    void _initializeController() {
 
     final PlatformWebViewControllerCreationParams params;
     if (WebViewPlatform.instance is WebKitWebViewPlatform) {
@@ -695,6 +699,11 @@ class KakaoMapController {
   }
 
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _pendingActions.clear();
+    if (!_eventController.isClosed) {
+      _eventController.close();
+    }
   }
 }

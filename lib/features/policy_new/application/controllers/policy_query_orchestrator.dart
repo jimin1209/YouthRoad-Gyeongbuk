@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_filter.dart';
 import '../../domain/values/policy_query.dart';
