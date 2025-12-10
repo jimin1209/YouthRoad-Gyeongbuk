@@ -59,17 +59,19 @@ class PolicyQueryEngine {
 
     return result.fold(
       onSuccess: (policies) {
+        final length = policies.length;
         _logger.info(
           '[Policy][Explore][RESULT] feed=${feedType.name}, page=$page, '
-          'rawLength=${policies.length}',
+          'length=$length, status=${query.filter.status.queryValue}',
         );
-
-        final filtered = _filterByStatus(policies, query.filter.status);
-        _logger.info(
-          '[Policy][Explore][FILTERED] feed=${feedType.name}, page=$page, '
-          'status=${query.filter.status.queryValue}, length=${filtered.length}',
-        );
-        return PolicyResult.success(filtered);
+        if (length == 0) {
+          _logger.warn(
+            '[Policy][Explore][EMPTY] feed=${feedType.name}, page=$page, '
+            'status=${query.filter.status.queryValue}, '
+            'keyword=${query.keyword ?? '-'}, region=${query.filter.region.name}',
+          );
+        }
+        return PolicyResult.success(policies);
       },
       onFailure: (failure) {
         _logger.error(
@@ -82,25 +84,6 @@ class PolicyQueryEngine {
 
   String _statusLabel(PolicyStatusFilter status) => status.queryValue;
 
-  List<Policy> _filterByStatus(
-    List<Policy> policies,
-    PolicyStatusFilter status,
-  ) {
-    switch (status) {
-      case PolicyStatusFilter.inProgressOnly:
-        return policies
-            .where((policy) =>
-                policy.activeState == PolicyActiveState.active ||
-                policy.activeState == PolicyActiveState.closingSoon)
-            .toList();
-      case PolicyStatusFilter.closedOnly:
-        return policies
-            .where((policy) => policy.activeState == PolicyActiveState.closed)
-            .toList();
-      case PolicyStatusFilter.includeClosed:
-        return policies;
-    }
-  }
 }
 
 final policyQueryEngineProvider = Provider<PolicyQueryEngine>(
