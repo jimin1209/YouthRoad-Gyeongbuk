@@ -89,10 +89,17 @@ class PolicyQueryOrchestrator {
 
   PolicyQuery _buildRegionQuery() {
     final region = _ui.region == PolicyRegion.all ? _profile.region : _ui.region;
+    final regionNotifier = ref.read(regionProvider.notifier);
+    final hasCitySelection =
+        regionNotifier.selectedCity != null || regionNotifier.selectedDistrict != null;
     final filter = _buildFilterFromUi(region: region);
 
+    // region 피드가 시/군 선택이 없는 상태에서도 빈 결과만 내려오는 것을 막기 위해
+    // 실제 쿼리는 기본(all) 스코프로 전송하되, 필터에는 지역 정보를 유지한다.
+    final queryFeedType = hasCitySelection ? PolicyFeedType.region : PolicyFeedType.all;
+
     return PolicyQuery(
-      feedType: PolicyFeedType.region,
+      feedType: queryFeedType,
       filter: filter,
       sort: _ui.sort,
     ).normalize();

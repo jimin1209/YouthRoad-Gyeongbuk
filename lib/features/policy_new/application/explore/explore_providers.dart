@@ -8,6 +8,7 @@ import '../../domain/values/policy_category.dart';
 import '../../domain/values/policy_sort.dart';
 import '../../domain/values/policy_feed_type.dart';
 import '../../domain/values/policy_status_filter.dart';
+import '../../domain/values/policy_region.dart';
 import '../reexplore/policy_reexplore.dart';
 import '../../../../application/notifiers/region_notifier.dart';
 
@@ -110,8 +111,14 @@ class ExploreController extends StateNotifier<ExploreState> {
       return;
     }
 
-    final nextMode = hasSelection ? ExploreSubMode.region : ExploreSubMode.all;
+    final filterRegion = ref.read(globalFilterProvider).region;
+    final isRegional = hasSelection || filterRegion != PolicyRegion.all;
+    final nextMode = isRegional ? ExploreSubMode.region : ExploreSubMode.all;
     if (state.mode != nextMode) {
+      debugPrint(
+        '[Policy][Explore] ensureRegionMode -> $nextMode '
+        '(selection=$hasSelection, filterRegion=${filterRegion.name})',
+      );
       state = state.copyWith(mode: nextMode);
     }
   }

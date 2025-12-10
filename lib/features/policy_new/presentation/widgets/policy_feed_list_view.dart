@@ -84,7 +84,12 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
     }
 
     final visibleItems = state.visibleItems;
-    final isInitialLoading = state.isLoading && visibleItems.isEmpty;
+    final isPristine = !state.isLoading &&
+        state.previousResults == null &&
+        visibleItems.isEmpty &&
+        reaction.phase == UIReactionPhase.idle;
+    final isInitialLoading = (state.isLoading || isPristine) &&
+        visibleItems.isEmpty;
     final isTransitionLoading = state.isLoading && state.previousResults != null;
     var showSkeleton =
         reaction.shouldHoldSkeleton || isInitialLoading || isTransitionLoading;
@@ -111,6 +116,10 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
         key: const ValueKey('policy-list-error'),
         message: state.failure!.message,
         onRetry: notifier.loadFirstPage,
+      );
+    } else if (isInitialLoading) {
+      content = const PolicyListSkeleton(
+        key: ValueKey('policy-list-initial-loading'),
       );
     } else if (shouldShowSearchGuide) {
       content = PolicySearchEmptyView(

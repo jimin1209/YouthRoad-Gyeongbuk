@@ -31,7 +31,7 @@ class PolicyQueryEngine {
     final repo = ref.read(policyRepositoryProvider);
 
     final logBuffer = StringBuffer()
-      ..write('[Policy][INFO] fetchPoliciesByQuery(')
+      ..write('[Policy][Explore] fetchPoliciesByQuery(')
       ..write('feed: ${feedType.name}, ')
       ..write('page: $page, ')
       ..write('sort: ${query.sort.name}, ')
