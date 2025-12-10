@@ -40,6 +40,8 @@ class PolicyQueryOrchestrator {
         return _buildSearchQuery(keyword);
       case PolicyFeedType.favorite:
         return _buildFavoriteQuery();
+      case PolicyFeedType.bookmarked:
+        return _buildBookmarkedQuery();
       case PolicyFeedType.compare:
         return _buildCompareQuery();
     }
@@ -148,6 +150,15 @@ class PolicyQueryOrchestrator {
   PolicyQuery _buildFavoriteQuery() {
     return PolicyQuery(
       feedType: PolicyFeedType.favorite,
+      filter: const PolicyFilter(),
+      tags: _favoriteIds,
+      sort: _ui.sort,
+    ).normalize(clearRecommendKeyword: false);
+  }
+
+  PolicyQuery _buildBookmarkedQuery() {
+    return PolicyQuery(
+      feedType: PolicyFeedType.bookmarked,
       filter: const PolicyFilter(),
       tags: _favoriteIds,
       sort: _ui.sort,

@@ -57,6 +57,7 @@ abstract class BasePolicyFeedController
             break;
           case PolicyEventType.favoritesChanged:
             if (feedType == PolicyFeedType.favorite ||
+                feedType == PolicyFeedType.bookmarked ||
                 feedType == PolicyFeedType.recommend) {
               refresh();
             }

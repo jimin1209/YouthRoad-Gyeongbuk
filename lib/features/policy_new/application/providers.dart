@@ -363,6 +363,15 @@ final favoriteFeedControllerProvider =
   ),
 );
 
+final bookmarkedFeedControllerProvider =
+    StateNotifierProvider<BookmarkedFeedController, PolicyPagingState>(
+  (ref) => BookmarkedFeedController(
+    ref: ref,
+    queryEngine: ref.read(policyQueryEngineProvider),
+    memoryCache: ref.read(policyFeedMemoryCacheProvider),
+  ),
+);
+
 final compareDiffServiceProvider = Provider<CompareDiffService>((ref) {
   return CompareDiffService();
 });

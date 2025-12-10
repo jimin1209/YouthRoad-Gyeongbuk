@@ -40,3 +40,11 @@ class FavoriteFeedController extends BasePolicyFeedController {
     required super.memoryCache,
   }) : super(feedType: PolicyFeedType.favorite);
 }
+
+class BookmarkedFeedController extends BasePolicyFeedController {
+  BookmarkedFeedController({
+    required super.ref,
+    required super.queryEngine,
+    required super.memoryCache,
+  }) : super(feedType: PolicyFeedType.bookmarked);
+}

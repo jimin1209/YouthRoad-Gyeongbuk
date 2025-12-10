@@ -333,6 +333,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
   bool _isIdBasedQuery(PolicyQuery query) =>
       query.feedType == PolicyFeedType.favorite ||
+      query.feedType == PolicyFeedType.bookmarked ||
       query.feedType == PolicyFeedType.compare;
 
   List<Policy> _applyStatusFilter(PolicyFilter filter, List<Policy> list) {

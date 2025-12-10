@@ -1,62 +1,21 @@
-lib/features/map_v2/kakao_map_screen.dart:160:28: Error: The getter '_onCenterCardTap' isn't defined for the class '_KakaoMapScreenState'.
- - '_KakaoMapScreenState' is from 'package:youth_road_app/features/map_v2/kakao_map_screen.dart' ('lib/features/map_v2/kakao_map_screen.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named '_onCenterCardTap'.
-              onCenterTap: _onCenterCardTap,
-                           ^^^^^^^^^^^^^^^^
-lib/features/map_v2/kakao_map_screen.dart:521:9: Error: No named parameter with the name 'lat'.
-        lat: center.lat,
-        ^^^
-lib/features/map_v2/kakao_map_html_builder.dart:65:9: Context: Found this candidate, but the arguments don't match.
-  const KakaoMapMarker({
-        ^^^^^^^^^^^^^^
-lib/features/map_v2/kakao_map_screen.dart:528:8: Error: A value of type 'List<dynamic>' can't be returned from a function with return type 'List<KakaoMapMarker>'.
- - 'List' is from 'dart:core'.
- - 'KakaoMapMarker' is from 'package:youth_road_app/features/map_v2/kakao_map_html_builder.dart' ('lib/features/map_v2/kakao_map_html_builder.dart').
-    }).toList();
-       ^
-lib/features/map_v2/kakao_map_screen.dart:543:9: Error: No named parameter with the name 'strokeWidth'.
-        strokeWidth: 2,
-        ^^^^^^^^^^^
-lib/features/map_v2/kakao_map_html_builder.dart:96:9: Context: Found this candidate, but the arguments don't match.
-  const KakaoMapPolyline({
-        ^^^^^^^^^^^^^^^^
-lib/features/map_v2/kakao_map_screen.dart:534:38: Error: The getter 'lat' isn't defined for the class 'KakaoMapMarker'.
- - 'KakaoMapMarker' is from 'package:youth_road_app/features/map_v2/kakao_map_html_builder.dart' ('lib/features/map_v2/kakao_map_html_builder.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'lat'.
-        .map((m) => KakaoMapLatLng(m.lat, m.lng))
-                                     ^^^
-lib/features/map_v2/kakao_map_screen.dart:534:45: Error: The getter 'lng' isn't defined for the class 'KakaoMapMarker'.
- - 'KakaoMapMarker' is from 'package:youth_road_app/features/map_v2/kakao_map_html_builder.dart' ('lib/features/map_v2/kakao_map_html_builder.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'lng'.
-        .map((m) => KakaoMapLatLng(m.lat, m.lng))
-                                            ^^^
-lib/features/map_v2/kakao_map_screen.dart:553:7: Error: No named parameter with the name 'lat'.
-      lat: location.lat,
-      ^^^
-lib/features/map_v2/kakao_map_html_builder.dart:65:9: Context: Found this candidate, but the arguments don't match.
-  const KakaoMapMarker({
-        ^^^^^^^^^^^^^^
-lib/features/policy_new/application/controllers/base_feed_controller.dart:185:33: Error: The getter 'queryValue' isn't defined for the class 'PolicyStatusFilter'.
- - 'PolicyStatusFilter' is from 'package:youth_road_app/features/policy_new/domain/values/policy_status_filter.dart' ('lib/features/policy_new/domain/values/policy_status_filter.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'queryValue'.
-        'status=${filter.status.queryValue}, '
-                                ^^^^^^^^^^
-lib/features/policy_new/application/controllers/base_feed_controller.dart:266:48: Error: The getter 'queryValue' isn't defined for the class 'PolicyStatusFilter'.
- - 'PolicyStatusFilter' is from 'package:youth_road_app/features/policy_new/domain/values/policy_status_filter.dart' ('lib/features/policy_new/domain/values/policy_status_filter.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'queryValue'.
-      'status=${queryState.query.filter.status.queryValue}, '
-                                               ^^^^^^^^^^
-Target kernel_snapshot_program failed: Exception
+# ERROR06
 
+## 증상
+- `lib/features/map_v2/kakao_map_screen.dart`에서 `CenterListBottomSheet`에 연결한 `_onCenterCardTap` 콜백이 존재하지 않아 빌드가 중단된다.
+- 같은 파일에서 `KakaoMapMarker` 생성 시 `lat`/`lng` named parameter를 전달하고, `KakaoMapPolyline`에 `strokeWidth`를 넘겨 최신 시그니처와 맞지 않는다는 오류가 발생한다.
+- `PolicyStatusFilter`에 `queryValue` getter가 없다고 간주되어 `base_feed_controller.dart`의 디버그 로그 문자열 보간 부분이 모두 컴파일 에러를 일으킨다.
 
-FAILURE: Build failed with an exception.
+## 원인
+1. `KakaoMapMarker`가 `position: KakaoMapLatLng`을 받도록 API가 변경됐지만, 지도 화면은 여전히 `lat`/`lng` 개별 파라미터와 `marker.lat`/`marker.lng` 게터를 사용하고 있다.
+2. 경로/폴리라인 관련 API도 `strokeWidth` 대신 `strokeWeight`를 사용하도록 바뀌었는데, 기존 명칭을 그대로 호출하고 있다.
+3. 지도 하단 카드 클릭 시 지도를 이동/하이라이트하려는 `_onCenterCardTap` 핸들러가 선언되지 않았다.
+4. `PolicyStatusFilter`의 확장에 정의된 `queryValue`를 import하지 않았거나, 확장 자체가 누락돼 상태 로그 포맷팅 시 getter를 찾지 못한다.
 
-* What went wrong:
-Execution failed for task ':app:compileFlutterBuildDebug'.
-> Process 'command '/home/ssm-user/flutter/bin/flutter'' finished with non-zero exit value 1
+## 해결 방법
+1. 지도 마커 생성과 좌표 변환 로직을 `position: KakaoMapLatLng(lat, lng)` 기반으로 전환하고, 폴리라인 옵션은 `strokeWeight`를 사용한다. `markers.map((m) => m.position)` 형태로 경계 계산 로직도 수정한다.
+2. `_onCenterCardTap(CenterMarkerPoint center, int index)`를 `KakaoMapScreenState`에 추가해 선택한 센터 좌표로 카메라를 이동시키고, 필요하면 툴팁/선택 상태를 갱신하도록 구현한다.
+3. `PolicyStatusFilter` 확장을 제공하는 `policy_status_filter.dart`를 확실히 import하거나, 확장이 없다면 해당 파일에 `queryValue` getter를 추가해 API/로그가 일관된 값을 사용하도록 만든다.
 
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
+## 체크리스트
+- 위 수정 후 `flutter test` 또는 `flutter build`가 `kakao_map_screen.dart`와 관련된 파라미터/게터 에러 없이 통과한다.
+- 지도 카드 탭 시 카메라 이동과 툴팁 표시가 정상 동작하며, 비교/필터 관련 페이지에서 상태 로그가 깨지지 않는다.
