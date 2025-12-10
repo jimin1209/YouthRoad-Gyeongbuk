@@ -13,4 +13,10 @@ class AppEnv {
   static const kakaoMapApiKey = String.fromEnvironment('KAKAO_MAP_API_KEY');
   static const kakaoRestApiKey = String.fromEnvironment('KAKAO_REST_API_KEY');
   static const chatEndpoint = String.fromEnvironment('CHAT_ENDPOINT');
+
+  /// Kakao Map WebView baseUrl (카카오 콘솔 허용 도메인과 동일하게 설정 필요)
+  static const kakaoMapBaseUrl = String.fromEnvironment(
+    'KAKAO_MAP_BASE_URL',
+    defaultValue: 'https://www.gbyouth.co.kr',
+  );
 }
