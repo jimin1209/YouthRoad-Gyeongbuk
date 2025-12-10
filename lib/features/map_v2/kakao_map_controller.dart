@@ -108,6 +108,17 @@ class KakaoMapMessage {
   String? get errorCode => payload['code']?.toString();
   String? get errorDetail => payload['detail']?.toString();
   String? get logMessage => payload['message']?.toString();
+
+  @override
+  String toString() {
+    return 'KakaoMapMessage(type: $type, '
+        'code: ${errorCode ?? payload['code']}, '
+        'level: ${logLevel ?? 'n/a'}, '
+        'message: ${logMessage ?? payload['message'] ?? payload['detail']}, '
+        'payload: $payload, '
+        'origin: ${origin ?? 'unknown'}, '
+        'timestamp: ${timestamp?.toIso8601String() ?? 'n/a'})';
+  }
 }
 
 /// ─────────────────────────────────────────────────────────────────────────────
