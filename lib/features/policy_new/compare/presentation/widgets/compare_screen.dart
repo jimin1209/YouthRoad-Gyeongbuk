@@ -7,6 +7,7 @@ import '../../models/compare_state.dart';
 import 'compare_diff_table_widget.dart';
 import 'compare_header_row_widget.dart';
 import 'compare_summary_highlight.dart';
+import 'policy_compare_zoom_controls.dart';
 import '../../../../../ui/components/horizontal_overflow_container.dart';
 import '../../../../../ui/theme/app_colors.dart';
 import '../../../../../ui/theme/app_spacing.dart';
@@ -40,11 +41,22 @@ class _CompareScreenState extends State<CompareScreen> {
   final TransformationController _transformationController =
       TransformationController();
   final GlobalKey _viewerKey = GlobalKey();
-  static const double _minScale = 0.8;
+  static const double _initialScale = 0.8;
+  static const double _minScale = 0.4;
   static const double _maxScale = 2.5;
   static const double _zoomStep = 0.1;
   double _currentScale = 1.0;
   bool _isZoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('[CompareScreen] init');
+    _currentScale = _initialScale;
+    _transformationController.value =
+        Matrix4.identity()..scale(_initialScale);
+    debugPrint('[CompareZoom] init scale: $_initialScale');
+  }
 
   @override
   void dispose() {
@@ -173,9 +185,10 @@ class _CompareScreenState extends State<CompareScreen> {
 
   void _resetZoom() {
     setState(() {
-      _currentScale = 1.0;
+      _currentScale = _initialScale;
       _isZoomed = false;
-      _transformationController.value = Matrix4.identity();
+      _transformationController.value =
+          Matrix4.identity()..scale(_initialScale);
     });
   }
 
@@ -195,6 +208,7 @@ class _CompareScreenState extends State<CompareScreen> {
     final factor = clamped / (current > 0 ? current : 1.0);
     final renderBox = _viewerKey.currentContext?.findRenderObject() as RenderBox?;
     final focalPoint = renderBox?.size.center(Offset.zero);
+    debugPrint('[CompareZoom] setScale -> ${clamped.toStringAsFixed(2)}');
     final updatedMatrix = focalPoint != null
         ? (Matrix4.identity()
               ..translate(focalPoint.dx, focalPoint.dy)
@@ -264,13 +278,25 @@ class _ZoomableCompareContent extends StatelessWidget {
                 child: InteractiveViewer(
                   key: viewerKey,
                   transformationController: transformationController,
+                  clipBehavior: Clip.none,
                   boundaryMargin: const EdgeInsets.all(48),
                   minScale: minScale,
                   maxScale: maxScale,
                   panEnabled: isZoomed,
-                  onInteractionStart: (_) => onZoomStateChanged(true),
-                  onInteractionUpdate: (_) => onUpdateZoom(),
-                  onInteractionEnd: (_) => onInteractionEnd(),
+                  onInteractionStart: (details) {
+                    debugPrint(
+                        '[CompareZoom] onInteractionStart focal: ${details.localFocalPoint}');
+                    onZoomStateChanged(true);
+                  },
+                  onInteractionUpdate: (details) {
+                    debugPrint(
+                        '[CompareZoom] onInteractionUpdate scale: ${details.scale}, focal: ${details.localFocalPoint}');
+                    onUpdateZoom();
+                  },
+                  onInteractionEnd: (details) {
+                    debugPrint('[CompareZoom] onInteractionEnd');
+                    onInteractionEnd();
+                  },
                   child: SingleChildScrollView(
                     physics: scrollPhysics,
                     padding: const EdgeInsets.symmetric(
@@ -293,7 +319,7 @@ class _ZoomableCompareContent extends StatelessWidget {
           Positioned(
             right: AppSpacing.lg,
             top: AppSpacing.sm,
-            child: _ZoomControlBar(
+            child: PolicyCompareZoomControls(
               currentScale: currentScale,
               minScale: minScale,
               maxScale: maxScale,
@@ -303,78 +329,6 @@ class _ZoomableCompareContent extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ZoomControlBar extends StatelessWidget {
-  const _ZoomControlBar({
-    required this.currentScale,
-    required this.minScale,
-    required this.maxScale,
-    required this.onZoomIn,
-    required this.onZoomOut,
-    required this.onReset,
-  });
-
-  final double currentScale;
-  final double minScale;
-  final double maxScale;
-  final VoidCallback onZoomIn;
-  final VoidCallback onZoomOut;
-  final VoidCallback onReset;
-
-  @override
-  Widget build(BuildContext context) {
-    final scalePercent = (currentScale * 100).round();
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: '축소',
-              icon: const Icon(Icons.remove),
-              onPressed: currentScale <= minScale ? null : onZoomOut,
-            ),
-            InkWell(
-              onTap: onReset,
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                child: Text(
-                  '$scalePercent%',
-                  style: AppText.textTheme.labelMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ),
-            IconButton(
-              tooltip: '확대',
-              icon: const Icon(Icons.add),
-              onPressed: currentScale >= maxScale ? null : onZoomIn,
-            ),
-          ],
-        ),
       ),
     );
   }
