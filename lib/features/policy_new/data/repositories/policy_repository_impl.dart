@@ -36,7 +36,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int page,
     required int pageSize,
   }) {
-    final normalizedQuery = query.normalize();
+    final sanitizedQuery = _sanitizeQueryForExplore(query);
+    final normalizedQuery = sanitizedQuery.normalize();
     final normalizedFilter = normalizedQuery.filter;
     final normalizedPage = page < 1 ? 1 : page;
     final normalizedSize = pageSize <= 0 ? settings.pageSize : pageSize;
@@ -98,8 +99,17 @@ class PolicyRepositoryImpl implements PolicyRepository {
   }
 
   void _sanitizeParams(Map<String, dynamic> params) {
-    params.removeWhere((key, value) =>
-        value == null || (value is String && value.trim().isEmpty));
+    params.removeWhere((key, value) {
+      if (value == null) return true;
+      if (value is String) {
+        final trimmed = value.trim();
+        if (trimmed.isEmpty) return true;
+        if (key == 'searchPolicyType' && trimmed.toLowerCase() == 'all') {
+          return true;
+        }
+      }
+      return false;
+    });
   }
 
   @override
@@ -128,7 +138,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int page,
     required int pageSize,
   }) async {
-    final normalizedQuery = query.normalize();
+    final sanitizedQuery = _sanitizeQueryForExplore(query);
+    final normalizedQuery = sanitizedQuery.normalize();
     final effectivePageSize = pageSize == 0 ? settings.pageSize : pageSize;
     final scopeKey = normalizedQuery.cacheScopeKey;
 
@@ -162,29 +173,29 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
     if (settings.enableCache) {
       final cacheResult = _tryReturnCache(
-        cache.getPageWithStatus(
-          page,
-          settings.cacheTtl,
-          scope: scopeKey,
-        ),
-        () => _fetchAndCacheQuery(
-          query: normalizedQuery,
-          page: page,
-          pageSize: effectivePageSize,
-          scopeKey: scopeKey,
-        ),
-      );
+          cache.getPageWithStatus(
+            page,
+            settings.cacheTtl,
+            scope: scopeKey,
+          ),
+          () => _fetchAndCacheQuery(
+            query: normalizedQuery,
+            page: page,
+            pageSize: effectivePageSize,
+            scopeKey: scopeKey,
+          ),
+        );
 
       if (cacheResult != null) return cacheResult;
     }
 
-    debugPrint('[CACHE:MISS]');
-    return _fetchAndCacheQuery(
-      query: normalizedQuery,
-      page: page,
-      pageSize: effectivePageSize,
-      scopeKey: scopeKey,
-    );
+      debugPrint('[CACHE:MISS]');
+      return _fetchAndCacheQuery(
+        query: normalizedQuery,
+        page: page,
+        pageSize: effectivePageSize,
+        scopeKey: scopeKey,
+      );
   }
 
   Future<PolicyResult<List<Policy>>> _fetchAndCacheDefault(
@@ -201,15 +212,21 @@ class PolicyRepositoryImpl implements PolicyRepository {
       feedType: PolicyFeedType.all,
     );
 
+    final sanitizedDefaultQuery = _sanitizeQueryForExplore(defaultQuery);
+
     final result = await _fetchFromRemote(
-      query: defaultQuery,
+      query: sanitizedDefaultQuery,
       page: page,
       pageSize: effectivePageSize,
     );
 
     if (settings.enableCache && result.isSuccess && result.data != null) {
       cache.savePage(page, result.data!);
-      cache.savePageForScope(defaultQuery.cacheScopeKey, page, result.data!);
+      cache.savePageForScope(
+        sanitizedDefaultQuery.cacheScopeKey,
+        page,
+        result.data!,
+      );
     }
 
     return result;
@@ -221,7 +238,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int pageSize,
     required String scopeKey,
   }) async {
-    final normalizedQuery = query.normalize();
+    final sanitizedQuery = _sanitizeQueryForExplore(query);
+    final normalizedQuery = sanitizedQuery.normalize();
     final filter = normalizedQuery.filter;
 
     try {
@@ -272,14 +290,23 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int page,
     required int pageSize,
   }) async {
-    final scopeKey = query.cacheScopeKey;
+    final sanitizedQuery = _sanitizeQueryForExplore(query);
+    final scopeKey = sanitizedQuery.cacheScopeKey;
 
     final params = _buildQueryParameters(
-      query: query,
+      query: sanitizedQuery,
       page: page,
       pageSize: pageSize,
     );
     debugPrint('[Explore][Sanitized Params] $params');
+
+    if (_isExploreFeed(sanitizedQuery.feedType)) {
+      debugPrint(
+        '[Policy][Explore][FETCH] status=${sanitizedQuery.filter.status.queryValue}, '
+        'category=${sanitizedQuery.filter.category?.name ?? 'null'}, '
+        'keyword=${sanitizedQuery.keyword ?? '-'}, page=$page, size=$pageSize',
+      );
+    }
 
     try {
       logger.info(
@@ -289,11 +316,11 @@ class PolicyRepositoryImpl implements PolicyRepository {
       final models = await remote.fetchPoliciesWithParams(params);
       final domainList = models.map((e) => e.toDomain()).toList();
       final filteredByStatus =
-          _applyStatusFilter(query.filter, domainList);
-      final filtered = _isIdBasedQuery(query)
+          _applyStatusFilter(sanitizedQuery.filter, domainList);
+      final filtered = _isIdBasedQuery(sanitizedQuery)
           ? filteredByStatus
-          : _applyTagFilter(query, filteredByStatus);
-      final sorted = _applySorting(query.sort, filtered);
+          : _applyTagFilter(sanitizedQuery, filteredByStatus);
+      final sorted = _applySorting(sanitizedQuery.sort, filtered);
 
       logger.info(
         '원격 데이터 수신 (scope: $scopeKey, page: $page, '
@@ -476,6 +503,36 @@ class PolicyRepositoryImpl implements PolicyRepository {
   String _debugParams(Map<String, dynamic> params) {
     return params.entries.map((e) => '${e.key}=${e.value}').join(', ');
   }
+
+  PolicyQuery _sanitizeQueryForExplore(PolicyQuery query) {
+    if (!_isExploreFeed(query.feedType)) return query;
+
+    final sanitizedFilter = _sanitizeFilterForExplore(query.filter);
+    return query.copyWith(filter: sanitizedFilter);
+  }
+
+  PolicyFilter _sanitizeFilterForExplore(PolicyFilter filter) {
+    final sanitizedStatus = filter.status == PolicyStatusFilter.includeClosed
+        ? PolicyStatusFilter.inProgressOnly
+        : filter.status;
+    final sanitizedCategory = _sanitizeCategoryForExplore(filter.category);
+
+    return filter.copyWith(
+      status: sanitizedStatus,
+      category: sanitizedCategory,
+    );
+  }
+
+  PolicyCategory? _sanitizeCategoryForExplore(PolicyCategory? category) {
+    final categoryName = category?.name.toLowerCase();
+    if (categoryName == 'all') return null;
+    return category;
+  }
+
+  bool _isExploreFeed(PolicyFeedType feedType) =>
+      feedType == PolicyFeedType.all ||
+      feedType == PolicyFeedType.region ||
+      feedType == PolicyFeedType.search;
 
   String? _mapRegion(PolicyRegion region) {
     switch (region) {
