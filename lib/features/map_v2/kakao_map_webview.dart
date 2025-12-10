@@ -118,7 +118,17 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     _safeSetLoading(true);
 
     _scheduleReadyTimeout();
-    _safeLog('map load start');
+    _safeLog(
+      '[Map][INFO] map load start center=(${widget.center.lat}, ${widget.center.lng}), key=${_controller.apiKeyPreview}',
+    );
+
+    if (!_controller.hasApiKey) {
+      _safeLog('[Map][ERROR] KakaoMap API Key 가 없습니다. --dart-define 설정을 확인하세요.');
+      _safeSetLoading(false);
+      _safeMarkFatalError();
+      _safeCallback(() => widget.onError?.call('API_KEY_EMPTY'));
+      return;
+    }
 
     _controller
         .load(

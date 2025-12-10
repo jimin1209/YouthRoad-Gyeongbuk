@@ -213,7 +213,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         message = '주변 센터 정보를 불러오는 중입니다.';
         break;
       case YouthCenterMapStatus.empty:
-        message = '반경 20km 내 센터가 없습니다.';
+        message = '반경 20km 내 센터가 없습니다. 가장 가까운 센터 3곳을 보여드려요.';
         break;
       case YouthCenterMapStatus.error:
         message = null;
@@ -224,7 +224,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     }
 
     return IgnorePointer(
-      ignoring: !allowInteraction,
+      ignoring: allowInteraction,
       child: AnimatedOpacity(
         opacity: shouldShow ? 1 : 0,
         duration: const Duration(milliseconds: 200),
@@ -396,8 +396,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     _latestZoom = _locationZoomLevel;
     _deviceLocation = fromLocation ? center : _deviceLocation;
 
-    final notifier = ref.read(youthCenterMapStateProvider.notifier);
-    await notifier.loadCenters(center: center, radiusKm: _currentRadius);
+    await _refreshCentersFor(center, forceFetch: true);
 
     setState(() {
       _viewStatus = _mapReady
@@ -407,7 +406,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     });
 
     await _moveMap(center, level: _locationZoomLevel, animate: animate);
-    await _updateSearchCircle(_effectiveCircleCenter);
+    await _updateSearchCircle(_mapCenter);
   }
 
   Future<void> _retryLoadCenters() async {
@@ -416,12 +415,11 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
       _showLoadingOverlay = true;
     });
 
-    final notifier = ref.read(youthCenterMapStateProvider.notifier);
     final searchCenter = _deviceLocation ?? _mapCenter;
-    await notifier.loadCenters(center: searchCenter, radiusKm: _currentRadius);
+    await _refreshCentersFor(searchCenter, forceFetch: true);
 
     if (!mounted) return;
-    await _updateSearchCircle(_effectiveCircleCenter);
+    await _updateSearchCircle(_mapCenter);
 
     setState(() {
       _showLoadingOverlay = false;
@@ -448,6 +446,28 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     });
 
     _showLocationFallbackNotice(locationError);
+  }
+
+  Future<void> _refreshCentersFor(
+    KakaoMapLatLng center, {
+    bool forceFetch = false,
+  }) async {
+    final notifier = ref.read(youthCenterMapStateProvider.notifier);
+    final state = ref.read(youthCenterMapStateProvider);
+    final shouldFetch =
+        forceFetch || state.allCenters.isEmpty || state.status == YouthCenterMapStatus.error;
+
+    debugPrint(
+      '[Map][INFO] 중심 좌표 기준 센터 갱신 요청 center=(${center.lat}, ${center.lng}), '
+      'radiusKm=$_currentRadius, fetch=$shouldFetch',
+    );
+
+    if (shouldFetch) {
+      await notifier.loadCenters(center: center, radiusKm: _currentRadius);
+      return;
+    }
+
+    notifier.updateCenter(center, radiusKm: _currentRadius);
   }
 
   void _handleMarkerTap(String id) {
@@ -500,6 +520,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   }
 
   void _handleMapMoved(KakaoMapLatLng center, int zoom) {
+    debugPrint('[Map][INFO] onMapMoved lat=${center.lat}, lng=${center.lng}, zoom=$zoom');
     _latestCenterFromMove = center;
     _latestZoom = zoom;
     _moveDebounce?.cancel();
@@ -509,6 +530,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   Future<void> _onMapIdle() async {
     final target = _latestCenterFromMove;
     if (target == null) return;
+    debugPrint('[Map][INFO] map idle reached, center=(${target.lat}, ${target.lng}), zoom=$_latestZoom');
     setState(() {
       _mapCenter = target;
       _viewStatus = _mapReady
@@ -516,9 +538,9 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
           : KakaoMapViewStatus.mapReady;
     });
     _latestCenterFromMove = null;
+    await _refreshCentersFor(target);
+    await _updateSearchCircle(target);
   }
-
-  KakaoMapLatLng? get _effectiveCircleCenter => _deviceLocation ?? _mapCenter;
 
   Future<void> _moveMap(
     KakaoMapLatLng location, {
@@ -585,8 +607,15 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         _viewStatus = nextStatus;
       }
     });
+    debugPrint('[Map][INFO] WebView ready, updating overlays and position markers');
     if (_locationResolved) {
-      _updateSearchCircle(_effectiveCircleCenter);
+      _updateSearchCircle(_mapCenter);
+    }
+    final controller = ref.read(kakaoMapControllerProvider);
+    if (_deviceLocation != null) {
+      controller.showMyPosition(_deviceLocation!);
+    } else {
+      controller.showMyPosition(_mapCenter);
     }
   }
 
