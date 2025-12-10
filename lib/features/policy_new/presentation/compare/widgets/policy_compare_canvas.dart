@@ -2,14 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../../compare/controllers/compare_diff_service.dart';
-import '../../../../compare/models/compare_state.dart';
-import '../../../../compare/presentation/widgets/compare_diff_table_widget.dart';
-import '../../../../compare/presentation/widgets/compare_header_row_widget.dart';
-import '../../../../compare/presentation/widgets/compare_summary_highlight.dart';
-import '../../../../compare/presentation/widgets/policy_compare_zoom_controls.dart';
-import '../../../../ui/components/horizontal_overflow_container.dart';
-import '../../../../ui/theme/app_spacing.dart';
+import 'package:youth_road_app/features/policy_new/compare/controllers/compare_diff_service.dart';
+import 'package:youth_road_app/features/policy_new/compare/models/compare_state.dart';
+import 'package:youth_road_app/features/policy_new/compare/presentation/widgets/compare_diff_table_widget.dart';
+import 'package:youth_road_app/features/policy_new/compare/presentation/widgets/compare_header_row_widget.dart';
+import 'package:youth_road_app/features/policy_new/compare/presentation/widgets/compare_summary_highlight.dart';
+import 'package:youth_road_app/features/policy_new/compare/presentation/widgets/policy_compare_zoom_controls.dart';
+import 'package:youth_road_app/ui/components/horizontal_overflow_container.dart';
+import 'package:youth_road_app/ui/theme/app_spacing.dart';
 
 class PolicyCompareCanvas extends StatefulWidget {
   const PolicyCompareCanvas({

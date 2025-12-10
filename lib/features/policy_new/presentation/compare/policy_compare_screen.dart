@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../compare/application/providers.dart';
-import '../../compare/domain/values/policy_failure.dart';
+import '../../application/providers.dart';
+import '../../domain/values/policy_failure.dart';
 import '../../compare/presentation/widgets/compare_empty_widget.dart';
 import '../../compare/presentation/widgets/compare_need_more_widget.dart';
 import '../detail/policy_detail_bottom_sheet.dart';
