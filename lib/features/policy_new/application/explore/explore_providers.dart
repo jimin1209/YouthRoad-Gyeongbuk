@@ -97,8 +97,8 @@ class ExploreController extends StateNotifier<ExploreState> {
 
   void clearFilters() {
     debugPrint('[Explore] clearFilters');
-    final hasRegionSelection = ref.read(regionProvider)?.isNotEmpty ?? false;
     ref.read(globalFilterControllerProvider).resetAll();
+    final hasRegionSelection = ref.read(regionProvider)?.isNotEmpty ?? false;
     state = state.copyWith(
       mode: hasRegionSelection ? ExploreSubMode.region : ExploreSubMode.all,
       keyword: '',

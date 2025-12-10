@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../filters/policy_filter_ui_state.dart';
 import '../filters/policy_search_keyword_provider.dart';
 import '../../domain/values/policy_feed_type.dart';
+import '../../../application/notifiers/region_notifier.dart';
 
 class GlobalFilterController {
   GlobalFilterController(this.ref);
@@ -12,6 +13,7 @@ class GlobalFilterController {
   PolicyFilterUiState get state => ref.read(globalFilterProvider);
 
   void resetAll() {
+    ref.read(regionProvider.notifier).resetCity();
     ref.read(globalFilterProvider.notifier).resetAll();
     for (final type in PolicyFeedType.values) {
       ref.read(policySearchKeywordProvider(type).notifier).clear();
