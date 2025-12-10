@@ -169,9 +169,13 @@ class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
   void toggleOnlineOnly() =>
       state = state.copyWith(showOnlyOnline: !state.showOnlyOnline);
 
-  void setStatus(PolicyStatusFilter status) => state = state.copyWith(
-        status: status,
-      );
+  void setStatus(PolicyStatusFilter status) {
+    if (state.status == status) return;
+
+    state = state.copyWith(
+      status: status,
+    );
+  }
 
   void setInstitution({String? id, String? name}) => state = state.copyWith(
         institutionId: id,
