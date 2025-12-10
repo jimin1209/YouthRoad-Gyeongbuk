@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ui/widgets/app_appbar.dart';
+import 'kakao_map_controller.dart';
 import 'kakao_map_html_builder.dart';
 import 'kakao_map_webview.dart';
 
@@ -17,6 +18,16 @@ class _KakaoMapTestPageState extends ConsumerState<KakaoMapTestPage> {
   String? _lastError;
   bool _isLoading = true;
   int _readyCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _logControllerType();
+  }
+
+  void _logControllerType() {
+    debugPrint('[KakaoMapTestPage] controller type: ${KakaoMapController}');
+  }
 
   static const KakaoMapLatLng _testCenter = KakaoMapLatLng(37.5665, 126.9780);
   static const List<KakaoMapMarker> _testMarkers = [

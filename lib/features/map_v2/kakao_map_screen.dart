@@ -18,6 +18,7 @@ import '../center/presentation/center_detail_bottom_sheet.dart';
 import '../policy_new/data/mappers/youth_center_mapper.dart';
 import '../policy_new/presentation/map/youth_center_map_provider.dart';
 import 'current_location_provider.dart';
+import 'kakao_map_controller.dart';
 import 'kakao_map_html_builder.dart';
 import 'kakao_map_providers.dart';
 import 'kakao_map_webview.dart';
@@ -125,7 +126,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      final controller = ref.read(kakaoMapControllerProvider);
+      final KakaoMapController controller =
+          ref.read(kakaoMapControllerProvider);
       controller.reload();
     }
   }
@@ -567,7 +569,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen>
       return;
     }
     try {
-      final controller = ref.read(kakaoMapControllerProvider);
+      final KakaoMapController controller =
+          ref.read(kakaoMapControllerProvider);
       if (animate) {
         await controller.animateTo(location, level: level);
       } else {
@@ -590,7 +593,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen>
         '[Map][INFO] drawMyLocationCircle(center: ${center.lat}, ${center.lng}, '
         'radiusM: ${(_currentRadius * 1000).round()})',
       );
-      final controller = ref.read(kakaoMapControllerProvider);
+      final KakaoMapController controller =
+          ref.read(kakaoMapControllerProvider);
       await controller.updateCircle(
         center,
         radiusMeters: _currentRadius * 1000,
@@ -626,7 +630,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen>
     if (_locationResolved) {
       _updateSearchCircle(_mapCenter);
     }
-    final controller = ref.read(kakaoMapControllerProvider);
+    final KakaoMapController controller =
+        ref.read(kakaoMapControllerProvider);
     if (_deviceLocation != null) {
       controller.showMyPosition(_deviceLocation!);
     } else {

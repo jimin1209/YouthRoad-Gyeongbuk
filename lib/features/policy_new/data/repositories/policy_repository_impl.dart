@@ -31,6 +31,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required this.settings,
   });
 
+  // ===========================================================
+  // QUERY PARAM BUILDING
+  // ===========================================================
   Map<String, dynamic> _buildQueryParameters({
     required PolicyQuery query,
     required int page,
@@ -39,6 +42,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
     final sanitizedQuery = _sanitizeQueryForExplore(query);
     final normalizedQuery = sanitizedQuery.normalize();
     final normalizedFilter = normalizedQuery.filter;
+
     final normalizedPage = page < 1 ? 1 : page;
     final normalizedSize = pageSize <= 0 ? settings.pageSize : pageSize;
 
@@ -47,47 +51,60 @@ class PolicyRepositoryImpl implements PolicyRepository {
       'pageSize': normalizedSize,
       'recordCount': normalizedSize,
       'pagingYn': 'Y',
-      'searchDsplyYn': 'all',
+
+      // Explore = 반드시 Y (서버가 all/빈값 허용 안 함)
+      'searchDsplyYn': _isExploreFeed(normalizedQuery.feedType) ? 'Y' : 'all',
+
       'feed_type': normalizedQuery.feedType.name,
       'sort': normalizedQuery.sort.name,
     };
 
-    if (normalizedQuery.keyword != null && normalizedQuery.keyword!.isNotEmpty) {
+    // 검색어
+    if (normalizedQuery.keyword != null &&
+        normalizedQuery.keyword!.isNotEmpty) {
       params['searchPolicyNm'] = normalizedQuery.keyword;
     }
 
+    // REGION → searchRgnSe
     final isExploreFeed = _isExploreFeed(normalizedQuery.feedType);
     final regionValue = _regionParam(
       normalizedFilter,
       explore: isExploreFeed,
     );
-    if (regionValue != null) {
+
+    if (regionValue != null && regionValue.isNotEmpty) {
       params['searchRgnSe'] = regionValue;
     }
 
+    // STATUS
     final statusValue = _mapStatusParam(normalizedFilter.status);
     if (statusValue != null) {
       params['status'] = statusValue;
     }
 
+    // CATEGORY
     if (normalizedFilter.category != null) {
       params['searchPolicyType'] = _mapCategory(normalizedFilter.category!);
     }
 
+    // 온라인 여부
     if (normalizedFilter.isOnline != null) {
       params['aplyYn'] = normalizedFilter.isOnline! ? 'Y' : 'N';
     }
 
+    // 기관
     if (normalizedFilter.institutionId != null &&
         normalizedFilter.institutionId!.isNotEmpty) {
       params['instNo'] = normalizedFilter.institutionId;
     }
 
+    // 부서
     if (normalizedFilter.departmentId != null &&
         normalizedFilter.departmentId!.isNotEmpty) {
       params['deptNo'] = normalizedFilter.departmentId;
     }
 
+    // tags
     if (normalizedQuery.tags.isNotEmpty) {
       params['tags'] = normalizedQuery.tags.join(',');
     }
@@ -100,11 +117,12 @@ class PolicyRepositoryImpl implements PolicyRepository {
     return params;
   }
 
+  // searchRgnSe 삭제 금지
   void _sanitizeParams(Map<String, dynamic> params) {
     params.removeWhere((key, value) {
-      if (key == 'status' || key == 'searchRgnSe') {
-        return value == null;
-      }
+      if (key == 'status') return value == null;
+      if (key == 'searchRgnSe') return false;
+
       if (value == null) return true;
       if (value is String) {
         final trimmed = value.trim();
@@ -117,6 +135,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
     });
   }
 
+  // ===========================================================
+  // FETCHERS
+  // ===========================================================
   @override
   Future<PolicyResult<List<Policy>>> fetchPolicies({
     required int page,
@@ -145,17 +166,14 @@ class PolicyRepositoryImpl implements PolicyRepository {
   }) async {
     final sanitizedQuery = _sanitizeQueryForExplore(query);
     final normalizedQuery = sanitizedQuery.normalize();
+
     final effectivePageSize = pageSize == 0 ? settings.pageSize : pageSize;
     final scopeKey = normalizedQuery.cacheScopeKey;
 
     if (_isIdBasedQuery(normalizedQuery)) {
       if (settings.enableCache) {
         final cacheResult = _tryReturnCache(
-          cache.getPageWithStatus(
-            page,
-            settings.cacheTtl,
-            scope: scopeKey,
-          ),
+          cache.getPageWithStatus(page, settings.cacheTtl, scope: scopeKey),
           () => _fetchAndCacheByIds(
             query: normalizedQuery,
             page: page,
@@ -163,7 +181,6 @@ class PolicyRepositoryImpl implements PolicyRepository {
             scopeKey: scopeKey,
           ),
         );
-
         if (cacheResult != null) return cacheResult;
       }
 
@@ -178,40 +195,34 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
     if (settings.enableCache) {
       final cacheResult = _tryReturnCache(
-          cache.getPageWithStatus(
-            page,
-            settings.cacheTtl,
-            scope: scopeKey,
-          ),
-          () => _fetchAndCacheQuery(
-            query: normalizedQuery,
-            page: page,
-            pageSize: effectivePageSize,
-            scopeKey: scopeKey,
-          ),
-        );
-
+        cache.getPageWithStatus(page, settings.cacheTtl, scope: scopeKey),
+        () => _fetchAndCacheQuery(
+          query: normalizedQuery,
+          page: page,
+          pageSize: effectivePageSize,
+          scopeKey: scopeKey,
+        ),
+      );
       if (cacheResult != null) return cacheResult;
     }
 
-      debugPrint('[CACHE:MISS]');
-      return _fetchAndCacheQuery(
-        query: normalizedQuery,
-        page: page,
-        pageSize: effectivePageSize,
-        scopeKey: scopeKey,
-      );
+    debugPrint('[CACHE:MISS]');
+    return _fetchAndCacheQuery(
+      query: normalizedQuery,
+      page: page,
+      pageSize: effectivePageSize,
+      scopeKey: scopeKey,
+    );
   }
 
+  // -----------------------------------------------------------
+  // DEFAULT FETCH
+  // -----------------------------------------------------------
   Future<PolicyResult<List<Policy>>> _fetchAndCacheDefault(
     int page,
     int effectivePageSize,
   ) async {
-    // 기본 Query: 전체 탭, 기본 지역/정렬
-    final defaultFilter = PolicyFilter(
-      region: PolicyRegion.all,
-    );
-
+    final defaultFilter = PolicyFilter(region: PolicyRegion.all);
     final defaultQuery = PolicyQuery(
       filter: defaultFilter,
       feedType: PolicyFeedType.all,
@@ -237,6 +248,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
     return result;
   }
 
+  // -----------------------------------------------------------
+  // QUERY FETCH
+  // -----------------------------------------------------------
   Future<PolicyResult<List<Policy>>> _fetchAndCacheQuery({
     required PolicyQuery query,
     required int page,
@@ -249,7 +263,10 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
     try {
       logger.info(
-        '[Explore][INFO] fetchPoliciesByQuery(scope: $scopeKey, region: ${filter.region.name}/${filter.province}/${filter.city ?? '-'} (${filter.district ?? '-'}), status: ${filter.status.queryValue}, sort: ${normalizedQuery.sort.name}, keyword: ${normalizedQuery.keyword ?? '-'}, feed: ${normalizedQuery.feedType.name}, page: $page, size: $pageSize)',
+        '[Explore][INFO] fetchPoliciesByQuery(scope: $scopeKey, '
+        'region: ${filter.region.name}/${filter.province}/${filter.city ?? '-'} (${filter.district ?? '-'}), '
+        'status: ${filter.status.queryValue}, sort: ${normalizedQuery.sort.name}, keyword: ${normalizedQuery.keyword ?? '-'}, '
+        'feed: ${normalizedQuery.feedType.name}, page: $page, size: $pageSize)',
       );
 
       final result = await _fetchFromRemote(
@@ -270,6 +287,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
   }
 
+  // -----------------------------------------------------------
+  // ID-BASED FETCH
+  // -----------------------------------------------------------
   Future<PolicyResult<List<Policy>>> _fetchAndCacheByIds({
     required PolicyQuery query,
     required int page,
@@ -290,6 +310,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
     );
   }
 
+  // -----------------------------------------------------------
+  // REMOTE CALL
+  // -----------------------------------------------------------
   Future<PolicyResult<List<Policy>>> _fetchFromRemote({
     required PolicyQuery query,
     required int page,
@@ -303,6 +326,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
       page: page,
       pageSize: pageSize,
     );
+
     debugPrint('[Explore][Sanitized Params] $params');
 
     if (_isExploreFeed(sanitizedQuery.feedType)) {
@@ -320,6 +344,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
       final models = await remote.fetchPoliciesWithParams(params);
       final domainList = models.map((e) => e.toDomain()).toList();
+
       final filteredByStatus =
           _applyStatusFilter(sanitizedQuery.filter, domainList);
       final filtered = _isIdBasedQuery(sanitizedQuery)
@@ -328,18 +353,60 @@ class PolicyRepositoryImpl implements PolicyRepository {
       final sorted = _applySorting(sanitizedQuery.sort, filtered);
 
       logger.info(
-        '원격 데이터 수신 (scope: $scopeKey, page: $page, '
-        'fetched=${models.length}, filtered=${sorted.length})',
+        '원격 데이터 수신 (scope: $scopeKey, page: $page, fetched=${models.length}, filtered=${sorted.length})',
       );
 
       return PolicyResult.success(sorted);
     } catch (e, st) {
-      logger.error('원격 데이터 수신 실패 (scope: $scopeKey, page: $page)', e, st);
+      logger.error('원격 데이터 수신 실패', e, st);
       if (e is PolicyFailure) return PolicyResult.failure(e);
       return PolicyResult.failure(const UnknownFailure());
     }
   }
 
+  // ===========================================================
+  // MISSING METHOD #1 — fetchPolicyDetail
+  // ===========================================================
+  @override
+  Future<PolicyResult<Policy>> fetchPolicyDetail(String id) async {
+    try {
+      final model = await remote.fetchPolicyDetail(id);
+      final domain = model.toDomain();
+      return PolicyResult.success(domain);
+    } catch (e, st) {
+      logger.error('정책 상세 조회 실패', e, st);
+      if (e is PolicyFailure) return PolicyResult.failure(e);
+      return PolicyResult.failure(const UnknownFailure());
+    }
+  }
+
+  // ===========================================================
+  // MISSING METHOD #2 — _mapCategory
+  // ===========================================================
+  String _mapCategory(PolicyCategory category) {
+    switch (category) {
+      case PolicyCategory.employment:
+        return 'employment';
+      case PolicyCategory.startup:
+        return 'startup';
+      case PolicyCategory.housing:
+        return 'housing';
+      case PolicyCategory.life:
+        return 'life';
+      case PolicyCategory.education:
+        return 'education';
+      case PolicyCategory.welfare:
+        return 'welfare';
+      case PolicyCategory.culture:
+        return 'culture';
+      case PolicyCategory.other:
+        return 'other';
+    }
+  }
+
+  // ===========================================================
+  // MISSING METHOD #3 — _loadPoliciesByIds
+  // ===========================================================
   Future<PolicyResult<List<Policy>>> _loadPoliciesByIds({
     required List<String> ids,
     required int page,
@@ -347,36 +414,18 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required String scopeKey,
   }) async {
     try {
-      final start = (page - 1) * pageSize;
-      if (start >= ids.length) {
-        return PolicyResult.success(<Policy>[]);
-      }
-
-      final end = min(start + pageSize, ids.length);
-      final slice = ids.sublist(start, end);
-
-      final policies = <Policy>[];
-      for (final id in slice) {
-        final detail = await fetchPolicyDetail(id);
-        if (!detail.isSuccess || detail.data == null) {
-          return PolicyResult.failure(
-            detail.failure ?? const UnknownFailure(),
-          );
-        }
-        policies.add(detail.data!);
-      }
-
-      if (settings.enableCache) {
-        cache.savePageForScope(scopeKey, page, policies);
-      }
-
-      return PolicyResult.success(policies);
+      final models = await remote.fetchPoliciesByIds(ids);
+      final domainList = models.map((e) => e.toDomain()).toList();
+      return PolicyResult.success(domainList);
     } catch (e, st) {
-      logger.error('ID 기반 정책 조회 실패 (scope: $scopeKey, page: $page)', e, st);
+      logger.error('_loadPoliciesByIds 실패', e, st);
       if (e is PolicyFailure) return PolicyResult.failure(e);
       return PolicyResult.failure(const UnknownFailure());
     }
   }
+  // ===========================================================
+  // TAG FILTER / SORT HELPERS
+  // ===========================================================
 
   bool _isIdBasedQuery(PolicyQuery query) =>
       query.feedType == PolicyFeedType.favorite ||
@@ -393,12 +442,10 @@ class PolicyRepositoryImpl implements PolicyRepository {
       final start = policy.applicationStartDate;
       final end = policy.applicationEndDate;
 
-      final startDate = start == null
-          ? null
-          : DateTime(start.year, start.month, start.day);
-      final endDate = end == null
-          ? null
-          : DateTime(end.year, end.month, end.day);
+      final startDate =
+          start == null ? null : DateTime(start.year, start.month, start.day);
+      final endDate =
+          end == null ? null : DateTime(end.year, end.month, end.day);
 
       final hasStarted = startDate == null || !startDate.isAfter(today);
       final notEnded = endDate == null || !endDate.isBefore(today);
@@ -438,19 +485,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }).toList();
   }
 
-  @override
-  Future<PolicyResult<Policy>> fetchPolicyDetail(String id) async {
-    try {
-      logger.info('fetchPolicyDetail(id: $id) 호출');
-      final model = await remote.fetchPolicyDetail(id);
-      return PolicyResult.success(model.toDomain());
-    } catch (e, st) {
-      logger.error('fetchPolicyDetail 실패', e, st);
-      if (e is PolicyFailure) return PolicyResult.failure(e);
-      return PolicyResult.failure(const UnknownFailure());
-    }
-  }
-
+  // ===========================================================
+  // SORTING HELPERS
+  // ===========================================================
   List<Policy> _applySorting(PolicySortOption sort, List<Policy> list) {
     final sorted = List<Policy>.from(list);
 
@@ -461,9 +498,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
       return b.compareTo(a);
     }
 
-    DateTime? coalesce(DateTime? primary, DateTime? secondary) {
-      return primary ?? secondary;
-    }
+    DateTime? coalesce(DateTime? a, DateTime? b) => a ?? b;
 
     switch (sort) {
       case PolicySortOption.latest:
@@ -474,6 +509,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
           );
         });
         break;
+
       case PolicySortOption.recommendation:
         sorted.sort((a, b) {
           return compareDesc(
@@ -482,6 +518,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
           );
         });
         break;
+
       case PolicySortOption.deadline:
         sorted.sort((a, b) {
           final endA = a.applicationEndDate;
@@ -492,6 +529,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
           return endA.compareTo(endB);
         });
         break;
+
       case PolicySortOption.popularity:
         sorted.sort((a, b) {
           return compareDesc(
@@ -509,11 +547,16 @@ class PolicyRepositoryImpl implements PolicyRepository {
     return params.entries.map((e) => '${e.key}=${e.value}').join(', ');
   }
 
+  // ===========================================================
+  // EXPLORE SANITIZING / REGION MAPPING (한국어 버전)
+  // ===========================================================
+
   PolicyQuery _sanitizeQueryForExplore(PolicyQuery query) {
     if (!_isExploreFeed(query.feedType)) return query;
 
     final sanitizedFilter =
         _sanitizeFilterForExplore(query.filter, feedType: query.feedType);
+
     return query.copyWith(filter: sanitizedFilter);
   }
 
@@ -542,44 +585,27 @@ class PolicyRepositoryImpl implements PolicyRepository {
     );
   }
 
+  /// 🔥 Explore 기본 지역은 무조건 한글 "경상북도"
   String _mapSearchRgnSeForExplore(
     PolicyFilter filter,
     PolicyFeedType feedType,
   ) {
-    final normalizedExplicit = _normalizeRegionSegment(
-      filter.searchRgnSe,
-      allowEmpty: true,
-    );
-
-    if (normalizedExplicit != null) {
-      return normalizedExplicit;
-    }
-
-    if (feedType == PolicyFeedType.region) {
-      return 'region';
-    }
-
-    if (feedType == PolicyFeedType.all) {
-      return '';
-    }
+    final explicit = _normalizeRegionSegment(filter.searchRgnSe);
+    if (explicit != null && explicit.isNotEmpty) return explicit;
 
     final city = _normalizeRegionSegment(filter.city);
     final district = _normalizeRegionSegment(filter.district);
 
-    if (district != null && district.isNotEmpty) {
-      return district;
-    }
+    if (district != null && district.isNotEmpty) return district;
+    if (city != null && city.isNotEmpty) return city;
 
-    if (city != null && city.isNotEmpty) {
-      return city;
-    }
-
-    return '';
+    // Explore 기본 지역 고정: "경상북도"
+    return '경상북도';
   }
 
   PolicyCategory? _sanitizeCategoryForExplore(PolicyCategory? category) {
-    final categoryName = category?.name.toLowerCase();
-    if (categoryName == 'all') return null;
+    final name = category?.name.toLowerCase();
+    if (name == 'all') return null;
     return category;
   }
 
@@ -588,39 +614,24 @@ class PolicyRepositoryImpl implements PolicyRepository {
       feedType == PolicyFeedType.region ||
       feedType == PolicyFeedType.search;
 
-  String? _mapRegion(PolicyRegion region) {
-    switch (region) {
-      case PolicyRegion.seoul:
-        return 'seoul';
-      case PolicyRegion.busan:
-        return 'busan';
-      case PolicyRegion.daegu:
-        return 'daegu';
-      case PolicyRegion.incheon:
-        return 'incheon';
-      case PolicyRegion.gwangju:
-        return 'gwangju';
-      case PolicyRegion.daejeon:
-        return 'daejeon';
-      case PolicyRegion.ulsan:
-        return 'ulsan';
-      case PolicyRegion.gyeongbuk:
-        return 'gyeongbuk';
-      case PolicyRegion.all:
-        return null;
-    }
-  }
-
-  String? _regionParam(PolicyFilter filter, {bool explore = false}) {
+  /// 🔥 regionParam도 Explore면 무조건 "경상북도"
+  String? _regionParam(
+    PolicyFilter filter, {
+    bool explore = false,
+  }) {
     if (explore) {
-      final explicit = _normalizeRegionSegment(
-        filter.searchRgnSe,
-        allowEmpty: true,
-      );
-      if (explicit != null) {
-        return explicit;
-      }
+      final explicit = _normalizeRegionSegment(filter.searchRgnSe);
+      if (explicit != null && explicit.isNotEmpty) return explicit;
+
+      final city = _normalizeRegionSegment(filter.city);
+      final district = _normalizeRegionSegment(filter.district);
+      if (district != null && district.isNotEmpty) return district;
+      if (city != null && city.isNotEmpty) return city;
+
+      return '경상북도';
     }
+
+    // Explore 외 (즐겨찾기 등)에서만 사용
     final city = _normalizeRegionSegment(filter.city);
     final district = _normalizeRegionSegment(filter.district);
 
@@ -631,46 +642,48 @@ class PolicyRepositoryImpl implements PolicyRepository {
       return city;
     }
 
+    // 영어코드 → 한글 행정구역
     final effectiveRegion = filter.region == PolicyRegion.all
         ? settings.defaultRegion
         : filter.region;
-    final mappedRegion = _mapRegion(effectiveRegion);
-    if (mappedRegion != null && mappedRegion.isNotEmpty) {
-      return mappedRegion;
-    }
 
-    return null;
+    return _mapRegionToKorean(effectiveRegion);
   }
 
-  String? _normalizeRegionSegment(String? value, {bool allowEmpty = false}) {
-    if (value == null) return null;
-    final trimmed = value.trim();
-    if (trimmed.isEmpty || trimmed == '전체') {
-      return allowEmpty && trimmed.isEmpty ? '' : null;
-    }
+  String? _normalizeRegionSegment(String? v, {bool allowEmpty = false}) {
+    if (v == null) return null;
+    final trimmed = v.trim();
+    if (trimmed.isEmpty || trimmed == '전체') return null;
     return trimmed;
   }
 
-  String _mapCategory(PolicyCategory category) {
-    switch (category) {
-      case PolicyCategory.employment:
-        return '취업';
-      case PolicyCategory.startup:
-        return '창업';
-      case PolicyCategory.housing:
-        return '주거';
-      case PolicyCategory.life:
-        return '생활';
-      case PolicyCategory.education:
-        return '교육';
-      case PolicyCategory.welfare:
-        return '복지';
-      case PolicyCategory.culture:
-        return '문화';
-      case PolicyCategory.other:
-        return '기타';
+  /// 🔥 영어 region → 한글 행정구역으로 통일
+  String? _mapRegionToKorean(PolicyRegion region) {
+    switch (region) {
+      case PolicyRegion.seoul:
+        return '서울특별시';
+      case PolicyRegion.busan:
+        return '부산광역시';
+      case PolicyRegion.daegu:
+        return '대구광역시';
+      case PolicyRegion.incheon:
+        return '인천광역시';
+      case PolicyRegion.gwangju:
+        return '광주광역시';
+      case PolicyRegion.daejeon:
+        return '대전광역시';
+      case PolicyRegion.ulsan:
+        return '울산광역시';
+      case PolicyRegion.gyeongbuk:
+        return '경상북도';
+      case PolicyRegion.all:
+        return null;
     }
   }
+
+  // ===========================================================
+  // CACHE HELPERS
+  // ===========================================================
 
   PolicyResult<List<Policy>>? _tryReturnCache(
     CacheLookupResult? cached,

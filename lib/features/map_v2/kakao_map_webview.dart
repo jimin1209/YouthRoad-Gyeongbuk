@@ -73,11 +73,6 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
     final controller = _controller.webViewController;
     await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
     await controller.setBackgroundColor(Colors.transparent);
-    await controller.setWebSettings(const WebSettings(
-      allowsInlineMediaPlayback: true,
-      javascriptEnabled: true,
-      mixedContentMode: MixedContentMode.neverAllow,
-    ));
   }
 
   @override

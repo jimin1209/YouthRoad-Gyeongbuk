@@ -1,3 +1,11 @@
+// lib/features/map_v2/kakao_map_controller.dart
+// ─────────────────────────────────────────────────────────────
+// KakaoMapController
+// - WebViewController + KakaoMapHtmlBuilder
+// - window.kakaoMap / window.app JS 브릿지 제어
+// - onPageFinished 순서 보정: kakaoBootstrap → initializeMap
+// ─────────────────────────────────────────────────────────────
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -10,9 +18,9 @@ import 'package:webview_flutter_platform_interface/webview_flutter_platform_inte
 
 import 'kakao_map_html_builder.dart';
 
-/// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────────────────────────────────────────
 /// 이벤트 타입
-/// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────────────────────────────────────────
 enum KakaoMapEventType {
   ready,
   markerTap,
@@ -28,9 +36,9 @@ enum KakaoMapEventType {
   unknown,
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────────────────────────────────────────
 /// JS → Dart로 전달되는 메시지
-/// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────────────────────────────────────────
 class KakaoMapMessage {
   const KakaoMapMessage({
     required this.type,
@@ -122,9 +130,9 @@ class KakaoMapMessage {
   }
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────────────────────────────────────────
 /// Dart 쪽에서 사용하는 이벤트 래퍼
-/// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────────────────────────────────────────
 class KakaoMapEvent {
   const KakaoMapEvent(this.type, this.message);
 
@@ -132,7 +140,8 @@ class KakaoMapEvent {
   final KakaoMapMessage message;
 
   String? get markerId => message.markerId;
-  Map<String, dynamic>? get extra => message.payload['extra'] as Map<String, dynamic>?;
+  Map<String, dynamic>? get extra =>
+      message.payload['extra'] as Map<String, dynamic>?;
   KakaoMapLatLng? get position => message.position;
   int? get level => message.level;
   bool get loadingValue => message.loadingValue;
@@ -141,9 +150,9 @@ class KakaoMapEvent {
   String? get logMessage => message.logMessage;
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────────────────────────────────────────
 /// 마지막 load 파라미터 기억용
-/// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────────────────────────────────────────
 class _LoadRequest {
   const _LoadRequest({
     required this.center,
@@ -166,11 +175,11 @@ class _LoadRequest {
   final double searchRadiusMeters;
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────────────────────────────────────────
 /// KakaoMapController
 ///   - WebViewController + KakaoMapHtmlBuilder
-///   - window.kakaoMap.* 에 JS 호출
-/// ─────────────────────────────────────────────────────────────────────────────
+///   - window.kakaoMap / window.app 에 JS 호출
+/// ─────────────────────────────────────────────────────────────
 class KakaoMapController {
   KakaoMapController({
     required String apiKey,
@@ -262,7 +271,7 @@ class KakaoMapController {
   }
 
   /// ---------------------------------------------------------------------------
-  /// 초기 위치/반경 전달
+  /// 초기 위치/반경 전달 (window.app.setBasePosition)
   /// ---------------------------------------------------------------------------
   Future<void> initializeMap(
     KakaoMapLatLng basePosition, {
@@ -369,7 +378,7 @@ class KakaoMapController {
     return _runWhenReady(
       () => webViewController.runJavaScript(
         'window.kakaoMap && window.kakaoMap.highlightMarker && '
-            "window.kakaoMap.highlightMarker('$markerId', ${center.lat}, ${center.lng});",
+        "window.kakaoMap.highlightMarker('$markerId', ${center.lat}, ${center.lng});",
       ),
     );
   }
@@ -488,7 +497,9 @@ class KakaoMapController {
   void _logApiKey() {
     final masked = _maskApiKey(_apiKey);
     if (_apiKey.isEmpty) {
-      debugPrint('[Map][ERROR] KakaoMap API Key 가 비어 있습니다. --dart-define=KAKAO_MAP_API_KEY 값을 확인하세요.');
+      debugPrint(
+        '[Map][ERROR] KakaoMap API Key 가 비어 있습니다. --dart-define=KAKAO_MAP_API_KEY 값을 확인하세요.',
+      );
     }
     debugPrint('[KAKAO_MAP_WEBVIEW] Using KakaoMap API Key: $masked');
   }
@@ -545,7 +556,6 @@ class KakaoMapController {
   /// WebView 초기화
   /// ---------------------------------------------------------------------------
   void _initializeController() {
-
     final PlatformWebViewControllerCreationParams params;
     if (WebViewPlatform.instance is WebKitWebViewPlatform) {
       params = WebKitWebViewControllerCreationParams(
@@ -565,20 +575,41 @@ class KakaoMapController {
       )
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageFinished: (_) async {
+          onPageFinished: (url) async {
+            // 🔵 순서 중요:
+            // 1) kakaoBootstrap으로 kakao.maps + map + circleManager.map 준비
+            // 2) 그 다음 setBasePosition(=initializeMap) 호출 → circle + 파란 점 반영
             _ready = false;
-            final basePosition =
-                _lastLoadRequest?.basePosition ?? _lastLoadRequest?.center;
-            final radius = _lastLoadRequest?.searchRadiusMeters;
-            if (basePosition != null) {
-              await initializeMap(basePosition, radiusMeters: radius);
+            try {
+              await webViewController.runJavaScript(
+                'window.kakaoBootstrap && window.kakaoBootstrap();',
+              );
+            } catch (e, s) {
+              debugPrint('[KAKAO_MAP_WEBVIEW] kakaoBootstrap error: $e\n$s');
             }
-            await webViewController.runJavaScript(
-              'window.kakaoBootstrap && window.kakaoBootstrap();',
-            );
+
+            final base = _lastLoadRequest?.basePosition ??
+                _lastLoadRequest?.center ??
+                _basePosition;
+            final radius =
+                _lastLoadRequest?.searchRadiusMeters ?? _lastCircleRadius;
+
+            if (base != null) {
+              await initializeMap(base, radiusMeters: radius);
+            }
           },
           onWebResourceError: (error) {
             _handleWebResourceError(error);
+          },
+          onNavigationRequest: (request) {
+            // http 차단 (혼합 콘텐츠 최소 방어)
+            if (request.url.startsWith('http://')) {
+              debugPrint(
+                '[KAKAO_MAP_WEBVIEW][BLOCKED_HTTP] ${request.url}',
+              );
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
           },
         ),
       )

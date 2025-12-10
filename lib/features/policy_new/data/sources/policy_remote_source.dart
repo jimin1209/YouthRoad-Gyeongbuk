@@ -67,6 +67,18 @@ class PolicyRemoteSource {
     throw const ServerFailure('정책 상세 정보를 찾을 수 없습니다');
   }
 
+  Future<List<PolicyModel>> fetchPoliciesByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    try {
+      final futures = ids.map(fetchPolicyDetail);
+      return await Future.wait(futures);
+    } on PolicyFailure {
+      rethrow;
+    } catch (_) {
+      throw const UnknownFailure();
+    }
+  }
+
   Map<String, dynamic> _withDefaults(Map<String, dynamic> params) {
     final query = <String, dynamic>{
       'pageIndex': params['pageIndex'] ?? params['page'] ?? 1,

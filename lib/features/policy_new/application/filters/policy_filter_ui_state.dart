@@ -9,6 +9,9 @@ import '../../domain/values/policy_status_filter.dart';
 import '../reexplore/policy_reexplore.dart';
 import '../../../../application/notifiers/region_notifier.dart';
 
+/// ------------------------------------------------------------
+/// searchRgnSe 매핑 로직 (Explore 필터 핵심)
+/// ------------------------------------------------------------
 String mapSearchRgnSe(
   PolicyRegion region, {
   String? city,
@@ -17,16 +20,29 @@ String mapSearchRgnSe(
   final normalizedCity = _normalizeSearchRegionSegment(city);
   final normalizedDistrict = _normalizeSearchRegionSegment(district);
 
+  // 1) 읍면동 선택됨
   if (normalizedDistrict != null && normalizedDistrict.isNotEmpty) {
     return normalizedDistrict;
   }
 
+  // 2) 시/군 선택됨
   if (normalizedCity != null && normalizedCity.isNotEmpty) {
     return normalizedCity;
   }
 
-  if (region == PolicyRegion.all) return '';
-  return '';
+  // 3) 경북 전체
+  if (region == PolicyRegion.gyeongbuk) {
+    return 'gyeongbuk';
+  }
+
+  // 4) 전국(ALL) — Explore에서 빈 문자열은 절대 불가하므로 'gyeongbuk'로 보정
+  if (region == PolicyRegion.all) {
+    return 'gyeongbuk';
+  }
+
+  // 5) 기타 지역은 그 지역명을 사용해야 하나,
+  // YouthRoad는 경북 단일 서비스이므로 여기엔 도달하지 않는 것이 정상.
+  return 'gyeongbuk';
 }
 
 String? _normalizeSearchRegionSegment(String? value) {
@@ -36,6 +52,9 @@ String? _normalizeSearchRegionSegment(String? value) {
   return trimmed;
 }
 
+/// ------------------------------------------------------------
+/// UI State
+/// ------------------------------------------------------------
 @immutable
 class PolicyFilterUiState {
   final PolicyRegion region;
@@ -52,12 +71,13 @@ class PolicyFilterUiState {
   final String? departmentId;
   final String? departmentName;
 
-  /// Explore 탭 전용 서버 쿼리 변환용 상태 값
+  /// Explore 탭 전용 status 변환
   PolicyStatusFilter get exploreStatus =>
       status == PolicyStatusFilter.includeClosed
           ? PolicyStatusFilter.inProgressOnly
           : status;
 
+  /// Explore 탭 전용 category 변환
   PolicyCategory? get exploreCategory =>
       category?.name.toLowerCase() == 'all' ? null : category;
 
@@ -131,9 +151,11 @@ class PolicyFilterUiState {
     }
     return '$provinceLabel $cityName $districtName';
   }
-
 }
 
+/// ------------------------------------------------------------
+/// State Notifier
+/// ------------------------------------------------------------
 class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
   PolicyFilterUiStateNotifier({
     PolicyFilterUiState initialState = const PolicyFilterUiState(),
@@ -194,8 +216,11 @@ class PolicyFilterUiStateNotifier extends StateNotifier<PolicyFilterUiState> {
   PolicyFilterUiState applyFromDetail(
     Policy policy,
     PolicyReExploreMode mode,
-    PolicyFilterUiState Function(PolicyFilterUiState, Policy, PolicyReExploreMode)
-        builder,
+    PolicyFilterUiState Function(
+      PolicyFilterUiState,
+      Policy,
+      PolicyReExploreMode,
+    ) builder,
   ) {
     final next = builder(state, policy, mode);
     state = next;
@@ -237,6 +262,9 @@ final globalFilterProvider =
 @Deprecated('Use globalFilterProvider instead')
 final policyFilterUiStateProvider = globalFilterProvider;
 
+/// ------------------------------------------------------------
+/// 내부 헬퍼
+/// ------------------------------------------------------------
 String _provinceLabel(PolicyRegion region, String fallback) {
   switch (region) {
     case PolicyRegion.all:
@@ -258,8 +286,6 @@ String _provinceLabel(PolicyRegion region, String fallback) {
     case PolicyRegion.gyeongbuk:
       return '경북';
   }
-  // ignore: dead_code
-  return fallback.isEmpty ? '전체' : fallback;
 }
 
 String _provinceName(PolicyRegion region) {
