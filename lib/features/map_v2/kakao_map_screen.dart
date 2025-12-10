@@ -364,6 +364,24 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     );
   }
 
+  Future<void> _onCenterCardTap(
+    CenterMarkerPoint center,
+    int index,
+  ) async {
+    final target = KakaoMapLatLng(center.lat, center.lng);
+    await _moveMap(target, animate: true);
+    _showMarkerTooltip(center.name);
+    _showCenterDetailSheet(
+      markerId: 'CENTER-${center.id}',
+      name: center.name,
+      address: center.fullAddress,
+      phone: center.phone,
+      homepageUrl: center.url,
+      regionLabel: center.regionLabel,
+    );
+    setState(() => _mapCenter = target);
+  }
+
   void _handleMapMoved(KakaoMapLatLng center, int zoom) {
     _latestCenterFromMove = center;
     _latestZoom = zoom;
@@ -513,25 +531,29 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   }
 
   List<KakaoMapMarker> _buildCenterMarkers(List<CenterMarkerPoint> centers) {
-    return centers.map((center) {
-      final markerId = 'CENTER-${center.id}';
-      final iconBase64 = _centerMarkerIconBase64 ?? _centerMarkerFallbackBase64;
-      return KakaoMapMarker(
-        id: markerId,
-        lat: center.lat,
-        lng: center.lng,
-        title: center.name,
-        image: iconBase64,
-        width: 36,
-        height: 36,
-      );
-    }).toList();
+    final iconBase64 = _centerMarkerIconBase64 ?? _centerMarkerFallbackBase64;
+    final markerImage = KakaoMapMarkerImage(
+      url: 'data:image/png;base64,$iconBase64',
+      width: 36,
+      height: 36,
+    );
+
+    return centers
+        .map(
+          (center) => KakaoMapMarker(
+            id: 'CENTER-${center.id}',
+            position: KakaoMapLatLng(center.lat, center.lng),
+            title: center.name,
+            image: markerImage,
+          ),
+        )
+        .toList();
   }
 
   List<KakaoMapPolyline> _polylinesFromMarkers(List<KakaoMapMarker> markers) {
     if (markers.length < 2) return const [];
     final points = markers
-        .map((m) => KakaoMapLatLng(m.lat, m.lng))
+        .map((m) => KakaoMapLatLng(m.position.lat, m.position.lng))
         .toList(growable: false);
     final hull = _convexHull(points);
     return [
@@ -540,7 +562,7 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
         points: hull,
         strokeColor: '#3B82F6',
         strokeOpacity: 0.5,
-        strokeWidth: 2,
+        strokeWeight: 2,
       ),
     ];
   }
@@ -550,12 +572,13 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     if (location == null) return null;
     return KakaoMapMarker(
       id: 'USER-LOCATION',
-      lat: location.lat,
-      lng: location.lng,
+      position: KakaoMapLatLng(location.lat, location.lng),
       title: '내 위치',
-      image: _userLocationMarkerBase64,
-      width: 36,
-      height: 36,
+      image: KakaoMapMarkerImage(
+        url: 'data:image/png;base64,$_userLocationMarkerBase64',
+        width: 36,
+        height: 36,
+      ),
     );
   }
 
