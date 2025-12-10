@@ -49,29 +49,18 @@ class PolicyQueryOrchestrator {
   }
 
   PolicyQuery _buildRecommendQuery() {
-    final baseTags = _ui.tags.isNotEmpty ? _ui.tags : _profile.recommendTags;
-    final behaviorTags = _behavior.topTags();
-
-    final combinedTags = <String>[];
-    void addAll(List<String> source) {
-      for (final tag in source) {
-        if (!combinedTags.contains(tag)) {
-          combinedTags.add(tag);
-        }
-      }
-    }
-
-    addAll(baseTags);
-    addAll(behaviorTags);
+    final manualTags = List<String>.unmodifiable(_ui.tags);
+    final regionForRecommend = _ui.regionForApi;
 
     return PolicyQuery(
       feedType: PolicyFeedType.recommend,
       filter: _buildFilterFromUi(
-        region: _ui.region == PolicyRegion.all ? _profile.region : _ui.region,
-        tags: baseTags,
+        region: regionForRecommend,
+        tags: manualTags,
         age: _profile.age,
+        status: PolicyStatusFilter.inProgressOnly,
       ),
-      tags: combinedTags,
+      tags: manualTags,
       sort: PolicySortOption.recommendation,
     ).normalize();
   }
@@ -148,6 +137,7 @@ class PolicyQueryOrchestrator {
     PolicyRegion? region,
     List<String>? tags,
     int? age,
+    PolicyStatusFilter? status,
   }) {
     final resolvedRegion = region ?? _ui.region;
     final regionNotifier = ref.read(regionProvider.notifier);
@@ -171,7 +161,7 @@ class PolicyQueryOrchestrator {
       institutionId: _ui.institutionId,
       departmentId: _ui.departmentId,
       tags: tags ?? _ui.tags,
-      status: _ui.status,
+      status: status ?? _ui.status,
       age: age,
     );
   }

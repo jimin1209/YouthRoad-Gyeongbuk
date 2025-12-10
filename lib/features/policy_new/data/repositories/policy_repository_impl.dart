@@ -58,12 +58,17 @@ class PolicyRepositoryImpl implements PolicyRepository {
     // Filter → API 파라미터 매핑
     final filter = normalizedFilter;
 
-    final regionValue = _regionParam(filter);
+    final regionValue = _regionParam(filter, normalizedQuery.feedType);
     if (regionValue != null && regionValue.isNotEmpty) {
       params['searchRgnSe'] = regionValue;
     }
 
-    params['status'] = normalizedFilter.status.queryValue;
+    final statusValue = normalizedFilter.status == PolicyStatusFilter.includeClosed
+        ? null
+        : normalizedFilter.status.queryValue;
+    if (statusValue != null && statusValue.isNotEmpty) {
+      params['status'] = statusValue;
+    }
 
     if (filter.category != null) {
       params['searchPolicyType'] = _mapCategory(filter.category!);
@@ -89,7 +94,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['tags'] = normalizedQuery.tags.join(',');
     }
 
-    if (filter.tags.isNotEmpty) {
+    if (filter.tags.isNotEmpty &&
+        normalizedQuery.feedType != PolicyFeedType.recommend) {
       params['filterTags'] = filter.tags.join(',');
     }
 
@@ -273,6 +279,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
       page: page,
       pageSize: pageSize,
     );
+    final logTag = query.feedType == PolicyFeedType.recommend ? 'Recommend' : 'Explore';
+    debugPrint('[$logTag][Sanitized Params] $params');
 
     try {
       logger.info(
@@ -493,13 +501,21 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
   }
 
-  String? _regionParam(PolicyFilter filter) {
+  String? _regionParam(PolicyFilter filter, PolicyFeedType feedType) {
     final city = filter.city?.trim();
-    if (city != null && city.isNotEmpty) {
+    final district = filter.district?.trim();
+
+    if (feedType != PolicyFeedType.recommend && city != null && city.isNotEmpty) {
+      if (district != null && district.isNotEmpty) {
+        return '$city|$district';
+      }
       return city;
     }
 
-    final mappedRegion = _mapRegion(filter.region);
+    final effectiveRegion = feedType == PolicyFeedType.recommend
+        ? filter.region
+        : (filter.region == PolicyRegion.all ? settings.defaultRegion : filter.region);
+    final mappedRegion = _mapRegion(effectiveRegion);
     if (mappedRegion != null && mappedRegion.isNotEmpty) {
       return mappedRegion;
     }

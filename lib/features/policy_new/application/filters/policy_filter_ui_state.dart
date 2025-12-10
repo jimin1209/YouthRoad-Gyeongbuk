@@ -77,6 +77,9 @@ class PolicyFilterUiState {
     );
   }
 
+  PolicyRegion get regionForApi =>
+      region == PolicyRegion.all ? PolicyRegion.gyeongbuk : region;
+
   String get regionSummary {
     if (region == PolicyRegion.all) return '전체';
 
