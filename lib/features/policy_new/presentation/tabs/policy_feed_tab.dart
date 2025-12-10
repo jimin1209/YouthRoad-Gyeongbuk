@@ -59,7 +59,9 @@ class _PolicyFeedTabState extends ConsumerState<PolicyFeedTab> {
     final queryState = ref.watch(policyQueryProvider(widget.feedType));
     final compareCount = ref.watch(compareRepositoryProvider).ids.length;
     final showCompareBar =
-        widget.feedType == PolicyFeedType.favorite && compareCount > 0;
+        (widget.feedType == PolicyFeedType.favorite ||
+                widget.feedType == PolicyFeedType.bookmarked) &&
+            compareCount > 0;
 
     final summaryText = queryState.summary;
     final filterKey = queryState.hash;

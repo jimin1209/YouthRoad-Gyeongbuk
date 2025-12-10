@@ -119,7 +119,8 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
         feedType: widget.feedType,
       );
     } else if (!state.isLoading && visibleItems.isEmpty) {
-      if (widget.feedType == PolicyFeedType.favorite) {
+      if (widget.feedType == PolicyFeedType.favorite ||
+          widget.feedType == PolicyFeedType.bookmarked) {
         content = PolicyListEmpty(
           key: const ValueKey('policy-list-empty-favorite'),
           message:
@@ -233,6 +234,11 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
           ref.watch(favoriteFeedControllerProvider),
           ref.read(favoriteFeedControllerProvider.notifier),
         );
+      case PolicyFeedType.bookmarked:
+        return (
+          ref.watch(bookmarkedFeedControllerProvider),
+          ref.read(bookmarkedFeedControllerProvider.notifier),
+        );
       case PolicyFeedType.compare:
         throw UnsupportedError('Compare feed는 별도 화면을 사용합니다.');
     }
@@ -250,6 +256,8 @@ class _PolicyFeedListViewState extends ConsumerState<PolicyFeedListView>
         return ref.read(searchFeedControllerProvider.notifier);
       case PolicyFeedType.favorite:
         return ref.read(favoriteFeedControllerProvider.notifier);
+      case PolicyFeedType.bookmarked:
+        return ref.read(bookmarkedFeedControllerProvider.notifier);
       case PolicyFeedType.compare:
         throw UnsupportedError('Compare feed는 별도 화면을 사용합니다.');
     }

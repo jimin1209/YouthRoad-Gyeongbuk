@@ -30,7 +30,7 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
   final List<({String label, PolicyFeedType type})> _tabs = const [
     (label: '추천', type: PolicyFeedType.recommend),
     (label: '탐색', type: PolicyFeedType.all),
-    (label: '보관함', type: PolicyFeedType.favorite),
+    (label: '보관함', type: PolicyFeedType.bookmarked),
   ];
 
   @override
@@ -64,7 +64,9 @@ class _PolicyFeedHomeScreenState extends ConsumerState<PolicyFeedHomeScreen>
     final compareRepo = ref.watch(compareRepositoryProvider);
     final compareCount = compareRepo.ids.length;
     final showCompareBar =
-        currentFeedType == PolicyFeedType.favorite && compareCount > 0;
+        (currentFeedType == PolicyFeedType.favorite ||
+            currentFeedType == PolicyFeedType.bookmarked) &&
+        compareCount > 0;
 
     return Scaffold(
       appBar: AppBar(
