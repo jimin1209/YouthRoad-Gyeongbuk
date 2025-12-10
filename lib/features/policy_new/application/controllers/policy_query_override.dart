@@ -18,8 +18,6 @@ class PolicyQueryOverrideNotifier
 
   final Ref ref;
 
-  String? _hash;
-
   PolicyFilterUiState applyFromDetail({
     required Policy policy,
     required PolicyReExploreMode mode,
@@ -32,20 +30,11 @@ class PolicyQueryOverrideNotifier
       filter,
       feedType: feedType,
     );
-    _hash = queryState.hash;
     state = PolicyQueryOverride(queryState: queryState);
     return filter;
   }
 
-  void ensureActiveForHash(String hash) {
-    if (_hash != null && _hash != hash) {
-      _hash = null;
-      state = null;
-    }
-  }
-
   void clear() {
-    _hash = null;
     state = null;
   }
 }
