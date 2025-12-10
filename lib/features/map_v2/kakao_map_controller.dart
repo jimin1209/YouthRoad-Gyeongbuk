@@ -577,6 +577,9 @@ class KakaoMapController {
               'window.kakaoBootstrap && window.kakaoBootstrap();',
             );
           },
+          onWebResourceError: (error) {
+            _handleWebResourceError(error);
+          },
         ),
       )
       ..setOnConsoleMessage(
@@ -642,6 +645,20 @@ class KakaoMapController {
     }
 
     _emitEvent(event);
+  }
+
+  void _handleWebResourceError(WebResourceError error) {
+    final logMessage = KakaoMapMessage(
+      type: 'error',
+      payload: {
+        'code': error.errorCode,
+        'detail': error.description,
+      },
+      logLevel: 'error',
+      origin: 'kakao-map-webview',
+      timestamp: DateTime.now(),
+    );
+    _emitEvent(KakaoMapEvent(KakaoMapEventType.error, logMessage));
   }
 
   void _handleErrorCode(String? code, [String? detail]) {

@@ -69,11 +69,23 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
   bool get _isSafeToUpdateUI =>
       SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle;
 
+  Future<void> _configureWebView() async {
+    final controller = _controller.webViewController;
+    await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+    await controller.setBackgroundColor(Colors.transparent);
+    await controller.setWebSettings(const WebSettings(
+      allowsInlineMediaPlayback: true,
+      javascriptEnabled: true,
+      mixedContentMode: MixedContentMode.neverAllow,
+    ));
+  }
+
   @override
   void initState() {
     super.initState();
 
     _controller = ref.read(kakaoMapControllerProvider);
+    Future.microtask(_configureWebView);
     _eventSub = _controller.events.listen(_handleEvent);
 
     _safeLog('WebView init()');

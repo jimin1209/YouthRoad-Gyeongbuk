@@ -176,6 +176,7 @@ class KakaoMapHtmlBuilder {
 <html lang="ko">
 <head>
 <meta charset="utf-8"/>
+<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <style>
   html, body { margin:0; padding:0; width:100%; height:100%; }
@@ -385,6 +386,7 @@ class KakaoMapHtmlBuilder {
 
   window.kakaoBootstrap = function(overridePayload) {
     ensureFlutterBridge();
+    console.log("[KakaoMap] SDK loaded:", !!window.kakao, !!window.kakao.maps);
     if (!window.kakao || !window.kakao.maps) {
       _post({type:'error', payload:{code:'sdkFail', detail:'kakao.maps not available'}});
       return;
