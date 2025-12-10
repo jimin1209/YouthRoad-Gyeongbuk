@@ -263,8 +263,15 @@ abstract class BasePolicyFeedController
       return;
     }
 
+    final fetchPrefix = (feedType == PolicyFeedType.all ||
+            feedType == PolicyFeedType.region ||
+            feedType == PolicyFeedType.search)
+        ? '[Policy][Explore][FETCH]'
+        : '[Feed][FETCH]';
+
     debugPrint(
-      '[Feed][FETCH] feed=${feedType.name}, '
+      '$fetchPrefix feed=${feedType.name}, '
+      'queryFeed=${queryState.query.feedType.name}, '
       'status=${queryState.query.filter.status.queryValue}, '
       'region=${queryState.query.filter.region.name}/${queryState.query.filter.province}/${queryState.query.filter.city ?? '-'} '
       '(${queryState.query.filter.district ?? '-'}), '
