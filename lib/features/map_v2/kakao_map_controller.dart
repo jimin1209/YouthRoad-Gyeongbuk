@@ -486,7 +486,7 @@ class KakaoMapController {
       )
       ..setOnConsoleMessage(
         (message) {
-          final levelTag = message.level == ConsoleMessageLevel.error
+          final levelTag = message.level == JavaScriptConsoleMessageLevel.error
               ? '[MapBridge][ERROR]'
               : '[MapBridge][INFO]';
           debugPrint('$levelTag ${message.message}');

@@ -22,7 +22,8 @@ class _DebugPanelHostState extends ConsumerState<DebugPanelHost> {
   @override
   void initState() {
     super.initState();
-    _enabledSub = ref.listen<bool>(debugPanelEnabledProvider, (prev, next) {
+    _enabledSub =
+        ref.listenManual<bool>(debugPanelEnabledProvider, (prev, next) {
       if (!next && _overlayVisible) {
         setState(() {
           _overlayVisible = false;

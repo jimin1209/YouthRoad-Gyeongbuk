@@ -28,3 +28,8 @@ Execution failed for task ':app:compileFlutterBuildDebug'.
 > Get more help at https://help.gradle.org.
 
 BUILD FAILED in 15s
+
+## 조치 내역
+- `ref.listen` 이 반환값이 없는 API라서 구독을 변수에 담을 수 없어 발생한 오류 → `ref.listenManual`로 교체하여 `ProviderSubscription`을 획득하고 `dispose` 시 안전하게 정리하도록 수정.
+- 비교 테이블에서 참조하던 `CompareDiffService.columnWidth` 상수가 누락되어 있었음 → 서비스에 `columnWidth` 상수(240.0)를 추가하여 헤더/테이블에서 동일한 폭을 사용하도록 함.
+- `WebViewController`의 콘솔 레벨 enum 이름이 변경되어 참조 실패 → `ConsoleMessageLevel` 대신 `JavaScriptConsoleMessageLevel`을 사용하도록 변경하여 콘솔 메시지 레벨 비교가 동작하도록 수정.
