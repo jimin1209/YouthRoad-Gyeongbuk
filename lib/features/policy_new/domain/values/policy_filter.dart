@@ -3,6 +3,7 @@ import 'policy_category.dart';
 import 'policy_region.dart';
 
 class PolicyFilter {
+  final String? searchRgnSe;
   final PolicyRegion region;
   final String province;
   final String? city;
@@ -17,6 +18,7 @@ class PolicyFilter {
   final PolicyStatusFilter status;
 
   const PolicyFilter({
+    this.searchRgnSe,
     this.region = PolicyRegion.all,
     this.province = '경상북도',
     this.city,
@@ -44,6 +46,7 @@ class PolicyFilter {
 
   PolicyFilter normalize() {
     return PolicyFilter(
+      searchRgnSe: searchRgnSe,
       region: region,
       province: province,
       city: city,
@@ -72,8 +75,10 @@ class PolicyFilter {
     String? institutionId,
     String? departmentId,
     PolicyStatusFilter? status,
+    String? searchRgnSe,
   }) {
     return PolicyFilter(
+      searchRgnSe: searchRgnSe ?? this.searchRgnSe,
       region: region ?? this.region,
       province: province ?? this.province,
       city: city ?? this.city,

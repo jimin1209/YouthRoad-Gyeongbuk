@@ -45,7 +45,10 @@ class PolicyQueryOrchestrator {
   }
 
   PolicyQuery _buildAllQuery(String keyword) {
-    final filter = _buildFilterFromUi(applyExploreSanitizer: true);
+    final filter = _buildFilterFromUi(
+      applyExploreSanitizer: true,
+      searchRgnSe: _resolveExploreSearchRegion(_ui.region),
+    );
 
     return PolicyQuery(
       feedType: PolicyFeedType.all,
@@ -60,6 +63,7 @@ class PolicyQueryOrchestrator {
     final filter = _buildFilterFromUi(
       region: region,
       applyExploreSanitizer: true,
+      searchRgnSe: _resolveExploreSearchRegion(region),
     );
 
     return PolicyQuery(
@@ -70,7 +74,10 @@ class PolicyQueryOrchestrator {
   }
 
   PolicyQuery _buildSearchQuery(String keyword) {
-    final filter = _buildFilterFromUi(applyExploreSanitizer: true);
+    final filter = _buildFilterFromUi(
+      applyExploreSanitizer: true,
+      searchRgnSe: _resolveExploreSearchRegion(_ui.region),
+    );
 
     return PolicyQuery(
       feedType: PolicyFeedType.search,
@@ -114,6 +121,7 @@ class PolicyQueryOrchestrator {
     List<String>? tags,
     int? age,
     PolicyStatusFilter? status,
+    String? searchRgnSe,
     bool applyExploreSanitizer = false,
   }) {
     final resolvedRegion = region ?? _ui.region;
@@ -141,6 +149,7 @@ class PolicyQueryOrchestrator {
         : null;
 
     return PolicyFilter(
+      searchRgnSe: searchRgnSe,
       region: resolvedRegion,
       province: resolvedProvince,
       city: resolvedCity,
@@ -159,6 +168,35 @@ class PolicyQueryOrchestrator {
     final categoryName = category?.name.toLowerCase();
     if (categoryName == 'all') return null;
     return category;
+  }
+
+  String? _resolveExploreSearchRegion(PolicyRegion region) {
+    final notifier = ref.read(regionProvider.notifier);
+    final city = _normalizeRegionSegment(notifier.selectedCity);
+    final district = _normalizeRegionSegment(notifier.selectedDistrict);
+
+    if (city != null && city.isNotEmpty) {
+      if (district != null && district.isNotEmpty) {
+        return '$city|$district';
+      }
+      return city;
+    }
+
+    if (region == PolicyRegion.all) return null;
+
+    if (region == PolicyRegion.gyeongbuk) {
+      final province = notifier.selectedProvince.trim();
+      if (province.isNotEmpty) return province;
+    }
+
+    return _displayRegionName(region);
+  }
+
+  String? _normalizeRegionSegment(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed == '전체') return null;
+    return trimmed;
   }
 
   String _provinceName(PolicyRegion region, {required String fallback}) {
@@ -181,6 +219,29 @@ class PolicyQueryOrchestrator {
         return '울산';
       case PolicyRegion.gyeongbuk:
         return fallback.isEmpty ? '경상북도' : fallback;
+    }
+  }
+
+  String _displayRegionName(PolicyRegion region) {
+    switch (region) {
+      case PolicyRegion.all:
+        return '전국';
+      case PolicyRegion.seoul:
+        return '서울';
+      case PolicyRegion.busan:
+        return '부산';
+      case PolicyRegion.daegu:
+        return '대구';
+      case PolicyRegion.incheon:
+        return '인천';
+      case PolicyRegion.gwangju:
+        return '광주';
+      case PolicyRegion.daejeon:
+        return '대전';
+      case PolicyRegion.ulsan:
+        return '울산';
+      case PolicyRegion.gyeongbuk:
+        return '경상북도';
     }
   }
 }

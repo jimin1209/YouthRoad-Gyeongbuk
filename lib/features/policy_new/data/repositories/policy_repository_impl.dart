@@ -56,7 +56,11 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['searchPolicyNm'] = normalizedQuery.keyword;
     }
 
-    final regionValue = _regionParam(normalizedFilter);
+    final isExploreFeed = _isExploreFeed(normalizedQuery.feedType);
+    final regionValue = _regionParam(
+      normalizedFilter,
+      explore: isExploreFeed,
+    );
     if (regionValue != null && regionValue.isNotEmpty) {
       params['searchRgnSe'] = regionValue;
     }
@@ -557,7 +561,13 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
   }
 
-  String? _regionParam(PolicyFilter filter) {
+  String? _regionParam(PolicyFilter filter, {bool explore = false}) {
+    if (explore) {
+      final explicit = _normalizeRegionSegment(filter.searchRgnSe);
+      if (explicit != null) {
+        return explicit;
+      }
+    }
     final city = filter.city?.trim();
     final district = filter.district?.trim();
 
@@ -577,6 +587,13 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
 
     return null;
+  }
+
+  String? _normalizeRegionSegment(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed == '전체') return null;
+    return trimmed;
   }
 
   String _mapCategory(PolicyCategory category) {
