@@ -20,14 +20,7 @@ class SearchLabelBuildContext {
   }
 
   static String filterLabelFromStatus(PolicyStatusFilter status) {
-    switch (status) {
-      case PolicyStatusFilter.inProgressOnly:
-        return '진행중';
-      case PolicyStatusFilter.includeClosed:
-        return '마감 포함';
-      case PolicyStatusFilter.closedOnly:
-        return '마감된 정책';
-    }
+    return status.summaryLabel;
   }
 
   static String sortLabel(PolicySortOption sort) {

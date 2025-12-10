@@ -218,14 +218,9 @@ class _PolicyFilterBottomSheetState
   List<_SelectedFilterItem> _buildSelectedItems() {
     final items = <_SelectedFilterItem>[];
 
-    if (_status == PolicyStatusFilter.inProgressOnly) {
-      items.add(const _SelectedFilterItem(
-        label: '모집 중',
-        type: _FilterType.status,
-      ));
-    } else if (_status == PolicyStatusFilter.closedOnly) {
-      items.add(const _SelectedFilterItem(
-        label: '마감된 정책',
+    if (_status != PolicyStatusFilter.includeClosed) {
+      items.add(_SelectedFilterItem(
+        label: _status.summaryLabel,
         type: _FilterType.status,
       ));
     }
@@ -298,32 +293,22 @@ class _PolicyFilterBottomSheetState
   }
 
   Widget _buildToggleGroup(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _ToggleChip(
-          label: '모집 중인 정책만',
-          value: _status == PolicyStatusFilter.inProgressOnly,
-          onChanged: (value) {
-            setState(() {
-              _status = value
-                  ? PolicyStatusFilter.inProgressOnly
-                  : PolicyStatusFilter.includeClosed;
-            });
-          },
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final status in PolicyStatusFilter.uiOptions)
+              _FilterChip(
+                label: status.uiLabel,
+                selected: _status == status,
+                onTap: () => setState(() => _status = status),
+              ),
+          ],
         ),
-        _ToggleChip(
-          label: '마감된 정책만',
-          value: _status == PolicyStatusFilter.closedOnly,
-          onChanged: (value) {
-            setState(() {
-              _status = value
-                  ? PolicyStatusFilter.closedOnly
-                  : PolicyStatusFilter.includeClosed;
-            });
-          },
-        ),
+        const SizedBox(height: 12),
         _ToggleChip(
           label: '온라인 신청 가능',
           value: _showOnlyOnline,

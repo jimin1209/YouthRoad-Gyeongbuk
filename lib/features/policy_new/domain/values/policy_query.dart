@@ -1,5 +1,6 @@
 import 'policy_feed_type.dart';
 import 'policy_filter.dart';
+import 'policy_status_filter.dart';
 import 'policy_sort.dart';
 
 class PolicyQuery {
@@ -74,7 +75,7 @@ class PolicyQuery {
       ..write('|')
       ..write(normalizedFilter.isOffline?.toString() ?? 'any')
       ..write('|')
-      ..write(normalizedFilter.status.name)
+      ..write(normalizedFilter.status.queryValue)
       ..write('|')
       ..write(normalized.sort.name)
       ..write('|')
