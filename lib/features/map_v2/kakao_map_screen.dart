@@ -70,6 +70,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   bool _authErrorShown = false;
   LocationPermissionIssue? _lastPermissionIssue;
   bool _serviceGuideShown = false;
+  ProviderSubscription<CurrentLocationState>? _locationSubscription;
+  ProviderSubscription<YouthCenterMapState>? _centerErrorSubscription;
 
   Timer? _moveDebounce;
   Timer? _tooltipTimer;
@@ -96,6 +98,8 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
     _moveDebounce?.cancel();
     _tooltipTimer?.cancel();
     _locationTimer?.cancel();
+    _locationSubscription?.close();
+    _centerErrorSubscription?.close();
     super.dispose();
   }
 
@@ -323,37 +327,41 @@ class _KakaoMapScreenState extends ConsumerState<KakaoMapScreen> {
   }
 
   void _setupLocationListener() {
-    ref.listen<CurrentLocationState>(currentLocationProvider,
-        (previous, next) {
-      if (next.location != null && !_locationResolved) {
-        _locationResolved = true;
-        _locationTimer?.cancel();
-        _deviceLocation = next.location;
-        _applyNewCenter(next.location!, animate: true, fromLocation: true);
-        return;
-      }
-
-      if (!next.isLoading && !_locationResolved) {
-        _handleLocationIssues(next);
-        if (next.error != null) {
+    _locationSubscription = ref.listenManual<CurrentLocationState>(
+      currentLocationProvider,
+      (previous, next) {
+        if (next.location != null && !_locationResolved) {
           _locationResolved = true;
           _locationTimer?.cancel();
-          _applyFallbackCenter(locationError: next.error);
+          _deviceLocation = next.location;
+          _applyNewCenter(next.location!, animate: true, fromLocation: true);
+          return;
         }
-      }
-    });
+
+        if (!next.isLoading && !_locationResolved) {
+          _handleLocationIssues(next);
+          if (next.error != null) {
+            _locationResolved = true;
+            _locationTimer?.cancel();
+            _applyFallbackCenter(locationError: next.error);
+          }
+        }
+      },
+    );
   }
 
   void _setupCenterErrorListener() {
-    ref.listen<YouthCenterMapState>(youthCenterMapStateProvider,
-        (previous, next) {
-      final message = next.errorMessage;
-      final isAuthError =
-          message != null && message.contains('센터 인증 정보가 올바르지 않습니다');
-      if (next.status == YouthCenterMapStatus.error && isAuthError) {
-        _showAuthErrorOnce(message!);
-      }
-    });
+    _centerErrorSubscription = ref.listenManual<YouthCenterMapState>(
+      youthCenterMapStateProvider,
+      (previous, next) {
+        final message = next.errorMessage;
+        final isAuthError = message != null &&
+            message.contains('센터 인증 정보가 올바르지 않습니다');
+        if (next.status == YouthCenterMapStatus.error && isAuthError) {
+          _showAuthErrorOnce(message!);
+        }
+      },
+    );
   }
 
   void _handleLocationIssues(CurrentLocationState state) {
