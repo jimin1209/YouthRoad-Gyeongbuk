@@ -65,10 +65,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['searchRgnSe'] = regionValue;
     }
 
-    final statusValue = normalizedFilter.status == PolicyStatusFilter.includeClosed
-        ? null
-        : normalizedFilter.status.queryValue;
-    if (statusValue != null && statusValue.isNotEmpty) {
+    final statusValue = _mapStatusParam(normalizedFilter.status);
+    if (statusValue != null) {
       params['status'] = statusValue;
     }
 
@@ -104,7 +102,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
   void _sanitizeParams(Map<String, dynamic> params) {
     params.removeWhere((key, value) {
-      if (key == 'searchRgnSe') {
+      if (key == 'status' || key == 'searchRgnSe') {
         return value == null;
       }
       if (value == null) return true;
@@ -514,25 +512,57 @@ class PolicyRepositoryImpl implements PolicyRepository {
   PolicyQuery _sanitizeQueryForExplore(PolicyQuery query) {
     if (!_isExploreFeed(query.feedType)) return query;
 
-    final sanitizedFilter = _sanitizeFilterForExplore(query.filter);
+    final sanitizedFilter =
+        _sanitizeFilterForExplore(query.filter, feedType: query.feedType);
     return query.copyWith(filter: sanitizedFilter);
   }
 
-  PolicyFilter _sanitizeFilterForExplore(PolicyFilter filter) {
-    final sanitizedStatus = filter.status == PolicyStatusFilter.includeClosed
-        ? PolicyStatusFilter.inProgressOnly
-        : filter.status;
+  String? _mapStatusParam(PolicyStatusFilter status) {
+    switch (status) {
+      case PolicyStatusFilter.includeClosed:
+        return '';
+      case PolicyStatusFilter.inProgressOnly:
+        return 'inProgress';
+      case PolicyStatusFilter.closedOnly:
+        return 'closed';
+    }
+  }
+
+  PolicyFilter _sanitizeFilterForExplore(
+    PolicyFilter filter, {
+    required PolicyFeedType feedType,
+  }) {
     final sanitizedCategory = _sanitizeCategoryForExplore(filter.category);
-    final mappedSearchRgnSe = _mapSearchRgnSeForExplore(filter);
+    final mappedSearchRgnSe = _mapSearchRgnSeForExplore(filter, feedType);
 
     return filter.copyWith(
-      status: sanitizedStatus,
+      status: filter.status,
       category: sanitizedCategory,
       searchRgnSe: mappedSearchRgnSe,
     );
   }
 
-  String _mapSearchRgnSeForExplore(PolicyFilter filter) {
+  String _mapSearchRgnSeForExplore(
+    PolicyFilter filter,
+    PolicyFeedType feedType,
+  ) {
+    final normalizedExplicit = _normalizeRegionSegment(
+      filter.searchRgnSe,
+      allowEmpty: true,
+    );
+
+    if (normalizedExplicit != null) {
+      return normalizedExplicit;
+    }
+
+    if (feedType == PolicyFeedType.region) {
+      return 'region';
+    }
+
+    if (feedType == PolicyFeedType.all) {
+      return '';
+    }
+
     final city = _normalizeRegionSegment(filter.city);
     final district = _normalizeRegionSegment(filter.district);
 
