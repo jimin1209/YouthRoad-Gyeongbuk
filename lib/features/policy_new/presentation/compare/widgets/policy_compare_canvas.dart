@@ -27,8 +27,8 @@ class PolicyCompareCanvas extends StatefulWidget {
   final void Function(String) onOpenDetail;
   final VoidCallback onRefresh;
 
-  static const double _initialScale = 0.7;
-  static const double _minScale = 0.4;
+  static const double _initialScale = 1.0;
+  static const double _minScale = 0.8;
   static const double _maxScale = 2.0;
   static const double _zoomStep = 0.1;
 
@@ -47,6 +47,7 @@ class _PolicyCompareCanvasState extends State<PolicyCompareCanvas> {
   @override
   void initState() {
     super.initState();
+    _transformationController.addListener(_syncScale);
     _resetZoom(useSetState: false);
   }
 
@@ -60,6 +61,7 @@ class _PolicyCompareCanvasState extends State<PolicyCompareCanvas> {
 
   @override
   void dispose() {
+    _transformationController.removeListener(_syncScale);
     _transformationController.dispose();
     super.dispose();
   }
@@ -71,6 +73,9 @@ class _PolicyCompareCanvasState extends State<PolicyCompareCanvas> {
     final labelWidth = service.labelWidth;
     final mediaHeight = MediaQuery.of(context).size.height;
     final viewportHeight = math.max(mediaHeight * 0.55, 360.0);
+    final tableBaseWidth = labelWidth +
+        (CompareDiffService.columnWidth + 12) * state.policies.length +
+        AppSpacing.lg * 2;
 
     return SingleChildScrollView(
       child: Column(
@@ -125,57 +130,69 @@ class _PolicyCompareCanvasState extends State<PolicyCompareCanvas> {
               key: _viewportKey,
               height: viewportHeight,
               child: ClipRect(
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: InteractiveViewer(
-                        transformationController: _transformationController,
-                        minScale: PolicyCompareCanvas._minScale,
-                        maxScale: PolicyCompareCanvas._maxScale,
-                        panEnabled: _currentScale > 1.0,
-                        scaleEnabled: true,
-                        clipBehavior: Clip.none,
-                        onInteractionUpdate: (_) => _syncScale(),
-                        onInteractionEnd: (_) => _syncScale(),
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg,
-                            vertical: AppSpacing.md,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CompareSummaryHighlight(
-                                insights: state.insights,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final minContentWidth =
+                        math.max(constraints.maxWidth, tableBaseWidth);
+
+                    return Stack(
+                      children: [
+                        Positioned.fill(
+                          child: InteractiveViewer(
+                            transformationController: _transformationController,
+                            minScale: PolicyCompareCanvas._minScale,
+                            maxScale: PolicyCompareCanvas._maxScale,
+                            panEnabled: true,
+                            scaleEnabled: true,
+                            clipBehavior: Clip.none,
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg,
+                                vertical: AppSpacing.md,
                               ),
-                              const SizedBox(height: AppSpacing.md),
-                              CompareDiffTableWidget(
-                                policies: state.policies,
-                                diffs: state.diffs,
-                                insights: state.insights,
-                                fields: service.fields,
-                                labelWidth: labelWidth,
-                                columnWidth: CompareDiffService.columnWidth,
-                                overflowController: _overflowController,
+                              child: Center(
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minWidth: minContentWidth,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      CompareSummaryHighlight(
+                                        insights: state.insights,
+                                      ),
+                                      const SizedBox(height: AppSpacing.md),
+                                      CompareDiffTableWidget(
+                                        policies: state.policies,
+                                        diffs: state.diffs,
+                                        insights: state.insights,
+                                        fields: service.fields,
+                                        labelWidth: labelWidth,
+                                        columnWidth: CompareDiffService.columnWidth,
+                                        overflowController: _overflowController,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    Positioned(
-                      right: AppSpacing.lg,
-                      top: AppSpacing.sm,
-                      child: PolicyCompareZoomControls(
-                        currentScale: _currentScale,
-                        minScale: PolicyCompareCanvas._minScale,
-                        maxScale: PolicyCompareCanvas._maxScale,
-                        onZoomIn: _handleZoomIn,
-                        onZoomOut: _handleZoomOut,
-                        onReset: _resetZoom,
-                      ),
-                    ),
-                  ],
+                        Positioned(
+                          right: AppSpacing.lg,
+                          top: AppSpacing.sm,
+                          child: PolicyCompareZoomControls(
+                            currentScale: _currentScale,
+                            minScale: PolicyCompareCanvas._minScale,
+                            maxScale: PolicyCompareCanvas._maxScale,
+                            onZoomIn: _handleZoomIn,
+                            onZoomOut: _handleZoomOut,
+                            onReset: _resetZoom,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -211,6 +228,10 @@ class _PolicyCompareCanvasState extends State<PolicyCompareCanvas> {
     final scale = _transformationController.value.getMaxScaleOnAxis();
     final clampedScale =
         scale.clamp(PolicyCompareCanvas._minScale, PolicyCompareCanvas._maxScale);
+    if ((clampedScale - scale).abs() > 0.001) {
+      final factor = clampedScale / (scale == 0 ? 1 : scale);
+      _transformationController.value.scale(factor);
+    }
     if ((clampedScale - _currentScale).abs() > 0.001) {
       setState(() {
         _currentScale = clampedScale;

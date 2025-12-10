@@ -42,22 +42,26 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
     final state = ref.read(exploreStateProvider);
     _searchController = TextEditingController(text: state.keyword);
 
-    final controller = ref.read(exploreStateProvider.notifier);
-    final initialRegion = ref.read(regionProvider);
-    controller.ensureRegionMode(hasSelection: initialRegion?.isNotEmpty ?? false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = ref.read(exploreStateProvider.notifier);
+      final initialRegion = ref.read(regionProvider);
+      controller.ensureRegionMode(hasSelection: initialRegion?.isNotEmpty ?? false);
+    });
 
     _regionSubscription = ref.listenManual<String?>(
       regionProvider,
       (previous, next) {
         final hasSelection = next?.isNotEmpty ?? false;
-        controller.ensureRegionMode(hasSelection: hasSelection);
+        ref
+            .read(exploreStateProvider.notifier)
+            .ensureRegionMode(hasSelection: hasSelection);
       },
     );
   }
 
   @override
   void dispose() {
-    _regionSubscription?.close();
+    _regionSubscription.close();
     _searchController.dispose();
     super.dispose();
   }
@@ -65,7 +69,6 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(exploreStateProvider);
-    final controller = ref.read(exploreStateProvider.notifier);
     final filterUi = ref.watch(globalFilterProvider);
     ref.watch(regionProvider);
     final regionNotifier = ref.read(regionProvider.notifier);
@@ -106,18 +109,20 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                   _SearchBarRow(
                     keyword: keyword,
                     sortKind: sortKind,
-                    onKeywordChanged: controller.setKeyword,
-                    onSubmit: controller.setKeyword,
-                    onSortChanged: controller.setSortKind,
-                    onOpenFilterSheet: () =>
-                        _openFilterBottomSheet(context, controller, state),
+                    onKeywordChanged: (value) =>
+                        ref.read(exploreStateProvider.notifier).setKeyword(value),
+                    onSubmit: (value) =>
+                        ref.read(exploreStateProvider.notifier).setKeyword(value),
+                    onSortChanged: (value) =>
+                        ref.read(exploreStateProvider.notifier).setSortKind(value),
+                    onOpenFilterSheet: () => _openFilterBottomSheet(context),
                     textController: _searchController,
                   ),
                   const SizedBox(height: 12),
                   _QuickFilterChips(
                     statusFilter: statusFilter,
                     onToggleStatus: (value) =>
-                        controller.setStatusFilter(value),
+                        ref.read(exploreStateProvider.notifier).setStatusFilter(value),
                   ),
                   const SizedBox(height: 12),
                   _RegionDropdown(
@@ -136,9 +141,9 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                   PolicyQuerySummary(
                     summary: summary,
                     conditionSummary: queryState.conditionSummary,
-                    onReset: controller.clearFilters,
-                    onTap: () =>
-                        _openFilterBottomSheet(context, controller, state),
+                    onReset: () =>
+                        ref.read(exploreStateProvider.notifier).clearFilters(),
+                    onTap: () => _openFilterBottomSheet(context),
                     showConditionSummary: false,
                   ),
                 ],
@@ -259,11 +264,7 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
     }
   }
 
-  void _openFilterBottomSheet(
-    BuildContext context,
-    ExploreController controller,
-    ExploreState state,
-  ) {
+  void _openFilterBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -366,7 +367,9 @@ class _PolicyExploreScreenState extends ConsumerState<PolicyExploreScreen> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
-                              controller.setStatusFilter(tempStatus);
+                              ref
+                                  .read(exploreStateProvider.notifier)
+                                  .setStatusFilter(tempStatus);
                               final selectedCategory =
                                   tempCategories.isNotEmpty ? tempCategories.first : null;
                               final categoryEnum =

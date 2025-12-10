@@ -68,6 +68,28 @@ class DebugLogCollector {
       }
       _errorEntries.value = List<DebugLogEntry>.unmodifiable(_errorEntriesQueue);
     }
+    _entries.value = List<DebugLogEntry>.unmodifiable(_entriesQueue);
+
+    if (_isErrorEntry(entry)) {
+      _errorCount.value = _errorCount.value + 1;
+      _errorEntriesQueue.add(entry);
+      while (_errorEntriesQueue.length > _maxErrorEntries) {
+        _errorEntriesQueue.removeFirst();
+      }
+      _errorEntries.value = List<DebugLogEntry>.unmodifiable(_errorEntriesQueue);
+    }
+  }
+
+  bool _isErrorEntry(DebugLogEntry entry) {
+    if (entry.level == AppLogLevel.error) return true;
+
+    final lower = entry.message.toLowerCase();
+    return lower.contains('error') ||
+        lower.contains('[app][error]') ||
+        lower.contains('exception') ||
+        lower.contains('unhandled') ||
+        lower.contains('fatal') ||
+        lower.contains('unexpected');
   }
 
   bool _isErrorEntry(DebugLogEntry entry) {
@@ -376,4 +398,121 @@ void _showLogDetail(BuildContext context, DebugLogEntry log) {
       );
     },
   );
+}
+
+class DebugErrorLogPanel extends StatelessWidget {
+  const DebugErrorLogPanel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<int>(
+      valueListenable: DebugLogCollector.instance.errorCount,
+      builder: (context, errorCount, _) {
+        return ValueListenableBuilder<List<DebugLogEntry>>(
+          valueListenable: DebugLogCollector.instance.errorEntries,
+          builder: (context, entries, __) {
+            if (entries.isEmpty) {
+              return const Center(
+                child: Text(
+                  '현재 수집된 에러 로그가 없습니다.',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              );
+            }
+
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.redAccent),
+                      const SizedBox(width: 8),
+                      Text(
+                        '총 에러 로그 $errorCount개 / 표시 ${entries.length}개',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: entries.length,
+                    itemBuilder: (context, index) {
+                      final entry = entries[entries.length - 1 - index];
+                      final preview = entry.message.split('\n').first;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0x33FF6B6B)),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF6B6B),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    entry.tag ?? '[ERROR]',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _formatLogTimestamp(entry.timestamp),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        preview,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'monospace',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+String _formatLogTimestamp(DateTime time) {
+  final h = time.hour.toString().padLeft(2, '0');
+  final m = time.minute.toString().padLeft(2, '0');
+  final s = time.second.toString().padLeft(2, '0');
+  return '$h:$m:$s';
 }
