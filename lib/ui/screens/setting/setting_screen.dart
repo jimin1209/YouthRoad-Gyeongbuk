@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -49,7 +48,7 @@ class SettingScreen extends ConsumerWidget {
               );
             },
           ),
-          if (kDebugMode)
+          if (debugPanelFeatureAllowed)
             SwitchListTile(
               title: const Text('디버그 패널 활성화'),
               subtitle: const Text('디버그 버튼 표시 여부를 전환합니다.'),

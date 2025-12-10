@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/app_strings.dart';
 import '../theme/app_theme.dart';
 import 'providers/app_providers.dart';
+import '../debug/debug_panel_host.dart';
 
 class YouthRoadApp extends ConsumerWidget {
   const YouthRoadApp({super.key});
@@ -21,7 +22,7 @@ class YouthRoadApp extends ConsumerWidget {
 
       // 🔥 핵심 수정: DevtoolsOverlay 제거
       builder: (context, child) {
-        return child ?? const SizedBox.shrink();
+        return DebugPanelHost(child: child ?? const SizedBox.shrink());
       },
     );
   }
