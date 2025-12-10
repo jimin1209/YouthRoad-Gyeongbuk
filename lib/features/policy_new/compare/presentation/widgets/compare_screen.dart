@@ -64,7 +64,12 @@ class _CompareScreenState extends State<CompareScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
           child: Row(
             children: [
               Text(
@@ -87,8 +92,8 @@ class _CompareScreenState extends State<CompareScreen> {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 8,
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: headerMinHeight),
@@ -246,8 +251,8 @@ class _ZoomableCompareContent extends StatelessWidget {
         ? const NeverScrollableScrollPhysics()
         : const ClampingScrollPhysics();
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: minHeight),
+    return SizedBox(
+      height: minHeight,
       child: Stack(
         children: [
           Padding(

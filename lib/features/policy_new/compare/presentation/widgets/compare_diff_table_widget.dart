@@ -27,10 +27,9 @@ class CompareDiffTableWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleFields = fields;
     final totalWidth = labelWidth + (columnWidth + 12) * policies.length;
 
-    final content = visibleFields.isEmpty
+    final content = fields.isEmpty
         ? Container(
             width: totalWidth,
             padding: const EdgeInsets.all(12),
@@ -38,7 +37,7 @@ class CompareDiffTableWidget extends StatelessWidget {
             child: const Text('모든 항목이 동일합니다'),
           )
         : Column(
-            children: visibleFields
+            children: fields
                 .map(
                   (field) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
