@@ -83,7 +83,13 @@ class YouthCenterRemoteSource {
       if (sggCd != null) 'sggCd': sggCd,
     };
 
-    const url = 'https://www.youthcenter.go.kr/go/ythip/getSpace';
+    final url = _buildYouthCenterUrl();
+    debugPrint(
+      '[Center][INFO] baseUrl=${AppEnv.youthCenterApiBaseUrl}, path=${AppEnv.youthCenterApiPath}',
+    );
+    debugPrint(
+      '[Center][INFO] query={pageNum:$pageNum,pageSize:$pageSize,ctpvCd:$ctpvCd,sggCd:$sggCd}',
+    );
     _logRequest(
       'GET',
       url,
@@ -110,6 +116,14 @@ class YouthCenterRemoteSource {
     return dto;
   }
 
+  String _buildYouthCenterUrl() {
+    final base = _normalizeBaseUrl(AppEnv.youthCenterApiBaseUrl);
+    final path = AppEnv.youthCenterApiPath.startsWith('/')
+        ? AppEnv.youthCenterApiPath
+        : '/${AppEnv.youthCenterApiPath}';
+    return '$base$path';
+  }
+
   Future<Response<T>> _safeRequest<T>(
     Future<Response<T>> Function() runRequest, {
     required String fallbackMessage,
@@ -122,6 +136,7 @@ class YouthCenterRemoteSource {
       _logDioError(e, stack);
       final status = e.response?.statusCode;
       final reason = e.response?.statusMessage ?? e.message;
+      debugPrint('[Center][ERROR] HTTP 실패 status=$status, message=$reason');
       throw YouthCenterApiException(
         userMessage: fallbackMessage,
         statusCode: status,
@@ -149,13 +164,12 @@ class YouthCenterRemoteSource {
   }
 
   void _logResponse(Response response) {
-    if (!kDebugMode) return;
-    debugPrint(
-      '[YOUTH_CENTER_API][RES] status=${response.statusCode} uri=${response.requestOptions.uri}',
-    );
+    debugPrint('[Center][INFO] 응답 status=${response.statusCode}');
+    debugPrint('[YOUTH_CENTER_API][RES] status=${response.statusCode} uri=${response.requestOptions.uri}');
   }
 
   void _logDioError(DioException e, StackTrace stack) {
+    debugPrint('[Center][ERROR] DioException status=${e.response?.statusCode}, message=${e.message}');
     if (!kDebugMode) return;
     final request = e.requestOptions;
     debugPrint('[YOUTH_CENTER_API][ERR] url=${request.uri}');

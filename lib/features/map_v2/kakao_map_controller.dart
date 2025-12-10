@@ -484,9 +484,12 @@ class KakaoMapController {
         ),
       )
       ..setOnConsoleMessage(
-        (message) => debugPrint(
-          '[KAKAO_MAP_WEBVIEW][${message.level}] ${message.message}',
-        ),
+        (message) {
+          final levelTag = message.level == ConsoleMessageLevel.error
+              ? '[MapBridge][ERROR]'
+              : '[MapBridge][INFO]';
+          debugPrint('$levelTag ${message.message}');
+        },
       );
 
     if (controller.platform is AndroidWebViewController) {
