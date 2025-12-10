@@ -151,7 +151,7 @@ class _PolicyDetailBottomSheetState
           clipBehavior: Clip.antiAlias,
           child: SafeArea(
             top: true,
-            bottom: true,
+            bottom: false,
             child: asyncPolicy.when(
               data: (policy) => _Content(
                 policy: policy,
@@ -217,9 +217,7 @@ class _Content extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                PolicyActionBar(policy: policy),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl),
                 const AppDivider(),
                 const SizedBox(height: AppSpacing.lg),
                 _InfoSection(
@@ -258,41 +256,63 @@ class _Content extends StatelessWidget {
             ),
           ),
         ),
-        const AppDivider(),
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
-          ),
-          child: hasSchedule
-              ? Row(
-                  children: [
-                    Expanded(
-                      child: PolicyReminderButton(policy: policy),
-                    ),
-                  ],
-                )
-              : Column(
+        SafeArea(
+          top: false,
+          bottom: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const AppDivider(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    ElevatedButton(
-                      onPressed: null,
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                    PolicyActionBar(policy: policy),
+                    const SizedBox(height: AppSpacing.md),
+                    if (hasSchedule)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: PolicyReminderButton(policy: policy),
+                          ),
+                        ],
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ElevatedButton(
+                            onPressed: null,
+                            style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('알림 설정'),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            '일정 업데이트 되면 알려드릴게요',
+                            style: AppText.textTheme.bodyMedium!.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: const Text('알림 설정'),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      '일정 업데이트 되면 알려드릴게요',
-                      style: AppText.textTheme.bodyMedium!.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
                   ],
                 ),
+              ),
+            ],
+          ),
         ),
       ],
     );

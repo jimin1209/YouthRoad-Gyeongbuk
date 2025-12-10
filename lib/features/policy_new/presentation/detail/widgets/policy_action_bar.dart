@@ -147,8 +147,8 @@ class PolicyActionButton extends StatelessWidget {
     final background = resolveBackground();
     final foreground = resolveForeground();
 
-    return SizedBox(
-      height: 56,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 56),
       child: Material(
         color: background,
         shape: RoundedRectangleBorder(
