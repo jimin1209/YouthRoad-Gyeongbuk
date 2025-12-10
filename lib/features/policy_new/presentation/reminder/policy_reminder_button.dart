@@ -23,6 +23,32 @@ class PolicyReminderButton extends ConsumerWidget {
     final controller =
         ref.read(policyReminderControllerProvider(policy.id).notifier);
 
+    ref.listen<AsyncValue<PolicyReminderViewState>>(
+      policyReminderControllerProvider(policy.id),
+      (previous, next) {
+        next.whenData((viewState) {
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          if (messenger == null) return;
+
+          final errorMessage = viewState.errorMessage;
+          if (errorMessage != null) {
+            messenger.showSnackBar(
+              SnackBar(content: Text(errorMessage)),
+            );
+            controller.clearError();
+            return;
+          }
+
+          if (viewState.messages.isNotEmpty) {
+            messenger.showSnackBar(
+              SnackBar(content: Text(viewState.messages.first)),
+            );
+            controller.clearMessages();
+          }
+        });
+      },
+    );
+
     return reminderState.when(
       data: (viewState) {
         final reminders = viewState.reminders;
@@ -33,18 +59,6 @@ class PolicyReminderButton extends ConsumerWidget {
         final activeOptions =
             activeReminders.map((reminder) => reminder.timeKind).toSet();
         final hasActiveReminders = activeReminders.isNotEmpty;
-
-        if (viewState.messages.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final messenger = ScaffoldMessenger.maybeOf(context);
-            if (messenger != null) {
-              messenger.showSnackBar(
-                SnackBar(content: Text(viewState.messages.first)),
-              );
-              controller.clearMessages();
-            }
-          });
-        }
 
         return _ReminderSheetButton(
           policy: policy,
@@ -125,18 +139,6 @@ class _ReminderSheet extends ConsumerWidget {
             ? activeOptions
             : initialOptions;
 
-        if (viewState.messages.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final messenger = ScaffoldMessenger.maybeOf(context);
-            if (messenger != null) {
-              messenger.showSnackBar(
-                SnackBar(content: Text(viewState.messages.first)),
-              );
-              controller.clearMessages();
-            }
-          });
-        }
-
         return _ReminderSheetScaffold(
           policy: policy,
           viewState: viewState,
@@ -149,15 +151,7 @@ class _ReminderSheet extends ConsumerWidget {
             } else {
               next.remove(option);
             }
-            final result = await controller.setReminders(policy, next.toList());
-            if (result.hasFailure && context.mounted) {
-              final messages = controller.state.value?.messages ?? [];
-              final message =
-                  messages.isNotEmpty ? messages.first : '알림을 설정하지 못했어요.';
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(message)),
-              );
-            }
+            await controller.setReminders(policy, next.toList());
           },
           onRemove: (reminderId) => controller.removeReminder(reminderId),
           onOpenOptions: () =>
