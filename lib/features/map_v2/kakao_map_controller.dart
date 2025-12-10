@@ -262,6 +262,33 @@ class KakaoMapController {
   }
 
   /// ---------------------------------------------------------------------------
+  /// 초기 위치/반경 전달
+  /// ---------------------------------------------------------------------------
+  Future<void> initializeMap(
+    KakaoMapLatLng basePosition, {
+    double? radiusMeters,
+  }) {
+    _basePosition = basePosition;
+    _lastCircleRadius = radiusMeters ?? _lastCircleRadius;
+
+    final radiusArg = (_lastCircleRadius ?? _lastLoadRequest?.searchRadiusMeters)
+            ?.toString() ??
+        'undefined';
+
+    final script = '''
+      window.__kakaoBasePosition = { lat: ${basePosition.lat}, lng: ${basePosition.lng} };
+      if (typeof $radiusArg === 'number') {
+        window.__kakaoRadiusMeters = $radiusArg;
+      }
+      if (window.app && window.app.setBasePosition) {
+        window.app.setBasePosition(${basePosition.lat}, ${basePosition.lng}, $radiusArg);
+      }
+    ''';
+
+    return webViewController.runJavaScript(script);
+  }
+
+  /// ---------------------------------------------------------------------------
   /// 지도 조작 API
   /// ---------------------------------------------------------------------------
   Future<void> moveTo(KakaoMapLatLng center, {int? level}) {
@@ -419,13 +446,38 @@ class KakaoMapController {
     );
   }
 
+  Future<void> sendCenterUpdate(KakaoMapLatLng center) {
+    _basePosition = center;
+    return _runWhenReady(
+      () => webViewController.runJavaScript(
+        '''
+          if (window.app && window.app.setBasePosition) {
+            window.app.setBasePosition(${center.lat}, ${center.lng}, ${_lastCircleRadius ?? _lastLoadRequest?.searchRadiusMeters ?? 20000});
+          }
+        '''.trim(),
+      ),
+    );
+  }
+
   Future<void> updateCircle(
     KakaoMapLatLng center, {
     double? radiusMeters,
   }) {
-    final effectiveCenter = _basePosition ?? center;
-    final effectiveRadius =
-        radiusMeters ?? _lastLoadRequest?.searchRadiusMeters ?? 20000;
+    return sendCircleUpdate(center: center, radiusMeters: radiusMeters);
+  }
+
+  Future<void> sendCircleUpdate({
+    KakaoMapLatLng? center,
+    double? radiusMeters,
+  }) {
+    final effectiveCenter = center ?? _basePosition ?? _lastLoadRequest?.center;
+    if (effectiveCenter == null) return Future.value();
+
+    final effectiveRadius = radiusMeters ??
+        _lastCircleRadius ??
+        _lastLoadRequest?.searchRadiusMeters ??
+        20000;
+
     final shouldSkipUpdate = _ready &&
         _basePosition != null &&
         _lastCircleRadius != null &&
@@ -434,13 +486,16 @@ class KakaoMapController {
     if (shouldSkipUpdate) {
       return Future.value();
     }
+
+    _basePosition = effectiveCenter;
     _lastCircleRadius = effectiveRadius;
-    final radiusArg = effectiveRadius.toString();
+
     final script = '''
       if (window.app && window.app.updateCircle) {
-        window.app.updateCircle(${effectiveCenter.lat}, ${effectiveCenter.lng}, $radiusArg);
+        window.app.updateCircle(${effectiveCenter.lat}, ${effectiveCenter.lng}, ${effectiveRadius.toString()});
       }
     ''';
+
     return _runWhenReady(
       () => webViewController.runJavaScript(script),
     );
@@ -496,19 +551,19 @@ class KakaoMapController {
     return completer.future;
   }
 
-    void _emitEvent(KakaoMapEvent event) {
-      if (_disposed || _eventController.isClosed) return;
-      try {
-        _eventController.add(event);
-      } on StateError {
-        // Controller was closed concurrently; ignore
-      }
+  void _emitEvent(KakaoMapEvent event) {
+    if (_disposed || _eventController.isClosed) return;
+    try {
+      _eventController.add(event);
+    } on StateError {
+      // Controller was closed concurrently; ignore
     }
+  }
 
   /// ---------------------------------------------------------------------------
   /// WebView 초기화
   /// ---------------------------------------------------------------------------
-    void _initializeController() {
+  void _initializeController() {
 
     final PlatformWebViewControllerCreationParams params;
     if (WebViewPlatform.instance is WebKitWebViewPlatform) {
@@ -529,9 +584,15 @@ class KakaoMapController {
       )
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageFinished: (_) {
+          onPageFinished: (_) async {
             _ready = false;
-            webViewController.runJavaScript(
+            final basePosition =
+                _lastLoadRequest?.basePosition ?? _lastLoadRequest?.center;
+            final radius = _lastLoadRequest?.searchRadiusMeters;
+            if (basePosition != null) {
+              await initializeMap(basePosition, radiusMeters: radius);
+            }
+            await webViewController.runJavaScript(
               'window.kakaoBootstrap && window.kakaoBootstrap();',
             );
           },
@@ -641,6 +702,8 @@ class KakaoMapController {
       case 'ready':
         return KakaoMapEventType.ready;
       case 'marker':
+        return KakaoMapEventType.markerTap;
+      case 'onMarkerTap':
         return KakaoMapEventType.markerTap;
       case 'onMarkerClicked':
         return KakaoMapEventType.markerClicked;

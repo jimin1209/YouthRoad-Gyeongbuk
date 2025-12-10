@@ -155,6 +155,12 @@ class _KakaoMapWebViewState extends ConsumerState<KakaoMapWebView> {
       _safeMarkFatalError();
       _safeCallback(() => widget.onError?.call('LOAD_ERROR'));
     });
+
+    _controller.sendCenterUpdate(basePosition);
+    _controller.sendCircleUpdate(
+      center: basePosition,
+      radiusMeters: widget.radiusKm * 1000,
+    );
   }
 
   void _handleEvent(KakaoMapEvent event) {
