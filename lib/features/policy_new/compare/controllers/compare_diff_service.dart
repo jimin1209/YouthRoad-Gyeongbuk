@@ -18,6 +18,7 @@ class CompareFieldDefinition {
 
 class CompareDiffService {
   static const _labelWidth = 120.0;
+  static const columnWidth = 240.0;
 
   double get labelWidth => _labelWidth;
 
