@@ -198,6 +198,9 @@ class KakaoMapController {
   int _reloadAttempts = 0;
   _LoadRequest? _lastLoadRequest;
 
+  bool get hasApiKey => _apiKey.isNotEmpty;
+  String get apiKeyPreview => _maskApiKey(_apiKey);
+
   Stream<KakaoMapEvent> get events => _eventController.stream;
   bool get isReady => _ready;
   int get reloadAttempts => _reloadAttempts;
@@ -415,6 +418,9 @@ class KakaoMapController {
   /// ---------------------------------------------------------------------------
   void _logApiKey() {
     final masked = _maskApiKey(_apiKey);
+    if (_apiKey.isEmpty) {
+      debugPrint('[Map][ERROR] KakaoMap API Key 가 비어 있습니다. --dart-define=KAKAO_MAP_API_KEY 값을 확인하세요.');
+    }
     debugPrint('[KAKAO_MAP_WEBVIEW] Using KakaoMap API Key: $masked');
   }
 
@@ -490,6 +496,17 @@ class KakaoMapController {
               ? '[MapBridge][ERROR]'
               : '[MapBridge][INFO]';
           debugPrint('$levelTag ${message.message}');
+          final log = KakaoMapMessage(
+            type: 'log',
+            payload: {
+              'message': message.message,
+              'level': message.level.name,
+            },
+            logLevel: message.level.name,
+            origin: 'kakao-map-js',
+            timestamp: DateTime.now(),
+          );
+          _eventController.add(KakaoMapEvent(KakaoMapEventType.log, log));
         },
       );
 
