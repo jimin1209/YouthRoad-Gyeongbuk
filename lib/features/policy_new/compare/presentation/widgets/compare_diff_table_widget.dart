@@ -14,7 +14,6 @@ class CompareDiffTableWidget extends StatelessWidget {
     required this.fields,
     required this.labelWidth,
     required this.columnWidth,
-    this.showOnlyDiffs = false,
     this.overflowController,
   });
 
@@ -24,14 +23,11 @@ class CompareDiffTableWidget extends StatelessWidget {
   final List<CompareFieldDefinition> fields;
   final double labelWidth;
   final double columnWidth;
-  final bool showOnlyDiffs;
   final HorizontalOverflowController? overflowController;
 
   @override
   Widget build(BuildContext context) {
-    final visibleFields = showOnlyDiffs
-        ? fields.where((f) => diffs[f.key] == true).toList()
-        : fields;
+    final visibleFields = fields;
     final totalWidth = labelWidth + (columnWidth + 12) * policies.length;
 
     final content = visibleFields.isEmpty
