@@ -20,24 +20,32 @@ class PolicyReminderViewState {
     this.isRefreshing = false,
     this.isMutating = false,
     this.messages = const [],
+    this.errorMessage,
   });
+
+  static const _noValue = Object();
 
   final List<PolicyReminder> reminders;
   final bool isRefreshing;
   final bool isMutating;
   final List<String> messages;
+  final String? errorMessage;
 
   PolicyReminderViewState copyWith({
     List<PolicyReminder>? reminders,
     bool? isRefreshing,
     bool? isMutating,
     List<String>? messages,
+    Object? errorMessage = _noValue,
   }) {
     return PolicyReminderViewState(
       reminders: reminders ?? this.reminders,
       isRefreshing: isRefreshing ?? this.isRefreshing,
       isMutating: isMutating ?? this.isMutating,
       messages: messages ?? this.messages,
+      errorMessage: identical(errorMessage, _noValue)
+          ? this.errorMessage
+          : errorMessage as String?,
     );
   }
 
@@ -94,6 +102,7 @@ class PolicyReminderController
             isRefreshing: false,
             isMutating: false,
             messages: ['알림 정보를 불러오지 못했습니다: $e'],
+            errorMessage: null,
           ),
         );
         print('PolicyReminderController.initialize failed: $e\n$st');
@@ -121,6 +130,7 @@ class PolicyReminderController
             isRefreshing: false,
             isMutating: false,
             messages: preserveMessages ? base.messages : const [],
+            errorMessage: null,
           ),
         );
       } catch (e, st) {
@@ -129,6 +139,7 @@ class PolicyReminderController
             isRefreshing: false,
             isMutating: false,
             messages: ['알림 정보를 불러오지 못했습니다: $e'],
+            errorMessage: null,
           ),
         );
         print('PolicyReminderController.load failed: $e\n$st');
@@ -143,7 +154,13 @@ class PolicyReminderController
     return _silenceEventsWhile(() async {
       final previous = state.value ?? PolicyReminderViewState.initial();
       final previousReminders = await _fetchReminders();
-      state = AsyncData(previous.copyWith(isMutating: true, messages: const []));
+      state = AsyncData(
+        previous.copyWith(
+          isMutating: true,
+          messages: const [],
+          errorMessage: null,
+        ),
+      );
       try {
         final nextKinds = kinds.toSet();
         if (nextKinds.isEmpty) {
@@ -156,7 +173,12 @@ class PolicyReminderController
               isRefreshing: false,
               isMutating: false,
               messages: const [],
+              errorMessage: null,
             ),
+          );
+
+          print(
+            '[Reminder][INFO] 알림 토글 성공 (policyId: $policyId, isActive: ${refreshed.isNotEmpty})',
           );
 
           return const ReminderMutationResult(reminders: [], failures: []);
@@ -173,13 +195,24 @@ class PolicyReminderController
           await _restorePreviousReminders(previousReminders, refreshed);
 
           _pendingEventReload = false;
+          final failureMessages = _messagesForResult(result);
+          final failureMessage = failureMessages.isNotEmpty
+              ? failureMessages.first
+              : '알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.';
           state = AsyncData(
             PolicyReminderViewState(
               reminders: previousReminders,
               isRefreshing: false,
               isMutating: false,
-              messages: _messagesForResult(result),
+              messages: const [],
+              errorMessage: failureMessage,
             ),
+          );
+
+          final firstFailure =
+              failureMessages.isNotEmpty ? failureMessages.first : null;
+          print(
+            '[Reminder][WARN] 알림 토글 실패 (policyId: $policyId, error: $firstFailure)',
           );
 
           return ReminderMutationResult(
@@ -208,7 +241,12 @@ class PolicyReminderController
             isRefreshing: false,
             isMutating: false,
             messages: _messagesForResult(result),
+            errorMessage: null,
           ),
+        );
+
+        print(
+          '[Reminder][INFO] 알림 토글 성공 (policyId: $policyId, isActive: ${latestReminders.isNotEmpty})',
         );
 
         return result;
@@ -232,20 +270,24 @@ class PolicyReminderController
                 timeKind: kind,
                 failure: const ScheduleFailure(
                   type: ScheduleFailureType.unknown,
-                  message: '알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.',
-                  code: ScheduleFailureCode.internalException,
-                ),
+                message: '알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.',
+                code: ScheduleFailureCode.internalException,
               ),
-            )
-            .toList();
+            ),
+          )
+          .toList();
         state = AsyncData(
           PolicyReminderViewState(
             reminders: previousReminders,
             isRefreshing: false,
             isMutating: false,
-            messages: const ['알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.'],
+            messages: const [],
+            errorMessage:
+                '알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.',
           ),
         );
+        print(
+            '[Reminder][WARN] 알림 토글 실패 (policyId: $policyId, error: $e)');
         print('PolicyReminderController.setReminders failed: $e\n$st');
         return ReminderMutationResult(
           reminders: previousReminders,
@@ -258,7 +300,12 @@ class PolicyReminderController
   Future<void> removeReminder(String reminderId) async {
     await _silenceEventsWhile(() async {
       final previous = state.value ?? PolicyReminderViewState.initial();
-      state = AsyncData(previous.copyWith(isMutating: true));
+      state = AsyncData(
+        previous.copyWith(
+          isMutating: true,
+          errorMessage: null,
+        ),
+      );
       try {
         await _service.cancelReminder(reminderId, deleteFromRepository: true);
         final current = await _fetchReminders();
@@ -267,6 +314,7 @@ class PolicyReminderController
             reminders: current,
             isMutating: false,
             messages: const [],
+            errorMessage: null,
           ),
         );
       } catch (e, st) {
@@ -274,6 +322,7 @@ class PolicyReminderController
           previous.copyWith(
             isMutating: false,
             messages: ['알림을 취소하지 못했어요. 잠시 후 다시 시도해 주세요.'],
+            errorMessage: null,
           ),
         );
         print('PolicyReminderController.removeReminder failed: $e\n$st');
@@ -284,7 +333,12 @@ class PolicyReminderController
   Future<void> cancelAll() async {
     await _silenceEventsWhile(() async {
       final previous = state.value ?? PolicyReminderViewState.initial();
-      state = AsyncData(previous.copyWith(isMutating: true));
+      state = AsyncData(
+        previous.copyWith(
+          isMutating: true,
+          errorMessage: null,
+        ),
+      );
       try {
         await _service.cancelAllByPolicy(
           policyId,
@@ -295,6 +349,7 @@ class PolicyReminderController
             reminders: const [],
             isMutating: false,
             messages: const [],
+            errorMessage: null,
           ),
         );
       } catch (e, st) {
@@ -302,6 +357,7 @@ class PolicyReminderController
           previous.copyWith(
             isMutating: false,
             messages: ['모든 알림을 취소하지 못했어요. 잠시 후 다시 시도해 주세요.'],
+            errorMessage: null,
           ),
         );
         print('PolicyReminderController.cancelAll failed: $e\n$st');
@@ -312,6 +368,12 @@ class PolicyReminderController
   void clearMessages() {
     state = state.whenData(
       (viewState) => viewState.copyWith(messages: const []),
+    );
+  }
+
+  void clearError() {
+    state = state.whenData(
+      (viewState) => viewState.copyWith(errorMessage: null),
     );
   }
 
