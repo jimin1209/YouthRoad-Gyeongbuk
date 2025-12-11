@@ -619,29 +619,29 @@ String? _regionParam(
   bool explore = false,
 }) {
   if (explore) {
-    // searchRgnSe가 영어이면 무시
+    // searchRgnSe가 영어면 제외
     final explicit = _normalizeRegionSegment(filter.searchRgnSe);
     if (explicit != null && explicit.isNotEmpty && !_isEnglish(explicit)) {
-      return explicit; // 한국어만 허용
+      return explicit;
     }
 
-    // city가 영어면 무시
+    // 시/군 한국어만 허용
     final city = _normalizeRegionSegment(filter.city);
     if (city != null && city.isNotEmpty && !_isEnglish(city)) {
       return city;
     }
 
-    // district가 영어면 무시
+    // 읍/면/동 한국어만 허용
     final district = _normalizeRegionSegment(filter.district);
     if (district != null && district.isNotEmpty && !_isEnglish(district)) {
       return district;
     }
 
-    // explore는 기본값을 무조건 경상북도로 강제
+    // Explore 기본 = 경상북도
     return "경상북도";
   }
 
-  // Explore 외 기존 로직 유지
+  // Explore 외 기존 로직
   final city = _normalizeRegionSegment(filter.city);
   final district = _normalizeRegionSegment(filter.district);
 
@@ -655,14 +655,15 @@ String? _regionParam(
   final effectiveRegion = filter.region == PolicyRegion.all
       ? settings.defaultRegion
       : filter.region;
-  final mappedRegion = _mapRegion(effectiveRegion);
 
+  final mappedRegion = _mapRegionToKorean(effectiveRegion);
   if (mappedRegion != null && mappedRegion.isNotEmpty) {
     return mappedRegion;
   }
 
   return null;
 }
+
 
 String? _mapRegion(PolicyRegion region) {
   switch (region) {
