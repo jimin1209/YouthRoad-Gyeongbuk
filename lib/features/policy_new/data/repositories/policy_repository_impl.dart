@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/policy.dart';
@@ -32,7 +31,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
   });
 
   // ===========================================================
-  // QUERY PARAM BUILDING
+  //  PARAM BUILDING
   // ===========================================================
   Map<String, dynamic> _buildQueryParameters({
     required PolicyQuery query,
@@ -40,8 +39,8 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int pageSize,
   }) {
     final sanitizedQuery = _sanitizeQueryForExplore(query);
-    final normalizedQuery = sanitizedQuery.normalize();
-    final normalizedFilter = normalizedQuery.filter;
+    final normalized = sanitizedQuery.normalize();
+    final filter = normalized.filter;
 
     final normalizedPage = page < 1 ? 1 : page;
     final normalizedSize = pageSize <= 0 ? settings.pageSize : pageSize;
@@ -52,82 +51,74 @@ class PolicyRepositoryImpl implements PolicyRepository {
       'recordCount': normalizedSize,
       'pagingYn': 'Y',
 
-      // Explore = 반드시 Y (서버가 all/빈값 허용 안 함)
-      'searchDsplyYn': _isExploreFeed(normalizedQuery.feedType) ? 'Y' : 'all',
+      // Explore = 반드시 Y
+      'searchDsplyYn': _isExploreFeed(normalized.feedType) ? 'Y' : 'all',
 
-      'feed_type': normalizedQuery.feedType.name,
-      'sort': normalizedQuery.sort.name,
+      'feed_type': normalized.feedType.name,
+      'sort': normalized.sort.name,
     };
 
-    // 검색어
-    if (normalizedQuery.keyword != null &&
-        normalizedQuery.keyword!.isNotEmpty) {
-      params['searchPolicyNm'] = normalizedQuery.keyword;
+    // 키워드
+    if (normalized.keyword != null && normalized.keyword!.isNotEmpty) {
+      params['searchPolicyNm'] = normalized.keyword;
     }
 
-    // REGION → searchRgnSe
-    final isExploreFeed = _isExploreFeed(normalizedQuery.feedType);
-    final regionValue = _regionParam(
-      normalizedFilter,
-      explore: isExploreFeed,
-    );
-
+    // REGION
+    final isExplore = _isExploreFeed(normalized.feedType);
+    final regionValue = _regionParam(filter, explore: isExplore);
     if (regionValue != null && regionValue.isNotEmpty) {
       params['searchRgnSe'] = regionValue;
     }
 
     // STATUS
-    final statusValue = _mapStatusParam(normalizedFilter.status);
+    final statusValue = _mapStatusParam(filter.status);
     if (statusValue != null) {
       params['status'] = statusValue;
     }
 
     // CATEGORY
-    if (normalizedFilter.category != null) {
-      params['searchPolicyType'] = _mapCategory(normalizedFilter.category!);
+    if (filter.category != null) {
+      params['searchPolicyType'] = _mapCategory(filter.category!);
     }
 
     // 온라인 여부
-    if (normalizedFilter.isOnline != null) {
-      params['aplyYn'] = normalizedFilter.isOnline! ? 'Y' : 'N';
+    if (filter.isOnline != null) {
+      params['aplyYn'] = filter.isOnline! ? 'Y' : 'N';
     }
 
     // 기관
-    if (normalizedFilter.institutionId != null &&
-        normalizedFilter.institutionId!.isNotEmpty) {
-      params['instNo'] = normalizedFilter.institutionId;
+    if (filter.institutionId != null && filter.institutionId!.isNotEmpty) {
+      params['instNo'] = filter.institutionId;
     }
 
     // 부서
-    if (normalizedFilter.departmentId != null &&
-        normalizedFilter.departmentId!.isNotEmpty) {
-      params['deptNo'] = normalizedFilter.departmentId;
+    if (filter.departmentId != null && filter.departmentId!.isNotEmpty) {
+      params['deptNo'] = filter.departmentId;
     }
 
-    // tags
-    if (normalizedQuery.tags.isNotEmpty) {
-      params['tags'] = normalizedQuery.tags.join(',');
+    // TAGS
+    if (normalized.tags.isNotEmpty) {
+      params['tags'] = normalized.tags.join(',');
     }
-
-    if (normalizedFilter.tags.isNotEmpty) {
-      params['filterTags'] = normalizedFilter.tags.join(',');
+    if (filter.tags.isNotEmpty) {
+      params['filterTags'] = filter.tags.join(',');
     }
 
     _sanitizeParams(params);
     return params;
   }
 
-  // searchRgnSe 삭제 금지
+  // searchRgnSe 제거 금지
   void _sanitizeParams(Map<String, dynamic> params) {
     params.removeWhere((key, value) {
-      if (key == 'status') return value == null;
       if (key == 'searchRgnSe') return false;
+      if (key == 'status') return value == null;
 
       if (value == null) return true;
       if (value is String) {
-        final trimmed = value.trim();
-        if (trimmed.isEmpty) return true;
-        if (key == 'searchPolicyType' && trimmed.toLowerCase() == 'all') {
+        final t = value.trim();
+        if (t.isEmpty) return true;
+        if (key == "searchPolicyType" && t.toLowerCase() == "all") {
           return true;
         }
       }
@@ -138,24 +129,24 @@ class PolicyRepositoryImpl implements PolicyRepository {
   // ===========================================================
   // FETCHERS
   // ===========================================================
+
   @override
   Future<PolicyResult<List<Policy>>> fetchPolicies({
     required int page,
     required int pageSize,
   }) async {
-    final effectivePageSize = pageSize == 0 ? settings.pageSize : pageSize;
+    final size = pageSize == 0 ? settings.pageSize : pageSize;
 
     if (settings.enableCache) {
       final cacheResult = _tryReturnCache(
         cache.getPageWithStatus(page, settings.cacheTtl),
-        () => _fetchAndCacheDefault(page, effectivePageSize),
+        () => _fetchAndCacheDefault(page, size),
       );
-
       if (cacheResult != null) return cacheResult;
     }
 
     debugPrint('[CACHE:MISS]');
-    return _fetchAndCacheDefault(page, effectivePageSize);
+    return _fetchAndCacheDefault(page, size);
   }
 
   @override
@@ -164,20 +155,21 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int page,
     required int pageSize,
   }) async {
-    final sanitizedQuery = _sanitizeQueryForExplore(query);
-    final normalizedQuery = sanitizedQuery.normalize();
+    final sanitized = _sanitizeQueryForExplore(query);
+    final normalized = sanitized.normalize();
 
-    final effectivePageSize = pageSize == 0 ? settings.pageSize : pageSize;
-    final scopeKey = normalizedQuery.cacheScopeKey;
+    final size = pageSize == 0 ? settings.pageSize : pageSize;
+    final scopeKey = normalized.cacheScopeKey;
 
-    if (_isIdBasedQuery(normalizedQuery)) {
+    // ID 기반 조회 (즐겨찾기/비교)
+    if (_isIdBasedQuery(normalized)) {
       if (settings.enableCache) {
         final cacheResult = _tryReturnCache(
           cache.getPageWithStatus(page, settings.cacheTtl, scope: scopeKey),
           () => _fetchAndCacheByIds(
-            query: normalizedQuery,
+            query: normalized,
             page: page,
-            pageSize: effectivePageSize,
+            pageSize: size,
             scopeKey: scopeKey,
           ),
         );
@@ -186,20 +178,21 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
       debugPrint('[CACHE:MISS]');
       return _fetchAndCacheByIds(
-        query: normalizedQuery,
+        query: normalized,
         page: page,
-        pageSize: effectivePageSize,
+        pageSize: size,
         scopeKey: scopeKey,
       );
     }
 
+    // 일반 Explore 조회
     if (settings.enableCache) {
       final cacheResult = _tryReturnCache(
         cache.getPageWithStatus(page, settings.cacheTtl, scope: scopeKey),
         () => _fetchAndCacheQuery(
-          query: normalizedQuery,
+          query: normalized,
           page: page,
-          pageSize: effectivePageSize,
+          pageSize: size,
           scopeKey: scopeKey,
         ),
       );
@@ -208,9 +201,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
 
     debugPrint('[CACHE:MISS]');
     return _fetchAndCacheQuery(
-      query: normalizedQuery,
+      query: normalized,
       page: page,
-      pageSize: effectivePageSize,
+      pageSize: size,
       scopeKey: scopeKey,
     );
   }
@@ -220,29 +213,21 @@ class PolicyRepositoryImpl implements PolicyRepository {
   // -----------------------------------------------------------
   Future<PolicyResult<List<Policy>>> _fetchAndCacheDefault(
     int page,
-    int effectivePageSize,
+    int pageSize,
   ) async {
-    final defaultFilter = PolicyFilter(region: PolicyRegion.all);
-    final defaultQuery = PolicyQuery(
-      filter: defaultFilter,
-      feedType: PolicyFeedType.all,
-    );
-
-    final sanitizedDefaultQuery = _sanitizeQueryForExplore(defaultQuery);
+    final filter = PolicyFilter(region: PolicyRegion.all);
+    final query = PolicyQuery(filter: filter, feedType: PolicyFeedType.all);
+    final sanitized = _sanitizeQueryForExplore(query);
 
     final result = await _fetchFromRemote(
-      query: sanitizedDefaultQuery,
+      query: sanitized,
       page: page,
-      pageSize: effectivePageSize,
+      pageSize: pageSize,
     );
 
     if (settings.enableCache && result.isSuccess && result.data != null) {
       cache.savePage(page, result.data!);
-      cache.savePageForScope(
-        sanitizedDefaultQuery.cacheScopeKey,
-        page,
-        result.data!,
-      );
+      cache.savePageForScope(sanitized.cacheScopeKey, page, result.data!);
     }
 
     return result;
@@ -257,20 +242,21 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int pageSize,
     required String scopeKey,
   }) async {
-    final sanitizedQuery = _sanitizeQueryForExplore(query);
-    final normalizedQuery = sanitizedQuery.normalize();
-    final filter = normalizedQuery.filter;
+    final sanitized = _sanitizeQueryForExplore(query);
+    final normalized = sanitized.normalize();
+    final f = normalized.filter;
 
     try {
       logger.info(
         '[Explore][INFO] fetchPoliciesByQuery(scope: $scopeKey, '
-        'region: ${filter.region.name}/${filter.province}/${filter.city ?? '-'} (${filter.district ?? '-'}), '
-        'status: ${filter.status.queryValue}, sort: ${normalizedQuery.sort.name}, keyword: ${normalizedQuery.keyword ?? '-'}, '
-        'feed: ${normalizedQuery.feedType.name}, page: $page, size: $pageSize)',
+        'region: ${f.region.name}/${f.province}/${f.city ?? '-'} (${f.district ?? '-'}), '
+        'status: ${f.status.queryValue}, sort: ${normalized.sort.name}, '
+        'keyword: ${normalized.keyword ?? '-'}, feed: ${normalized.feedType.name}, '
+        'page: $page, size: $pageSize)',
       );
 
       final result = await _fetchFromRemote(
-        query: normalizedQuery,
+        query: normalized,
         page: page,
         pageSize: pageSize,
       );
@@ -297,10 +283,7 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required String scopeKey,
   }) async {
     final ids = query.tags;
-
-    if (ids.isEmpty) {
-      return PolicyResult.success(<Policy>[]);
-    }
+    if (ids.isEmpty) return PolicyResult.success(<Policy>[]);
 
     return _loadPoliciesByIds(
       ids: ids,
@@ -318,22 +301,22 @@ class PolicyRepositoryImpl implements PolicyRepository {
     required int page,
     required int pageSize,
   }) async {
-    final sanitizedQuery = _sanitizeQueryForExplore(query);
-    final scopeKey = sanitizedQuery.cacheScopeKey;
+    final sanitized = _sanitizeQueryForExplore(query);
+    final scopeKey = sanitized.cacheScopeKey;
 
     final params = _buildQueryParameters(
-      query: sanitizedQuery,
+      query: sanitized,
       page: page,
       pageSize: pageSize,
     );
 
     debugPrint('[Explore][Sanitized Params] $params');
 
-    if (_isExploreFeed(sanitizedQuery.feedType)) {
+    if (_isExploreFeed(sanitized.feedType)) {
       debugPrint(
-        '[Policy][Explore][FETCH] status=${sanitizedQuery.filter.status.queryValue}, '
-        'category=${sanitizedQuery.filter.category?.name ?? 'null'}, '
-        'keyword=${sanitizedQuery.keyword ?? '-'}, page=$page, size=$pageSize',
+        '[Policy][Explore][FETCH] status=${sanitized.filter.status.queryValue}, '
+        'category=${sanitized.filter.category?.name ?? 'null'}, '
+        'keyword=${sanitized.keyword ?? '-'}, page=$page, size=$pageSize',
       );
     }
 
@@ -343,14 +326,14 @@ class PolicyRepositoryImpl implements PolicyRepository {
       );
 
       final models = await remote.fetchPoliciesWithParams(params);
-      final domainList = models.map((e) => e.toDomain()).toList();
+      final domain = models.map((e) => e.toDomain()).toList();
 
-      final filteredByStatus =
-          _applyStatusFilter(sanitizedQuery.filter, domainList);
-      final filtered = _isIdBasedQuery(sanitizedQuery)
-          ? filteredByStatus
-          : _applyTagFilter(sanitizedQuery, filteredByStatus);
-      final sorted = _applySorting(sanitizedQuery.sort, filtered);
+      // 필터 적용
+      final statusFiltered = _applyStatusFilter(sanitized.filter, domain);
+      final tagFiltered = _isIdBasedQuery(sanitized)
+          ? statusFiltered
+          : _applyTagFilter(sanitized, statusFiltered);
+      final sorted = _applySorting(sanitized.sort, tagFiltered);
 
       logger.info(
         '원격 데이터 수신 (scope: $scopeKey, page: $page, fetched=${models.length}, filtered=${sorted.length})',
@@ -364,15 +347,14 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
   }
 
-  // ===========================================================
-  // MISSING METHOD #1 — fetchPolicyDetail
-  // ===========================================================
+  // -----------------------------------------------------------
+  // DETAIL FETCH
+  // -----------------------------------------------------------
   @override
   Future<PolicyResult<Policy>> fetchPolicyDetail(String id) async {
     try {
       final model = await remote.fetchPolicyDetail(id);
-      final domain = model.toDomain();
-      return PolicyResult.success(domain);
+      return PolicyResult.success(model.toDomain());
     } catch (e, st) {
       logger.error('정책 상세 조회 실패', e, st);
       if (e is PolicyFailure) return PolicyResult.failure(e);
@@ -380,9 +362,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
   }
 
-  // ===========================================================
-  // MISSING METHOD #2 — _mapCategory
-  // ===========================================================
+  // -----------------------------------------------------------
+  // CATEGORY MAPPING
+  // -----------------------------------------------------------
   String _mapCategory(PolicyCategory category) {
     switch (category) {
       case PolicyCategory.employment:
@@ -404,9 +386,9 @@ class PolicyRepositoryImpl implements PolicyRepository {
     }
   }
 
-  // ===========================================================
-  // MISSING METHOD #3 — _loadPoliciesByIds
-  // ===========================================================
+  // -----------------------------------------------------------
+  // LOAD BY IDS
+  // -----------------------------------------------------------
   Future<PolicyResult<List<Policy>>> _loadPoliciesByIds({
     required List<String> ids,
     required int page,
@@ -415,131 +397,101 @@ class PolicyRepositoryImpl implements PolicyRepository {
   }) async {
     try {
       final models = await remote.fetchPoliciesByIds(ids);
-      final domainList = models.map((e) => e.toDomain()).toList();
-      return PolicyResult.success(domainList);
+      final list = models.map((e) => e.toDomain()).toList();
+      return PolicyResult.success(list);
     } catch (e, st) {
       logger.error('_loadPoliciesByIds 실패', e, st);
       if (e is PolicyFailure) return PolicyResult.failure(e);
       return PolicyResult.failure(const UnknownFailure());
     }
   }
-  // ===========================================================
-  // TAG FILTER / SORT HELPERS
-  // ===========================================================
 
-  bool _isIdBasedQuery(PolicyQuery query) =>
-      query.feedType == PolicyFeedType.favorite ||
-      query.feedType == PolicyFeedType.bookmarked ||
-      query.feedType == PolicyFeedType.compare;
+  // ===========================================================
+  // TAG FILTER / SORT
+  // ===========================================================
+  bool _isIdBasedQuery(PolicyQuery q) =>
+      q.feedType == PolicyFeedType.favorite ||
+      q.feedType == PolicyFeedType.bookmarked ||
+      q.feedType == PolicyFeedType.compare;
 
   List<Policy> _applyStatusFilter(PolicyFilter filter, List<Policy> list) {
     if (filter.status == PolicyStatusFilter.includeClosed) return list;
 
-    final nowKst = DateTime.now().toUtc().add(const Duration(hours: 9));
-    final today = DateTime(nowKst.year, nowKst.month, nowKst.day);
+    final now = DateTime.now().toUtc().add(const Duration(hours: 9));
+    final today = DateTime(now.year, now.month, now.day);
 
-    bool isOngoing(Policy policy) {
-      final start = policy.applicationStartDate;
-      final end = policy.applicationEndDate;
+    bool ongoing(Policy p) {
+      final s = p.applicationStartDate;
+      final e = p.applicationEndDate;
+      final sd = s == null ? null : DateTime(s.year, s.month, s.day);
+      final ed = e == null ? null : DateTime(e.year, e.month, e.day);
 
-      final startDate =
-          start == null ? null : DateTime(start.year, start.month, start.day);
-      final endDate =
-          end == null ? null : DateTime(end.year, end.month, end.day);
-
-      final hasStarted = startDate == null || !startDate.isAfter(today);
-      final notEnded = endDate == null || !endDate.isBefore(today);
-      return hasStarted && notEnded;
+      final started = sd == null || !sd.isAfter(today);
+      final notEnded = ed == null || !ed.isBefore(today);
+      return started && notEnded;
     }
 
-    bool isClosed(Policy policy) {
-      final end = policy.applicationEndDate;
-      if (end == null) return false;
-      final endDate = DateTime(end.year, end.month, end.day);
-      return endDate.isBefore(today);
+    bool closed(Policy p) {
+      final e = p.applicationEndDate;
+      if (e == null) return false;
+      final ed = DateTime(e.year, e.month, e.day);
+      return ed.isBefore(today);
     }
 
-    return list.where((policy) {
-      if (filter.status == PolicyStatusFilter.inProgressOnly) {
-        return isOngoing(policy);
-      }
-      return isClosed(policy);
+    return list.where((p) {
+      if (filter.status == PolicyStatusFilter.inProgressOnly) return ongoing(p);
+      return closed(p);
     }).toList();
   }
 
   List<Policy> _applyTagFilter(PolicyQuery query, List<Policy> list) {
-    final combinedTags = {
-      ...query.tags,
-      ...query.filter.tags,
-    }..removeWhere((tag) => tag.trim().isEmpty);
+    final tags = {...query.tags, ...query.filter.tags}
+      ..removeWhere((e) => e.trim().isEmpty);
+    if (tags.isEmpty) return list;
 
-    if (combinedTags.isEmpty) return list;
-
-    return list.where((policy) {
-      final haystack =
-          '${policy.title} ${policy.summary} ${policy.institution} ${policy.department}'
-              .toLowerCase();
-      return combinedTags.any(
-        (tag) => haystack.contains(tag.toLowerCase()),
-      );
+    return list.where((p) {
+      final text = '${p.title} ${p.summary} ${p.institution} ${p.department}'
+          .toLowerCase();
+      return tags.any((tag) => text.contains(tag.toLowerCase()));
     }).toList();
   }
 
-  // ===========================================================
-  // SORTING HELPERS
-  // ===========================================================
   List<Policy> _applySorting(PolicySortOption sort, List<Policy> list) {
     final sorted = List<Policy>.from(list);
 
-    int compareDesc(DateTime? a, DateTime? b) {
+    int desc(DateTime? a, DateTime? b) {
       if (a == null && b == null) return 0;
       if (a == null) return 1;
       if (b == null) return -1;
       return b.compareTo(a);
     }
 
-    DateTime? coalesce(DateTime? a, DateTime? b) => a ?? b;
+    DateTime? pick(DateTime? a, DateTime? b) => a ?? b;
 
     switch (sort) {
       case PolicySortOption.latest:
-        sorted.sort((a, b) {
-          return compareDesc(
-            coalesce(a.createdAt, a.updatedAt),
-            coalesce(b.createdAt, b.updatedAt),
-          );
-        });
+        sorted.sort((a, b) => desc(
+            pick(a.createdAt, a.updatedAt), pick(b.createdAt, b.updatedAt)));
         break;
-
       case PolicySortOption.recommendation:
-        sorted.sort((a, b) {
-          return compareDesc(
-            coalesce(a.updatedAt, a.createdAt),
-            coalesce(b.updatedAt, b.createdAt),
-          );
-        });
+        sorted.sort((a, b) => desc(
+            pick(a.updatedAt, a.createdAt), pick(b.updatedAt, b.createdAt)));
         break;
-
       case PolicySortOption.deadline:
         sorted.sort((a, b) {
-          final endA = a.applicationEndDate;
-          final endB = b.applicationEndDate;
-          if (endA == null && endB == null) return 0;
-          if (endA == null) return 1;
-          if (endB == null) return -1;
-          return endA.compareTo(endB);
+          final ea = a.applicationEndDate;
+          final eb = b.applicationEndDate;
+          if (ea == null && eb == null) return 0;
+          if (ea == null) return 1;
+          if (eb == null) return -1;
+          return ea.compareTo(eb);
         });
         break;
-
       case PolicySortOption.popularity:
-        sorted.sort((a, b) {
-          return compareDesc(
-            coalesce(a.applicationStartDate, a.createdAt),
-            coalesce(b.applicationStartDate, b.createdAt),
-          );
-        });
+        sorted.sort((a, b) => desc(pick(a.applicationStartDate, a.createdAt),
+            pick(b.applicationStartDate, b.createdAt)));
         break;
     }
-
     return sorted;
   }
 
@@ -585,21 +537,25 @@ class PolicyRepositoryImpl implements PolicyRepository {
     );
   }
 
-  /// 🔥 Explore 기본 지역은 무조건 한글 "경상북도"
+  /// Explore 쿼리는 무조건 한국어 searchRgnSe 사용 (서버 요구사항)
   String _mapSearchRgnSeForExplore(
     PolicyFilter filter,
     PolicyFeedType feedType,
   ) {
     final explicit = _normalizeRegionSegment(filter.searchRgnSe);
-    if (explicit != null && explicit.isNotEmpty) return explicit;
+    if (explicit != null && explicit.isNotEmpty && !_isEnglish(explicit)) {
+      return explicit;
+    }
 
     final city = _normalizeRegionSegment(filter.city);
+    if (city != null && city.isNotEmpty && !_isEnglish(city)) return city;
+
     final district = _normalizeRegionSegment(filter.district);
+    if (district != null && district.isNotEmpty && !_isEnglish(district)) {
+      return district;
+    }
 
-    if (district != null && district.isNotEmpty) return district;
-    if (city != null && city.isNotEmpty) return city;
-
-    // Explore 기본 지역 고정: "경상북도"
+    // 기본값
     return '경상북도';
   }
 
@@ -614,88 +570,31 @@ class PolicyRepositoryImpl implements PolicyRepository {
       feedType == PolicyFeedType.region ||
       feedType == PolicyFeedType.search;
 
-String? _regionParam(
-  PolicyFilter filter, {
-  bool explore = false,
-}) {
-  if (explore) {
-    // searchRgnSe가 영어면 제외
-    final explicit = _normalizeRegionSegment(filter.searchRgnSe);
-    if (explicit != null && explicit.isNotEmpty && !_isEnglish(explicit)) {
-      return explicit;
+  // ===========================================================
+  // REGION PARAM (한국어 우선)
+  // ===========================================================
+  String? _regionParam(
+    PolicyFilter filter, {
+    bool explore = false,
+  }) {
+    if (explore) {
+      final explicit = _normalizeRegionSegment(filter.searchRgnSe);
+      if (explicit != null && explicit.isNotEmpty && !_isEnglish(explicit)) {
+        return explicit;
+      }
+
+      final city = _normalizeRegionSegment(filter.city);
+      if (city != null && city.isNotEmpty && !_isEnglish(city)) return city;
+
+      final district = _normalizeRegionSegment(filter.district);
+      if (district != null && district.isNotEmpty && !_isEnglish(district)) {
+        return district;
+      }
+
+      return "경상북도";
     }
 
-    // 시/군 한국어만 허용
-    final city = _normalizeRegionSegment(filter.city);
-    if (city != null && city.isNotEmpty && !_isEnglish(city)) {
-      return city;
-    }
-
-    // 읍/면/동 한국어만 허용
-    final district = _normalizeRegionSegment(filter.district);
-    if (district != null && district.isNotEmpty && !_isEnglish(district)) {
-      return district;
-    }
-
-    // Explore 기본 = 경상북도
-    return "경상북도";
-  }
-
-  // Explore 외 기존 로직
-  final city = _normalizeRegionSegment(filter.city);
-  final district = _normalizeRegionSegment(filter.district);
-
-  if (city != null && city.isNotEmpty) {
-    if (district != null && district.isNotEmpty) {
-      return '$city|$district';
-    }
-    return city;
-  }
-
-  final effectiveRegion = filter.region == PolicyRegion.all
-      ? settings.defaultRegion
-      : filter.region;
-
-  final mappedRegion = _mapRegionToKorean(effectiveRegion);
-  if (mappedRegion != null && mappedRegion.isNotEmpty) {
-    return mappedRegion;
-  }
-
-  return null;
-}
-
-
-String? _mapRegion(PolicyRegion region) {
-  switch (region) {
-    case PolicyRegion.seoul:
-      return '서울특별시';
-    case PolicyRegion.busan:
-      return '부산광역시';
-    case PolicyRegion.daegu:
-      return '대구광역시';
-    case PolicyRegion.incheon:
-      return '인천광역시';
-    case PolicyRegion.gwangju:
-      return '광주광역시';
-    case PolicyRegion.daejeon:
-      return '대전광역시';
-    case PolicyRegion.ulsan:
-      return '울산광역시';
-    case PolicyRegion.gyeongbuk:
-      return '경상북도';
-    case PolicyRegion.all:
-      return null; // 전체는 null 처리 → explore에서는 override됨
-  }
-}
-
-// 영어 문자열 체크
-bool _isEnglish(String value) {
-  final reg = RegExp(r'^[a-zA-Z]+$');
-  return reg.hasMatch(value);
-}
-
-
-    // Explore 외 (즐겨찾기 등)에서만 사용
+    // Explore 외 기존 로직
     final city = _normalizeRegionSegment(filter.city);
     final district = _normalizeRegionSegment(filter.district);
 
@@ -706,7 +605,7 @@ bool _isEnglish(String value) {
       return city;
     }
 
-    // 영어코드 → 한글 행정구역
+    // 영어 Region → 한국어 Region으로 매핑
     final effectiveRegion = filter.region == PolicyRegion.all
         ? settings.defaultRegion
         : filter.region;
@@ -714,14 +613,6 @@ bool _isEnglish(String value) {
     return _mapRegionToKorean(effectiveRegion);
   }
 
-  String? _normalizeRegionSegment(String? v, {bool allowEmpty = false}) {
-    if (v == null) return null;
-    final trimmed = v.trim();
-    if (trimmed.isEmpty || trimmed == '전체') return null;
-    return trimmed;
-  }
-
-  /// 🔥 영어 region → 한글 행정구역으로 통일
   String? _mapRegionToKorean(PolicyRegion region) {
     switch (region) {
       case PolicyRegion.seoul:
@@ -745,10 +636,21 @@ bool _isEnglish(String value) {
     }
   }
 
+  bool _isEnglish(String value) {
+    final reg = RegExp(r'^[a-zA-Z]+$');
+    return reg.hasMatch(value);
+  }
+
+  String? _normalizeRegionSegment(String? v, {bool allowEmpty = false}) {
+    if (v == null) return null;
+    final trimmed = v.trim();
+    if (trimmed.isEmpty || trimmed == '전체') return null;
+    return trimmed;
+  }
+
   // ===========================================================
   // CACHE HELPERS
   // ===========================================================
-
   PolicyResult<List<Policy>>? _tryReturnCache(
     CacheLookupResult? cached,
     Future<PolicyResult<List<Policy>>> Function() refresher,
