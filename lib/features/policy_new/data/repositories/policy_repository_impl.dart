@@ -63,11 +63,15 @@ class PolicyRepositoryImpl implements PolicyRepository {
       params['searchPolicyNm'] = normalized.keyword;
     }
 
-    // REGION
+// REGION
     final isExplore = _isExploreFeed(normalized.feedType);
     final regionValue = _regionParam(filter, explore: isExplore);
-    if (regionValue != null && regionValue.isNotEmpty) {
-      params['searchRgnSe'] = regionValue;
+
+// Explore는 searchRgnSe 제거 → 전체 조회 강제
+    if (!isExplore) {
+      if (regionValue != null && regionValue.isNotEmpty) {
+        params['searchRgnSe'] = regionValue;
+      }
     }
 
     // STATUS
